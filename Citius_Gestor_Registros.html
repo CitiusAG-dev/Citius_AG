@@ -613,9 +613,12 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .field input.field-error,.field select.field-error,.field .vu-group input.field-error,.field .vu-group select.field-error{
     border-color:var(--red)!important;box-shadow:0 0 0 1px var(--red)}
   /* Valor capturado que no coincide con ninguna opción de su lista configurada (ej. cargas desde Excel) —
-     puramente informativo: no bloquea guardar, no cuenta como obligatorio faltante, no afecta el % de
-     completado. Se distingue a propósito de .field-error (que sí es un error de guardado que bloquea). */
-  .field-value-mismatch{background-color:rgba(226,72,61,.14)!important}
+     no bloquea guardar (a diferencia de .field-error, que sí es un error de guardado que bloquea), pero
+     desde v3.44.1 SÍ cuenta como obligatorio faltante en los badges/% de completado si el campo es
+     required (ver countMissingRequired()/completionStats()). v3.44.1, pedido explícito del usuario: mismo
+     borde+sombra rojos que .field-error además del fondo rojo clarito que ya tenía, para que se vea igual
+     de "pendiente" que un campo vacío. */
+  .field-value-mismatch{background-color:rgba(226,72,61,.14)!important;border-color:var(--red)!important;box-shadow:0 0 0 1px var(--red)}
   .view-val{width:100%;padding:8px 10px;background:var(--panel-2);border:1px solid transparent;
             border-radius:8px;color:var(--txt);font-size:13px;min-height:35px;display:flex;align-items:center}
   .field .vu-group{display:flex;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;overflow:hidden}
@@ -885,7 +888,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Configuración</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="Versión de la aplicación">v3.44.0</div>
+      <div class="app-version" title="Versión de la aplicación">v3.44.1</div>
     </nav>
   </aside>
   <div class="main">
@@ -2731,7 +2734,15 @@ function completionStats(ent, rec){
   const total=req.length+(trackPhoto?1:0);
   if(!total) return null;
   let filled=0;
-  req.forEach(f=>{ const v=rec[f.key]; if(v!=null && String(v).trim()!=="") filled++; });
+  // v3.44.1, pedido explícito del usuario: un campo obligatorio de lista con un valor capturado pero fuera
+  // del catálogo configurado (fieldValueMismatch(), el "*Pendiente* (no está en la lista)" en rojo del
+  // formulario) tampoco cuenta como lleno aquí — antes solo se miraba que no estuviera vacío.
+  req.forEach(f=>{
+    const v=rec[f.key];
+    if(v==null || String(v).trim()==="") return;
+    if(fieldValueMismatch(ent,f,rec)) return;
+    filled++;
+  });
   /* v3.39.3: antes llamaba hasPhoto(código SIN sufijo), que dejó de existir desde que la foto obligatoria
      se guarda como "{codigo}_FACHADA.ext" (v3.28.0/v3.29.0) — siempre daba "falta" aunque la foto sí
      estuviera. Ahora reusa photoMissingCount(), la misma lógica ya correcta que usa la pestaña Fotografía
@@ -3750,13 +3761,19 @@ function pairFieldsByUnit(list){
   });
   return items;
 }
-/* Counts, within one group's fields, how many are marked required and are empty in `record` */
-function countMissingRequired(groupFields, record){
+/* Counts, within one group's fields, how many are marked required and are empty in `record` — v3.44.1,
+   pedido explícito del usuario: también cuenta como pendiente un campo obligatorio de lista cuyo valor SÍ
+   está capturado pero ya no está en el catálogo configurado (fieldValueMismatch(), el mismo "*Pendiente*
+   (no está en la lista)" en rojo que ya se ve en el formulario) — antes esos campos no sumaban aquí aunque
+   se vieran marcados como error. Requiere `ent` (antes no lo recibía) porque fieldValueMismatch() lo
+   necesita para resolver listas en cascada. */
+function countMissingRequired(ent, groupFields, record){
   let n=0;
   groupFields.forEach(f=>{
     if(!f.required) return;
     const v=record ? record[f.key] : undefined;
-    if(v==null || String(v).trim()==="") n++;
+    if(v==null || String(v).trim()===""){ n++; return; }
+    if(fieldValueMismatch(ent,f,record)) n++;
   });
   return n;
 }
@@ -3777,8 +3794,10 @@ function photoMissingCount(ent,record){
    ofrecerían hoy? Pensado para cargas desde Excel que puedan traer valores que no coincidan con las listas
    configuradas — misma comparación exacta que ya usa listOptionsHtml/cascadeSelectOptionsHtml para decidir
    si agregar el aviso "(no está en la lista)", así vista y edición siempre coinciden en qué campos marcar.
-   Puramente visual: NO cuenta en countMissingRequired (badges del menú de la ficha) ni en completionStats
-   (% de la tabla) — ninguna de las 2 lo consulta. */
+   v3.44.1, pedido explícito del usuario: antes era "puramente visual" (no la consultaban ni
+   countMissingRequired ni completionStats) — el usuario notó que un campo obligatorio con un valor fuera de
+   catálogo (marcado en rojo, "*Pendiente*") NO se estaba contando como pendiente en ninguno de los 2, y
+   debería. Ahora ambos la consultan (ver sus propios comentarios). */
 function fieldValueMismatch(ent, f, record){
   const raw=record&&record[f.key]!=null?String(record[f.key]):"";
   if(!raw) return false;
@@ -3932,7 +3951,7 @@ function buildForm(ent, record){
       html+= item.pair ? renderPairField(item.valueField, item.unitField) : renderStandaloneField(item.field);
     });
     html+=`</div>`;
-    panels.push({label:g, html, missing:countMissingRequired(groups[g], record)});
+    panels.push({label:g, html, missing:countMissingRequired(ent, groups[g], record)});
   }
   if(PHOTO_ID_FIELD[ent]) panels.push({label:"Fotografía", html:buildImageBlock(ent), missing:photoMissingCount(ent,record)});
   const nav=panels.map((p,i)=>{
@@ -3965,7 +3984,7 @@ function updateFormNavBadges(){
   buttons.forEach((btn,i)=>{
     const gName=groupNames[i];
     let badge=btn.querySelector(".form-nav-badge");
-    const missing=gName?countMissingRequired(groups[gName], rec):0;
+    const missing=gName?countMissingRequired(current, groups[gName], rec):0;
     if(missing>0){
       if(!badge){ badge=document.createElement("span"); badge.className="form-nav-badge"; btn.appendChild(badge); }
       badge.textContent=missing;
@@ -4026,7 +4045,7 @@ function buildViewForm(ent, record){
       html+=`<div class="field"><label>${fieldLabel(f.key)}${reqMark}${helpIcon}</label><div class="view-val${mismatchCls}"${mismatchTitle}>${displayVal}</div></div>`;
     });
     html+=`</div>`;
-    panels.push({label:g, html, missing:countMissingRequired(groups[g], record)});
+    panels.push({label:g, html, missing:countMissingRequired(ent, groups[g], record)});
   }
   if(PHOTO_ID_FIELD[ent]) panels.push({label:"Fotografía", html:buildImageViewBlock(ent), missing:photoMissingCount(ent,record)});
   const nav=panels.map((p,i)=>{
@@ -5435,7 +5454,10 @@ function renderLandDeckAerialMaps(chunks){
       if(polyKey && rec[polyKey]){
         try{
           const gj=JSON.parse(rec[polyKey]);
-          bounds=L.geoJSON(gj,{style:{color:"#f0b323", weight:3, fillOpacity:.15}}).addTo(map).getBounds();
+          // v3.44.1, pedido explícito del usuario: contorno verde (--green, #1e9e5a) en vez del amarillo de
+          // siempre (#f0b323, el mismo que usa el aéreo de Layout en Propiedades) — SOLO en esta tabla de
+          // Terrenos, no se tocó el color de ningún otro mapa/polígono de la app.
+          bounds=L.geoJSON(gj,{style:{color:"#1e9e5a", weight:3, fillOpacity:.15}}).addTo(map).getBounds();
         }catch(e){ /* polígono inválido/corrupto: se ignora, queda solo el pin */ }
       }
       // v3.44.0, pedido explícito del usuario ("quitar el pin que está dentro del polígono"): el pin

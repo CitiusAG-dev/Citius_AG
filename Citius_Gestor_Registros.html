@@ -933,7 +933,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Configuración</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="Ver notas de versión" onclick="openReleaseNotes()">v3.44.4</div>
+      <div class="app-version" title="Ver notas de versión" onclick="openReleaseNotes()">v3.44.5</div>
     </nav>
   </aside>
   <div class="main">
@@ -2470,6 +2470,9 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"3.44.5", date:"2026-08-20", items:[
+    "Mapa para dibujar el polígono y mapa para ubicar LATITUDE/LONGITUDE: si el registro (nuevo o existente) ya tiene el Estado capturado, el mapa arranca centrado ahí en vez de siempre en Saltillo; si no hay Estado capturado, arranca mostrando México completo."
+  ]},
   {version:"3.44.4", date:"2026-08-20", items:[
     "Barra del módulo Mapa: el botón \"Capas\" se movió junto a \"Selector\" (antes quedaba hasta el extremo derecho) y se quitó la línea divisoria entre \"Mostrar\" y \"Selector\"; también se le dio un poco más de aire al conteo de ubicaciones y entre \"Selector\"/\"Capas\".",
     "Corregido: cambiar entre \"Polígonos\" y \"Pines\" en el módulo Mapa ya no reinicia el zoom/vista.",
@@ -4236,6 +4239,65 @@ function initPolyMapIfNeeded(){
   polyMap.addControl(drawControl);
   polyMap.on(L.Draw.Event.CREATED, e=>{ polyDrawnItems.clearLayers(); polyDrawnItems.addLayer(e.layer); });
 }
+/* ==== Vista por defecto del mapa según el Estado capturado (v3.44.5, pedido explícito del usuario: "cuando
+   abro el mapa para dibujar el polígono siempre aparece en Saltillo") ====
+   Centros aproximados de los 32 estados de México — cada uno acepta varias formas del nombre (inglés/
+   español, con/sin acento, abreviaturas como "CDMX"/"DF") porque el valor real viene de la lista STATE que
+   cada usuario configura a su gusto (Configuración > Listas): no hay una lista fija de nombres oficiales
+   que podamos garantizar, así que se compara de forma flexible en vez de exacta. Es solo centro+zoom
+   aproximado (no el polígono real de límites estatales) — nomás para arrancar más cerca de donde
+   probablemente esté la propiedad/terreno; el usuario sigue pudiendo mover el mapa y hacer zoom libre. */
+const MEXICO_STATE_VIEWS=[
+  {names:["aguascalientes"], center:[21.98,-102.28], zoom:9},
+  {names:["baja california","baja california norte"], center:[30.84,-115.28], zoom:7},
+  {names:["baja california sur"], center:[26.04,-111.66], zoom:7},
+  {names:["campeche"], center:[18.83,-90.53], zoom:8},
+  {names:["chiapas"], center:[16.75,-93.13], zoom:8},
+  {names:["chihuahua"], center:[28.63,-106.07], zoom:7},
+  {names:["coahuila","coahuila de zaragoza"], center:[27.29,-102.02], zoom:7},
+  {names:["colima"], center:[19.25,-103.72], zoom:9},
+  {names:["ciudad de mexico","cdmx","mexico city","df","distrito federal"], center:[19.43,-99.13], zoom:10},
+  {names:["durango"], center:[24.59,-104.66], zoom:7},
+  {names:["guanajuato"], center:[20.92,-101.18], zoom:8},
+  {names:["guerrero"], center:[17.55,-99.51], zoom:8},
+  {names:["hidalgo"], center:[20.48,-98.87], zoom:8},
+  {names:["jalisco"], center:[20.42,-103.35], zoom:8},
+  {names:["mexico","estado de mexico"], center:[19.36,-99.63], zoom:8},
+  {names:["michoacan"], center:[19.42,-101.91], zoom:8},
+  {names:["morelos"], center:[18.68,-99.10], zoom:9},
+  {names:["nayarit"], center:[21.5,-104.9], zoom:8},
+  {names:["nuevo leon"], center:[25.59,-99.99], zoom:8},
+  {names:["oaxaca"], center:[17.06,-96.73], zoom:8},
+  {names:["puebla"], center:[19.04,-98.2], zoom:8},
+  {names:["queretaro"], center:[20.59,-100.39], zoom:9},
+  {names:["quintana roo"], center:[19.18,-88.48], zoom:8},
+  {names:["san luis potosi"], center:[22.16,-100.98], zoom:8},
+  {names:["sinaloa"], center:[25.17,-107.48], zoom:7},
+  {names:["sonora"], center:[29.3,-110.5], zoom:7},
+  {names:["tabasco"], center:[17.98,-92.93], zoom:8},
+  {names:["tamaulipas"], center:[24.27,-98.84], zoom:7},
+  {names:["tlaxcala"], center:[19.32,-98.24], zoom:10},
+  {names:["veracruz","veracruz de ignacio de la llave"], center:[19.17,-96.13], zoom:7},
+  {names:["yucatan"], center:[20.71,-89.09], zoom:8},
+  {names:["zacatecas"], center:[22.77,-102.58], zoom:7}
+];
+function normalizeStateText(s){
+  return String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+}
+function mexicoStateView(stateRaw){
+  const norm=normalizeStateText(stateRaw);
+  if(!norm) return null;
+  return MEXICO_STATE_VIEWS.find(s=>s.names.includes(norm)) || null;
+}
+/* Lee el campo STATE del formulario ABIERTO en ese momento (nuevo o existente) — funciona para un registro
+   nuevo aún sin guardar, que es justo el caso reportado. Si no hay match (STATE vacío o un valor que no
+   reconocemos), cae a un centro/zoom que muestra México completo, en vez de un punto arbitrario de un solo
+   estado. */
+function defaultMapViewForOpenForm(){
+  const stateEl=document.querySelector('#mBody select[data-key="STATE"], #mBody input[data-key="STATE"]');
+  const view=stateEl ? mexicoStateView(stateEl.value) : null;
+  return view ? {center:view.center, zoom:view.zoom} : {center:[23.6,-102.5], zoom:5};
+}
 function openPolygonMap(){
   document.getElementById("mapOverlay").classList.add("show");
   initPolyMapIfNeeded();
@@ -4243,12 +4305,16 @@ function openPolygonMap(){
     polyMap.invalidateSize();
     polyDrawnItems.clearLayers();
     const raw=document.getElementById("polygonValueInput").value;
-    let center=[25.5,-100.9], zoom=12;
+    // v3.44.5, pedido explícito del usuario: antes el fallback (sin LATITUDE/LONGITUDE capturado, que es
+    // el caso normal en un registro nuevo) siempre era un punto fijo en Saltillo. Ahora usa el Estado ya
+    // capturado en el formulario (defaultMapViewForOpenForm()) si existe, o México completo si no.
+    const defaultView=defaultMapViewForOpenForm();
+    let center=defaultView.center, zoom=defaultView.zoom;
     const latInp=document.querySelector('#mBody input[data-key="LATITUDE"]');
     const lngInp=document.querySelector('#mBody input[data-key="LONGITUDE"]');
     if(latInp&&lngInp&&latInp.value&&lngInp.value){
       const la=parseFloat(latInp.value), lo=parseFloat(lngInp.value);
-      if(!isNaN(la)&&!isNaN(lo)) center=[la,lo];
+      if(!isNaN(la)&&!isNaN(lo)){ center=[la,lo]; zoom=12; }
     }
     if(raw){
       try{
@@ -4311,7 +4377,10 @@ function openPinMap(){
   initPinMapIfNeeded();
   setTimeout(()=>{
     pinMap.invalidateSize();
-    let center=[25.5,-100.9], zoom=13;
+    // v3.44.5, pedido explícito del usuario: mismo fix que openPolygonMap() — el fallback (sin LATITUDE/
+    // LONGITUDE, el caso normal en un registro nuevo) ya no es un punto fijo en Saltillo.
+    const defaultView=defaultMapViewForOpenForm();
+    let center=defaultView.center, zoom=defaultView.zoom;
     const latInp=document.querySelector('#mBody input[data-key="LATITUDE"]');
     const lngInp=document.querySelector('#mBody input[data-key="LONGITUDE"]');
     if(latInp&&lngInp&&latInp.value&&lngInp.value){

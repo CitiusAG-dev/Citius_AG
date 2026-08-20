@@ -310,6 +310,16 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      lista "BROKERS_CAG" (potencialmente larga) no estire el popover sin límite. */
   .cover-edit-checklist{display:flex;flex-direction:column;gap:2px;max-height:160px;overflow-y:auto;
     border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--panel-2)}
+  /* v3.43.8: franja blanca a la izquierda del Mapa reportada por el usuario en el PDF impreso — el intento
+     de invalidateSize()+delay antes de imprimir no la quitó (no era timing de impresión), así que en vez de
+     seguir cazando la causa real se optó por un margen blanco a propósito (mismo criterio: "que no se vea
+     como error de un lado"), afinado a pedido del usuario en varias rondas hasta estos valores. El padding
+     en sí y el reacomodo de .map-page-badge/.deck-note para esta página viven en `body.printing-deck` más
+     abajo (junto al resto de reglas de ese mismo patrón) — el usuario pidió que en pantalla, dentro del
+     módulo Presentación, el mapa se siga viendo a sangre completa como siempre, y que el margen solo
+     aparezca al imprimir/exportar PDF. Solo afecta esta página del deck (`.map-page-canvas`/
+     `.map-page-badge` no se usan en ningún otro mapa de la app — ni el de captura de polígono, ni el pin
+     picker, ni el aéreo de Layout). */
   .deck-page.map-page{padding:0;position:relative;z-index:0;overflow:hidden;aspect-ratio:4/3}
   .map-page-canvas{width:100%;height:100%;background:#eee;position:relative;z-index:0}
   .map-page-badge{position:absolute;top:16px;left:16px;z-index:1000;background:#fff;padding:8px 14px;
@@ -485,6 +495,17 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   body.printing-deck .pres-main{padding:10px 1px 1px 13px} /* top right bottom left */
   body.printing-deck #presPages,
   body.printing-deck #landPresPages{position:static;left:auto;top:auto;width:100%;zoom:1}
+  /* v3.43.8, pedido explícito del usuario: el margen blanco alrededor del Mapa (ver `.deck-page.map-page`
+     más arriba) solo debe verse al imprimir/exportar PDF — en pantalla, dentro del módulo Presentación, el
+     mapa se sigue viendo a sangre completa como siempre. Va aquí (bajo `body.printing-deck`, no dentro de
+     `@media print`) por la misma razón que el resto de este bloque: preparePrintPageSize() mide el layout
+     ANTES de que el navegador entre a modo impresión, así que si el padding viviera solo en `@media print`
+     se mediría de menos. El badge/nota se reacomodan la misma medida de cada lado para seguir viéndose
+     pegados a la esquina/borde del mapa ya con el padding puesto — el padding-left es 0 en ambos casos
+     (pantalla y print), así que su posición `left` no necesita override aquí. */
+  body.printing-deck .deck-page.map-page{padding:14px 28px 14px 0}
+  body.printing-deck .map-page-badge{top:30px}
+  body.printing-deck .map-page .deck-note{right:44px;bottom:26px}
   table{border-collapse:collapse;width:100%;font-size:12px}
   th,td{padding:6px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
   th{background:var(--panel-2);color:var(--muted);font-weight:600;position:sticky;top:0;font-size:11.5px;
@@ -857,7 +878,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Configuración</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="Versión de la aplicación">v3.43.7</div>
+      <div class="app-version" title="Versión de la aplicación">v3.43.8</div>
     </nav>
   </aside>
   <div class="main">

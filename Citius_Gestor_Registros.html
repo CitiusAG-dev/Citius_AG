@@ -220,6 +220,11 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
                 border-radius:10px;color:var(--txt);font-size:14px}
   .search svg{position:absolute;left:11px;top:11px;opacity:.5}
   .count{color:var(--muted);font-size:12px;white-space:nowrap}
+  /* v3.44.3 (ajuste, pedido explícito del usuario): el conteo de ubicaciones y el selector "Vista" del
+     módulo Mapa se veían muy juntos (solo el gap:14px normal de .map-toolbar, sin caja/borde propio que
+     ayude a distinguirlos como sí tienen "Vista"/"Mostrar" entre sí) — aire extra solo aquí, por id, para
+     no afectar `.count` en ningún otro lado de la app (tablas, etc.). */
+  #mapCount{margin-right:10px}
   button.btn{background:var(--accent);color:var(--accent-ink);border:none;padding:10px 16px;border-radius:10px;
              font-weight:600;cursor:pointer;font-size:14px;display:inline-flex;align-items:center;gap:6px}
   button.btn:hover{background:var(--accent-2)}
@@ -255,7 +260,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      el panel flotante del selector de capas — mismo contenido (mapLayerFilterHtml(), sin cambios), solo
      cambia el envoltorio visual. `.map-layers-selector` toma el `margin-left:auto` que antes tenía este div
      (empujar el selector al extremo derecho de la barra), ya que ahora ese div vive escondido/flotando. */
-  .map-layers-selector{position:relative;margin-left:auto;display:flex;align-items:center;gap:8px}
+  /* v3.44.3 (ajuste, pedido explícito del usuario): antes `margin-left:auto` lo empujaba hasta el extremo
+     derecho de la barra; ahora queda en flujo normal, justo después de "Selector" (mismo orden que ya
+     tenía en el HTML — el `margin-left:auto` era lo único que lo separaba). */
+  .map-layers-selector{position:relative;display:flex;align-items:center;gap:8px;margin-left:14px}
   /* v3.44.3, pedido explícito del usuario: etiquetas "Selector"/"Capas" junto a sus botones, mismo estilo
      de texto que ya usan las etiquetas "Vista"/"Mostrar" del inicio de la barra (.unit-view-select label). */
   .map-tools-label{font-size:12.5px;color:var(--muted)}
@@ -270,7 +278,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .map-popup-tag{display:inline-block;font-size:11px;font-weight:600;padding:2px 7px;border-radius:20px;margin-top:4px}
   .map-body{display:flex;flex-direction:row;flex:1;min-height:0;gap:16px}
   #allPolygonsMapEl{flex:1;min-width:0;min-height:300px;border-radius:var(--radius);overflow:hidden;border:1px solid var(--line);position:relative;z-index:0}
-  .map-select-tools{display:flex;align-items:center;gap:6px;margin-left:14px;padding-left:14px;border-left:1px solid var(--line)}
+  /* v3.44.3 (ajuste, pedido explícito del usuario): se quitó la línea divisoria de la izquierda (antes
+     border-left) entre "Mostrar" y "Selector" — ya no hace falta el margin-left/padding-left extra que
+     solo existía para darle aire a esa línea; el gap:14px normal de .map-toolbar ya separa bien los grupos. */
+  .map-select-tools{display:flex;align-items:center;gap:6px}
   .map-tool-btn{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--muted);cursor:pointer}
   .map-tool-btn:hover{color:var(--txt);border-color:var(--muted)}
   .map-tool-btn.active{background:rgba(240,179,35,.16);border-color:var(--accent);color:var(--accent-ink)}
@@ -922,7 +933,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Configuración</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="Ver notas de versión" onclick="openReleaseNotes()">v3.44.3</div>
+      <div class="app-version" title="Ver notas de versión" onclick="openReleaseNotes()">v3.44.4</div>
     </nav>
   </aside>
   <div class="main">
@@ -2459,6 +2470,11 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"3.44.4", date:"2026-08-20", items:[
+    "Barra del módulo Mapa: el botón \"Capas\" se movió junto a \"Selector\" (antes quedaba hasta el extremo derecho) y se quitó la línea divisoria entre \"Mostrar\" y \"Selector\"; también se le dio un poco más de aire al conteo de ubicaciones y entre \"Selector\"/\"Capas\".",
+    "Corregido: cambiar entre \"Polígonos\" y \"Pines\" en el módulo Mapa ya no reinicia el zoom/vista.",
+    "Presentación (página \"Mapa\", Propiedades y Terrenos): los pines que quedan muy juntos se vuelven a separar cada vez que se hace zoom, no solo al abrir el mapa — antes, si se alejaba más el zoom a mano, volvían a amontonarse."
+  ]},
   {version:"3.44.3", date:"2026-08-20", items:[
     "Nuevo selector de capas en el módulo Mapa: antes la lista de capas (Propiedades/Parques/Terrenos/Red Eléctrica) era una fila fija en la barra; ahora vive en un panel que se abre con un botón, con el mismo color y cantidad de siempre por capa.",
     "Nuevas etiquetas \"Selector\" y \"Capas\" en la barra del módulo Mapa, junto a sus botones correspondientes.",
@@ -5775,6 +5791,10 @@ function renderLandPresMap(list){
     const marker=L.marker([p.lat,p.lng],{icon}).bindPopup(escapeHtml(p.rec.PROPERTY_NAME||p.rec.ID__LAND||"")).addTo(landPresMapInstance);
     markerData.push({marker, lat:p.lat, lng:p.lng});
   });
+  // v3.44.3, pedido explícito del usuario: mismo fix que renderPresMap() — declutterMapPins() se recalcula
+  // en cada `zoomend`, no solo en el fitBounds() inicial, para que los pines no vuelvan a amontonarse si el
+  // usuario aleja más el zoom a mano.
+  landPresMapInstance.on("zoomend", ()=>declutterMapPins(landPresMapInstance, markerData));
   setTimeout(()=>{
     landPresMapInstance.invalidateSize();
     if(pts.length){
@@ -6026,6 +6046,13 @@ function renderPresMap(list){
     const marker=L.marker([p.lat,p.lng],{icon}).bindPopup(escapeHtml(p.rec.PROPERTY_NAME||p.rec.MAPPING_CODE||"")).addTo(presMapInstance);
     markerData.push({marker, lat:p.lat, lng:p.lng});
   });
+  // v3.44.3, pedido explícito del usuario: declutterMapPins() solo se recalculaba UNA vez, al fitBounds()
+  // inicial — si el usuario alejaba más el zoom a mano (para tener de referencia avenidas/aeropuerto, como
+  // ya hacen siempre), los pines volvían a amontonarse porque nunca se volvía a separar en el nuevo zoom.
+  // Ahora se recalcula en cada `zoomend` — declutterMapPins() ya recalcula siempre desde las coordenadas
+  // REALES guardadas en `markerData` (nunca desde una posición ya desplazada), así que repetirlo en cada
+  // zoom es seguro: no se van "corriendo" con el tiempo.
+  presMapInstance.on("zoomend", ()=>declutterMapPins(presMapInstance, markerData));
   setTimeout(()=>{
     presMapInstance.invalidateSize();
     if(pts.length){
@@ -6435,7 +6462,10 @@ document.getElementById("mapDisplayModeSelect").value=mapDisplayMode;
 document.getElementById("mapDisplayModeSelect").onchange=function(){
   mapDisplayMode=this.value;
   saveMapDisplayModeLocal();
-  renderAllPolygonsMap();
+  // v3.44.3 (ajuste, pedido explícito del usuario: "si cambio entre Polígonos o Pines se reestablece el
+  // zoom") — mismo `keepView` que ya usa toggleMapLayer() al prender/apagar una capa (ver su comentario,
+  // v3.25.2): sin él, renderAllPolygonsMap() hace fitBounds() de nuevo y el mapa "salta" al zoom inicial.
+  renderAllPolygonsMap(true);
 };
 document.getElementById("mapToolLasso").onclick=()=>activateMapSelectTool("lasso");
 document.getElementById("mapToolRadius").onclick=()=>activateMapSelectTool("radius");

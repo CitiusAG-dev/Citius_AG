@@ -346,9 +346,16 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .deck-col-head{text-align:center;padding:0 2px 4px}
   .deck-num{color:var(--accent);font-family:'Dala Moa',serif;font-weight:400;font-size:24px;font-style:normal;margin-bottom:6px;text-align:left}
   .deck-photo{width:100%;aspect-ratio:400/270;background:#eee;border-radius:0;overflow:hidden;
-              display:flex;align-items:center;justify-content:center}
+              display:flex;align-items:center;justify-content:center;position:relative;z-index:0}
   .deck-photo img{width:100%;height:100%;object-fit:cover;display:block}
   .deck-photo .image-placeholder{font-size:10px;padding:6px}
+  /* v3.44.0: el propio div `.deck-photo` (id `landDeckPhoto_*`) ahora es DIRECTAMENTE el contenedor de un
+     mapa Leaflet en la tabla de Terrenos (ver renderLandDeckAerialMaps) — mismo patrón EXACTO que
+     `.layout-aerial` (el div identificado por id es el mapa, no un hijo aparte). El position:relative;
+     z-index:0 agregado arriba es el mismo fix que ya tienen `.map-page-canvas`/`.layout-photo`/
+     `.layout-aerial`: sin él, el z-index inline que Leaflet fija en sus panes internos se sale por encima
+     de modales/popovers de la app. En la tabla de Propiedades este div sigue usándose para una <img> normal
+     (foto de fachada) — sin cambios ahí, `.deck-photo img`/`.image-placeholder` siguen aplicando igual. */
   .deck-row-label{padding:2px 8px;color:#1a1a1a;white-space:nowrap;display:flex;align-items:center;gap:4px;font-size:12px}
   .deck-cell{padding:2px 8px;text-align:center;display:flex;align-items:center;justify-content:center;font-size:12px}
   .deck-cell a{color:inherit;text-decoration:underline}
@@ -878,7 +885,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Configuración</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="Versión de la aplicación">v3.43.8</div>
+      <div class="app-version" title="Versión de la aplicación">v3.44.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -5352,9 +5359,16 @@ function buildLandDeckPageHtml(chunk,pageIndex,logoSrc){
       <div class="deck-corner"></div>`;
   for(let i=0;i<SLOTS;i++){
     if(i<n){
+      // v3.44.0, pedido explícito del usuario: esta celda ya no muestra la foto "SATELITAL" subida a mano
+      // (loadLandDeckPhotoInto(), retirada) — ahora es un mapa aéreo satelital EN VIVO con el polígono
+      // propio del terreno, mismo patrón que el aéreo de "Layout" de Propiedades (ver
+      // renderLandDeckAerialMaps()). El placeholder solo aplica sin LATITUDE/LONGITUDE capturada — igual que
+      // buildLayoutPageHtml() hace con `.layout-aerial` — porque ahí Leaflet no tiene dónde centrar el mapa.
+      const rec=chunk[i];
+      const hasCoords=rec.LATITUDE!=null && rec.LATITUDE!=="" && rec.LONGITUDE!=null && rec.LONGITUDE!=="";
       html+=`<div class="deck-col-head">
         <div class="deck-num">${pageIndex*SLOTS+i+1}</div>
-        <div class="deck-photo" id="landDeckPhoto_${pageIndex}_${i}"><div class="image-placeholder">Sin foto</div></div>
+        <div class="deck-photo" id="landDeckPhoto_${pageIndex}_${i}">${hasCoords?"":'<div class="image-placeholder">Sin latitud/longitud capturada</div>'}</div>
       </div>`;
     } else {
       html+=`<div class="deck-col-head deck-empty-slot"></div>`;
@@ -5396,17 +5410,56 @@ function buildLandDeckPageHtml(chunk,pageIndex,logoSrc){
   </div>`;
   return html;
 }
-async function loadLandDeckPhotoInto(elId, code){
-  const box=document.getElementById(elId);
-  if(!box || !code || !imagesDirHandle) return;
-  const granted=(await imagesDirHandle.queryPermission({mode:"read"}))==="granted";
-  if(!granted) return;
-  try{
-    const fh=await imagesDirHandle.getFileHandle(code+".jpg",{create:false});
-    const file=await fh.getFile();
-    const url=URL.createObjectURL(file);
-    box.innerHTML=`<img src="${url}" alt="${escapeAttr(code)}">`;
-  }catch(e){ /* keep placeholder */ }
+/* v3.44.0, pedido explícito del usuario: reemplaza a loadLandDeckPhotoInto() (retirada) — en vez de cargar
+   la foto "SATELITAL" subida a mano al registro del terreno (photoFileBase(rec.ID__LAND,"SATELITAL")),
+   dibuja un mapa aéreo satelital EN VIVO por celda, con el polígono PROPIO del terreno (a diferencia del
+   aéreo de "Layout" de Propiedades, que dibuja el polígono del PARQUE relacionado porque una Propiedad no
+   tiene polígono propio — un Terreno sí lo tiene, vía polygonKeyFor("LAND") -> GEO_JSON). Mismo patrón
+   EXACTO que renderPresLayoutMaps() en todo lo demás: Esri World Imagery, L.geoJSON del polígono si existe
+   (si no, solo el pin), pin numerado (mismo número que ya muestra `.deck-num` justo arriba de esta celda)
+   clickeable a Google Maps. 1 instancia de Leaflet por celda (no una compartida), igual que
+   presLayoutMapInstances — se destruyen y reconstruyen desde cero en cada render. */
+let landDeckMapInstances=[];
+function renderLandDeckAerialMaps(chunks){
+  landDeckMapInstances.forEach(m=>{ try{ m.remove(); }catch(e){} });
+  landDeckMapInstances=[];
+  const polyKey=polygonKeyFor("LAND");
+  chunks.forEach((chunk,pi)=>{
+    chunk.forEach((rec,i)=>{
+      const canvas=document.getElementById(`landDeckPhoto_${pi}_${i}`);
+      const lat=Number(rec.LATITUDE), lng=Number(rec.LONGITUDE);
+      if(!canvas || !isFinite(lat) || !isFinite(lng)) return;
+      const map=L.map(canvas,{zoomControl:false,attributionControl:false,zoomSnap:0.25,zoomDelta:0.25,wheelPxPerZoomLevel:200});
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Tiles &copy; Esri'}).addTo(map);
+      let bounds=null;
+      if(polyKey && rec[polyKey]){
+        try{
+          const gj=JSON.parse(rec[polyKey]);
+          bounds=L.geoJSON(gj,{style:{color:"#f0b323", weight:3, fillOpacity:.15}}).addTo(map).getBounds();
+        }catch(e){ /* polígono inválido/corrupto: se ignora, queda solo el pin */ }
+      }
+      // v3.44.0, pedido explícito del usuario ("quitar el pin que está dentro del polígono"): el pin
+      // numerado solo se dibuja cuando NO hay polígono (fallback, mismo criterio que el `else` de
+      // fitBounds/setView más abajo) — con polígono, el contorno ya es suficiente referencia visual.
+      if(!bounds){
+        const num=pi*6+i+1; // mismo número que .deck-num, calculado igual que en buildLandDeckPageHtml (SLOTS=6)
+        const mapsUrl=`https://www.google.com/maps?q=${encodeURIComponent(lat)},${encodeURIComponent(lng)}`;
+        const icon=L.divIcon({className:"map-pin-wrap", html:`<div class="map-pin"><span>${num}</span></div>`, iconSize:[26,26], iconAnchor:[13,26]});
+        const marker=L.marker([lat,lng],{icon}).addTo(map);
+        marker.on("click", ()=>window.open(mapsUrl, "_blank", "noopener"));
+      }
+      landDeckMapInstances.push(map);
+      setTimeout(()=>{
+        map.invalidateSize();
+        if(bounds && bounds.isValid()){
+          bounds.extend([lat,lng]);
+          map.fitBounds(bounds,{padding:[10,10], maxZoom:17, animate:false});
+        } else {
+          map.setView([lat,lng], 16, {animate:false});
+        }
+      },50);
+    });
+  });
 }
 /* ==== Portada de la Presentación de Terrenos (v3.38.0) — mismo patrón exacto que el de Propiedades
    (`presCoverInfo`/`toggleCoverEditPanel`/`renderCoverEditBrokersList`), completamente separado (propio
@@ -5602,6 +5655,7 @@ function renderLandPresentationView(){
   const pagesEl=document.getElementById("landPresPages");
   document.getElementById("presPages").innerHTML="";
   if(landPresMapInstance){ landPresMapInstance.remove(); landPresMapInstance=null; }
+  landDeckMapInstances.forEach(m=>{ try{ m.remove(); }catch(e){} }); landDeckMapInstances=[];
   if(!list.length){
     pagesEl.innerHTML=`<div class="filters-empty">Aún no has marcado terrenos para la presentación.<br>Abre un registro de Terrenos y activa "Usar en presentación".</div>`;
     return;
@@ -5621,7 +5675,7 @@ function renderLandPresentationView(){
   }
   if(landPresShowState.closing) html+=buildClosingPageHtml();
   pagesEl.innerHTML=html;
-  if(landPresShowState.table) chunks.forEach((chunk,pi)=>{ chunk.forEach((rec,i)=>loadLandDeckPhotoInto(`landDeckPhoto_${pi}_${i}`, rec.ID__LAND?photoFileBase(rec.ID__LAND,"SATELITAL"):null)); });
+  if(landPresShowState.table) renderLandDeckAerialMaps(chunks);
   if(landPresShowState.map) renderLandPresMap(list);
 }
 const PRES_COVER_KEY="citius_pres_cover_v1";
@@ -6119,7 +6173,7 @@ document.getElementById("presPrintBtn").onclick=()=>{
   document.querySelectorAll(".deck-page.cover-page,.deck-page.map-page,.deck-page.layout-page").forEach(p=>{ p.style.height=""; p.style.width=""; }); // deshace el tamaño fijo puesto por preparePrintPageSize(), solo era para imprimir
   document.body.classList.remove("printing-deck");
 };
-window.addEventListener("beforeprint", ()=>{ if(presMapInstance) presMapInstance.invalidateSize(); if(landPresMapInstance) landPresMapInstance.invalidateSize(); presLayoutMapInstances.forEach(m=>{ try{ m.invalidateSize(); }catch(e){} }); });
+window.addEventListener("beforeprint", ()=>{ if(presMapInstance) presMapInstance.invalidateSize(); if(landPresMapInstance) landPresMapInstance.invalidateSize(); presLayoutMapInstances.forEach(m=>{ try{ m.invalidateSize(); }catch(e){} }); landDeckMapInstances.forEach(m=>{ try{ m.invalidateSize(); }catch(e){} }); });
 /* Nombre sugerido del PDF de Terrenos (v3.39.0) — misma lógica EXACTA que buildPresPdfFilename() de
    Propiedades (pedido explícito del usuario), leyendo landPresCoverInfo en vez de presCoverInfo.
    brokerInitials()/sanitizeFilenamePart() se reutilizan tal cual — son agnósticas de entidad. */

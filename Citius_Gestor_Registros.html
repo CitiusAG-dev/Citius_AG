@@ -233,6 +233,8 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   button.btn.icon-only{padding:8px 10px;color:var(--muted)}
   button.btn.icon-only:hover{color:var(--red);border-color:var(--red);background:rgba(226,72,61,.08)}
   .tablewrap{flex:1;min-height:0;overflow:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel)}
+  /* v3.45.1: pie de paginación de la tabla, pegado siempre al fondo visible aunque haya scroll (miles de filas) */
+  #tablePagination{display:flex;align-items:center;justify-content:center;gap:14px;padding:10px;position:sticky;bottom:0;background:var(--panel);border-top:1px solid var(--line)}
   .filter-sidebar{width:260px;flex-shrink:0;overflow-y:auto;background:var(--panel);border:1px solid var(--line);
     border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:12px}
   .filter-sidebar-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -933,7 +935,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Configuración</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="Ver notas de versión" onclick="openReleaseNotes()">v3.44.7</div>
+      <div class="app-version" title="Ver notas de versión" onclick="openReleaseNotes()">v3.45.4</div>
     </nav>
   </aside>
   <div class="main">
@@ -1039,9 +1041,15 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       Hay un archivo de datos complementarios recordado (<b id="reconnectComplementaryName"></b>) pero Chrome necesita tu permiso para volver a leerlo.
       <button class="btn" id="reconnectComplementaryBtn" style="padding:5px 12px;margin-left:10px">Reconectar archivo</button>
     </div>
+    <div id="consolidatedBanner" style="display:none;background:rgba(37,99,235,.12);border-bottom:1px solid var(--line);padding:10px 24px;font-size:13px;color:#1d4ed8">
+      <b>Modo consolidado activo (solo lectura)</b> — viendo <span id="consolidatedBannerInfo"></span> de todos los mercados. No se pueden crear, editar ni borrar registros mientras esté activo.
+      <button class="btn ghost" id="refreshConsolidatedBannerBtn" style="padding:5px 12px;margin-left:10px">↻ Refrescar</button>
+      <button class="btn" id="exitConsolidatedBannerBtn" style="padding:5px 12px;margin-left:6px">Salir del modo consolidado</button>
+    </div>
     <div class="wrap" id="wrap">
       <div class="tablewrap">
         <table id="tbl"><thead></thead><tbody></tbody></table>
+        <div id="tablePagination" style="display:none"></div>
       </div>
     </div>
     <div class="wrap resumenview" id="resumenView" style="display:none">
@@ -1187,6 +1195,19 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
             <p class="map-hint">Excel de solo lectura con capas extra para la pestaña Mapa (ej. pozos de agua y líneas de alta tensión, cada hoja con una columna "geojson"). No se edita desde el sistema — es solo información de referencia que se dibuja en el mapa.</p>
             <div class="settings-actions">
               <button class="btn ghost" id="openComplementaryFileBtn">Vincular archivo…</button>
+            </div>
+          </div>
+          <div class="files-card">
+            <h5>Consolidado — todos los mercados (solo lectura)</h5>
+            <div class="settings-row">
+              <span id="consolidatedChip" style="padding:4px 10px;border-radius:20px;background:rgba(107,116,128,.15);color:var(--muted);font-size:12px">Inactivo</span>
+            </div>
+            <div class="path-note" id="consolidatedPathNote"></div>
+            <p class="map-hint">Conecta la carpeta raíz que contiene una subcarpeta por oficina (ej. "Información de Mercado") para ver los registros de <b>todos los mercados juntos</b> en Propiedades, Parques, Terrenos y Transacciones — sigues filtrando por Mercado/Submercado como ya lo haces. Mientras esté activo, el sistema queda en solo lectura (no se puede crear, editar ni borrar) y se desvincula tu Excel individual: son excluyentes, solo uno de los dos a la vez.</p>
+            <div class="settings-actions">
+              <button class="btn ghost" id="openConsolidatedBtn">Elegir carpeta raíz…</button>
+              <button class="btn ghost" id="refreshConsolidatedBtn" style="display:none">↻ Refrescar</button>
+              <button class="btn ghost" id="exitConsolidatedBtn" style="display:none">Salir del modo consolidado</button>
             </div>
           </div>
         </div>
@@ -2272,6 +2293,8 @@ function loadState(){
   return st;
 }
 function saveState(){
+  if(consolidatedMode) return; // defensa adicional: en modo consolidado nunca se persiste ni se escribe a disco
+  invalidateSubmarketToMarketCache(); // el guardado pudo cambiar SUBMARKET/MARKET de algún registro
   try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
   catch(e){ mem=state; } // crash backup
   const linked = current==="LAND" ? (typeof landFileHandle!=="undefined" && landFileHandle) : (typeof fileHandle!=="undefined" && fileHandle);
@@ -2507,6 +2530,29 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"3.45.4", date:"2026-08-21", items:[
+    "La tarjeta \"Consolidado — todos los mercados\" en Configuración > Archivos se movió al final de la lista (después de \"Datos Complementarios\"), para que quede menos a la vista del resto del equipo."
+  ]},
+  {version:"3.45.3", date:"2026-08-21", items:[
+    "Nuevo botón \"↻ Refrescar\" en el modo Consolidado (en la tarjeta de Configuración y en el banner superior): el Consolidado es una \"foto\" del momento en que se activó — si alguien más guarda cambios en su Excel después, no aparecen solos. Con este botón se vuelve a leer la misma carpeta sin tener que salir del modo consolidado ni volver a elegirla."
+  ]},
+  {version:"3.45.2", date:"2026-08-21", items:[
+    "Corregido: al abrir la ficha de una Propiedad, Parque o Terreno, el clic podía tardar mucho o no mostrar nada — estas 3 entidades esperan a revisar la carpeta de fotos vinculada antes de abrir la ficha, y no había ningún indicador visual mientras tanto (Transacciones no tiene fotos, por eso no le pasaba).",
+    "Ahora la ficha se abre de inmediato mostrando \"Cargando…\" en vez de quedarse en silencio, la revisión de fotos tiene un límite de 4 segundos (si tarda más, la ficha se abre igual sin esperar más), y si algo falla se avisa con un mensaje en vez de que el clic no haga nada."
+  ]},
+  {version:"3.45.1", date:"2026-08-21", items:[
+    "Corregido: con miles de registros cargados (típico del modo Consolidado), la app se congelaba y el navegador ofrecía cerrar la pestaña por \"no responder\" — tanto al cargar como al navegar la tabla, el Mapa o el Resumen.",
+    "La tabla (Propiedades/Parques/Terrenos/Transacciones) ahora se pagina en bloques de 300 registros (\"Anterior\"/\"Siguiente\" al pie de la tabla) en vez de insertar todas las filas de golpe — aplica en toda la app, no solo en modo Consolidado.",
+    "La lectura de los Excel de todas las oficinas en modo Consolidado ahora cede el control al navegador entre archivo y archivo (mismo tiempo total, pero repartido) y muestra el nombre de la oficina que se está leyendo, en vez de un solo bloqueo largo.",
+    "El Mapa ahora dibuja los pines/polígonos en lotes en vez de todos de un golpe, para no congelar la pestaña con miles de ubicaciones.",
+    "El Resumen resolvía a qué Mercado pertenece cada Submercado recorriendo TODAS las Propiedades una por una, por cada Transacción — con miles de registros esto era el cuello de botella más severo; ahora se precalcula una sola vez.",
+    "De paso, la pestaña Parques ya no recalcula los conteos de cada Parque en cada re-render si nada cambió (antes se repetía en cada clic de la paginación nueva)."
+  ]},
+  {version:"3.45.0", date:"2026-08-21", items:[
+    "Nuevo: Configuración > Archivos > tarjeta \"Consolidado — todos los mercados (solo lectura)\". Al elegir la carpeta raíz que contiene una subcarpeta por oficina (ej. \"Información de Mercado\"), el sistema lee TODOS los Excel de todas las oficinas y muestra sus registros juntos en las mismas tablas de Propiedades, Parques, Terrenos y Transacciones, en el Resumen y en el Mapa — se sigue filtrando por Mercado/Submercado exactamente igual que siempre.",
+    "Mientras el modo Consolidado está activo, el sistema queda en solo lectura: no se pueden crear, editar ni borrar registros (los botones correspondientes se ocultan/deshabilitan), y no puede haber a la vez un Excel individual vinculado — son excluyentes, un banner en la parte superior indica cuándo está activo y permite salir de él con un clic.",
+    "Solo se pide permiso de lectura sobre la carpeta elegida — el sistema nunca escribe en los archivos de las demás oficinas, así que convive sin ningún problema con quien tenga su propio Excel abierto o en edición en ese momento."
+  ]},
   {version:"3.44.7", date:"2026-08-21", items:[
     "Registro nuevo de Transacciones: ahora el primer campo es 'Absorption Type' y no se muestra ningún otro campo hasta elegirlo.",
     "Al elegir 'Gross' o 'Negative' aparece un set de campos distinto para cada uno (Negative es un formulario más corto), repartido en 3 pestañas: 'Detalles de Transacción' (manual), 'Propiedad' (antes 'Ubicación', ahora con el botón de Seleccionar Propiedad primero) y 'Términos Económicos' (sin cambios).",
@@ -2955,8 +3001,42 @@ function daysSinceUpdateHtml(days){
 }
 
 /* ==== Table render ==== */
+/* ==== Paginación de la tabla (v3.45.1) ====
+   Con miles de registros (ej. modo Consolidado), insertar TODAS las filas de golpe en el DOM congela la
+   pestaña ("página no responde"). Cada entidad recuerda su propia página (`tablePage[ent]`); si el total de
+   filas filtradas cambia respecto al último render (`tablePageRowCount[ent]`) — típico de aplicar/quitar un
+   filtro o buscar — se asume que el usuario empezó una consulta nueva y se regresa a la página 1. Solo
+   afecta qué filas se INSERTAN en el DOM; el conteo ("N de M registros") y "seleccionar todas las
+   filtradas" siguen operando sobre el total filtrado completo, no solo la página visible. */
+const TABLE_PAGE_SIZE=300;
+let tablePage={};
+let tablePageRowCount={};
+function goToTablePage(delta){
+  const totalPages=Math.max(1, Math.ceil((tablePageRowCount[current]||0)/TABLE_PAGE_SIZE));
+  tablePage[current]=Math.min(totalPages, Math.max(1, (tablePage[current]||1)+delta));
+  renderTable();
+  document.querySelector(".tablewrap")?.scrollTo({top:0, behavior:"instant"});
+}
+function tablePaginationHtml(totalRows, totalPages){
+  const p=tablePage[current]||1;
+  if(totalPages<=1) return "";
+  const start=(p-1)*TABLE_PAGE_SIZE+1, end=Math.min(totalRows, p*TABLE_PAGE_SIZE);
+  return `<button type="button" class="btn ghost" style="padding:5px 12px" onclick="goToTablePage(-1)" ${p<=1?"disabled":""}>‹ Anterior</button>
+    <span style="font-size:12.5px;color:var(--muted)">Mostrando ${start}–${end} de ${totalRows} · Página ${p} de ${totalPages}</span>
+    <button type="button" class="btn ghost" style="padding:5px 12px" onclick="goToTablePage(1)" ${p>=totalPages?"disabled":""}>Siguiente ›</button>`;
+}
+let parkDerivedCacheSig=null;
 function renderTable(){
-  if(current==="PARKS") recomputeAllParkDerivedFields();
+  // v3.45.1: recomputeAllParkDerivedFields() es O(PARKS×PROPIEDADES) — antes se recalculaba en CADA render
+  // de la pestaña Parques (cada clic de "Siguiente/Anterior" de la paginación nueva incluido), aunque nada
+  // hubiera cambiado. Se cachea por un firmado barato (tamaño de ambos arrays): un guardar/eliminar real ya
+  // llama recomputeParkDerivedFields()/recomputeAllParkDerivedFields() explícitamente ANTES de esto (ver
+  // saveBtn/confirmDelBtn), así que saltarse el recálculo aquí cuando los tamaños no cambiaron nunca deja
+  // datos desactualizados — solo evita repetir un cálculo que ya está al día.
+  if(current==="PARKS"){
+    const sig=(state.PARKS?state.PARKS.length:0)+"|"+(state.PROPIEDADES?state.PROPIEDADES.length:0);
+    if(sig!==parkDerivedCacheSig){ recomputeAllParkDerivedFields(); parkDerivedCacheSig=sig; }
+  }
   updateClearFiltersBtn();
   const cfg=ENTITIES[current];
   const cols=visibleCols(current);
@@ -2980,10 +3060,21 @@ function renderTable(){
     +cols.map(c=>`<th style="${colWidthStyle(current,c)}"><div class="th-cell sortable" onclick="toggleSort('${c}')" title="Ordenar"><span>${fieldLabel(c)}</span><span class="th-cell-right">${sortIconHtml(c)}<button type="button" class="col-filter-btn${activeFilterKeys.has(c)?" active":""}" onclick="toggleColumnFilter(event,'${c}')" title="Filtrar"><svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M3 4h18l-7 9v6l-4 2v-8L3 4z"/></svg></button></span></div>${colResizeHandleHtml(c)}</th>`).join("")
     +`<th class="days-col" style="${colWidthStyle(current,DAYS_COL_WIDTH_KEY)}"><div class="th-cell sortable" onclick="toggleSort('${DAYS_SORT_KEY}')" title="Ordenar" style="justify-content:center">Días desde Actualización${sortIconHtml(DAYS_SORT_KEY)}</div>${colResizeHandleHtml(DAYS_COL_WIDTH_KEY)}</th>`
     +`<th class="pct-col" style="${colWidthStyle(current,PCT_COL_WIDTH_KEY)}"><div class="th-cell sortable" onclick="toggleSort('${PCT_SORT_KEY}')" title="Ordenar" style="justify-content:center">% Completado${sortIconHtml(PCT_SORT_KEY)}</div>${colResizeHandleHtml(PCT_COL_WIDTH_KEY)}</th><th style="${colWidthStyle(current,ACTIONS_COL_WIDTH_KEY)}">Acciones${colResizeHandleHtml(ACTIONS_COL_WIDTH_KEY)}</th></tr>`;
+  if(tablePageRowCount[current]!==rows.length){ tablePage[current]=1; tablePageRowCount[current]=rows.length; }
+  const totalPages=Math.max(1, Math.ceil(rows.length/TABLE_PAGE_SIZE));
+  if(!tablePage[current] || tablePage[current]>totalPages) tablePage[current]=1;
+  const pageStart=(tablePage[current]-1)*TABLE_PAGE_SIZE;
+  const pageRows = rows.length>TABLE_PAGE_SIZE ? rows.slice(pageStart, pageStart+TABLE_PAGE_SIZE) : rows;
+  const paginationEl=document.getElementById("tablePagination");
+  if(paginationEl){
+    const html=tablePaginationHtml(rows.length, totalPages);
+    paginationEl.innerHTML=html;
+    paginationEl.style.display=html?"flex":"none";
+  }
   if(rows.length===0){
     tbody.innerHTML=`<tr><td colspan="${cols.length+3+(showSelect?1:0)}"><div class="empty">Sin registros. Usa <b>+ Nuevo registro</b> para agregar uno.</div></td></tr>`;
   } else {
-    tbody.innerHTML=rows.map(r=>{
+    tbody.innerHTML=pageRows.map(r=>{
       const tds=cols.map((c,i)=>{
         const colStyle=colWidthStyle(current,c);
         const meta=fieldMeta.byKey.get(c);
@@ -3054,7 +3145,9 @@ function toggleRowMenu(evt, id){
   const el=document.createElement("div");
   el.id="rowMenuDropdown";
   el.className="row-menu-dropdown";
-  el.innerHTML=`
+  el.innerHTML= consolidatedMode ? `
+    <button type="button" onclick="closeRowMenu();openView('${id}')"><span style="margin-right:6px;vertical-align:-3px">${ICO_EDIT}</span>Ver</button>
+  ` : `
     <button type="button" onclick="closeRowMenu();openEdit('${id}')"><span style="margin-right:6px;vertical-align:-3px">${ICO_EDIT}</span>Editar</button>
     <button type="button" class="row-menu-danger" onclick="closeRowMenu();askDelete('${id}')"><span style="margin-right:6px;vertical-align:-3px">${ICO_TRASH}</span>Eliminar</button>
   `;
@@ -3178,15 +3271,40 @@ function resumenSubmarkets(){
   return list.sort((a,b)=>a.localeCompare(b));
 }
 /* Mercado al que pertenece un submercado — usa el catálogo de ubicación si está cargado (fuente autoritativa),
-   si no, lo deriva de los propios registros de PROPIEDADES (que sí traen MARKET y SUBMARKET juntos). */
+   si no, lo deriva de los propios registros de PROPIEDADES (que sí traen MARKET y SUBMARKET juntos).
+   v3.45.1: antes esto era un `.find()` sobre TODO `state.PROPIEDADES` (o `cascadeCatalog`) CADA VEZ que se
+   llamaba — y se llama una vez POR FILA de TRANSACCIONES dentro de `resumenMarketMatches` cuando hay un
+   filtro de Mercado activo en el Resumen, así que con miles de transacciones y miles de propiedades (modo
+   Consolidado) esto era, en la práctica, O(TRANSACCIONES × PROPIEDADES) — el cuello de botella real del
+   freeze en Resumen. Se precomputa un índice submercado→mercado UNA sola vez (mismo criterio de "primer
+   match gana" que el `.find()` original) y se reutiliza mientras los datos no cambien; `submarketToMarketCacheKey`
+   se invalida en `saveState()` (cualquier guardar/eliminar real) y al activar/salir del modo Consolidado. */
+let _submarketToMarketCache=null, _submarketToMarketCacheSig=null;
+function invalidateSubmarketToMarketCache(){ _submarketToMarketCache=null; _submarketToMarketCacheSig=null; }
+function submarketToMarketIndex(){
+  const sig=cascadeCatalog.length+"|"+(state.PROPIEDADES?state.PROPIEDADES.length:0);
+  if(_submarketToMarketCache && _submarketToMarketCacheSig===sig) return _submarketToMarketCache;
+  const map=new Map();
+  if(cascadeCatalog.length){
+    cascadeCatalog.forEach(row=>{
+      if(!row.SUBMARKET) return;
+      const k=String(row.SUBMARKET).trim().toLowerCase();
+      if(!map.has(k)) map.set(k, row.MARKET);
+    });
+  } else {
+    (state.PROPIEDADES||[]).forEach(r=>{
+      if(!r.SUBMARKET || !r.MARKET) return;
+      const k=String(r.SUBMARKET).trim().toLowerCase();
+      if(!map.has(k)) map.set(k, r.MARKET);
+    });
+  }
+  _submarketToMarketCache=map; _submarketToMarketCacheSig=sig;
+  return map;
+}
 function resumenMarketForSubmarket(submarket){
   if(!submarket) return null;
-  if(cascadeCatalog.length){
-    const hit=cascadeCatalog.find(row=>ciEq(row.SUBMARKET,submarket));
-    if(hit) return hit.MARKET;
-  }
-  const hit=(state.PROPIEDADES||[]).find(r=>ciEq(r.SUBMARKET,submarket)&&r.MARKET);
-  return hit?hit.MARKET:null;
+  const hit=submarketToMarketIndex().get(String(submarket).trim().toLowerCase());
+  return hit!=null?hit:null;
 }
 /* Lista de mercados para el selector — del catálogo de ubicación si está cargado, si no de los datos reales */
 function resumenMarkets(){
@@ -5275,6 +5393,7 @@ function showMapSelectPanel(matches, shape){
   panel.style.display="flex";
 }
 
+let renderAllPolygonsMapToken=0; // v3.45.1: invalida lotes de un renderAllPolygonsMap() anterior si se vuelve a llamar antes de que termine
 function renderAllPolygonsMap(keepView){
   const filtersEl=document.getElementById("mapLayerFilters");
   if(filtersEl) filtersEl.innerHTML=mapLayerFilterHtml();
@@ -5316,41 +5435,56 @@ function renderAllPolygonsMap(keepView){
   clearMapSelection();
   allPolyLayerGroup.clearLayers();
   const boundsList=[];
-  items.forEach(item=>{
-    try{
-      const {layer:l, row:r, polyKey}=item;
-      const name=r[l.titleField]||r[l.subField]||`${l.label} sin nombre`;
-      const popupHtml=`<div style="min-width:170px"><b>${escapeHtml(name)}</b><br>${escapeHtml(r[l.subField]||"")}<br>`+
-        `<span class="map-popup-tag" style="background:${l.color}22;color:${l.color}">${escapeHtml(l.label)}</span><br>`+
-        `<button class="btn ghost" style="margin-top:8px;padding:5px 10px;font-size:12px" onclick="editFromMap('${l.ent}','${r.__id}')">Editar registro</button></div>`;
-      if(mapDisplayMode==="pins"){
-        const lat=Number(r.LATITUDE), lng=Number(r.LONGITUDE);
-        // v3.44.2, pedido explícito del usuario: con miles de pines (algunos muy cercanos entre sí, ej.
-        // Monterrey) el box-shadow de .map-pin se acumulaba visualmente en un aro negro grueso — se agrega
-        // "map-pin-sm" (className del divIcon + clase propia del div interno) para achicarlos y quitarles
-        // la sombra SOLO en este mapa de pines (ver CSS `.map-pin-sm`), sin tocar `.map-pin` en ningún otro
-        // lado — los pines numerados de las presentaciones (Mapa/Layout/Terrenos) siguen igual.
-        const icon=L.divIcon({className:"map-pin-wrap map-pin-wrap-sm", html:`<div class="map-pin map-pin-sm" style="background:${l.color}"></div>`, iconSize:[18,18], iconAnchor:[9,18]});
-        const marker=L.marker([lat,lng],{icon}).bindPopup(popupHtml);
-        marker.addTo(allPolyLayerGroup);
-        boundsList.push(L.latLngBounds([[lat,lng],[lat,lng]]));
-      } else {
-        const gj=JSON.parse(r[polyKey]);
-        const geoLayer=L.geoJSON(gj,{style:{color:l.color, weight:2, fillColor:l.color, fillOpacity:.25}}).bindPopup(popupHtml);
-        geoLayer.addTo(allPolyLayerGroup);
-        geoLayer.eachLayer(gl=>boundsList.push(gl.getBounds()));
-      }
-    }catch(e){}
-  });
-  renderComplementaryLayers(); // capas de referencia (pozos/líneas) — aparte de boundsList a propósito, nunca deben mover el auto-zoom
-  setTimeout(()=>{
-    allPolyMap.invalidateSize();
-    if(!keepView && boundsList.length){
-      let combined=boundsList[0];
-      boundsList.slice(1).forEach(b=>combined.extend(b));
-      allPolyMap.fitBounds(combined,{maxZoom:15, padding:[30,30]});
+  // v3.45.1: con miles de ubicaciones (ej. modo Consolidado), crear TODOS los pines/polígonos de un solo
+  // golpe congela la pestaña — cada L.marker()/L.geoJSON() crea nodos DOM y Leaflet no lo hace en un
+  // worker. Se trocea en lotes de MAP_BATCH_SIZE, cediendo el hilo entre lote y lote vía
+  // requestAnimationFrame, para que el navegador pueda seguir pintando/respondiendo mientras se dibuja el
+  // mapa completo — mismo resultado final, solo que repartido en varios frames en vez de uno solo.
+  const MAP_BATCH_SIZE=300;
+  let mapBatchIdx=0;
+  const renderToken=++renderAllPolygonsMapToken; // si se vuelve a llamar antes de terminar, el lote viejo se detiene solo
+  function processMapBatch(){
+    if(renderToken!==renderAllPolygonsMapToken) return; // llamada más nueva ya tomó el control
+    const end=Math.min(items.length, mapBatchIdx+MAP_BATCH_SIZE);
+    for(; mapBatchIdx<end; mapBatchIdx++){
+      const item=items[mapBatchIdx];
+      try{
+        const {layer:l, row:r, polyKey}=item;
+        const name=r[l.titleField]||r[l.subField]||`${l.label} sin nombre`;
+        const popupHtml=`<div style="min-width:170px"><b>${escapeHtml(name)}</b><br>${escapeHtml(r[l.subField]||"")}<br>`+
+          `<span class="map-popup-tag" style="background:${l.color}22;color:${l.color}">${escapeHtml(l.label)}</span><br>`+
+          `<button class="btn ghost" style="margin-top:8px;padding:5px 10px;font-size:12px" onclick="editFromMap('${l.ent}','${r.__id}')">Editar registro</button></div>`;
+        if(mapDisplayMode==="pins"){
+          const lat=Number(r.LATITUDE), lng=Number(r.LONGITUDE);
+          // v3.44.2, pedido explícito del usuario: con miles de pines (algunos muy cercanos entre sí, ej.
+          // Monterrey) el box-shadow de .map-pin se acumulaba visualmente en un aro negro grueso — se agrega
+          // "map-pin-sm" (className del divIcon + clase propia del div interno) para achicarlos y quitarles
+          // la sombra SOLO en este mapa de pines (ver CSS `.map-pin-sm`), sin tocar `.map-pin` en ningún otro
+          // lado — los pines numerados de las presentaciones (Mapa/Layout/Terrenos) siguen igual.
+          const icon=L.divIcon({className:"map-pin-wrap map-pin-wrap-sm", html:`<div class="map-pin map-pin-sm" style="background:${l.color}"></div>`, iconSize:[18,18], iconAnchor:[9,18]});
+          const marker=L.marker([lat,lng],{icon}).bindPopup(popupHtml);
+          marker.addTo(allPolyLayerGroup);
+          boundsList.push(L.latLngBounds([[lat,lng],[lat,lng]]));
+        } else {
+          const gj=JSON.parse(r[polyKey]);
+          const geoLayer=L.geoJSON(gj,{style:{color:l.color, weight:2, fillColor:l.color, fillOpacity:.25}}).bindPopup(popupHtml);
+          geoLayer.addTo(allPolyLayerGroup);
+          geoLayer.eachLayer(gl=>boundsList.push(gl.getBounds()));
+        }
+      }catch(e){}
     }
-  },50);
+    if(mapBatchIdx<items.length){ requestAnimationFrame(processMapBatch); return; }
+    renderComplementaryLayers(); // capas de referencia (pozos/líneas) — aparte de boundsList a propósito, nunca deben mover el auto-zoom
+    setTimeout(()=>{
+      allPolyMap.invalidateSize();
+      if(!keepView && boundsList.length){
+        let combined=boundsList[0];
+        boundsList.slice(1).forEach(b=>combined.extend(b));
+        allPolyMap.fitBounds(combined,{maxZoom:15, padding:[30,30]});
+      }
+    },50);
+  }
+  processMapBatch();
 }
 
 /* ==== Presentation view: "Building Options" deck, built from fields mapped in the reference workbook's "Plantilla" sheet ==== */
@@ -6768,40 +6902,73 @@ function enterEditMode(rec){
   markEmptyRequiredFields();
 }
 function openAdd(){
+  if(blockIfConsolidated()) return;
   editingId=null;
   enterEditMode(null);
   document.getElementById("overlay").classList.add("show");
 }
-async function openEdit(id){
-  const dataChanged=await refreshFromFileIfLinked();
-  const cfgChanged=await refreshConfigFileIfLinked();
-  const landChanged=await refreshLandFileIfLinked();
-  if(dataChanged||cfgChanged||landChanged) renderTable();
-  if(PHOTO_ID_FIELD[current]) await ensurePhotoSet();
-  editingId=id;
-  const rec=(state[current]||[]).find(r=>r.__id===id);
-  if(!rec){ toast("Este registro ya no existe (alguien más lo eliminó o el archivo cambió).","err"); return; }
-  enterEditMode(rec);
+/* ==== v3.45.2: abrir una ficha ahora da feedback inmediato y nunca se queda "en silencio" ====
+   Antes, abrir una ficha (openEdit/openView) esperaba 4 pasos async (3 refrescos de archivo + escaneo de
+   la carpeta de fotos vía ensurePhotoSet(), este último obligatorio para Propiedades/Parques/Terrenos) SIN
+   mostrar nada mientras tanto — si alguno tardaba (carpeta de fotos grande, sincronización de OneDrive
+   lenta) o lanzaba una excepción, el clic parecía no hacer nada. Ahora: (1) el modal se abre de inmediato
+   con "Cargando…" en vez de esperar en silencio; (2) todo el flujo queda envuelto en try/catch — un error
+   real se muestra como toast en vez de perderse; (3) el escaneo de fotos tiene un tope de 4s — si tarda
+   más, la ficha se abre igual (sin el indicador de foto faltante por esta vez) en vez de quedarse
+   esperando indefinidamente; el escaneo real sigue en segundo plano y queda cacheado para la próxima. */
+function showFichaLoading(){
   document.getElementById("overlay").classList.add("show");
+  document.getElementById("mTitle").textContent="Cargando…";
+  document.getElementById("mBody").innerHTML=`<div class="empty">Cargando registro…</div>`;
+  document.getElementById("modalFoot").style.display="none";
+  document.getElementById("modalEditBtn").style.display="none";
+  document.getElementById("modalExitEditBtn").style.display="none";
+}
+function withTimeout(promise, ms, fallback){
+  return new Promise(resolve=>{
+    let done=false;
+    const timer=setTimeout(()=>{ if(!done){ done=true; resolve(fallback); } }, ms);
+    promise.then(v=>{ if(!done){ done=true; clearTimeout(timer); resolve(v); } },
+                 ()=>{ if(!done){ done=true; clearTimeout(timer); resolve(fallback); } });
+  });
+}
+async function openEdit(id){
+  if(consolidatedMode) return openView(id); // solo lectura: mostrar como ficha de vista, nunca de edición
+  showFichaLoading();
+  try{
+    const dataChanged=await refreshFromFileIfLinked();
+    const cfgChanged=await refreshConfigFileIfLinked();
+    const landChanged=await refreshLandFileIfLinked();
+    if(dataChanged||cfgChanged||landChanged) renderTable();
+    if(PHOTO_ID_FIELD[current]) await withTimeout(ensurePhotoSet(), 4000, null);
+    editingId=id;
+    const rec=(state[current]||[]).find(r=>r.__id===id);
+    if(!rec){ closeModal(); toast("Este registro ya no existe (alguien más lo eliminó o el archivo cambió).","err"); return; }
+    enterEditMode(rec);
+    document.getElementById("overlay").classList.add("show");
+  }catch(e){ closeModal(); toast("No se pudo abrir la ficha: "+e.message,"err"); }
 }
 async function openView(id, panelIdx){
-  const dataChanged=await refreshFromFileIfLinked();
-  const cfgChanged=await refreshConfigFileIfLinked();
-  const landChanged=await refreshLandFileIfLinked();
-  if(dataChanged||cfgChanged||landChanged) renderTable();
-  if(PHOTO_ID_FIELD[current]) await ensurePhotoSet();
-  editingId=id;
-  const rec=(state[current]||[]).find(r=>r.__id===id);
-  if(!rec){ toast("Este registro ya no existe (alguien más lo eliminó o el archivo cambió).","err"); return; }
-  if(current==="PARKS") recomputeParkDerivedFields(rec);
-  document.getElementById("mTitle").textContent=rec[ENTITIES[current].titleField]||ENTITIES[current].label;
-  document.getElementById("mBody").innerHTML=buildViewForm(current,rec);
-  document.getElementById("modalEditBtn").style.display="";
-  document.getElementById("modalExitEditBtn").style.display="none";
-  document.getElementById("modalFoot").style.display="none";
-  document.getElementById("overlay").classList.add("show");
-  if(PHOTO_ID_FIELD[current]) photoKindsFor(current).forEach(k=>loadViewImagePreview(rec[PHOTO_ID_FIELD[current]], k.key));
-  if(panelIdx) switchFormPanel(panelIdx);
+  showFichaLoading();
+  try{
+    const dataChanged=await refreshFromFileIfLinked();
+    const cfgChanged=await refreshConfigFileIfLinked();
+    const landChanged=await refreshLandFileIfLinked();
+    if(dataChanged||cfgChanged||landChanged) renderTable();
+    if(PHOTO_ID_FIELD[current]) await withTimeout(ensurePhotoSet(), 4000, null);
+    editingId=id;
+    const rec=(state[current]||[]).find(r=>r.__id===id);
+    if(!rec){ closeModal(); toast("Este registro ya no existe (alguien más lo eliminó o el archivo cambió).","err"); return; }
+    if(current==="PARKS") recomputeParkDerivedFields(rec);
+    document.getElementById("mTitle").textContent=rec[ENTITIES[current].titleField]||ENTITIES[current].label;
+    document.getElementById("mBody").innerHTML=buildViewForm(current,rec);
+    document.getElementById("modalEditBtn").style.display=consolidatedMode?"none":"";
+    document.getElementById("modalExitEditBtn").style.display="none";
+    document.getElementById("modalFoot").style.display="none";
+    document.getElementById("overlay").classList.add("show");
+    if(PHOTO_ID_FIELD[current]) photoKindsFor(current).forEach(k=>loadViewImagePreview(rec[PHOTO_ID_FIELD[current]], k.key));
+    if(panelIdx) switchFormPanel(panelIdx);
+  }catch(e){ closeModal(); toast("No se pudo abrir la ficha: "+e.message,"err"); }
 }
 function switchToEditMode(){
   const activeEl=document.querySelector("#mBody .form-panel.active");
@@ -6817,6 +6984,7 @@ function exitEditMode(){
 }
 function closeModal(){ document.getElementById("overlay").classList.remove("show"); }
 document.getElementById("saveBtn").onclick=()=>{
+  if(blockIfConsolidated()) return;
   const cfgByKey={}; fields(current).forEach(f=>cfgByKey[f.key]=f);
   const inputs=document.querySelectorAll("#mBody [data-key]");
   const rec={};
@@ -6910,6 +7078,7 @@ function isNumericField(v){ return true; }
 
 /* ==== Delete ==== */
 function askDelete(id){
+  if(blockIfConsolidated()) return;
   pendingDelete=id;
   const rec=(state[current]||[]).find(r=>r.__id===id);
   const name=rec[ENTITIES[current].titleField]||rec[fields(current)[0].key]||"este registro";
@@ -6918,6 +7087,7 @@ function askDelete(id){
 }
 function closeConfirm(){ document.getElementById("confirmOverlay").classList.remove("show"); pendingDelete=null; }
 document.getElementById("confirmDelBtn").onclick=()=>{
+  if(blockIfConsolidated()) return;
   state[current]=state[current].filter(r=>r.__id!==pendingDelete);
   // eliminar una Propiedad puede cambiar cuántos edificios tiene/tiene disponibles su Parque
   if(current==="PROPIEDADES") recomputeAllParkDerivedFields();
@@ -7963,6 +8133,190 @@ function deleteListValue(i){
   renderListsNav();
 }
 
+/* ==== Consolidado: todos los mercados, solo lectura (v3.45.0) ====
+   Lee TODOS los .xlsx/.xls dentro de cada subcarpeta de una carpeta raíz (una subcarpeta por oficina/
+   mercado, ej. "Información de Mercado/Monterrey/OF_MTY_IG.xlsx") y combina sus filas de PROPIEDADES/
+   PARKS/TRANSACCIONES/LAND directamente en `state`, para que las tablas, el Resumen y el Mapa que ya
+   existen las muestren igual que si fuera un solo archivo — cada registro ya trae su propio MARKET/
+   SUBMARKET, así que el filtro de mercado que ya existe sigue funcionando sin ningún cambio.
+   Solo se pide permiso "read" (nunca "readwrite"): no se escribe ni un byte de los archivos de nadie, así
+   que convive sin problema con quien tenga su Excel abierto/editándolo en ese momento — mismo principio
+   que ya usa hoy el recurso "Datos Complementarios" (líneas ~8090-8115).
+   Mientras está activo: no se puede crear/editar/borrar (ver blockIfConsolidated(), usado en openAdd(),
+   askDelete() y en los botones Guardar/Confirmar eliminar) y no puede haber a la vez un Excel individual
+   vinculado — abrir "Abrir Excel…"/"Abrir Terrenos…" lo desactiva automáticamente, y viceversa. */
+let consolidatedMode=false;
+let consolidatedRootHandle=null;
+
+function blockIfConsolidated(){
+  if(consolidatedMode){ toast("Modo consolidado: solo lectura. Sal del modo consolidado (Configuración > Archivos) para editar.","err"); return true; }
+  return false;
+}
+
+/* Lee una hoja conocida (PROPIEDADES/PARKS/TRANSACCIONES/LAND) de un workbook SIN tocar `state` ni
+   `layouts` — a diferencia de loadFromWorkbook()/loadLandFromWorkbook(), que sí mutan el estado real del
+   archivo individual vinculado. El tag numérico (oficina_archivo) en __id evita choques entre archivos de
+   distintas oficinas, ya que cada archivo por sí solo numera sus filas desde 0. */
+function extractEntityRowsReadOnly(wb, tag, officeLabel, merged){
+  for(const ent in ENTITIES){
+    const sheetName=wb.SheetNames.find(n=>n.toUpperCase()===ent);
+    if(!sheetName) continue;
+    const aoa=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1,defval:"",blankrows:false});
+    if(!aoa.length) continue;
+    const known=new Set(fields(ent).map(f=>f.key));
+    const dateKeys=new Set(fields(ent).filter(f=>f.type==="date").map(f=>f.key));
+    const {row:hRow, matched}=detectHeaderRow(aoa, known);
+    if(matched===0) continue;
+    const headerKeys=aoa[hRow].map(c=> c==null?"":String(c).trim());
+    while(headerKeys.length && headerKeys[headerKeys.length-1]==="") headerKeys.pop();
+    for(let r=hRow+1;r<aoa.length;r++){
+      const arr=aoa[r];
+      if(!arr || arr.every(v=>v===""||v==null)) continue;
+      const o={__id:ent+"_c"+tag+"_"+r, __consolidatedOffice:officeLabel};
+      headerKeys.forEach((k,ci)=>{
+        if(!known.has(k)) return;
+        let v=arr[ci];
+        if(v===""||v==null) return;
+        if(dateKeys.has(k) && typeof v==="number"){ const iso=excelSerialToISODate(v); if(iso) v=iso; }
+        o[k]=v;
+      });
+      merged[ent].push(o);
+    }
+  }
+}
+
+/* Recorre la carpeta raíz -> una subcarpeta por oficina -> cada .xlsx/.xls dentro, en modo solo lectura.
+   Un archivo que no se pueda leer (permiso denegado, corrupto, con el nombre "~$" de un lock de Excel
+   abierto en ese instante, etc.) simplemente se salta — no detiene la lectura del resto. */
+async function loadConsolidatedFromRoot(rootHandle, onProgress){
+  const merged={PROPIEDADES:[],PARKS:[],TRANSACCIONES:[],LAND:[]};
+  let officeCount=0, fileCount=0, skipped=[], officeIdx=0;
+  for await (const [officeName, officeHandle] of rootHandle.entries()){
+    if(officeHandle.kind!=="directory") continue;
+    officeIdx++;
+    let sawFileInOffice=false, fileIdx=0;
+    for await (const [fileName, fh] of officeHandle.entries()){
+      if(fh.kind!=="file" || !/\.xlsx?$/i.test(fileName) || fileName.startsWith("~$")) continue;
+      fileIdx++;
+      try{
+        if(!(await ensurePermission(fh,"read"))) { skipped.push(officeName+"/"+fileName); continue; }
+        const file=await fh.getFile();
+        const wb=XLSX.read(await file.arrayBuffer(),{type:"array"});
+        extractEntityRowsReadOnly(wb, officeIdx+"_"+fileIdx, officeName, merged);
+        fileCount++; sawFileInOffice=true;
+      }catch(e){ skipped.push(officeName+"/"+fileName); }
+      // v3.45.1: cede el hilo principal después de CADA archivo — XLSX.read() es síncrono y puede tardar
+      // cientos de ms por archivo; sin este respiro, el navegador ve un solo bloqueo continuo a lo largo de
+      // decenas de archivos y ofrece "la página no responde". El tiempo total de lectura es el mismo, solo
+      // se reparte en varios turnos del hilo — y de paso permite refrescar el toast de progreso.
+      if(onProgress) onProgress(officeName, fileCount);
+      await new Promise(r=>setTimeout(r,0));
+    }
+    if(sawFileInOffice) officeCount++;
+  }
+  return {merged, officeCount, fileCount, skipped};
+}
+
+function setConsolidatedChip(officeCount, fileCount, totalRecords){
+  const chip=document.getElementById("consolidatedChip");
+  const note=document.getElementById("consolidatedPathNote");
+  if(!chip) return;
+  if(consolidatedMode){
+    chip.textContent="● Activo — "+officeCount+" oficina(s), "+totalRecords+" registro(s)";
+    chip.style.background="rgba(30,158,90,.14)"; chip.style.color="var(--green)";
+    if(note) note.textContent=fileCount+" archivo(s) leído/s de \""+(consolidatedRootHandle?consolidatedRootHandle.name:"")+"\"";
+  } else {
+    chip.textContent="Inactivo"; chip.style.background="rgba(107,116,128,.15)"; chip.style.color="var(--muted)";
+    if(note) note.textContent="";
+  }
+}
+
+function applyConsolidatedUIState(){
+  document.getElementById("addBtn").style.display = consolidatedMode?"none":"";
+  document.getElementById("openFileBtn").disabled = consolidatedMode;
+  document.getElementById("openLandFileBtn").disabled = consolidatedMode;
+  document.getElementById("openConsolidatedBtn").style.display = consolidatedMode?"none":"";
+  document.getElementById("refreshConsolidatedBtn").style.display = consolidatedMode?"":"none";
+  document.getElementById("exitConsolidatedBtn").style.display = consolidatedMode?"":"none";
+  const banner=document.getElementById("consolidatedBanner");
+  if(banner) banner.style.display = consolidatedMode?"":"none";
+  if(mapViewActive) renderAllPolygonsMap();
+  if(resumenViewActive) renderResumenView();
+}
+
+/* v3.45.3: aplica el resultado de una lectura consolidada (inicial o de "Refrescar") a `state` y refresca
+   todo lo que dependa de él — factor común entre activar el modo y refrescarlo sin salir, para que ambos
+   flujos invaliden exactamente los mismos cachés (submercado→mercado, derivados de Parques). */
+function applyConsolidatedResult(merged, officeCount, fileCount, total){
+  state.PROPIEDADES=merged.PROPIEDADES; state.PARKS=merged.PARKS;
+  state.TRANSACCIONES=merged.TRANSACCIONES; state.LAND=merged.LAND;
+  invalidateSubmarketToMarketCache();
+  parkDerivedCacheSig=null;
+  setConsolidatedChip(officeCount, fileCount, total);
+  document.getElementById("consolidatedBannerInfo").textContent=officeCount+" oficina(s) · "+total+" registro(s)";
+  renderTable();
+  if(mapViewActive) renderAllPolygonsMap();
+  if(resumenViewActive) renderResumenView();
+}
+
+document.getElementById("openConsolidatedBtn").onclick=async()=>{
+  if(!FSA_DIR){ toast("Tu navegador no soporta esto. Usa Chrome o Edge.","err"); return; }
+  try{
+    const rootHandle=await window.showDirectoryPicker({mode:"read"});
+    if(!await ensurePermission(rootHandle,"read")){ toast("Permiso denegado","err"); return; }
+    toast("Leyendo los archivos de todos los mercados…","ok");
+    const {merged, officeCount, fileCount, skipped}=await loadConsolidatedFromRoot(rootHandle, (officeName, n)=>{ toast("Leyendo "+officeName+"… ("+n+" archivo(s) leídos)","ok"); });
+    const total=Object.values(merged).reduce((a,r)=>a+r.length,0);
+    if(total===0){
+      toast("No encontré registros reconocibles en esa carpeta. No activé el modo consolidado.","err");
+      return;
+    }
+    // Es uno u otro: al activar el consolidado se desvincula (solo por esta sesión, sin borrar el archivo
+    // recordado) el Excel individual — se puede reconectar normal al salir del consolidado.
+    fileHandle=null; landFileHandle=null;
+    document.getElementById("reconnectBar").style.display="none";
+    document.getElementById("reconnectLandBar").style.display="none";
+    consolidatedMode=true; consolidatedRootHandle=rootHandle;
+    setChip(); setLandFileChip();
+    applyConsolidatedResult(merged, officeCount, fileCount, total);
+    applyConsolidatedUIState();
+    toast("Modo consolidado activo: "+total+" registros de "+officeCount+" oficina(s)."+(skipped.length?(" ("+skipped.length+" archivo(s) no se pudieron leer)"):""),"ok");
+  }catch(e){ if(e.name!=="AbortError") toast("Error: "+e.message,"err"); }
+};
+
+/* v3.45.3: releer la MISMA carpeta ya vinculada, sin salir del modo consolidado ni volver a elegirla — para
+   traer cambios que otros usuarios hayan guardado en sus Excel después de que se cargó el consolidado (el
+   modo Consolidado es una "foto" del momento en que se activó, no se auto-actualiza solo). */
+async function refreshConsolidatedData(){
+  if(!consolidatedMode || !consolidatedRootHandle) return;
+  try{
+    toast("Actualizando desde todos los mercados…","ok");
+    const {merged, officeCount, fileCount, skipped}=await loadConsolidatedFromRoot(consolidatedRootHandle, (officeName, n)=>{ toast("Leyendo "+officeName+"… ("+n+" archivo(s) leídos)","ok"); });
+    const total=Object.values(merged).reduce((a,r)=>a+r.length,0);
+    applyConsolidatedResult(merged, officeCount, fileCount, total);
+    toast("Consolidado actualizado: "+total+" registros de "+officeCount+" oficina(s)."+(skipped.length?(" ("+skipped.length+" archivo(s) no se pudieron leer)"):""),"ok");
+  }catch(e){ toast("No se pudo actualizar: "+e.message,"err"); }
+}
+document.getElementById("refreshConsolidatedBtn").onclick=refreshConsolidatedData;
+document.getElementById("refreshConsolidatedBannerBtn").onclick=refreshConsolidatedData;
+
+async function exitConsolidatedMode(){
+  consolidatedMode=false; consolidatedRootHandle=null;
+  state.PROPIEDADES=[]; state.PARKS=[]; state.TRANSACCIONES=[]; state.LAND=[];
+  invalidateSubmarketToMarketCache();
+  setConsolidatedChip(0,0,0);
+  applyConsolidatedUIState();
+  await restoreFile();
+  await restoreLandFile();
+  if(!fileHandle && !landFileHandle){
+    const backup=loadState();
+    if(backup && Object.keys(backup).length) state=Object.assign({PROPIEDADES:[],PARKS:[],TRANSACCIONES:[],LAND:[]}, backup);
+  }
+  renderTable();
+}
+document.getElementById("exitConsolidatedBtn").onclick=async()=>{ await exitConsolidatedMode(); toast("Modo consolidado desactivado.","ok"); };
+document.getElementById("exitConsolidatedBannerBtn").onclick=async()=>{ await exitConsolidatedMode(); toast("Modo consolidado desactivado.","ok"); };
+
 /* ==== Core: write current state to the bound file ==== */
 let writing=false, pendingWrite=false;
 async function writeToFile(){
@@ -8008,6 +8362,9 @@ document.getElementById("openFileBtn").onclick=async()=>{
   try{
     const [h]=await window.showOpenFilePicker({types:[{description:"Excel",accept:{"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":[".xlsx",".xls"]}}]});
     if(!await ensurePermission(h,"readwrite")){ toast("Permiso denegado","err"); return; }
+    // Vincular un Excel individual es excluyente con el modo consolidado (uno u otro) — se desactiva sin
+    // más trámite, ya que el usuario está eligiendo explícitamente un archivo propio ahora mismo.
+    if(consolidatedMode){ consolidatedMode=false; consolidatedRootHandle=null; setConsolidatedChip(0,0,0); applyConsolidatedUIState(); }
     const file=await h.getFile();
     const wb=XLSX.read(await file.arrayBuffer(),{type:"array"});
     const matched=loadFromWorkbook(wb);
@@ -8066,6 +8423,7 @@ document.getElementById("openLandFileBtn").onclick=async()=>{
   try{
     const [h]=await window.showOpenFilePicker({types:[{description:"Excel",accept:{"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":[".xlsx",".xls"]}}]});
     if(!await ensurePermission(h,"readwrite")){ toast("Permiso denegado","err"); return; }
+    if(consolidatedMode){ consolidatedMode=false; consolidatedRootHandle=null; setConsolidatedChip(0,0,0); applyConsolidatedUIState(); }
     const file=await h.getFile();
     const wb=XLSX.read(await file.arrayBuffer(),{type:"array"});
     const matched=loadLandFromWorkbook(wb);

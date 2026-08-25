@@ -563,6 +563,12 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   th,td{padding:6px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
   th{background:var(--panel-2);color:var(--muted);font-weight:600;position:sticky;top:0;font-size:11.5px;
      text-transform:uppercase;letter-spacing:.4px;z-index:5}
+  /* v3.45.22, pedido explícito del usuario: arrastrar un <th> directo del header para reordenar columnas
+     (antes solo se podía reordenar desde el panel "Columnas visibles"). Mismo criterio visual que
+     .col-row.dragover en ese panel — reutiliza colDragStart/colDragOver/colDrop/colDragLeave sin duplicar
+     lógica, ambos operan sobre el mismo índice de visibleCols(current). */
+  th[draggable="true"]{cursor:grab}
+  th.dragover{outline:2px dashed var(--accent);outline-offset:-2px}
   tbody tr:hover{background:var(--panel-2)}
   tr.row-selectable{cursor:pointer}
   td.actions{white-space:nowrap}
@@ -942,7 +948,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Configuración</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="Ver notas de versión" onclick="openReleaseNotes()">v3.45.21</div>
+      <div class="app-version" title="Ver notas de versión" onclick="openReleaseNotes()">v3.45.22</div>
     </nav>
   </aside>
   <div class="main">
@@ -2615,6 +2621,9 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"3.45.22", date:"2026-08-25", items:[
+    "Nuevo: ahora se puede reordenar las columnas de la tabla arrastrándolas directo del encabezado (antes solo se podía desde el panel \"Columnas visibles\"). Arrastra cualquier columna y suéltala donde quieras — el orden queda guardado igual que antes, y sigue funcionando tal cual el clic para ordenar y el arrastre del borde para cambiar el ancho."
+  ]},
   {version:"3.45.21", date:"2026-08-25", items:[
     "Corregido: en un navegador que nunca había usado la app (sin nada guardado todavía), Propiedades/Naves y las demás tablas aparecían con registros de ejemplo aunque no hubiera ningún Excel conectado — venían de un set de datos de muestra incluido en el sistema. Ahora arranca en 0 registros hasta que de verdad se conecte/cargue un documento; una vez que hay datos reales guardados, la próxima vez que se abra la app sigue mostrando esos datos como siempre."
   ]},
@@ -3205,7 +3214,7 @@ function renderTable(){
   const activeFilterKeys=new Set((filters[current]||[]).map(f=>f.key));
   const theadHtml="<tr>"
     +(showSelect?`<th class="th-select"><input type="checkbox" ${selectAllChecked?"checked":""} onchange="${toggleAllFn}(this.checked)" title="Seleccionar todas las filtradas para la presentación"></th>`:"")
-    +cols.map(c=>`<th style="${colWidthStyle(current,c)}"><div class="th-cell sortable" onclick="toggleSort('${c}')" title="Ordenar"><span>${fieldLabel(c)}</span><span class="th-cell-right">${sortIconHtml(c)}<button type="button" class="col-filter-btn${activeFilterKeys.has(c)?" active":""}" onclick="toggleColumnFilter(event,'${c}')" title="Filtrar"><svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M3 4h18l-7 9v6l-4 2v-8L3 4z"/></svg></button></span></div>${colResizeHandleHtml(c)}</th>`).join("")
+    +cols.map((c,i)=>`<th draggable="true" ondragstart="colDragStart(event,${i})" ondragover="colDragOver(event,${i})" ondrop="colDrop(event,${i})" ondragleave="colDragLeave(event)" title="Arrastra para reordenar" style="${colWidthStyle(current,c)}"><div class="th-cell sortable" onclick="toggleSort('${c}')" title="Ordenar"><span>${fieldLabel(c)}</span><span class="th-cell-right">${sortIconHtml(c)}<button type="button" class="col-filter-btn${activeFilterKeys.has(c)?" active":""}" onclick="toggleColumnFilter(event,'${c}')" title="Filtrar"><svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M3 4h18l-7 9v6l-4 2v-8L3 4z"/></svg></button></span></div>${colResizeHandleHtml(c)}</th>`).join("")
     +`<th class="days-col" style="${colWidthStyle(current,DAYS_COL_WIDTH_KEY)}"><div class="th-cell sortable" onclick="toggleSort('${DAYS_SORT_KEY}')" title="Ordenar" style="justify-content:center">Días desde Actualización${sortIconHtml(DAYS_SORT_KEY)}</div>${colResizeHandleHtml(DAYS_COL_WIDTH_KEY)}</th>`
     +`<th class="pct-col" style="${colWidthStyle(current,PCT_COL_WIDTH_KEY)}"><div class="th-cell sortable" onclick="toggleSort('${PCT_SORT_KEY}')" title="Ordenar" style="justify-content:center">% Completado${sortIconHtml(PCT_SORT_KEY)}</div>${colResizeHandleHtml(PCT_COL_WIDTH_KEY)}</th><th style="${colWidthStyle(current,ACTIONS_COL_WIDTH_KEY)}">Acciones${colResizeHandleHtml(ACTIONS_COL_WIDTH_KEY)}</th></tr>`;
   /* v3.45.10, fuga de memoria real corregida: los <th> de esta tabla usan `position:sticky` (para que el

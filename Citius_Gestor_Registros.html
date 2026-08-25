@@ -948,7 +948,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Configuración</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="Ver notas de versión" onclick="openReleaseNotes()">v3.45.22</div>
+      <div class="app-version" title="Ver notas de versión" onclick="openReleaseNotes()">v3.45.25</div>
     </nav>
   </aside>
   <div class="main">
@@ -2621,6 +2621,15 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"3.45.25", date:"2026-08-25", items:[
+    "Corregido bug real en Resumen (reportado por el usuario): al filtrar por un Mercado cuyos Submercados tienen nombres genéricos repetidos en otros Mercados (ej. \"West\"/\"East\", usados en Reynosa, Matamoros y Nuevo Laredo a la vez), las secciones \"Absorción por Submercado\", \"Transacciones Completadas\" e \"Inventario Disponible\" podían no mostrar nada para ese Mercado, o mezclar sus números con los de otro Mercado que por coincidencia usa el mismo nombre de Submercado. Ahora cada fila se identifica y se calcula usando el Mercado real capturado en cada registro, sin depender de que el nombre del Submercado sea único en todo el sistema."
+  ]},
+  {version:"3.45.24", date:"2026-08-25", items:[
+    "Ajuste sobre v3.45.23, pedido explícito del usuario: en la Presentación de Terrenos, \"Electric Capacity\" en 0 ahora muestra \"None\" (no \"0\" como se dejó en v3.45.23) — vacío sigue mostrando \"TBC\"."
+  ]},
+  {version:"3.45.23", date:"2026-08-25", items:[
+    "Corregido en la Presentación de Terrenos: \"Electric Capacity\" mostraba \"Viability\"/\"None\" en vez del valor real — ahora un 0 capturado se muestra como \"0\" y solo un campo vacío muestra \"TBC\". \"Sewer System\" y \"Railroad\" no mostraban nada especial en vacío — ahora también muestran \"TBC\". \"Asking Price\" en 0 ahora muestra \"Upon Request\" en vez de \"$0.00\". \"Telecommunications\" ya mostraba \"TBC\" en vacío correctamente, sin cambios."
+  ]},
   {version:"3.45.22", date:"2026-08-25", items:[
     "Nuevo: ahora se puede reordenar las columnas de la tabla arrastrándolas directo del encabezado (antes solo se podía desde el panel \"Columnas visibles\"). Arrastra cualquier columna y suéltala donde quieras — el orden queda guardado igual que antes, y sigue funcionando tal cual el clic para ordenar y el arrastre del borde para cambiar el ancho."
   ]},
@@ -3452,11 +3461,19 @@ function buildColFilterHistogram(ent, key){
 }
 /* ==== Resumen (dashboard) — cálculos ==== */
 function ciEq(a,b){ return String(a==null?"":a).trim().toLowerCase()===String(b==null?"":b).trim().toLowerCase(); }
+/* v3.45.25, bug real corregido: antes se armaba la lista de TODOS los submercados en uso (sin importar de
+   qué mercado) y LUEGO se filtraba con el diccionario ambiguo resumenMarketForSubmarket() — con nombres de
+   submercado repetidos entre mercados (ej. "West"/"East" en Reynosa, Matamoros y Nuevo Laredo) esto excluía
+   por completo los submercados de 2 de los 3 mercados reales. Ahora se recorren las filas de una vez
+   (PROPIEDADES y TRANSACCIONES, las 2 fuentes de submercados de este panel) y solo se agrega el SUBMARKET
+   de las filas que de verdad pertenecen al mercado filtrado — mismo resumenMarketMatches() ya usado en
+   resumenKpis(), que compara `row.MARKET` directo (fiable) y solo cae al diccionario si a la fila
+   de verdad le falta MARKET propio. */
 function resumenSubmarkets(){
-  const set=new Set([...fieldValuesInUse("PROPIEDADES","SUBMARKET"), ...fieldValuesInUse("TRANSACCIONES","SUBMARKET")]);
-  let list=[...set];
-  if(resumenMarket) list=list.filter(sm=>{ const mk=resumenMarketForSubmarket(sm); return mk && ciEq(mk,resumenMarket); });
-  return list.sort((a,b)=>a.localeCompare(b));
+  const set=new Set();
+  (state.PROPIEDADES||[]).forEach(r=>{ if(r.SUBMARKET && resumenMarketMatches(r,"PROPIEDADES")) set.add(r.SUBMARKET); });
+  (state.TRANSACCIONES||[]).forEach(r=>{ if(r.SUBMARKET && resumenMarketMatches(r,"TRANSACCIONES")) set.add(r.SUBMARKET); });
+  return [...set].sort((a,b)=>a.localeCompare(b));
 }
 /* Mercado al que pertenece un submercado — usa el catálogo de ubicación si está cargado (fuente autoritativa),
    si no, lo deriva de los propios registros de PROPIEDADES (que sí traen MARKET y SUBMARKET juntos).
@@ -3498,10 +3515,19 @@ function resumenMarketForSubmarket(submarket){
 function resumenMarkets(){
   return fieldValuesInUse("PROPIEDADES","MARKET");
 }
-/* ¿Esta fila (de `ent`) pertenece al mercado filtrado en Resumen? true si no hay filtro activo. */
+/* ¿Esta fila (de `ent`) pertenece al mercado filtrado en Resumen? true si no hay filtro activo.
+   v3.45.25, bug real corregido (reportado por el usuario con datos reales de Matamoros): antes solo
+   PROPIEDADES/PARKS comparaban `row.MARKET` directo — TRANSACCIONES (que también trae su propio MARKET,
+   ver BUNDLE.TRANSACCIONES) caía siempre al diccionario submercado→mercado de resumenMarketForSubmarket(),
+   que asume que cada nombre de submercado pertenece a UN solo mercado ("el primer match gana" al
+   construirlo). Con submercados genéricos reutilizados en varios mercados (ej. "West"/"East" existen en
+   Reynosa, Matamoros Y Nuevo Laredo) ese diccionario solo puede quedarse con uno de los tres — los otros
+   dos pierden esas filas por completo, sin ningún aviso. Ahora se usa `row.MARKET` directo siempre que la
+   fila lo tenga (las 4 entidades ya lo capturan), sin importar `ent` — el diccionario queda solo de
+   respaldo para filas viejas/incompletas sin MARKET propio. */
 function resumenMarketMatches(row, ent){
   if(!resumenMarket) return true;
-  if((ent==="PROPIEDADES"||ent==="PARKS") && row.MARKET) return ciEq(row.MARKET,resumenMarket);
+  if(row.MARKET) return ciEq(row.MARKET,resumenMarket);
   const mk=resumenMarketForSubmarket(row.SUBMARKET);
   return mk?ciEq(mk,resumenMarket):false;
 }
@@ -3729,46 +3755,51 @@ function renderResumenView(){
   const yearOptionsHtml=years.map(y=>`<option value="${y}" ${y===resumenYear?"selected":""}>${y}</option>`).join("");
   const marketOptionsHtml=`<option value="" ${resumenMarket===""?"selected":""}>Todos</option>`+markets.map(m=>`<option value="${escapeAttr(m)}" ${m===resumenMarket?"selected":""}>${escapeHtml(m)}</option>`).join("");
 
+  /* v3.45.25: todas las siguientes filas de cómputo AHORA también exigen resumenMarketMatches(r,ent) —
+     antes solo filtraban por SUBMARKET, y con nombres de submercado repetidos entre mercados (ver nota en
+     resumenSubmarkets()) el TOTAL de la fila mezclaba silenciosamente datos de otro mercado que por
+     coincidencia usa el mismo nombre de submercado. Sin filtro de Mercado activo (resumenMarket==="")
+     resumenMarketMatches() siempre da true, así que el comportamiento sin filtro no cambia. */
   const grossHtml=resumenQuarterTableHtml("Absorción Bruta (Renta)", "Solo transacciones de Renta con absorción Bruta",
-    (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); });
+    (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); });
   const negativeHtml=resumenQuarterTableHtml("Absorción Negativa", "Entregas / bajas (2da Generación)",
-    (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); });
+    (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); });
   const netHtml=resumenQuarterTableHtml("Absorción Neta", "Absorción Bruta (Renta) + absorción Negativa",
     (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q);
-      const gross=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
-      const neg=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
+      const gross=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
+      const neg=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
       return gross+neg; });
 
   const txQuarterHtml=resumenQuarterTableHtml("Absorción Trimestral Total", "Todas las operaciones con absorción Bruta (Renta y Venta)",
-    (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); });
+    (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); });
   const txBucketHtml=resumenBreakdownTableHtml("Operaciones por Tamaño", "Número de transacciones del año, agrupadas por rango de tamaño (SF)",
     RESUMEN_SIZE_BUCKETS.map(b=>({key:b,label:b[2]})),
-    (sm,bucket)=>countByPredicate(state.TRANSACCIONES, r=>ciEq(r.SUBMARKET,sm)&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd&&inSizeBucket(r.TRANSACTION_AREA,bucket)));
+    (sm,bucket)=>countByPredicate(state.TRANSACCIONES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd&&inSizeBucket(r.TRANSACTION_AREA,bucket)));
   const txBuildingTypeHtml=resumenBreakdownTableHtml("Por Tipo de Edificio", "Área con absorción Bruta del año, por tipo de edificio de la transacción",
     [{key:"Inventory",label:"Inventory"},{key:"Expansion",label:"Expansión"},{key:"STS",label:"Spec to Suit"},{key:"BTS",label:"Build to Suit"}],
-    (sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&ciEq(r.BUILDING_TYPE,type)&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd));
+    (sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.BUILDING_TYPE,type)&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd));
   const txDealTypeHtml=resumenBreakdownTableHtml("Por Tipo de Operación", "Área con absorción Bruta del año, por tipo de operación: Renta o Venta",
     [{key:"Lease",label:"Renta"},{key:"Sale",label:"Venta"}],
-    (sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&ciEq(r.TRANSACCION_TYPE,type)&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd));
+    (sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,type)&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd));
 
   const availHtml=resumenBreakdownTableHtml("Disponibilidad", "Área total disponible en el mercado, por submercado",
     [{key:"__avail__",label:"Área Disponible (SF)"}],
-    (sm)=>sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&ciEq(r.MARKET_STATUS,"Available")));
+    (sm)=>sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.MARKET_STATUS,"Available")));
   const availClassHtml=resumenBreakdownTableHtml("Por Clase", "Área disponible por clase de edificio (A/B)",
     [{key:"A",label:"Clase A"},{key:"B",label:"Clase B"}],
-    (sm,cls)=>sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&ciEq(r.CLASSIFICATION,cls)&&ciEq(r.MARKET_STATUS,"Available")));
+    (sm,cls)=>sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.CLASSIFICATION,cls)&&ciEq(r.MARKET_STATUS,"Available")));
   const availBucketHtml=resumenBreakdownTableHtml("Edificios Disponibles por Tamaño", "Número de edificios disponibles, agrupados por rango de tamaño (SF)",
     RESUMEN_SIZE_BUCKETS.map(b=>({key:b,label:b[2]})),
-    (sm,bucket)=>countByPredicate(state.PROPIEDADES, r=>ciEq(r.SUBMARKET,sm)&&ciEq(r.MARKET_STATUS,"Available")&&inSizeBucket(r.AVAILABLE_AREA_VALUE,bucket)));
+    (sm,bucket)=>countByPredicate(state.PROPIEDADES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.MARKET_STATUS,"Available")&&inSizeBucket(r.AVAILABLE_AREA_VALUE,bucket)));
   const availStatusHtml=resumenBreakdownTableHtml("Por Estado", "\"Sublease\" se toma de Transacción Disponible, no de Estado, para que el número refleje datos reales",
     [{key:"Ready",label:"Listo"},{key:"Under Construction",label:"En Construcción"},{key:"Planned",label:"Planeado"},{key:"Sublease",label:"Sublease"}],
     (sm,status)=>{
-      if(status==="Sublease") return sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&ciEq(r.TRANSACTION_AVAILABLE,"Sublease")&&ciEq(r.MARKET_STATUS,"Available"));
-      return sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&ciEq(r.STATUS,status)&&ciEq(r.MARKET_STATUS,"Available"));
+      if(status==="Sublease") return sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.TRANSACTION_AVAILABLE,"Sublease")&&ciEq(r.MARKET_STATUS,"Available"));
+      return sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.STATUS,status)&&ciEq(r.MARKET_STATUS,"Available"));
     });
   const availGenHtml=resumenBreakdownTableHtml("Por Generación", "Área disponible por generación del edificio (Nueva / 2da Generación)",
     [{key:"New",label:"Nueva"},{key:"2nd",label:"2da Generación"}],
-    (sm,gen)=>sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&ciEq(r.BUILDING_GENERATION,gen)&&ciEq(r.MARKET_STATUS,"Available")));
+    (sm,gen)=>sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.BUILDING_GENERATION,gen)&&ciEq(r.MARKET_STATUS,"Available")));
 
   const complianceHtmlProp=resumenComplianceTableHtml("Propiedades", "Promedio del % de campos obligatorios capturados (mismo cálculo que la columna \"% Completado\" de la tabla), por mercado y estatus de mercado", "PROPIEDADES");
   const complianceHtmlParks=resumenComplianceFullTableHtml("Parques", "Promedio del % de campos obligatorios capturados (mismo cálculo que la columna \"% Completado\" de la tabla), por mercado, sobre el full de los datos", "PARKS");
@@ -6164,21 +6195,27 @@ const PRESENTATION_ROWS_LAND = [
   {label:"Security", key:"FENCE"},
   {label:"Infrastructure Status", key:"INFRAESTRUCTURE_STATUS"},
   {label:"Electric Service", key:"ELECTRIC_SERVICE_(kv)", unit:"kv"},
-  {label:"Electric Capacity", key:"ELECTRIC_CAPACITY_KVA", unit:"kVA", rule:"viability_none"},
+  {label:"Electric Capacity", key:"ELECTRIC_CAPACITY_KVA", unit:"kVA", rule:"none_zero_tbc_empty"},
   {label:"Water Supply", key:"WATER_SUPPLY"},
   {label:"Water Capacity", key:"WATER_CAPACITY_LPS", unit:"lps", rule:"viability_none"},
-  {label:"Sewer System", key:"SEWER_SYSTEM"},
+  {label:"Sewer System", key:"SEWER_SYSTEM", rule:"tbc_empty"},
   {label:"Natural Gas", key:"NATURAL_GAS"},
   {label:"Telecommunications", key:"TELECOMUNICATIONS", rule:"tbc_empty"},
-  {label:"Railroad", key:"RAILROAD"},
+  {label:"Railroad", key:"RAILROAD", rule:"tbc_empty"},
   {label:"Min Transaction Area", key:"MINIMUM_TRANSACTION_AREA_VALUE", unit:"has", highlight:true},
   {label:"Transaction Type", key:"TRANSACTION_TYPE"},
   {label:"Land Use", key:"LAND_USE"},
-  {label:"Asking Price", key:"ASKING_PRICE_VALUE", unit:"$/m2", dark:true, currency:true}
+  {label:"Asking Price", key:"ASKING_PRICE_VALUE", unit:"$/m2", dark:true, currency:true, rule:"upon_request_zero"}
 ];
-/* Reglas de valor vacío/0 tomadas literalmente de la columna D de la hoja de referencia:
-   - "viability_none" (Electric/Water Capacity): 0 → "Viability", vacío → "None".
-   - "tbc_empty" (Telecommunications): vacío → "TBC" (sin caso especial para 0 — es un campo categórico). */
+/* Reglas de valor vacío/0, pedido explícito del usuario (v3.45.23/3.45.24):
+   - "viability_none" (Water Capacity): 0 → "Viability", vacío → "None".
+   - "none_zero_tbc_empty" (Electric Capacity): 0 → "None", vacío → "TBC" — distinta de "viability_none"
+     (que usaba antes y quedó mal: mostraba "Viability" en 0) y también distinta de "tbc_empty" (que
+     dejaría el 0 tal cual, algo que el usuario corrigió después de pedirlo así la primera vez).
+   - "tbc_empty" (Sewer System, Telecommunications, Railroad): vacío → "TBC"; un valor real se muestra con
+     el formato normal, sin caso especial para 0 (son campos categóricos, no numéricos).
+   - "upon_request_zero" (Asking Price): 0 → "Upon Request" (un precio real de $0 no tiene sentido; se usa
+     como valor centinela para "disponible bajo solicitud"). */
 function presLandValueFor(rec,row){
   if(row.key==="__LOCATION_PIN__"){
     const lat=rec.LATITUDE, lng=rec.LONGITUDE;
@@ -6190,6 +6227,11 @@ function presLandValueFor(rec,row){
     if(v===0) return "Viability";
     if(v==null||v==="") return "None";
   }
+  if(row.rule==="none_zero_tbc_empty"){
+    if(v===0) return "None";
+    if(v==null||v==="") return "TBC";
+  }
+  if(row.rule==="upon_request_zero" && v===0) return "Upon Request";
   if(row.rule==="tbc_empty" && (v==null||v==="")) return "TBC";
   if(v==null||v==="") return "—";
   let out;

@@ -438,7 +438,11 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      alto lo define el contenido (25 filas), por eso tiene su propio grupo "listPage" en
      preparePrintPageSize() en vez de compartir el de Table. */
   .deck-list-table{width:100%;border-collapse:collapse;font-family:'Unitext',sans-serif;font-size:11px}
-  .deck-list-table th{background:var(--accent);color:#3a2c05;font-weight:700;text-align:left;padding:7px 8px;white-space:nowrap}
+  /* position:static explícito: la regla global `th{position:sticky;top:0}` (pensada para el encabezado de
+     la tabla principal #tbl) se hereda por defecto en CUALQUIER <th>, incluido este — sin este override el
+     encabezado de "List" se quedaba flotando fijo a mitad de la Presentación al hacer scroll, en vez de
+     desplazarse junto con el resto de la hoja como cualquier tabla normal (reportado por el usuario). */
+  .deck-list-table th{position:static;background:var(--accent);color:#3a2c05;font-weight:700;text-align:left;padding:7px 8px;white-space:nowrap}
   .deck-list-table td{padding:6px 8px;border-bottom:1px solid #e2e2e2;white-space:nowrap}
   .deck-list-table tr.deck-list-stripe td{background:#f2f2f2}
   .deck-list-table .deck-list-num{width:28px;text-align:center;color:#666}

@@ -454,8 +454,8 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      terminaba más ancha que la hoja completa (925px medido en una hoja de 885px), justo la queja original
      del usuario. Con fixed, las columnas se reparten ese 92% entre sí y el contenido que no cabe se recorta
      con "…" (ver white-space/overflow abajo) en vez de forzar la tabla a crecer. */
-  .deck-list-table{width:92%;table-layout:fixed;border-collapse:collapse;font-family:'Unitext',sans-serif;font-size:11px}
-  .deck-list-table th,.deck-list-table td{overflow:hidden;text-overflow:ellipsis}
+  .deck-list-table{width:96%;margin-top:20px;table-layout:fixed;border-collapse:collapse;font-family:'Unitext',sans-serif;font-size:11px}
+  .deck-list-table th,.deck-list-table td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   /* position:static explícito: la regla global `th{position:sticky;top:0}` (pensada para el encabezado de
      la tabla principal #tbl) se hereda por defecto en CUALQUIER <th>, incluido este — sin este override el
      encabezado de "List" se quedaba flotando fijo a mitad de la Presentación al hacer scroll, en vez de
@@ -463,7 +463,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .deck-list-table th{position:static;background:var(--accent);color:#3a2c05;font-weight:700;text-align:left;padding:7px 8px;white-space:nowrap}
   .deck-list-table td{padding:6px 8px;border-bottom:1px solid #e2e2e2;white-space:nowrap}
   .deck-list-table tr.deck-list-stripe td{background:#f2f2f2}
-  .deck-list-table .deck-list-num{width:28px;text-align:center;color:#666}
+  .deck-list-table .deck-list-num{text-align:center;color:#666} /* el ancho real ahora lo da el <colgroup> (NUM_COL_SHARE) */
   /* ==== Layout (spec sheet 1 página/propiedad) — v3.41.0 ====
      Reusa .deck-page/.deck-logo/.map-pin tal cual; solo agrega clases propias para el arreglo de 4 bloques
      (fachada | tabla 2 columnas | aéreo satelital | plano grande abajo). Sin aspect-ratio fijo (a diferencia
@@ -6212,19 +6212,24 @@ function buildDeckPageHtml(chunk,pageIndex,logoSrc){
    continuo a través de TODAS las hojas, no se reinicia por página. Developer y Location se OMITEN por
    completo (no solo se redactan a "Private"/"Industrial Park" como ya hace presValueFor para Table) cuando
    Confidencial="Sí" — decisión explícita del usuario, distinta de cómo Table maneja lo mismo. */
+/* widthShare (v3.45.29, pedido explícito del usuario): reparto proporcional de columnas dentro del
+   <colgroup> — sin esto, table-layout:fixed (necesario para que el ancho de la tabla se respete de
+   verdad, ver nota más abajo) reparte el ancho en partes IGUALES entre columnas, y textos largos como
+   Location/Developer quedaban truncados con "…" todo el tiempo. Location pidió explícitamente más
+   espacio que el resto (widthShare:2.2 vs 1 del resto); # es aparte, siempre angosta. */
 const PRESENTATION_LIST_COLUMNS=[
-  {label:"Submarket", key:"SUBMARKET"},
-  {label:"Name", key:"PROPERTY_NAME"},
-  {label:"Developer", key:"DEVELOPER", confidentialHide:true},
-  {label:"Location", key:"PARK_NAME", confidentialHide:true},
-  {label:"Size", key:"LEASABLE_AREA_GLA_VALUE", unitClass:"AREA"},
-  {label:"Occupied", key:"OCUPIED_AREA_VALUE", unitClass:"AREA"},
-  {label:"Available", key:"AVAILABLE_AREA_VALUE", unitClass:"AREA"},
-  {label:"Clear Height", key:"MIN_CLEAR_HEIGHT_VALUE", unitClass:"LONG"},
-  {label:"Status", key:"STATUS"},
-  {label:"Class", key:"CLASSIFICATION"},
-  {label:"Gen", key:"BUILDING_GENERATION"},
-  {label:"Asking Rate", key:"ASKING_RATE_VALUE", unitClass:"RATE", rule:"upon_request", prefix:"US $ "}
+  {label:"Submarket", key:"SUBMARKET", widthShare:1.1},
+  {label:"Name", key:"PROPERTY_NAME", widthShare:1.3},
+  {label:"Developer", key:"DEVELOPER", confidentialHide:true, widthShare:1.3},
+  {label:"Location", key:"PARK_NAME", confidentialHide:true, widthShare:2.2},
+  {label:"Size", key:"LEASABLE_AREA_GLA_VALUE", unitClass:"AREA", widthShare:1},
+  {label:"Occupied", key:"OCUPIED_AREA_VALUE", unitClass:"AREA", widthShare:1},
+  {label:"Available", key:"AVAILABLE_AREA_VALUE", unitClass:"AREA", widthShare:1},
+  {label:"Clear Height", key:"MIN_CLEAR_HEIGHT_VALUE", unitClass:"LONG", widthShare:1},
+  {label:"Status", key:"STATUS", widthShare:1.3},
+  {label:"Class", key:"CLASSIFICATION", widthShare:0.6},
+  {label:"Gen", key:"BUILDING_GENERATION", widthShare:0.6},
+  {label:"Asking Rate", key:"ASKING_RATE_VALUE", unitClass:"RATE", rule:"upon_request", prefix:"US $ ", widthShare:1.2}
 ];
 /* Header dinámico según presUnitPref/presPeriodPref — mismo criterio que presUnitLabel() ya usa para las
    filas de Table, solo que aquí también compone el caso especial "$/unidad/periodo" de Asking Rate. */
@@ -6233,9 +6238,14 @@ function presListColumnHeaderLabel(col){
   if(col.unitClass==="RATE") return `$/${presUnitPref==="metric"?"m²":"SF"}/${presPeriodPref==="annual"?"Yr":"Mo"}`;
   return col.label;
 }
-const LIST_ROWS_PER_PAGE=25; // mismo tanto de filas por hoja que la referencia del usuario
+const LIST_ROWS_PER_PAGE=20; // ajustado a pedido explícito del usuario (v3.45.29; empezó en 25, la referencia)
 function buildListPagesHtml(list, logoSrc){
   const cols=PRESENTATION_LIST_COLUMNS.filter(c=>!(c.confidentialHide && presConfidential));
+  const NUM_COL_SHARE=0.4;
+  const totalShare=NUM_COL_SHARE+cols.reduce((a,c)=>a+(c.widthShare||1),0);
+  const colgroupHtml=`<colgroup><col style="width:${(NUM_COL_SHARE/totalShare*100).toFixed(2)}%">${
+    cols.map(c=>`<col style="width:${((c.widthShare||1)/totalShare*100).toFixed(2)}%">`).join("")
+  }</colgroup>`;
   const headHtml=`<tr><th class="deck-list-num">#</th>${cols.map(c=>`<th>${escapeHtml(presListColumnHeaderLabel(c))}</th>`).join("")}</tr>`;
   let html="";
   for(let start=0; start<list.length; start+=LIST_ROWS_PER_PAGE){
@@ -6246,7 +6256,7 @@ function buildListPagesHtml(list, logoSrc){
     }).join("");
     html+=`<div class="deck-page list-page">
       <div class="deck-header"><img class="deck-logo" src="${logoSrc}"><h2>Building Options</h2></div>
-      <table class="deck-list-table"><thead>${headHtml}</thead><tbody>${rowsHtml}</tbody></table>
+      <table class="deck-list-table">${colgroupHtml}<thead>${headHtml}</thead><tbody>${rowsHtml}</tbody></table>
       <p class="deck-note">*This information has been provided to Citius AG by developers and local brokers. However, Citius AG makes no warranties or representations as to the accuracy of the data until a formal quotation. *All Tenant Improvements specified as "To Suit" will be added onto the base lease rate. &nbsp;*"TBC" to be confirmed</p>
     </div>`;
   }

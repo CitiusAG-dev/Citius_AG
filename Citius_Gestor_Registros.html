@@ -1894,8 +1894,14 @@ function loadFieldConfigFromSheet(wb){
     const key=String(row[ci.key]||"").trim();
     if(!ent||!key||!BUNDLE[ent]) continue;
     if(!BUNDLE[ent].fields.some(f=>f.key===key)) continue; // ignore stale/renamed fields
+    // v3.45.26: el Archivo de Configuración compartido guarda el group tal cual el equipo lo escribió en la
+    // columna GRUPO del Excel — si viene de antes de la traducción a inglés, trae los nombres viejos en
+    // español (ej. "IDENTIFICACIÓN"), que ya no coinciden con ninguna clave de GROUP_META (más abajo en el
+    // archivo) y la ficha cae al ícono/label genérico para ESE grupo en TODAS las computadoras del equipo
+    // que lean este mismo archivo — mismo mapa de traducción que ya usa la migración de fieldConfig local.
+    const rawGroup=String(row[ci.group]||"").trim();
     (byEnt[ent]=byEnt[ent]||[]).push({
-      key, group:String(row[ci.group]||"").trim()||"OTROS",
+      key, group:(GROUP_NAME_ES_TO_EN[rawGroup]||rawGroup)||"OTHER",
       required:String(row[ci.req]||"").trim().toUpperCase()==="SI",
       type:(["text","int","decimal","date"].includes(String(row[ci.type]||"").trim().toLowerCase())?String(row[ci.type]).trim().toLowerCase():"text"),
       list:String(row[ci.list]||"").trim(),
@@ -3330,7 +3336,7 @@ function renderTable(){
         if(c===cfg.statusField) return `<td style="${colStyle}">${c==="MARKET_STATUS"?marketStatusPill(r[c]):statusPill(r[c])}</td>`;
         return `<td style="${colStyle}">${cellVal}</td>`;
       }).join("");
-      const selectTd=showSelect?`<td class="td-select"><input type="checkbox" ${presOrder.includes(r.__id)?"checked":""} onchange="${toggleOneFn}('${r.__id}',this.checked)" title="Usar en presentación"></td>`:"";
+      const selectTd=showSelect?`<td class="td-select"><input type="checkbox" ${presOrder.includes(r.__id)?"checked":""} onchange="${toggleOneFn}('${r.__id}',this.checked)" title="Use in presentation"></td>`:"";
       const daysTd=`<td class="days-col" style="${colWidthStyle(current,DAYS_COL_WIDTH_KEY)}">${daysSinceUpdateHtml(daysSinceUpdate(r))}</td>`;
       const pctTd=`<td class="pct-col" style="${colWidthStyle(current,PCT_COL_WIDTH_KEY)}">${completionPill(completionStats(current, r))}</td>`;
       return `<tr class="row-selectable" onclick="handleRowClick(event,'${r.__id}')">${selectTd}${tds}${daysTd}${pctTd}<td class="actions" style="${colWidthStyle(current,ACTIONS_COL_WIDTH_KEY)}">
@@ -3949,7 +3955,7 @@ function toggleColumnsPanel(evt){
     </div>
     <div class="columns-panel-visible" id="colVisibleList"></div>
     <div class="columns-panel-divider"></div>
-    <input type="text" class="columns-panel-search" id="colAddSearch" placeholder="Agregar columna…" oninput="renderColumnsAddList()">
+    <input type="text" class="columns-panel-search" id="colAddSearch" placeholder="Add column…" oninput="renderColumnsAddList()">
     <div class="columns-panel-add" id="colAddList"></div>
     <div class="columns-panel-actions">
       <button type="button" class="btn ghost" onclick="resetColumnsToDefault()">Reset</button>
@@ -4084,7 +4090,7 @@ function renderColFilterListBody(){
         const labelHtml=v===""?`<span class="col-filter-blank-label">${escapeHtml(label)}</span>`:escapeHtml(label);
         return `<label class="col-filter-item"><input type="checkbox" ${colFilterState.values.has(v)?"checked":""} onchange="onColFilterToggleValue('${escapeAttr(v)}',this.checked)">${labelHtml}</label>`;
       }).join("")
-    : `<div class="col-filter-empty">Sin coincidencias</div>`;
+    : `<div class="col-filter-empty">No matches</div>`;
 }
 function refreshColFilterSelectAllState(){
   const cb=document.getElementById("colFilterSelectAll");
@@ -4155,7 +4161,7 @@ function renderColumnFilterDropdown(anchorBtn){
       </div>
     </div>`;
   } else {
-    bodyHtml=`<input type="text" class="col-filter-search" placeholder="Contiene…" value="${escapeAttr(colFilterState.values.text)}" oninput="colFilterState.values.text=this.value"${applyOnEnter}>`;
+    bodyHtml=`<input type="text" class="col-filter-search" placeholder="Contains…" value="${escapeAttr(colFilterState.values.text)}" oninput="colFilterState.values.text=this.value"${applyOnEnter}>`;
   }
   el.innerHTML=`<div class="col-filter-body">${bodyHtml}</div>
     <div class="col-filter-foot">
@@ -4303,15 +4309,15 @@ function recomputeParkDerivedFields(park){
 }
 function recomputeAllParkDerivedFields(){ (state.PARKS||[]).forEach(recomputeParkDerivedFields); }
 function polygonSummary(raw){
-  if(!raw) return "Sin polígono capturado";
+  if(!raw) return "No polygon captured";
   try{
     const gj=JSON.parse(raw);
     const coords=(gj.geometry?gj.geometry.coordinates:gj.coordinates)[0];
-    return `Polygon captured (${coords.length-1} vértices)`;
+    return `Polygon captured (${coords.length-1} vertices)`;
   }catch(e){ return "Polygon captured"; }
 }
 const GROUP_META = {
-  "Photography": {label:"Photography", icon:'<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>'},
+  "Photography": {label:"Photos", icon:'<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>'},
   "GENERAL": {label:"General", icon:'<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>'},
   "IDENTIFICATION": {label:"Identification", icon:'<path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>'},
   "LOCATION": {label:"Location", icon:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>'},
@@ -5072,7 +5078,7 @@ function renderRecordPickerList(){
   recordPickerCurrentList=list;
   const rowsEl=document.getElementById("recordPickerRows");
   const gridCols=cfg.columns.map(c=>c.width||"1fr").join(" ");
-  if(!list.length){ rowsEl.innerHTML=`<div class="record-picker-empty">Sin coincidencias.</div>`; return; }
+  if(!list.length){ rowsEl.innerHTML=`<div class="record-picker-empty">No matches.</div>`; return; }
   rowsEl.innerHTML=list.map((r,i)=>`
     <div class="record-picker-row${r.__extra?" extra":""}" style="grid-template-columns:${gridCols}" onclick="selectRecordFromPicker(${i})">
       ${cols.map(k=>`<div>${escapeHtml(r[k]!=null?String(r[k]):"")}</div>`).join("")}
@@ -5280,7 +5286,7 @@ function complementaryLayerFilterHtml(){
   }).join("");
 }
 function complementaryPopupHtml(row){
-  let html=`<div style="min-width:170px"><b>${escapeHtml(row.name||"Sin nombre")}</b>`;
+  let html=`<div style="min-width:170px"><b>${escapeHtml(row.name||"Unnamed")}</b>`;
   Object.keys(row).forEach(k=>{
     if(k.startsWith("__") || k==="name" || k==="geometry_type") return;
     const v=row[k];
@@ -5464,7 +5470,7 @@ function mapFilterActiveCount(){
 }
 function updateMapFilterCount(){
   const el=document.getElementById("mapFilterCount");
-  if(el) el.textContent=`${mapFilterActiveCount()} activo(s)`;
+  if(el) el.textContent=`${mapFilterActiveCount()} active`;
   const clearBtn=document.getElementById("mapFilterClearBtn");
   if(clearBtn) clearBtn.style.display=mapFilterActiveCount()?"":"none";
 }
@@ -5480,17 +5486,17 @@ function mapFilterWidgetHtml(scope,key,type){
     const indeterminate=checkedCount>0 && checkedCount<visible.length;
     return `<input type="text" class="col-filter-search" placeholder="Search…" value="${escapeAttr(mapFilterSearch[scope+"::"+key]||"")}" oninput="onMapFilterListSearch('${scope}','${key}',this.value)">
       <label class="col-filter-item col-filter-selectall"><input type="checkbox" ${allChecked?"checked":""} ${indeterminate?'data-indeterminate="1"':""} onchange="onMapFilterListSelectAll('${scope}','${key}',this.checked)"><b>Select all</b></label>
-      <div class="col-filter-list">${visible.length?visible.map(v=>`<label class="col-filter-item"><input type="checkbox" ${active.has(v)?"checked":""} onchange="onMapFilterListToggle('${scope}','${key}','${escapeAttr(v)}',this.checked)">${escapeHtml(v)}</label>`).join(""):`<div class="col-filter-empty">Sin coincidencias</div>`}</div>`;
+      <div class="col-filter-list">${visible.length?visible.map(v=>`<label class="col-filter-item"><input type="checkbox" ${active.has(v)?"checked":""} onchange="onMapFilterListToggle('${scope}','${key}','${escapeAttr(v)}',this.checked)">${escapeHtml(v)}</label>`).join(""):`<div class="col-filter-empty">No matches</div>`}</div>`;
   }
   if(type==="number"){
     const existing=mapFilterEntry(scope,key);
     return `<div class="col-filter-range">
-      <label>Desde<input type="number" value="${escapeAttr(existing?existing.min:"")}" oninput="onMapFilterNumberChange('${scope}','${key}','min',this.value)"></label>
-      <label>Hasta<input type="number" value="${escapeAttr(existing?existing.max:"")}" oninput="onMapFilterNumberChange('${scope}','${key}','max',this.value)"></label>
+      <label>From<input type="number" value="${escapeAttr(existing?existing.min:"")}" oninput="onMapFilterNumberChange('${scope}','${key}','min',this.value)"></label>
+      <label>To<input type="number" value="${escapeAttr(existing?existing.max:"")}" oninput="onMapFilterNumberChange('${scope}','${key}','max',this.value)"></label>
     </div>`;
   }
   const existing=mapFilterEntry(scope,key);
-  return `<input type="text" class="col-filter-search" placeholder="Contiene…" value="${escapeAttr(existing?existing.text:"")}" oninput="onMapFilterTextChange('${scope}','${key}',this.value)">`;
+  return `<input type="text" class="col-filter-search" placeholder="Contains…" value="${escapeAttr(existing?existing.text:"")}" oninput="onMapFilterTextChange('${scope}','${key}',this.value)">`;
 }
 function renderMapFilterFieldBody(scope,key){
   const el=document.getElementById("mapFilterField_"+scope+"_"+key);
@@ -5505,7 +5511,7 @@ function mapFilterCandidates(query){
   const list=[];
   CASCADE_ORDER.forEach(key=>{
     if(mapFilterPanelFields.shared.includes(key)) return;
-    const label="Ubicación: "+fieldLabel(key);
+    const label="Location: "+fieldLabel(key);
     if(!q || label.toLowerCase().includes(q)) list.push({scope:"shared", key, label});
   });
   MAP_LAYERS.forEach(l=>{
@@ -5543,7 +5549,7 @@ function renderMapFilterSidebar(){
   if(!el) return;
   let sectionsHtml="";
   if(mapFilterPanelFields.shared.length){
-    sectionsHtml+=`<div class="filter-sidebar-group-label">Ubicación (Propiedades, Parques y Terrenos)</div>`;
+    sectionsHtml+=`<div class="filter-sidebar-group-label">Location (Properties, Parks, and Land)</div>`;
     sectionsHtml+=mapFilterPanelFields.shared.map(key=>mapFilterFieldBlockHtml("shared",key)).join("");
   }
   MAP_LAYERS.forEach(l=>{
@@ -5552,16 +5558,16 @@ function renderMapFilterSidebar(){
     sectionsHtml+=`<div class="filter-sidebar-group-label">${escapeHtml(l.label)}</div>`;
     sectionsHtml+=pinned.map(key=>mapFilterFieldBlockHtml(l.ent,key)).join("");
   });
-  if(!sectionsHtml) sectionsHtml=`<p class="filter-sidebar-empty">Agrega un campo para empezar a filtrar el mapa.</p>`;
+  if(!sectionsHtml) sectionsHtml=`<p class="filter-sidebar-empty">Add a field to start filtering the map.</p>`;
   el.innerHTML=`
     <div class="filter-sidebar-head">
-      <h5>Filtros del Mapa</h5>
-      <span class="filter-sidebar-count" id="mapFilterCount">${mapFilterActiveCount()} activo(s)</span>
+      <h5>Map Filters</h5>
+      <span class="filter-sidebar-count" id="mapFilterCount">${mapFilterActiveCount()} active</span>
     </div>
-    <button type="button" class="filter-sidebar-clear" id="mapFilterClearBtn" style="${mapFilterActiveCount()?"":"display:none"}" onclick="clearAllMapFilters()">Limpiar filtros</button>
+    <button type="button" class="filter-sidebar-clear" id="mapFilterClearBtn" style="${mapFilterActiveCount()?"":"display:none"}" onclick="clearAllMapFilters()">Clear filters</button>
     ${sectionsHtml}
     <div class="filter-sidebar-divider">
-      <input type="text" class="filter-sidebar-add-search" id="mapFilterAddSearch" placeholder="+ Agregar filtro…" oninput="renderMapFilterAddList()">
+      <input type="text" class="filter-sidebar-add-search" id="mapFilterAddSearch" placeholder="+ Add filter…" oninput="renderMapFilterAddList()">
       <div class="filter-sidebar-add-list" id="mapFilterAddList"></div>
     </div>`;
   renderMapFilterAddList();
@@ -6062,7 +6068,7 @@ function renderPresSelectedList(list){
          ondrop="presItemDrop(event,${i})" ondragleave="fcDragLeave(event)">
       ${FC_DRAG_ICON}
       <span class="pres-item-num">${String(i+1).padStart(2,"0")}</span>
-      <span class="pres-item-name" title="Abrir ficha para editar" onclick="editFromPresentation('${rec.__id}')">${escapeHtml(rec.PROPERTY_NAME||rec.MAPPING_CODE||"Sin nombre")}</span>
+      <span class="pres-item-name" title="Abrir ficha para editar" onclick="editFromPresentation('${rec.__id}')">${escapeHtml(rec.PROPERTY_NAME||rec.MAPPING_CODE||"Unnamed")}</span>
       <button title="Remove from the presentation" onclick="removeFromPresentation('${rec.__id}')">✕</button>
     </div>
   `).join("");
@@ -6112,7 +6118,7 @@ function buildDeckPageHtml(chunk,pageIndex,logoSrc){
     if(i<n){
       html+=`<div class="deck-col-head">
         <div class="deck-num">${pageIndex*SLOTS+i+1}</div>
-        <div class="deck-photo" id="deckPhoto_${pageIndex}_${i}"><div class="image-placeholder">Sin foto</div></div>
+        <div class="deck-photo" id="deckPhoto_${pageIndex}_${i}"><div class="image-placeholder">No photo</div></div>
       </div>`;
     } else {
       html+=`<div class="deck-col-head deck-empty-slot"></div>`;
@@ -6330,7 +6336,7 @@ function buildLandDeckPageHtml(chunk,pageIndex,logoSrc){
       const hasCoords=rec.LATITUDE!=null && rec.LATITUDE!=="" && rec.LONGITUDE!=null && rec.LONGITUDE!=="";
       html+=`<div class="deck-col-head">
         <div class="deck-num">${pageIndex*SLOTS+i+1}</div>
-        <div class="deck-photo" id="landDeckPhoto_${pageIndex}_${i}">${hasCoords?"":'<div class="image-placeholder">Sin latitud/longitud capturada</div>'}</div>
+        <div class="deck-photo" id="landDeckPhoto_${pageIndex}_${i}">${hasCoords?"":'<div class="image-placeholder">No latitude/longitude captured</div>'}</div>
       </div>`;
     } else {
       html+=`<div class="deck-col-head deck-empty-slot"></div>`;
@@ -6460,17 +6466,17 @@ function toggleLandCoverEditPanel(evt){
   el.className="columns-panel cover-edit-panel";
   el.innerHTML=`
     <div class="columns-panel-head">
-      <h5>Datos de portada</h5>
+      <h5>Cover Data</h5>
       <button type="button" class="x" onclick="closeLandCoverEditPanel()">&times;</button>
     </div>
-    <div class="field"><label>Mes / Año</label><input type="text" id="landCoverEditMonthYear" placeholder="MARCH 2026" value="${escapeAttr(landPresCoverInfo.monthYear||"")}"></div>
-    <div class="field"><label>Tamaño</label><input type="text" id="landCoverEditM2" placeholder="10,000 m²" value="${escapeAttr(landPresCoverInfo.m2||"")}"></div>
-    <div class="field"><label>Mercados</label><input type="text" id="landCoverEditMarkets" placeholder="Monterrey, Saltillo" value="${escapeAttr(landPresCoverInfo.markets||"")}"></div>
-    <p class="map-hint" style="margin:2px 0 10px">Los mercados se muestran como lista, separados por comas.</p>
+    <div class="field"><label>Month / Year</label><input type="text" id="landCoverEditMonthYear" placeholder="MARCH 2026" value="${escapeAttr(landPresCoverInfo.monthYear||"")}"></div>
+    <div class="field"><label>Size</label><input type="text" id="landCoverEditM2" placeholder="10,000 m²" value="${escapeAttr(landPresCoverInfo.m2||"")}"></div>
+    <div class="field"><label>Markets</label><input type="text" id="landCoverEditMarkets" placeholder="Monterrey, Saltillo" value="${escapeAttr(landPresCoverInfo.markets||"")}"></div>
+    <p class="map-hint" style="margin:2px 0 10px">Markets are shown as a list, separated by commas.</p>
     <div class="columns-panel-divider"></div>
-    <p class="map-hint" style="margin:0 0 8px">Estos 2 campos NO se muestran en la portada:</p>
-    <div class="field"><label>Empresa / Proyecto</label><input type="text" id="landCoverEditCompany" placeholder="Nombre de la empresa o proyecto" value="${escapeAttr(landPresCoverInfo.company||"")}"></div>
-    <div class="field"><label>Brokers (lista "BROKERS_CAG")</label></div>
+    <p class="map-hint" style="margin:0 0 8px">These 2 fields are NOT shown on the cover:</p>
+    <div class="field"><label>Company / Project</label><input type="text" id="landCoverEditCompany" placeholder="Company or project name" value="${escapeAttr(landPresCoverInfo.company||"")}"></div>
+    <div class="field"><label>Brokers ("BROKERS_CAG" list)</label></div>
     <div class="cover-edit-checklist" id="landCoverEditBrokersList"></div>`;
   document.body.appendChild(el);
   const r=btn.getBoundingClientRect();
@@ -6498,7 +6504,7 @@ function renderLandCoverEditBrokersList(){
   const selected=new Set(landPresCoverInfo.brokers||[]);
   el.innerHTML = options.length
     ? options.map(v=>`<label class="col-filter-item"><input type="checkbox" data-broker="${escapeAttr(v)}" ${selected.has(v)?"checked":""} onchange="toggleLandCoverEditBroker(this.dataset.broker,this.checked)">${escapeHtml(v)}</label>`).join("")
-    : `<div class="col-add-empty">Sin valores en la lista "BROKERS_CAG" (Configuración &gt; Listas)</div>`;
+    : `<div class="col-add-empty">No values in the "BROKERS_CAG" list (Settings &gt; Lists)</div>`;
 }
 function toggleLandCoverEditBroker(v, checked){
   const set=new Set(landPresCoverInfo.brokers||[]);
@@ -6515,7 +6521,7 @@ function buildLandCoverPageHtml(){
     ${m2?`<div class="cover-overlay-bo"><div class="cover-overlay-bo-title">Land Options</div><div class="cover-overlay-bo-value">${escapeHtml(m2)}</div></div>`:""}
     ${markets.length?`<ul class="cover-overlay-markets">${markets.map(m=>`<li>${escapeHtml(m)}</li>`).join("")}</ul>`:""}
   </div>`:"";
-  return `<div class="deck-page cover-page"><img src="${COVER_IMAGE_SRC}" alt="Portada">${overlay}</div>`;
+  return `<div class="deck-page cover-page"><img src="${COVER_IMAGE_SRC}" alt="Cover">${overlay}</div>`;
 }
 /* ==== Mapa de la Presentación de Terrenos (v3.38.0) — mismo patrón exacto que buildMapPageHtml/
    renderPresMap de Propiedades (pines numerados sobre CARTO Voyager, decluttering de pines superpuestos vía
@@ -6582,7 +6588,7 @@ function renderPresLandSelectedList(list){
          ondrop="landPresItemDrop(event,${i})" ondragleave="fcDragLeave(event)">
       ${FC_DRAG_ICON}
       <span class="pres-item-num">${String(i+1).padStart(2,"0")}</span>
-      <span class="pres-item-name" title="Abrir ficha para editar" onclick="editFromLandPresentation('${rec.__id}')">${escapeHtml(rec.PROPERTY_NAME||rec.ID__LAND||"Sin nombre")}</span>
+      <span class="pres-item-name" title="Abrir ficha para editar" onclick="editFromLandPresentation('${rec.__id}')">${escapeHtml(rec.PROPERTY_NAME||rec.ID__LAND||"Unnamed")}</span>
       <button title="Remove from the presentation" onclick="removeFromLandPresentation('${rec.__id}')">✕</button>
     </div>
   `).join("");
@@ -6619,14 +6625,14 @@ function removeFromLandPresentation(id){
    imprimir de esta vista — se limpia desde ya aunque ese botón siga siendo un stub. */
 function renderLandPresentationView(){
   const list=getOrderedLandPresentationList();
-  document.getElementById("landPresCount").textContent=`${list.length} terreno(s) en la presentación`;
+  document.getElementById("landPresCount").textContent=`${list.length} land parcel(s) in the presentation`;
   renderPresLandSelectedList(list);
   const pagesEl=document.getElementById("landPresPages");
   document.getElementById("presPages").innerHTML="";
   if(landPresMapInstance){ landPresMapInstance.remove(); landPresMapInstance=null; }
   landDeckMapInstances.forEach(m=>{ try{ m.remove(); }catch(e){} }); landDeckMapInstances=[];
   if(!list.length){
-    pagesEl.innerHTML=`<div class="filters-empty">Aún no has marcado terrenos para la presentación.<br>Abre un registro de Terrenos y activa "Usar en presentación".</div>`;
+    pagesEl.innerHTML=`<div class="filters-empty">You haven't marked any land parcels for the presentation yet.<br>Open a Land record and turn on "Use in presentation".</div>`;
     return;
   }
   if(!landPresShowState.cover && !landPresShowState.map && !landPresShowState.table && !landPresShowState.closing){
@@ -6681,17 +6687,17 @@ function toggleCoverEditPanel(evt){
   el.className="columns-panel cover-edit-panel";
   el.innerHTML=`
     <div class="columns-panel-head">
-      <h5>Datos de portada</h5>
+      <h5>Cover Data</h5>
       <button type="button" class="x" onclick="closeCoverEditPanel()">&times;</button>
     </div>
-    <div class="field"><label>Mes / Año</label><input type="text" id="coverEditMonthYear" placeholder="MARCH 2026" value="${escapeAttr(presCoverInfo.monthYear||"")}"></div>
-    <div class="field"><label>Tamaño</label><input type="text" id="coverEditM2" placeholder="10,000 m²" value="${escapeAttr(presCoverInfo.m2||"")}"></div>
-    <div class="field"><label>Mercados</label><input type="text" id="coverEditMarkets" placeholder="Monterrey, Saltillo" value="${escapeAttr(presCoverInfo.markets||"")}"></div>
-    <p class="map-hint" style="margin:2px 0 10px">Los mercados se muestran como lista, separados por comas.</p>
+    <div class="field"><label>Month / Year</label><input type="text" id="coverEditMonthYear" placeholder="MARCH 2026" value="${escapeAttr(presCoverInfo.monthYear||"")}"></div>
+    <div class="field"><label>Size</label><input type="text" id="coverEditM2" placeholder="10,000 m²" value="${escapeAttr(presCoverInfo.m2||"")}"></div>
+    <div class="field"><label>Markets</label><input type="text" id="coverEditMarkets" placeholder="Monterrey, Saltillo" value="${escapeAttr(presCoverInfo.markets||"")}"></div>
+    <p class="map-hint" style="margin:2px 0 10px">Markets are shown as a list, separated by commas.</p>
     <div class="columns-panel-divider"></div>
-    <p class="map-hint" style="margin:0 0 8px">Estos 2 campos NO se muestran en la portada:</p>
-    <div class="field"><label>Empresa / Proyecto</label><input type="text" id="coverEditCompany" placeholder="Nombre de la empresa o proyecto" value="${escapeAttr(presCoverInfo.company||"")}"></div>
-    <div class="field"><label>Brokers (lista "BROKERS_CAG")</label></div>
+    <p class="map-hint" style="margin:0 0 8px">These 2 fields are NOT shown on the cover:</p>
+    <div class="field"><label>Company / Project</label><input type="text" id="coverEditCompany" placeholder="Company or project name" value="${escapeAttr(presCoverInfo.company||"")}"></div>
+    <div class="field"><label>Brokers ("BROKERS_CAG" list)</label></div>
     <div class="cover-edit-checklist" id="coverEditBrokersList"></div>`;
   document.body.appendChild(el);
   const r=btn.getBoundingClientRect();
@@ -6728,7 +6734,7 @@ function renderCoverEditBrokersList(){
   // tiene ese problema, el navegador ya lo entrega decodificado tal cual.
   el.innerHTML = options.length
     ? options.map(v=>`<label class="col-filter-item"><input type="checkbox" data-broker="${escapeAttr(v)}" ${selected.has(v)?"checked":""} onchange="toggleCoverEditBroker(this.dataset.broker,this.checked)">${escapeHtml(v)}</label>`).join("")
-    : `<div class="col-add-empty">Sin valores en la lista "BROKERS_CAG" (Configuración &gt; Listas)</div>`;
+    : `<div class="col-add-empty">No values in the "BROKERS_CAG" list (Settings &gt; Lists)</div>`;
 }
 function toggleCoverEditBroker(v, checked){
   const set=new Set(presCoverInfo.brokers||[]);
@@ -6748,10 +6754,10 @@ function buildCoverPageHtml(){
     ${m2?`<div class="cover-overlay-bo"><div class="cover-overlay-bo-title">Building Options</div><div class="cover-overlay-bo-value">${escapeHtml(m2)}</div></div>`:""}
     ${markets.length?`<ul class="cover-overlay-markets">${markets.map(m=>`<li>${escapeHtml(m)}</li>`).join("")}</ul>`:""}
   </div>`:"";
-  return `<div class="deck-page cover-page"><img src="${COVER_IMAGE_SRC}" alt="Portada">${overlay}</div>`;
+  return `<div class="deck-page cover-page"><img src="${COVER_IMAGE_SRC}" alt="Cover">${overlay}</div>`;
 }
 function buildClosingPageHtml(){
-  return `<div class="deck-page cover-page"><img src="${CLOSING_IMAGE_SRC}" alt="Cierre"></div>`;
+  return `<div class="deck-page cover-page"><img src="${CLOSING_IMAGE_SRC}" alt="Closing"></div>`;
 }
 function buildMapPageHtml(list, logoSrc){
   const withCoords=list.filter(r=>r.LATITUDE!=null && r.LATITUDE!=="" && r.LONGITUDE!=null && r.LONGITUDE!=="");
@@ -6907,7 +6913,7 @@ function buildLayoutPageHtml(rec,idx,logoSrc){
     </div>
     <div class="layout-num">${idx+1}</div>
     <div class="layout-top-row">
-      <div class="layout-photo" id="layoutPhoto_${idx}"><div class="image-placeholder">Sin foto</div></div>
+      <div class="layout-photo" id="layoutPhoto_${idx}"><div class="image-placeholder">No photo</div></div>
       <div class="layout-table">
         <div class="layout-table-title">${escapeHtml(parkNameText)}</div>
         <div class="layout-cols">
@@ -6915,9 +6921,9 @@ function buildLayoutPageHtml(rec,idx,logoSrc){
           <div class="layout-col">${layoutColumnHtml(rec,colB)}</div>
         </div>
       </div>
-      <div class="layout-aerial" id="layoutAerial_${idx}">${hasCoords?"":'<div class="image-placeholder">Sin latitud/longitud capturada</div>'}</div>
+      <div class="layout-aerial" id="layoutAerial_${idx}">${hasCoords?"":'<div class="image-placeholder">No latitude/longitude captured</div>'}</div>
     </div>
-    <div class="layout-plan" id="layoutPlan_${idx}"><div class="image-placeholder">Sin foto</div></div>
+    <div class="layout-plan" id="layoutPlan_${idx}"><div class="image-placeholder">No photo</div></div>
   </div>`;
 }
 /* 1 instancia de Leaflet POR propiedad con Layout activo (a diferencia de presMapInstance/
@@ -6983,7 +6989,7 @@ function renderPresLayoutMaps(list){
 function renderPresentationView(){
   revokeAllDeckPhotoUrls(); // v3.45.8: libera las fotos del render anterior antes de reconstruir el deck
   const list=getOrderedPresentationList();
-  document.getElementById("presCount").textContent=`${list.length} propiedad(es) en la presentación`;
+  document.getElementById("presCount").textContent=`${list.length} propert${list.length===1?"y":"ies"} in the presentation`;
   renderPresSelectedList(list);
   const pagesEl=document.getElementById("presPages");
   // Ver nota en renderLandPresentationView(): limpia el otro deck para que .deck-page nunca quede
@@ -6993,7 +6999,7 @@ function renderPresentationView(){
   if(presMapInstance){ presMapInstance.remove(); presMapInstance=null; }
   presLayoutMapInstances.forEach(m=>{ try{ m.remove(); }catch(e){} }); presLayoutMapInstances=[];
   if(!list.length){
-    pagesEl.innerHTML=`<div class="filters-empty">Aún no has marcado propiedades para la presentación.<br>Abre un registro de Propiedades/Naves y activa "Usar en presentación".</div>`;
+    pagesEl.innerHTML=`<div class="filters-empty">You haven't marked any properties for the presentation yet.<br>Open a Buildings record and turn on "Use in presentation".</div>`;
     return;
   }
   if(!presShowState.cover && !presShowState.map && !presShowState.table && !presShowState.layout && !presShowState.closing){
@@ -7692,7 +7698,7 @@ function setChip(){
     chip.textContent="● "+fileHandle.name; chip.style.background="rgba(30,158,90,.14)"; chip.style.color="var(--green)";
     if(dot) dot.style.background="var(--green)";
   } else {
-    chip.textContent="Sin archivo vinculado"; chip.style.background="rgba(107,116,128,.14)"; chip.style.color="var(--muted)";
+    chip.textContent="No file linked"; chip.style.background="rgba(107,116,128,.14)"; chip.style.color="var(--muted)";
     if(dot) dot.style.background="var(--muted)";
   }
   const unlinkBtn=document.getElementById("unlinkFileBtn");
@@ -7725,7 +7731,7 @@ function setConfigFileChip(){
   const chip=document.getElementById("configFileChip");
   if(!chip) return;
   if(configFileHandle){ chip.textContent="● "+configFileHandle.name; chip.style.background="rgba(30,158,90,.14)"; chip.style.color="var(--green)"; }
-  else { chip.textContent="Sin archivo vinculado"; chip.style.background="rgba(107,116,128,.14)"; chip.style.color="var(--muted)"; }
+  else { chip.textContent="No file linked"; chip.style.background="rgba(107,116,128,.14)"; chip.style.color="var(--muted)"; }
   const unlinkBtn=document.getElementById("unlinkConfigFileBtn");
   if(unlinkBtn) unlinkBtn.disabled=!configFileHandle;
 }
@@ -7852,7 +7858,7 @@ function setLandFileChip(){
   const chip=document.getElementById("landFileChip");
   if(!chip) return;
   if(landFileHandle){ chip.textContent="● "+landFileHandle.name; chip.style.background="rgba(30,158,90,.14)"; chip.style.color="var(--green)"; }
-  else { chip.textContent="Sin archivo vinculado"; chip.style.background="rgba(107,116,128,.14)"; chip.style.color="var(--muted)"; }
+  else { chip.textContent="No file linked"; chip.style.background="rgba(107,116,128,.14)"; chip.style.color="var(--muted)"; }
   const unlinkBtn=document.getElementById("unlinkLandFileBtn");
   if(unlinkBtn) unlinkBtn.disabled=!landFileHandle;
 }
@@ -7963,7 +7969,7 @@ function setComplementaryFileChip(){
   const chip=document.getElementById("complementaryFileChip");
   if(!chip) return;
   if(complementaryFileHandle){ chip.textContent="● "+complementaryFileHandle.name; chip.style.background="rgba(30,158,90,.14)"; chip.style.color="var(--green)"; }
-  else { chip.textContent="Sin archivo vinculado"; chip.style.background="rgba(107,116,128,.14)"; chip.style.color="var(--muted)"; }
+  else { chip.textContent="No file linked"; chip.style.background="rgba(107,116,128,.14)"; chip.style.color="var(--muted)"; }
   const unlinkBtn=document.getElementById("unlinkComplementaryFileBtn");
   if(unlinkBtn) unlinkBtn.disabled=!complementaryFileHandle;
 }
@@ -7986,7 +7992,7 @@ function setImagesChip(){
   const chip=document.getElementById("imagesChip");
   if(!chip) return;
   if(imagesDirHandle){ chip.textContent="● "+imagesDirHandle.name; chip.style.background="rgba(30,158,90,.14)"; chip.style.color="var(--green)"; }
-  else { chip.textContent="Sin carpeta vinculada"; chip.style.background="rgba(107,116,128,.14)"; chip.style.color="var(--muted)"; }
+  else { chip.textContent="No folder linked"; chip.style.background="rgba(107,116,128,.14)"; chip.style.color="var(--muted)"; }
   const unlinkBtn=document.getElementById("unlinkImagesBtn");
   if(unlinkBtn) unlinkBtn.disabled=!imagesDirHandle;
 }
@@ -8007,10 +8013,10 @@ const PHOTO_ID_FIELD={ PROPIEDADES:"MAPPING_CODE", PARKS:"ID_PARK", LAND:"ID__LA
    más abajo). `photoFileBase` centraliza el nombre de archivo (con o sin sufijo) para que todo el resto
    del mecanismo (cargar/guardar/renombrar) no tenga que saber cuántos tipos de foto tiene una entidad. */
 const PHOTO_KINDS_PROPIEDADES_PARKS=[
-  {key:"FACHADA", label:"Foto Fachada", required:true},
-  {key:"EXT", label:"Foto Exterior", required:false},
-  {key:"INT", label:"Foto Interior", required:false},
-  {key:"AEREA", label:"Foto Aérea", required:false},
+  {key:"FACHADA", label:"Facade Photo", required:true},
+  {key:"EXT", label:"Exterior Photo", required:false},
+  {key:"INT", label:"Interior Photo", required:false},
+  {key:"AEREA", label:"Aerial Photo", required:false},
   {key:"DOCKS", label:"Foto Docks", required:false},
   {key:"LAYOUT", label:"Layout", required:false},
 ];
@@ -8194,7 +8200,7 @@ async function loadImagePreview(kindKey){
   releaseFichaPhotoUrl(box.id); // libera lo que esta misma casilla tuviera antes de reemplazarla, sea cual sea la rama que siga
   const code=currentPhotoId();
   if(!code){ box.innerHTML=`<div class="image-placeholder">Escribe un ${escapeHtml(fieldLabel(PHOTO_ID_FIELD[current]))} para poder subir/ver la foto</div>`; removeBtn.style.display="none"; return; }
-  if(!imagesDirHandle){ box.innerHTML=`<div class="image-placeholder">Sin carpeta de imágenes vinculada.<br>Ve a ⚙ Configuración.</div>`; removeBtn.style.display="none"; return; }
+  if(!imagesDirHandle){ box.innerHTML=`<div class="image-placeholder">No images folder linked.<br>Go to ⚙ Settings.</div>`; removeBtn.style.display="none"; return; }
   const granted=(await imagesDirHandle.queryPermission({mode:"read"}))==="granted";
   if(!granted){
     box.innerHTML=`<button type="button" class="btn ghost" onclick="unlockImagesAndPreview(null,'${kindKey}')"><span style="margin-right:6px;vertical-align:-3px">${ICO_LOCK}</span>Ver foto</button>`;
@@ -8209,7 +8215,7 @@ async function loadImagePreview(kindKey){
     box.innerHTML=`<img src="${url}" alt="${escapeAttr(code)}">`;
     removeBtn.style.display="";
   }catch(e){
-    box.innerHTML=`<div class="image-placeholder">Sin foto</div>`;
+    box.innerHTML=`<div class="image-placeholder">No photo</div>`;
     removeBtn.style.display="none";
   }
 }
@@ -8222,8 +8228,8 @@ async function loadViewImagePreview(code,kindKey){
   const box=document.getElementById("imagePreviewBox"+sfx);
   if(!box) return;
   releaseFichaPhotoUrl(box.id); // v3.45.19 — ver nota completa junto a loadImagePreview
-  if(!code){ box.innerHTML=`<div class="image-placeholder">Sin ${escapeHtml(fieldLabel(PHOTO_ID_FIELD[current]))}</div>`; return; }
-  if(!imagesDirHandle){ box.innerHTML=`<div class="image-placeholder">Sin carpeta de imágenes vinculada.<br>Ve a ⚙ Configuración.</div>`; return; }
+  if(!code){ box.innerHTML=`<div class="image-placeholder">Missing ${escapeHtml(fieldLabel(PHOTO_ID_FIELD[current]))}</div>`; return; }
+  if(!imagesDirHandle){ box.innerHTML=`<div class="image-placeholder">No images folder linked.<br>Go to ⚙ Settings.</div>`; return; }
   const granted=(await imagesDirHandle.queryPermission({mode:"read"}))==="granted";
   if(!granted){
     box.innerHTML=`<button type="button" class="btn ghost" onclick="unlockImagesAndPreview('${escapeAttr(code)}','${kindKey}')"><span style="margin-right:6px;vertical-align:-3px">${ICO_LOCK}</span>Ver foto</button>`;
@@ -8236,7 +8242,7 @@ async function loadViewImagePreview(code,kindKey){
     fichaPhotoUrls.set(box.id, url);
     box.innerHTML=`<img src="${url}" alt="${escapeAttr(code)}">`;
   }catch(e){
-    box.innerHTML=`<div class="image-placeholder">Sin foto</div>`;
+    box.innerHTML=`<div class="image-placeholder">No photo</div>`;
   }
 }
 function processImageToCoverCrop(file, targetW, targetH, quality){
@@ -8316,7 +8322,7 @@ function rotateImageToBlob(srcBlob, degrees){
 }
 function refreshPhotoNavBadge(){
   const buttons=[...document.querySelectorAll("#mBody .form-nav button")];
-  const photoBtn=buttons.find(b=>b.querySelector("span")?.textContent==="Photography");
+  const photoBtn=buttons.find(b=>b.querySelector("span")?.textContent==="Photos");
   if(!photoBtn) return;
   const missing=photoMissingCount(current, {[PHOTO_ID_FIELD[current]]: currentPhotoId()});
   let badge=photoBtn.querySelector(".form-nav-badge");

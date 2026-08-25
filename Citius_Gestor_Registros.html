@@ -430,6 +430,18 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      es COMPARTIDA por el deck de Propiedades y el de Terrenos (ambos usan la misma clase .deck-note para
      su aviso legal al pie de la tabla), así que el ajuste aplica a los 2 por igual. */
   .deck-note{margin-top:20px;font-size:10.5px;color:#666;line-height:1.5;font-family:'Unitext',sans-serif;font-weight:300}
+  /* ==== "List" (resumen fila-por-propiedad) — v3.45.27, pedido explícito del usuario con imagen de
+     referencia: mismo header amarillo del logo, tabla real (no CSS grid como .deck-grid, aquí no hace
+     falta el layout "columna=propiedad, fila=atributo" de Table) con encabezado sólido en --accent y
+     rayas alternas suaves, igual criterio visual que .resumen-table pero propio (esta SÍ debe imprimirse
+     bien dentro de .deck-page, .resumen-table nunca se pensó para imprimir). Sin aspect-ratio fijo — el
+     alto lo define el contenido (25 filas), por eso tiene su propio grupo "listPage" en
+     preparePrintPageSize() en vez de compartir el de Table. */
+  .deck-list-table{width:100%;border-collapse:collapse;font-family:'Unitext',sans-serif;font-size:11px}
+  .deck-list-table th{background:var(--accent);color:#3a2c05;font-weight:700;text-align:left;padding:7px 8px;white-space:nowrap}
+  .deck-list-table td{padding:6px 8px;border-bottom:1px solid #e2e2e2;white-space:nowrap}
+  .deck-list-table tr.deck-list-stripe td{background:#f2f2f2}
+  .deck-list-table .deck-list-num{width:28px;text-align:center;color:#666}
   /* ==== Layout (spec sheet 1 página/propiedad) — v3.41.0 ====
      Reusa .deck-page/.deck-logo/.map-pin tal cual; solo agrega clases propias para el arreglo de 4 bloques
      (fachada | tabla 2 columnas | aéreo satelital | plano grande abajo). Sin aspect-ratio fijo (a diferencia
@@ -1002,6 +1014,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
             <label><input type="checkbox" id="presShowCover"> Cover</label>
             <label><input type="checkbox" id="presShowMap"> Map</label>
             <label><input type="checkbox" id="presShowTable"> Table</label>
+            <label><input type="checkbox" id="presShowList"> List</label>
             <label><input type="checkbox" id="presShowLayout"> Layout</label>
             <label><input type="checkbox" id="presShowClosing"> Closing</label>
           </div>
@@ -6168,6 +6181,55 @@ function buildDeckPageHtml(chunk,pageIndex,logoSrc){
   </div>`;
   return html;
 }
+/* ==== "List" (v3.45.27, pedido explícito del usuario, con imagen de referencia) ====
+   Tabla resumida en formato fila-por-propiedad (a diferencia de "Table", que compara lado a lado por
+   columnas) — mismos valores y conversiones de unidad que "Table": cada columna es un objeto con la MISMA
+   forma {key,unitClass,rule,prefix} que ya espera presValueFor(), así que se le pasa directo, sin
+   duplicar ninguna lógica de conversión/redacción. Se pagina en bloques de LIST_ROWS_PER_PAGE filas (mismo
+   criterio que Table pagina de a 6 propiedades, confirmado con el usuario) — el número de fila (#) es
+   continuo a través de TODAS las hojas, no se reinicia por página. Developer y Location se OMITEN por
+   completo (no solo se redactan a "Private"/"Industrial Park" como ya hace presValueFor para Table) cuando
+   Confidencial="Sí" — decisión explícita del usuario, distinta de cómo Table maneja lo mismo. */
+const PRESENTATION_LIST_COLUMNS=[
+  {label:"Submarket", key:"SUBMARKET"},
+  {label:"Name", key:"PROPERTY_NAME"},
+  {label:"Developer", key:"DEVELOPER", confidentialHide:true},
+  {label:"Location", key:"PARK_NAME", confidentialHide:true},
+  {label:"Size", key:"LEASABLE_AREA_GLA_VALUE", unitClass:"AREA"},
+  {label:"Occupied", key:"OCUPIED_AREA_VALUE", unitClass:"AREA"},
+  {label:"Available", key:"AVAILABLE_AREA_VALUE", unitClass:"AREA"},
+  {label:"Clear Height", key:"MIN_CLEAR_HEIGHT_VALUE", unitClass:"LONG"},
+  {label:"Status", key:"STATUS"},
+  {label:"Class", key:"CLASSIFICATION"},
+  {label:"Gen", key:"BUILDING_GENERATION"},
+  {label:"Asking Rate", key:"ASKING_RATE_VALUE", unitClass:"RATE", rule:"upon_request", prefix:"US $ "}
+];
+/* Header dinámico según presUnitPref/presPeriodPref — mismo criterio que presUnitLabel() ya usa para las
+   filas de Table, solo que aquí también compone el caso especial "$/unidad/periodo" de Asking Rate. */
+function presListColumnHeaderLabel(col){
+  if(col.unitClass==="AREA"||col.unitClass==="LONG") return `${col.label} (${presUnitLabel(col.unitClass)})`;
+  if(col.unitClass==="RATE") return `$/${presUnitPref==="metric"?"m²":"SF"}/${presPeriodPref==="annual"?"Yr":"Mo"}`;
+  return col.label;
+}
+const LIST_ROWS_PER_PAGE=25; // mismo tanto de filas por hoja que la referencia del usuario
+function buildListPagesHtml(list, logoSrc){
+  const cols=PRESENTATION_LIST_COLUMNS.filter(c=>!(c.confidentialHide && presConfidential));
+  const headHtml=`<tr><th class="deck-list-num">#</th>${cols.map(c=>`<th>${escapeHtml(presListColumnHeaderLabel(c))}</th>`).join("")}</tr>`;
+  let html="";
+  for(let start=0; start<list.length; start+=LIST_ROWS_PER_PAGE){
+    const chunk=list.slice(start, start+LIST_ROWS_PER_PAGE);
+    const rowsHtml=chunk.map((rec,i)=>{
+      const isAlt=(start+i)%2===1;
+      return `<tr class="${isAlt?"deck-list-stripe":""}"><td class="deck-list-num">${start+i+1}</td>${cols.map(c=>`<td>${escapeHtml(presValueFor(rec,c))}</td>`).join("")}</tr>`;
+    }).join("");
+    html+=`<div class="deck-page list-page">
+      <div class="deck-header"><img class="deck-logo" src="${logoSrc}"><h2>Building Options</h2></div>
+      <table class="deck-list-table"><thead>${headHtml}</thead><tbody>${rowsHtml}</tbody></table>
+      <p class="deck-note">*This information has been provided to Citius AG by developers and local brokers. However, Citius AG makes no warranties or representations as to the accuracy of the data until a formal quotation. *All Tenant Improvements specified as "To Suit" will be added onto the base lease rate. &nbsp;*"TBC" to be confirmed</p>
+    </div>`;
+  }
+  return html;
+}
 /* v3.44.7, pedido explícito del usuario: iguala el alto de una fila del deck ("Industrial Park | Location",
    PARK_NAME) en TODAS las hojas de la presentación — sin esto, cada hoja de 6 propiedades mide su propia
    fila de forma independiente (cada `.deck-page` es su propio grid), así que si el nombre más largo de UNA
@@ -6219,7 +6281,7 @@ function revokeAllDeckPhotoUrls(){
   deckPhotoUrls.clear();
 }
 const PRES_SHOW_KEY="citius_pres_show_v1";
-function loadPresShowState(){ try{ const s=localStorage.getItem(PRES_SHOW_KEY); if(s) return JSON.parse(s); }catch(e){} return {cover:true, map:false, table:true, layout:false, closing:true}; }
+function loadPresShowState(){ try{ const s=localStorage.getItem(PRES_SHOW_KEY); if(s) return JSON.parse(s); }catch(e){} return {cover:true, map:false, table:true, list:false, layout:false, closing:true}; }
 function savePresShowState(){ try{ localStorage.setItem(PRES_SHOW_KEY, JSON.stringify(presShowState)); }catch(e){} }
 let presShowState=loadPresShowState();
 
@@ -7002,8 +7064,8 @@ function renderPresentationView(){
     pagesEl.innerHTML=`<div class="filters-empty">You haven't marked any properties for the presentation yet.<br>Open a Buildings record and turn on "Use in presentation".</div>`;
     return;
   }
-  if(!presShowState.cover && !presShowState.map && !presShowState.table && !presShowState.layout && !presShowState.closing){
-    pagesEl.innerHTML=`<div class="filters-empty">Check "Cover", "Map", "Table", "Layout", and/or "Closing" above to see the presentation.</div>`;
+  if(!presShowState.cover && !presShowState.map && !presShowState.table && !presShowState.list && !presShowState.layout && !presShowState.closing){
+    pagesEl.innerHTML=`<div class="filters-empty">Check "Cover", "Map", "Table", "List", "Layout", and/or "Closing" above to see the presentation.</div>`;
     return;
   }
   const logoSrc=DECK_LOGO_SRC;
@@ -7015,6 +7077,7 @@ function renderPresentationView(){
     for(let i=0;i<list.length;i+=6) chunks.push(list.slice(i,i+6));
     html+=chunks.map((chunk,pi)=>buildDeckPageHtml(chunk,pi,logoSrc)).join("");
   }
+  if(presShowState.list) html+=buildListPagesHtml(list, logoSrc);
   if(presShowState.layout) html+=list.map((rec,i)=>buildLayoutPageHtml(rec,i,logoSrc)).join("");
   if(presShowState.closing) html+=buildClosingPageHtml();
   pagesEl.innerHTML=html;
@@ -7059,16 +7122,20 @@ function preparePrintPageSize(){
   // (foto+tabla+mapa+plano) mide un alto muy distinto al de la página comparativa de "Tabla", así que si
   // compartieran grupo, measure() tomaría el máximo de ambos y la más chica de las 2 quedaría con un
   // margen en blanco de sobra al imprimir — mismo criterio que ya separaba cover/map de todo lo demás.
-  const groupOf=p=>p.classList.contains("cover-page") ? "coverPage" : p.classList.contains("map-page") ? "mapPage" : p.classList.contains("layout-page") ? "layoutPage" : "tablePage";
+  // "listPage" (v3.45.27) se agregó con el mismo criterio exacto: la altura de una hoja de "List" (25 filas
+  // compactas) no tiene por qué coincidir con la de "Table" (comparativa, altura fija por la cantidad de
+  // filas de PRESENTATION_ROWS) — mezclarlas dejaría a la más chica con margen de sobra al imprimir.
+  const groupOf=p=>p.classList.contains("cover-page") ? "coverPage" : p.classList.contains("map-page") ? "mapPage" : p.classList.contains("layout-page") ? "layoutPage" : p.classList.contains("list-page") ? "listPage" : "tablePage";
   const coverPages=pages.filter(p=>groupOf(p)==="coverPage");
   const mapPages=pages.filter(p=>groupOf(p)==="mapPage");
   const layoutPages=pages.filter(p=>groupOf(p)==="layoutPage");
+  const listPages=pages.filter(p=>groupOf(p)==="listPage");
   const tablePages=pages.filter(p=>groupOf(p)==="tablePage");
-  const groupsPresent=[coverPages,mapPages,layoutPages,tablePages].filter(g=>g.length>0).length;
+  const groupsPresent=[coverPages,mapPages,layoutPages,listPages,tablePages].filter(g=>g.length>0).length;
   let css="";
   let styleEl=document.getElementById("dynamicPrintPageSize");
   if(!styleEl){ styleEl=document.createElement("style"); styleEl.id="dynamicPrintPageSize"; document.head.appendChild(styleEl); }
-  document.querySelectorAll(".deck-page.cover-page,.deck-page.map-page,.deck-page.layout-page").forEach(p=>{ p.style.height=""; p.style.width=""; }); // por si quedó algo de una preparación anterior
+  document.querySelectorAll(".deck-page.cover-page,.deck-page.map-page,.deck-page.layout-page,.deck-page.list-page").forEach(p=>{ p.style.height=""; p.style.width=""; }); // por si quedó algo de una preparación anterior
   // Probado con TODAS las combinaciones posibles de Portada/Mapa/Tabla/Cierre activas: cuando conviven 2+
   // tipos de hoja distintos, el mecanismo de "un @page con nombre por tipo" (de aquí para abajo) funciona
   // perfecto. Pero cuando el documento tiene UN SOLO tipo de hoja de principio a fin (ej. solo Mapa activo),
@@ -7111,9 +7178,14 @@ function preparePrintPageSize(){
     css+=`@page layoutPage{size:${s.wIn}in ${s.hIn}in;margin:0} .deck-page.layout-page{page:layoutPage}\n`;
     lockSize(layoutPages, parseFloat(s.wIn)*96, parseFloat(s.hIn)*96);
   }
+  if(listPages.length){
+    const s=measure(listPages);
+    css+=`@page listPage{size:${s.wIn}in ${s.hIn}in;margin:0} .deck-page.list-page{page:listPage}\n`;
+    lockSize(listPages, parseFloat(s.wIn)*96, parseFloat(s.hIn)*96);
+  }
   if(tablePages.length){
     const s=measure(tablePages);
-    css+=`@page tablePage{size:${s.wIn}in ${s.hIn}in;margin:0} .deck-page:not(.cover-page):not(.map-page):not(.layout-page){page:tablePage}\n`;
+    css+=`@page tablePage{size:${s.wIn}in ${s.hIn}in;margin:0} .deck-page:not(.cover-page):not(.map-page):not(.layout-page):not(.list-page){page:tablePage}\n`;
   }
   // Chrome mete una hoja en blanco de más cuando el PRIMER elemento del documento fuerza una transición de
   // página (confirmado: es un comportamiento documentado de Chrome con "page-break-before" al inicio, no de
@@ -7232,16 +7304,19 @@ function togglePresDesignPanel(evt, btnId, panelId){
 const presShowCoverEl=document.getElementById("presShowCover");
 const presShowMapEl=document.getElementById("presShowMap");
 const presShowTableEl=document.getElementById("presShowTable");
+const presShowListEl=document.getElementById("presShowList");
 const presShowLayoutEl=document.getElementById("presShowLayout");
 const presShowClosingEl=document.getElementById("presShowClosing");
 presShowCoverEl.checked=presShowState.cover;
 presShowMapEl.checked=presShowState.map;
 presShowTableEl.checked=presShowState.table;
+presShowListEl.checked=presShowState.list;
 presShowLayoutEl.checked=presShowState.layout;
 presShowClosingEl.checked=presShowState.closing;
 presShowCoverEl.onchange=()=>{ presShowState.cover=presShowCoverEl.checked; savePresShowState(); renderPresentationView(); };
 presShowMapEl.onchange=()=>{ presShowState.map=presShowMapEl.checked; savePresShowState(); renderPresentationView(); };
 presShowTableEl.onchange=()=>{ presShowState.table=presShowTableEl.checked; savePresShowState(); renderPresentationView(); };
+presShowListEl.onchange=()=>{ presShowState.list=presShowListEl.checked; savePresShowState(); renderPresentationView(); };
 presShowLayoutEl.onchange=()=>{ presShowState.layout=presShowLayoutEl.checked; savePresShowState(); renderPresentationView(); };
 presShowClosingEl.onchange=()=>{ presShowState.closing=presShowClosingEl.checked; savePresShowState(); renderPresentationView(); };
 const landPresShowCoverEl=document.getElementById("landPresShowCover");

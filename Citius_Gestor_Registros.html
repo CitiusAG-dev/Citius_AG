@@ -327,9 +327,20 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .pres-item button:disabled{opacity:.3;cursor:default}
   .pres-main{flex:1;display:flex;flex-direction:column;padding:20px 24px;overflow-y:auto;min-width:0}
   .pres-pages{display:flex;flex-direction:column;gap:30px;align-items:center;width:100%;zoom:.75}
-  .pres-page-toggles{display:flex;align-items:center;gap:16px;font-size:13px;color:var(--muted)}
-  .pres-page-toggles label{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none}
-  .pres-page-toggles input{cursor:pointer}
+  /* v3.45.26, pedido explícito del usuario: los 4-5 checkboxes de "qué secciones incluir" en la
+     Presentación (antes siempre visibles en línea en el topbar, cada vez más apretados junto a Unidades/
+     Renta/Confidencial/los botones de portada e imprimir) se movieron a un panel flotante que se abre con
+     un botón — mismo patrón visual/de apertura-cierre ya usado por el panel "Columnas" de las tablas
+     (`.columns-panel`/`toggleColumnsPanel`), reutilizado aquí como `togglePresDesignPanel()` genérico
+     (recibe los ids de botón/panel, sirve igual para Propiedades y Terrenos sin duplicar la función). Los
+     checkboxes en sí no cambiaron de id ni de `onchange` — solo cambió el contenedor que los muestra. */
+  .pres-design-anchor{position:relative}
+  .pres-design-panel{position:fixed;display:none;flex-direction:column;gap:10px;width:170px;
+                      background:var(--panel);border:1px solid var(--line);border-radius:12px;
+                      box-shadow:0 10px 40px rgba(0,0,0,.25);z-index:300;padding:12px 14px;
+                      animation:colFilterIn .12s ease-out}
+  .pres-design-panel label{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--txt);cursor:pointer;user-select:none}
+  .pres-design-panel input{cursor:pointer}
   .deck-page.cover-page{padding:0;overflow:hidden;aspect-ratio:1652/1269;position:relative}
   .cover-page img{width:100%;height:100%;object-fit:cover;display:block}
   /* Posición/tamaño ajustados en v3.32.0 a pedido del usuario, comparando contra una captura real de la
@@ -982,12 +993,17 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         </div>
       </div>
       <div class="topbar-controls" id="presTopbarControls" style="display:none">
-        <div class="pres-page-toggles" id="presPageToggles">
-          <label><input type="checkbox" id="presShowCover"> Portada</label>
-          <label><input type="checkbox" id="presShowMap"> Mapa</label>
-          <label><input type="checkbox" id="presShowTable"> Tabla</label>
-          <label><input type="checkbox" id="presShowLayout"> Layout</label>
-          <label><input type="checkbox" id="presShowClosing"> Cierre</label>
+        <div class="pres-design-anchor">
+          <button type="button" class="btn ghost" id="presDesignBtn" title="Elegir qué secciones se incluyen en la presentación" onclick="togglePresDesignPanel(event,'presDesignBtn','presDesignPanel')">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-3px"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>Diseño
+          </button>
+          <div class="pres-design-panel" id="presDesignPanel">
+            <label><input type="checkbox" id="presShowCover"> Portada</label>
+            <label><input type="checkbox" id="presShowMap"> Mapa</label>
+            <label><input type="checkbox" id="presShowTable"> Tabla</label>
+            <label><input type="checkbox" id="presShowLayout"> Layout</label>
+            <label><input type="checkbox" id="presShowClosing"> Cierre</label>
+          </div>
         </div>
         <span class="count" id="presCount"></span>
         <div class="unit-view-select" title="Sistema de unidades en el que se genera la presentación">
@@ -1025,11 +1041,16 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
            aplicable a esta tabla, ver PRESENTATION_ROWS_LAND). "Datos de portada"/"Imprimir" ya funcionan
            de verdad desde v3.38.0/v3.39.0 respectivamente. -->
       <div class="topbar-controls" id="landPresTopbarControls" style="display:none">
-        <div class="pres-page-toggles" id="landPresPageToggles">
-          <label><input type="checkbox" id="landPresShowCover"> Portada</label>
-          <label><input type="checkbox" id="landPresShowMap"> Mapa</label>
-          <label><input type="checkbox" id="landPresShowTable"> Tabla</label>
-          <label><input type="checkbox" id="landPresShowClosing"> Cierre</label>
+        <div class="pres-design-anchor">
+          <button type="button" class="btn ghost" id="landPresDesignBtn" title="Elegir qué secciones se incluyen en la presentación" onclick="togglePresDesignPanel(event,'landPresDesignBtn','landPresDesignPanel')">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-3px"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>Diseño
+          </button>
+          <div class="pres-design-panel" id="landPresDesignPanel">
+            <label><input type="checkbox" id="landPresShowCover"> Portada</label>
+            <label><input type="checkbox" id="landPresShowMap"> Mapa</label>
+            <label><input type="checkbox" id="landPresShowTable"> Tabla</label>
+            <label><input type="checkbox" id="landPresShowClosing"> Cierre</label>
+          </div>
         </div>
         <span class="count" id="landPresCount"></span>
         <button type="button" class="btn ghost" id="landPresCoverEditBtn" title="Editar mes/año, tamaño, mercados, brokers y empresa/proyecto de la portada">
@@ -5817,7 +5838,7 @@ const PRESENTATION_ROWS = [
   {label:"Ventilation", key:"VENTILATION_CPH", unit:"cph", rule:"suit_tbc"},
   {label:"Dock Doors", key:"DOCK_DOORS"},
   {label:"Drive-In Doors | Ramps", key:"DRIVE_IN_DOORS_RAMPS"},
-  {label:"Installed Capacity | Transformer", key:"INSTALLED_CAPACITY_TRANSFORMER_KVA", unit:"kVA", rule:"suit_tbc"},
+  {label:"Installed Capacity", key:"INSTALLED_CAPACITY_TRANSFORMER_KVA", unit:"kVA", rule:"suit_tbc"},
   {label:"Water Source", key:"WATER_SOURCE"},
   {label:"Sewer Source", key:"SEWER_SOURCE"},
   {label:"Natural Gas Infrastructure", key:"NATURAL_GAS_INFRASTRUCTURE"},
@@ -7150,6 +7171,31 @@ document.getElementById("landPresPrintBtn").onclick=()=>{
   document.querySelectorAll(".deck-page.cover-page,.deck-page.map-page,.deck-page.layout-page").forEach(p=>{ p.style.height=""; p.style.width=""; });
   document.body.classList.remove("printing-deck");
 };
+/* v3.45.26: panel flotante "Diseño" (Propiedades y Terrenos comparten esta misma función, solo cambian los
+   ids de botón/panel que se le pasan) — mismo criterio de apertura/cierre que toggleColumnsPanel(): un solo
+   panel abierto a la vez, se cierra con un clic fuera (mousedown en fase de captura, sin `stopPropagation`
+   porque a diferencia del filtro de columna esto nunca flota encima de una fila clickeable). */
+function closeAllPresDesignPanels(){
+  document.querySelectorAll(".pres-design-panel").forEach(p=>{ p.style.display="none"; });
+  document.removeEventListener("mousedown", onDocMouseDownForPresDesignPanel, true);
+}
+function onDocMouseDownForPresDesignPanel(e){
+  if(e.target.closest(".pres-design-anchor")) return;
+  closeAllPresDesignPanels();
+}
+function togglePresDesignPanel(evt, btnId, panelId){
+  evt.stopPropagation();
+  const panel=document.getElementById(panelId);
+  const wasOpen=panel.style.display!=="none" && panel.style.display!=="";
+  closeAllPresDesignPanels();
+  if(wasOpen) return;
+  const btn=document.getElementById(btnId);
+  const r=btn.getBoundingClientRect();
+  panel.style.display="flex";
+  panel.style.left=Math.max(8, Math.min(r.left, window.innerWidth-8-170))+"px";
+  panel.style.top=(r.bottom+8)+"px";
+  document.addEventListener("mousedown", onDocMouseDownForPresDesignPanel, true);
+}
 const presShowCoverEl=document.getElementById("presShowCover");
 const presShowMapEl=document.getElementById("presShowMap");
 const presShowTableEl=document.getElementById("presShowTable");

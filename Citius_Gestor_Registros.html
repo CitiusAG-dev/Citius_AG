@@ -7154,16 +7154,17 @@ function preparePrintPageSize(){
   // (foto+tabla+mapa+plano) mide un alto muy distinto al de la página comparativa de "Tabla", así que si
   // compartieran grupo, measure() tomaría el máximo de ambos y la más chica de las 2 quedaría con un
   // margen en blanco de sobra al imprimir — mismo criterio que ya separaba cover/map de todo lo demás.
-  // "listPage" (v3.45.27) se agregó con el mismo criterio exacto: la altura de una hoja de "List" (25 filas
-  // compactas) no tiene por qué coincidir con la de "Table" (comparativa, altura fija por la cantidad de
-  // filas de PRESENTATION_ROWS) — mezclarlas dejaría a la más chica con margen de sobra al imprimir.
-  const groupOf=p=>p.classList.contains("cover-page") ? "coverPage" : p.classList.contains("map-page") ? "mapPage" : p.classList.contains("layout-page") ? "layoutPage" : p.classList.contains("list-page") ? "listPage" : "tablePage";
-  const coverPages=pages.filter(p=>groupOf(p)==="coverPage");
+  // "List" (pedido explícito del usuario) es la excepción a ese criterio: NO tiene grupo propio, se mide
+  // junto con Portada/Cierre (mismo grupo "coverPage") a propósito, para que SIEMPRE termine con el mismo
+  // alto que esas 2 (9.44in), sin importar cuántas filas tenga la última hoja paginada — el margen en
+  // blanco que eso deja abajo es exactamente lo que se pidió (el disclaimer ya está anclado a esa zona con
+  // margin-top:auto, ver .deck-page.list-page en el CSS).
+  const groupOf=p=>(p.classList.contains("cover-page")||p.classList.contains("list-page")) ? "coverPage" : p.classList.contains("map-page") ? "mapPage" : p.classList.contains("layout-page") ? "layoutPage" : "tablePage";
+  const coverPages=pages.filter(p=>groupOf(p)==="coverPage"); // incluye .cover-page (Portada/Cierre) y .list-page
   const mapPages=pages.filter(p=>groupOf(p)==="mapPage");
   const layoutPages=pages.filter(p=>groupOf(p)==="layoutPage");
-  const listPages=pages.filter(p=>groupOf(p)==="listPage");
   const tablePages=pages.filter(p=>groupOf(p)==="tablePage");
-  const groupsPresent=[coverPages,mapPages,layoutPages,listPages,tablePages].filter(g=>g.length>0).length;
+  const groupsPresent=[coverPages,mapPages,layoutPages,tablePages].filter(g=>g.length>0).length;
   let css="";
   let styleEl=document.getElementById("dynamicPrintPageSize");
   if(!styleEl){ styleEl=document.createElement("style"); styleEl.id="dynamicPrintPageSize"; document.head.appendChild(styleEl); }
@@ -7196,8 +7197,8 @@ function preparePrintPageSize(){
     });
   }
   if(coverPages.length){
-    const s=measure(coverPages);
-    css+=`@page coverPage{size:${s.wIn}in ${s.hIn}in;margin:0} .deck-page.cover-page{page:coverPage}\n`;
+    const s=measure(coverPages); // máximo entre Portada/Cierre y List -> List queda forzada al alto de Portada
+    css+=`@page coverPage{size:${s.wIn}in ${s.hIn}in;margin:0} .deck-page.cover-page,.deck-page.list-page{page:coverPage}\n`;
     lockSize(coverPages, parseFloat(s.wIn)*96, parseFloat(s.hIn)*96);
   }
   if(mapPages.length){
@@ -7209,11 +7210,6 @@ function preparePrintPageSize(){
     const s=measure(layoutPages);
     css+=`@page layoutPage{size:${s.wIn}in ${s.hIn}in;margin:0} .deck-page.layout-page{page:layoutPage}\n`;
     lockSize(layoutPages, parseFloat(s.wIn)*96, parseFloat(s.hIn)*96);
-  }
-  if(listPages.length){
-    const s=measure(listPages);
-    css+=`@page listPage{size:${s.wIn}in ${s.hIn}in;margin:0} .deck-page.list-page{page:listPage}\n`;
-    lockSize(listPages, parseFloat(s.wIn)*96, parseFloat(s.hIn)*96);
   }
   if(tablePages.length){
     const s=measure(tablePages);
@@ -7271,7 +7267,7 @@ document.getElementById("presPrintBtn").onclick=()=>{
   window.print();
   document.title=originalTitle;
   pagesEl.style.zoom="";
-  document.querySelectorAll(".deck-page.cover-page,.deck-page.map-page,.deck-page.layout-page").forEach(p=>{ p.style.height=""; p.style.width=""; }); // deshace el tamaño fijo puesto por preparePrintPageSize(), solo era para imprimir
+  document.querySelectorAll(".deck-page.cover-page,.deck-page.map-page,.deck-page.layout-page,.deck-page.list-page").forEach(p=>{ p.style.height=""; p.style.width=""; }); // deshace el tamaño fijo puesto por preparePrintPageSize(), solo era para imprimir
   document.body.classList.remove("printing-deck");
 };
 window.addEventListener("beforeprint", ()=>{ if(presMapInstance) presMapInstance.invalidateSize(); if(landPresMapInstance) landPresMapInstance.invalidateSize(); presLayoutMapInstances.forEach(m=>{ try{ m.invalidateSize(); }catch(e){} }); landDeckMapInstances.forEach(m=>{ try{ m.invalidateSize(); }catch(e){} }); });

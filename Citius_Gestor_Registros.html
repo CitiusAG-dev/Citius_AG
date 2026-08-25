@@ -948,7 +948,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Configuración</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="Ver notas de versión" onclick="openReleaseNotes()">v3.45.23</div>
+      <div class="app-version" title="Ver notas de versión" onclick="openReleaseNotes()">v3.45.24</div>
     </nav>
   </aside>
   <div class="main">
@@ -2621,6 +2621,9 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"3.45.24", date:"2026-08-25", items:[
+    "Ajuste sobre v3.45.23, pedido explícito del usuario: en la Presentación de Terrenos, \"Electric Capacity\" en 0 ahora muestra \"None\" (no \"0\" como se dejó en v3.45.23) — vacío sigue mostrando \"TBC\"."
+  ]},
   {version:"3.45.23", date:"2026-08-25", items:[
     "Corregido en la Presentación de Terrenos: \"Electric Capacity\" mostraba \"Viability\"/\"None\" en vez del valor real — ahora un 0 capturado se muestra como \"0\" y solo un campo vacío muestra \"TBC\". \"Sewer System\" y \"Railroad\" no mostraban nada especial en vacío — ahora también muestran \"TBC\". \"Asking Price\" en 0 ahora muestra \"Upon Request\" en vez de \"$0.00\". \"Telecommunications\" ya mostraba \"TBC\" en vacío correctamente, sin cambios."
   ]},
@@ -6167,7 +6170,7 @@ const PRESENTATION_ROWS_LAND = [
   {label:"Security", key:"FENCE"},
   {label:"Infrastructure Status", key:"INFRAESTRUCTURE_STATUS"},
   {label:"Electric Service", key:"ELECTRIC_SERVICE_(kv)", unit:"kv"},
-  {label:"Electric Capacity", key:"ELECTRIC_CAPACITY_KVA", unit:"kVA", rule:"tbc_empty"},
+  {label:"Electric Capacity", key:"ELECTRIC_CAPACITY_KVA", unit:"kVA", rule:"none_zero_tbc_empty"},
   {label:"Water Supply", key:"WATER_SUPPLY"},
   {label:"Water Capacity", key:"WATER_CAPACITY_LPS", unit:"lps", rule:"viability_none"},
   {label:"Sewer System", key:"SEWER_SYSTEM", rule:"tbc_empty"},
@@ -6179,12 +6182,13 @@ const PRESENTATION_ROWS_LAND = [
   {label:"Land Use", key:"LAND_USE"},
   {label:"Asking Price", key:"ASKING_PRICE_VALUE", unit:"$/m2", dark:true, currency:true, rule:"upon_request_zero"}
 ];
-/* Reglas de valor vacío/0, pedido explícito del usuario (v3.45.23):
-   - "viability_none" (Water Capacity): 0 → "Viability", vacío → "None". Electric Capacity usaba esta misma
-     regla antes y quedó mal — 0 es una capacidad real capturada, no "en trámite", así que se cambió a
-     "tbc_empty" (0 se muestra tal cual, con formato numérico normal).
-   - "tbc_empty" (Electric Capacity, Sewer System, Telecommunications, Railroad): vacío → "TBC"; un valor
-     real (incluido 0, cuando el campo es numérico) se muestra con el formato normal, sin caso especial.
+/* Reglas de valor vacío/0, pedido explícito del usuario (v3.45.23/3.45.24):
+   - "viability_none" (Water Capacity): 0 → "Viability", vacío → "None".
+   - "none_zero_tbc_empty" (Electric Capacity): 0 → "None", vacío → "TBC" — distinta de "viability_none"
+     (que usaba antes y quedó mal: mostraba "Viability" en 0) y también distinta de "tbc_empty" (que
+     dejaría el 0 tal cual, algo que el usuario corrigió después de pedirlo así la primera vez).
+   - "tbc_empty" (Sewer System, Telecommunications, Railroad): vacío → "TBC"; un valor real se muestra con
+     el formato normal, sin caso especial para 0 (son campos categóricos, no numéricos).
    - "upon_request_zero" (Asking Price): 0 → "Upon Request" (un precio real de $0 no tiene sentido; se usa
      como valor centinela para "disponible bajo solicitud"). */
 function presLandValueFor(rec,row){
@@ -6197,6 +6201,10 @@ function presLandValueFor(rec,row){
   if(row.rule==="viability_none"){
     if(v===0) return "Viability";
     if(v==null||v==="") return "None";
+  }
+  if(row.rule==="none_zero_tbc_empty"){
+    if(v===0) return "None";
+    if(v==null||v==="") return "TBC";
   }
   if(row.rule==="upon_request_zero" && v===0) return "Upon Request";
   if(row.rule==="tbc_empty" && (v==null||v==="")) return "TBC";

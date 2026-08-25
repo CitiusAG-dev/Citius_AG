@@ -434,17 +434,22 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      referencia: mismo header amarillo del logo, tabla real (no CSS grid como .deck-grid, aquí no hace
      falta el layout "columna=propiedad, fila=atributo" de Table) con encabezado sólido en --accent y
      rayas alternas suaves, igual criterio visual que .resumen-table pero propio (esta SÍ debe imprimirse
-     bien dentro de .deck-page, .resumen-table nunca se pensó para imprimir). Sin aspect-ratio fijo — el
-     alto lo define el contenido (25 filas), por eso tiene su propio grupo "listPage" en
-     preparePrintPageSize() en vez de compartir el de Table.
+     bien dentro de .deck-page, .resumen-table nunca se pensó para imprimir).
      v3.45.28, reportado por el usuario con captura real: en la última hoja (con menos de 25 filas, ej. la
      2da hoja de una lista de 43 propiedades) el aviso legal quedaba pegado justo debajo de la tabla,
      dejando un hueco en blanco grande hasta el borde inferior de la hoja — se veía inconsistente contra la
      referencia (Excel), donde el aviso siempre queda anclado abajo sin importar cuántas filas tenga esa
      hoja en particular. display:flex column en la página + margin-top:auto en la nota lo empuja al fondo
-     siempre, sin necesidad de saber de antemano el alto real de la hoja (que además puede quedar fijado
-     por preparePrintPageSize() para que coincida con las demás hojas "List" del mismo deck). */
-  .deck-page.list-page{display:flex;flex-direction:column}
+     siempre, sin necesidad de saber de antemano el alto real de la hoja.
+     v3.45.31, pedido explícito del usuario ("todas deberían tener el alto de 9.44 como las demás, sin
+     importar que tienen menos registros"): antes esta hoja no tenía aspect-ratio fijo, su alto lo definía
+     el contenido (por eso tenía su propio grupo "listPage" en preparePrintPageSize()) — eso hacía que se
+     imprimiera con el alto correcto (forzado ahí por JS) pero se VIERA más baja dentro del sistema, ya que
+     esa igualación solo corría justo antes de imprimir. Se le puso el mismo aspect-ratio de Portada
+     (1652/1269) para que el alto correcto se refleje siempre, tanto en pantalla como al imprimir, igual
+     que ya pasa con Portada/Mapa — preparePrintPageSize() ahora la agrupa con Portada/Cierre en vez de
+     tener grupo propio, ver comentario ahí. */
+  .deck-page.list-page{display:flex;flex-direction:column;aspect-ratio:1652/1269;overflow:hidden}
   .deck-page.list-page .deck-note{margin-top:auto}
   /* Angostado del lado derecho, reportado por el usuario ("me gusta donde empieza a mano izquierda pero el
      borde derecho está muy al fin de la hoja") — width menor a 100% sin margin:auto deja el excedente
@@ -462,7 +467,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      desplazarse junto con el resto de la hoja como cualquier tabla normal (reportado por el usuario).
      white-space:normal + word-break (a pedido del usuario): a diferencia de las celdas de datos (que se
      recortan con "…" si no caben), el título de columna ahora hace wrap a una 2ª línea en vez de truncarse. */
-  .deck-list-table th{position:static;background:var(--accent);color:#3a2c05;font-weight:700;text-align:left;padding:7px 8px;white-space:normal;line-height:1.15;word-break:break-word;font-size:10px} /* font-size explícito: la regla global `th{font-size:11.5px}` (para #tbl) gana sobre la herencia de .deck-list-table si no se sobreescribe aquí */
+  .deck-list-table th{position:static;background:var(--accent);color:#3a2c05;font-weight:700;text-align:center;padding:7px 8px;white-space:normal;line-height:1.15;word-break:break-word;font-size:10px} /* font-size explícito: la regla global `th{font-size:11.5px}` (para #tbl) gana sobre la herencia de .deck-list-table si no se sobreescribe aquí */
   .deck-list-table td{padding:6px 8px;border-bottom:1px solid #e2e2e2;white-space:nowrap}
   .deck-list-table tr.deck-list-stripe td{background:#f2f2f2}
   .deck-list-table .deck-list-num{text-align:center;color:#666} /* el ancho real ahora lo da el <colgroup> (NUM_COL_SHARE) */

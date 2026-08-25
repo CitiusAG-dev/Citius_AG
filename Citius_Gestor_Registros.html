@@ -436,8 +436,26 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      rayas alternas suaves, igual criterio visual que .resumen-table pero propio (esta SÍ debe imprimirse
      bien dentro de .deck-page, .resumen-table nunca se pensó para imprimir). Sin aspect-ratio fijo — el
      alto lo define el contenido (25 filas), por eso tiene su propio grupo "listPage" en
-     preparePrintPageSize() en vez de compartir el de Table. */
-  .deck-list-table{width:100%;border-collapse:collapse;font-family:'Unitext',sans-serif;font-size:11px}
+     preparePrintPageSize() en vez de compartir el de Table.
+     v3.45.28, reportado por el usuario con captura real: en la última hoja (con menos de 25 filas, ej. la
+     2da hoja de una lista de 43 propiedades) el aviso legal quedaba pegado justo debajo de la tabla,
+     dejando un hueco en blanco grande hasta el borde inferior de la hoja — se veía inconsistente contra la
+     referencia (Excel), donde el aviso siempre queda anclado abajo sin importar cuántas filas tenga esa
+     hoja en particular. display:flex column en la página + margin-top:auto en la nota lo empuja al fondo
+     siempre, sin necesidad de saber de antemano el alto real de la hoja (que además puede quedar fijado
+     por preparePrintPageSize() para que coincida con las demás hojas "List" del mismo deck). */
+  .deck-page.list-page{display:flex;flex-direction:column}
+  .deck-page.list-page .deck-note{margin-top:auto}
+  /* Angostado del lado derecho, reportado por el usuario ("me gusta donde empieza a mano izquierda pero el
+     borde derecho está muy al fin de la hoja") — width menor a 100% sin margin:auto deja el excedente
+     siempre del lado derecho, el borde izquierdo (heredado del padding de .deck-page) no se mueve.
+     table-layout:fixed es OBLIGATORIO para que ese width se respete de verdad: con el "auto" default, el
+     ancho declarado es solo una sugerencia MÍNIMA — con nombres largos de propiedad/ubicación la tabla
+     terminaba más ancha que la hoja completa (925px medido en una hoja de 885px), justo la queja original
+     del usuario. Con fixed, las columnas se reparten ese 92% entre sí y el contenido que no cabe se recorta
+     con "…" (ver white-space/overflow abajo) en vez de forzar la tabla a crecer. */
+  .deck-list-table{width:92%;table-layout:fixed;border-collapse:collapse;font-family:'Unitext',sans-serif;font-size:11px}
+  .deck-list-table th,.deck-list-table td{overflow:hidden;text-overflow:ellipsis}
   /* position:static explícito: la regla global `th{position:sticky;top:0}` (pensada para el encabezado de
      la tabla principal #tbl) se hereda por defecto en CUALQUIER <th>, incluido este — sin este override el
      encabezado de "List" se quedaba flotando fijo a mitad de la Presentación al hacer scroll, en vez de
@@ -2018,7 +2036,7 @@ function fieldLabel(key){ return customFieldLabels[key] || FIELD_LABEL_OVERRIDES
 function fcFieldRowHtml(f,gi,fi,allGroupNames){
   const groupOptions=allGroupNames.map(gn=>`<option value="${escapeAttr(gn)}" ${gn===f.group?"selected":""}>${escapeHtml(gn)}</option>`).join("");
   const listNames=Object.keys(lists).sort();
-  const listOptions=`<option value="">— Ninguna —</option>`+listNames.map(ln=>`<option value="${escapeAttr(ln)}" ${ln===f.list?"selected":""}>${escapeHtml(ln)}</option>`).join("");
+  const listOptions=`<option value="">— None —</option>`+listNames.map(ln=>`<option value="${escapeAttr(ln)}" ${ln===f.list?"selected":""}>${escapeHtml(ln)}</option>`).join("");
   return `<div class="fc-field-row" draggable="true" data-gidx="${gi}" data-fidx="${fi}" title="Arrastra para reordenar o mover de grupo"
        ondragstart="fcFieldDragStart(event,${gi},${fi})" ondragover="fcFieldDragOver(event,${gi},${fi})"
        ondrop="fcFieldDrop(event,${gi},${fi})" ondragleave="fcDragLeave(event)">
@@ -2036,7 +2054,7 @@ function fcFieldRowHtml(f,gi,fi,allGroupNames){
     </select>
     ${CASCADE_ORDER.includes(f.key)&&cascadeCatalog.length
       ?`<span class="fc-cascade-note" title="This field is filled from the location catalog (Region/State/Market/Submarket), filtered by the previous field in the chain">Region/State/Market/Submarket cascade</span>`
-      :`<select title="${escapeAttr(f.list||"Ninguna")}" onchange="fcSetField(${gi},${fi},'list',this.value)">${listOptions}</select>`}
+      :`<select title="${escapeAttr(f.list||"None")}" onchange="fcSetField(${gi},${fi},'list',this.value)">${listOptions}</select>`}
     <select title="${escapeAttr(f.group)}" onchange="fcMoveFieldToGroup(${gi},${fi},this.value)">${groupOptions}</select>
     <button type="button" class="fc-help-btn${f.help?" has-help":""}" onclick="event.stopPropagation();editFieldHelp(${gi},${fi})" title="${f.help?"Edit help text":"Add help text"}">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
@@ -2162,7 +2180,7 @@ function updateClearFiltersBtn(){
   if(!btn) return;
   const n=(filters[current]||[]).length;
   btn.style.display=n?"":"none";
-  btn.textContent=`✕ Limpiar filtros (${n})`;
+  btn.textContent=`✕ Clear filters (${n})`;
 }
 
 /* ==== Table sorting: click a header for a quick single-column sort (asc -> desc -> sin orden), o usa el
@@ -4182,7 +4200,7 @@ function renderColumnFilterDropdown(anchorBtn){
   }
   el.innerHTML=`<div class="col-filter-body">${bodyHtml}</div>
     <div class="col-filter-foot">
-      <button class="btn ghost icon-only" onclick="clearColumnFilter()" title="Borrar filtro">
+      <button class="btn ghost icon-only" onclick="clearColumnFilter()" title="Clear filter">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
       </button>
       <button class="btn" onclick="applyColumnFilter()">Apply</button>
@@ -7416,7 +7434,7 @@ function openAdd(){
 function showFichaLoading(){
   document.getElementById("overlay").classList.add("show");
   document.getElementById("mTitle").textContent="Loading…";
-  document.getElementById("mBody").innerHTML=`<div class="empty">Cargando registro…</div>`;
+  document.getElementById("mBody").innerHTML=`<div class="empty">Loading record…</div>`;
   document.getElementById("modalFoot").style.display="none";
   document.getElementById("modalEditBtn").style.display="none";
   document.getElementById("modalExitEditBtn").style.display="none";
@@ -8471,7 +8489,7 @@ async function renderPhotoEditPreview(){
   // "Layout" se ajusta a lo ancho sin recortar (fondo blanco) — el resto de fotos sigue con el cover de
   // siempre (recorta lo que sobra); ver processImageFitWidthWhiteBg más abajo.
   box.classList.toggle("fit-contain", photoEditState.kindKey==="LAYOUT");
-  box.innerHTML=`<div class="image-placeholder">Cargando…</div>`;
+  box.innerHTML=`<div class="image-placeholder">Loading…</div>`;
   try{
     const blob=await rotateImageToBlob(photoEditState.file, photoEditState.rotation);
     if(!photoEditState) return; // el modal se pudo cerrar mientras esto procesaba

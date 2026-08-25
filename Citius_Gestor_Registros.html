@@ -942,7 +942,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Configuración</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="Ver notas de versión" onclick="openReleaseNotes()">v3.45.20</div>
+      <div class="app-version" title="Ver notas de versión" onclick="openReleaseNotes()">v3.45.21</div>
     </nav>
   </aside>
   <div class="main">
@@ -2369,10 +2369,11 @@ function sortLevelDrop(e,i){
 let mem = null;
 function loadState(){
   try{ const s=localStorage.getItem(STORE_KEY); if(s){ return JSON.parse(s);} }catch(e){}
-  // seed from bundle, assign ids
+  // Primer uso (nada guardado todavía): arrancar vacío en vez de sembrar los datos de ejemplo
+  // del BUNDLE. La tabla debe quedar en 0 registros hasta que se conecte/cargue un documento real.
   const st={};
   for(const k in BUNDLE){
-    st[k]=BUNDLE[k].rows.map((r,i)=>({__id:k+"_"+i, ...r}));
+    st[k]=[];
   }
   return st;
 }
@@ -2614,6 +2615,9 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"3.45.21", date:"2026-08-25", items:[
+    "Corregido: en un navegador que nunca había usado la app (sin nada guardado todavía), Propiedades/Naves y las demás tablas aparecían con registros de ejemplo aunque no hubiera ningún Excel conectado — venían de un set de datos de muestra incluido en el sistema. Ahora arranca en 0 registros hasta que de verdad se conecte/cargue un documento; una vez que hay datos reales guardados, la próxima vez que se abra la app sigue mostrando esos datos como siempre."
+  ]},
   {version:"3.45.20", date:"2026-08-25", items:[
     "Corregido: con pocos resultados filtrados (ej. filtrar por un solo Mapping Code), hacer clic en la única fila visible no abría la ficha — el clic solo cerraba el panel del filtro (que quedaba flotando justo encima de esa fila) sin abrir nada, y hacía falta un segundo clic exacto en el mismo punto. Ahora ese primer clic cierra el panel Y abre la ficha de una vez, cuando cae sobre una fila de la tabla. Para cualquier otro botón/panel el comportamiento de siempre no cambió (el clic sigue \"consumiéndose\" igual que antes)."
   ]},

@@ -2018,7 +2018,7 @@ function fcFieldRowHtml(f,gi,fi,allGroupNames){
       <option value="date" ${f.type==="date"?"selected":""}>Fecha</option>
     </select>
     ${CASCADE_ORDER.includes(f.key)&&cascadeCatalog.length
-      ?`<span class="fc-cascade-note" title="Este campo se llena desde el catálogo de ubicación (Región/Estado/Mercado/Submercado), filtrado según el campo anterior de la cadena">Cascada Región/Estado/Mercado/Submercado</span>`
+      ?`<span class="fc-cascade-note" title="This field is filled from the location catalog (Region/State/Market/Submarket), filtered by the previous field in the chain">Region/State/Market/Submarket cascade</span>`
       :`<select title="${escapeAttr(f.list||"Ninguna")}" onchange="fcSetField(${gi},${fi},'list',this.value)">${listOptions}</select>`}
     <select title="${escapeAttr(f.group)}" onchange="fcMoveFieldToGroup(${gi},${fi},this.value)">${groupOptions}</select>
     <button type="button" class="fc-help-btn${f.help?" has-help":""}" onclick="event.stopPropagation();editFieldHelp(${gi},${fi})" title="${f.help?"Edit help text":"Add help text"}">
@@ -3278,7 +3278,7 @@ function renderTable(){
   const selectAllChecked=showSelect && rows.length>0 && rows.every(r=>presOrder.includes(r.__id));
   const activeFilterKeys=new Set((filters[current]||[]).map(f=>f.key));
   const theadHtml="<tr>"
-    +(showSelect?`<th class="th-select"><input type="checkbox" ${selectAllChecked?"checked":""} onchange="${toggleAllFn}(this.checked)" title="Seleccionar todas las filtradas para la presentación"></th>`:"")
+    +(showSelect?`<th class="th-select"><input type="checkbox" ${selectAllChecked?"checked":""} onchange="${toggleAllFn}(this.checked)" title="Select all filtered rows for the presentation"></th>`:"")
     +cols.map((c,i)=>`<th draggable="true" ondragstart="colDragStart(event,${i})" ondragover="colDragOver(event,${i})" ondrop="colDrop(event,${i})" ondragleave="colDragLeave(event)" title="Drag to reorder" style="${colWidthStyle(current,c)}"><div class="th-cell sortable" onclick="toggleSort('${c}')" title="Sort"><span>${fieldLabel(c)}</span><span class="th-cell-right">${sortIconHtml(c)}<button type="button" class="col-filter-btn${activeFilterKeys.has(c)?" active":""}" onclick="toggleColumnFilter(event,'${c}')" title="Filter"><svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M3 4h18l-7 9v6l-4 2v-8L3 4z"/></svg></button></span></div>${colResizeHandleHtml(c)}</th>`).join("")
     +`<th class="days-col" style="${colWidthStyle(current,DAYS_COL_WIDTH_KEY)}"><div class="th-cell sortable" onclick="toggleSort('${DAYS_SORT_KEY}')" title="Sort" style="justify-content:center">Days Since Update${sortIconHtml(DAYS_SORT_KEY)}</div>${colResizeHandleHtml(DAYS_COL_WIDTH_KEY)}</th>`
     +`<th class="pct-col" style="${colWidthStyle(current,PCT_COL_WIDTH_KEY)}"><div class="th-cell sortable" onclick="toggleSort('${PCT_SORT_KEY}')" title="Sort" style="justify-content:center">% Complete${sortIconHtml(PCT_SORT_KEY)}</div>${colResizeHandleHtml(PCT_COL_WIDTH_KEY)}</th><th style="${colWidthStyle(current,ACTIONS_COL_WIDTH_KEY)}">Actions${colResizeHandleHtml(ACTIONS_COL_WIDTH_KEY)}</th></tr>`;
@@ -3340,7 +3340,7 @@ function renderTable(){
       const daysTd=`<td class="days-col" style="${colWidthStyle(current,DAYS_COL_WIDTH_KEY)}">${daysSinceUpdateHtml(daysSinceUpdate(r))}</td>`;
       const pctTd=`<td class="pct-col" style="${colWidthStyle(current,PCT_COL_WIDTH_KEY)}">${completionPill(completionStats(current, r))}</td>`;
       return `<tr class="row-selectable" onclick="handleRowClick(event,'${r.__id}')">${selectTd}${tds}${daysTd}${pctTd}<td class="actions" style="${colWidthStyle(current,ACTIONS_COL_WIDTH_KEY)}">
-        <button type="button" class="icon-btn row-menu-btn" title="Más acciones" onclick="toggleRowMenu(event,'${r.__id}')">⋮</button>
+        <button type="button" class="icon-btn row-menu-btn" title="More actions" onclick="toggleRowMenu(event,'${r.__id}')">⋮</button>
       </td></tr>`;
     }).join("");
   }
@@ -3350,7 +3350,7 @@ function renderTable(){
     const clearFn=current==="LAND" ? "clearAllLandPresentationSelection" : "clearAllPresentationSelection";
     if(showSelect && presOrder.length){
       presChip.style.display="";
-      presChip.innerHTML=`${presOrder.length} in the presentation<span class="chip-x" onclick="${clearFn}()" title="Remove all from the presentation">&times;</span>`;
+      presChip.innerHTML=`${presOrder.length} in presentation<span class="chip-x" onclick="${clearFn}()" title="Remove all from the presentation">&times;</span>`;
     } else presChip.style.display="none";
   }
   if(PHOTO_ID_FIELD[current] && imagesDirHandle && photoSet===null){
@@ -4570,7 +4570,7 @@ function buildForm(ent, record){
       const parentValue=parentKey&&record?String(record[parentKey]||""):"";
       const options=cascadeOptionsFor(f.key,parentKey,parentValue);
       const mismatchCls=fieldValueMismatch(ent,f,record)?" field-value-mismatch":"";
-      const mismatchTitle=mismatchCls?' title="El valor capturado no está en la lista configurada para este campo"':"";
+      const mismatchTitle=mismatchCls?' title="The captured value is not in the list configured for this field"':"";
       return `<div class="field"><label>${fieldLabel(f.key)}${reqMark}${helpIcon}</label>
         <select data-key="${f.key}" class="${mismatchCls.trim()}"${mismatchTitle} onchange="onCascadeFieldChange(this)">${cascadeSelectOptionsHtml(options,rawVal)}</select></div>`;
     }
@@ -4578,7 +4578,7 @@ function buildForm(ent, record){
     if(listName){
       const rawVal=record&&record[f.key]!=null?String(record[f.key]):"";
       const mismatchCls=fieldValueMismatch(ent,f,record)?" field-value-mismatch":"";
-      const mismatchTitle=mismatchCls?' title="El valor capturado no está en la lista configurada para este campo"':"";
+      const mismatchTitle=mismatchCls?' title="The captured value is not in the list configured for this field"':"";
       return `<div class="field"><label>${fieldLabel(f.key)}${reqMark}${helpIcon}</label>
         <select data-key="${f.key}" class="${mismatchCls.trim()}"${mismatchTitle}>${listOptionsHtml(listName,rawVal)}</select></div>`;
     }
@@ -4621,7 +4621,7 @@ function buildForm(ent, record){
     const reqMark=valueField.required?' <span class="field-required">*</span>':"";
     const helpIcon=fieldHelpIconHtml(ent,valueField);
     const mismatchCls=fieldValueMismatch(ent,unitField,record)?" field-value-mismatch":"";
-    const mismatchTitle=mismatchCls?' title="El valor capturado no está en la lista configurada para este campo"':"";
+    const mismatchTitle=mismatchCls?' title="The captured value is not in the list configured for this field"':"";
     if(PARK_COMPUTED_FIELD_KEYS.has(valueField.key)){
       const computedVal=record&&record[valueField.key]!=null&&record[valueField.key]!==""?record[valueField.key]:0;
       const computedUnit=(record&&record[unitField.key])||"—";
@@ -4732,7 +4732,7 @@ function buildViewForm(ent, record){
         const helpIcon=fieldHelpIconHtml(ent,vf);
         const displayVal=vf.type==="date"?dateOrDashHtml(record&&record[vf.key]):fmt(record&&record[vf.key]);
         const unitMismatchCls=fieldValueMismatch(ent,uf,record)?" field-value-mismatch":"";
-        const unitMismatchTitle=unitMismatchCls?' title="El valor capturado no está en la lista configurada para este campo"':"";
+        const unitMismatchTitle=unitMismatchCls?' title="The captured value is not in the list configured for this field"':"";
         html+=`<div class="field"><label>${label}${reqMark}${helpIcon}</label>
           <div class="vu-group">
             <div class="view-val">${displayVal}</div>
@@ -4762,7 +4762,7 @@ function buildViewForm(ent, record){
       }
       const displayVal=f.type==="date"?dateOrDashHtml(record&&record[f.key]):fmt(record&&record[f.key]);
       const mismatchCls=fieldValueMismatch(ent,f,record)?" field-value-mismatch":"";
-      const mismatchTitle=mismatchCls?' title="El valor capturado no está en la lista configurada para este campo"':"";
+      const mismatchTitle=mismatchCls?' title="The captured value is not in the list configured for this field"':"";
       // v3.44.7 (ajuste, pedido explícito del usuario): mismo forzado de fila nueva que buildForm() — ver
       // su comentario junto a TRANSACCION_AUTOFILL_READONLY_KEYS. v3.45.16: se agregan ADRESS/LATITUDE
       // (sin restricción de entidad) para que la vista de solo lectura muestre las mismas filas separadas
@@ -5166,24 +5166,24 @@ function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<
    satelital de siempre y para el "Esri Gray Canvas" del mini-mapa de Presentación) — sin llave de API,
    sin dependencia nueva. */
 const MAP_BASEMAPS=[
-  {key:"satellite", label:"Satelital", layers:[
+  {key:"satellite", label:"Satellite", layers:[
     {url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution:'Tiles &copy; Esri'},
     {url:'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', attribution:'Labels &copy; Esri'}
   ]},
-  {key:"voyager", label:"Calles claro", layers:[
+  {key:"voyager", label:"Light streets", layers:[
     {url:'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', attribution:'&copy; OpenStreetMap contributors &copy; CARTO', subdomains:'abcd'}
   ]},
-  {key:"streets", label:"Calles", layers:[
+  {key:"streets", label:"Streets", layers:[
     {url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', attribution:'Tiles &copy; Esri'}
   ]},
-  {key:"topo", label:"Topográfico", layers:[
+  {key:"topo", label:"Topographic", layers:[
     {url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', attribution:'Tiles &copy; Esri'}
   ]},
-  {key:"gray", label:"Escala de grises", layers:[
+  {key:"gray", label:"Grayscale", layers:[
     {url:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', attribution:'Tiles &copy; Esri'},
     {url:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', attribution:'Labels &copy; Esri'}
   ]},
-  {key:"dark", label:"Oscuro", layers:[
+  {key:"dark", label:"Dark", layers:[
     {url:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', attribution:'Tiles &copy; Esri'},
     {url:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', attribution:'Labels &copy; Esri'}
   ]}
@@ -5810,10 +5810,10 @@ function renderAllPolygonsMap(keepView){
       const item=items[mapBatchIdx];
       try{
         const {layer:l, row:r, polyKey}=item;
-        const name=r[l.titleField]||r[l.subField]||`${l.label} sin nombre`;
+        const name=r[l.titleField]||r[l.subField]||`Unnamed ${l.label}`;
         const popupHtml=`<div style="min-width:170px"><b>${escapeHtml(name)}</b><br>${escapeHtml(r[l.subField]||"")}<br>`+
           `<span class="map-popup-tag" style="background:${l.color}22;color:${l.color}">${escapeHtml(l.label)}</span><br>`+
-          `<button class="btn ghost" style="margin-top:8px;padding:5px 10px;font-size:12px" onclick="editFromMap('${l.ent}','${r.__id}')">Editar registro</button></div>`;
+          `<button class="btn ghost" style="margin-top:8px;padding:5px 10px;font-size:12px" onclick="editFromMap('${l.ent}','${r.__id}')">Edit record</button></div>`;
         if(mapDisplayMode==="pins"){
           const lat=Number(r.LATITUDE), lng=Number(r.LONGITUDE);
           // v3.44.2, pedido explícito del usuario: con miles de pines (algunos muy cercanos entre sí, ej.
@@ -6061,7 +6061,7 @@ function getOrderedLandPresentationList(){
 }
 function renderPresSelectedList(list){
   const el=document.getElementById("presSelectedList");
-  if(!list.length){ el.innerHTML=`<p class="muted" style="font-size:12px">Ninguna aún.</p>`; return; }
+  if(!list.length){ el.innerHTML=`<p class="muted" style="font-size:12px">None yet.</p>`; return; }
   el.innerHTML=list.map((rec,i)=>`
     <div class="pres-item" draggable="true" data-idx="${i}"
          ondragstart="presItemDragStart(event,${i})" ondragover="presItemDragOver(event,${i})"
@@ -6581,7 +6581,7 @@ function saveLandPresShowState(){ try{ localStorage.setItem(LAND_PRES_SHOW_KEY, 
 let landPresShowState=loadLandPresShowState();
 function renderPresLandSelectedList(list){
   const el=document.getElementById("landPresSelectedList");
-  if(!list.length){ el.innerHTML=`<p class="muted" style="font-size:12px">Ninguno aún.</p>`; return; }
+  if(!list.length){ el.innerHTML=`<p class="muted" style="font-size:12px">None yet.</p>`; return; }
   el.innerHTML=list.map((rec,i)=>`
     <div class="pres-item" draggable="true" data-idx="${i}"
          ondragstart="landPresItemDragStart(event,${i})" ondragover="landPresItemDragOver(event,${i})"
@@ -6625,7 +6625,7 @@ function removeFromLandPresentation(id){
    imprimir de esta vista — se limpia desde ya aunque ese botón siga siendo un stub. */
 function renderLandPresentationView(){
   const list=getOrderedLandPresentationList();
-  document.getElementById("landPresCount").textContent=`${list.length} land parcel(s) in the presentation`;
+  document.getElementById("landPresCount").textContent=`${list.length} land parcel(s) in presentation`;
   renderPresLandSelectedList(list);
   const pagesEl=document.getElementById("landPresPages");
   document.getElementById("presPages").innerHTML="";
@@ -6636,7 +6636,7 @@ function renderLandPresentationView(){
     return;
   }
   if(!landPresShowState.cover && !landPresShowState.map && !landPresShowState.table && !landPresShowState.closing){
-    pagesEl.innerHTML=`<div class="filters-empty">Selecciona "Portada", "Mapa", "Tabla" y/o "Cierre" arriba para ver la presentación.</div>`;
+    pagesEl.innerHTML=`<div class="filters-empty">Check "Cover", "Map", "Table", and/or "Closing" above to see the presentation.</div>`;
     return;
   }
   const logoSrc=DECK_LOGO_SRC;
@@ -6989,7 +6989,7 @@ function renderPresLayoutMaps(list){
 function renderPresentationView(){
   revokeAllDeckPhotoUrls(); // v3.45.8: libera las fotos del render anterior antes de reconstruir el deck
   const list=getOrderedPresentationList();
-  document.getElementById("presCount").textContent=`${list.length} propert${list.length===1?"y":"ies"} in the presentation`;
+  document.getElementById("presCount").textContent=`${list.length} propert${list.length===1?"y":"ies"} in presentation`;
   renderPresSelectedList(list);
   const pagesEl=document.getElementById("presPages");
   // Ver nota en renderLandPresentationView(): limpia el otro deck para que .deck-page nunca quede
@@ -7003,7 +7003,7 @@ function renderPresentationView(){
     return;
   }
   if(!presShowState.cover && !presShowState.map && !presShowState.table && !presShowState.layout && !presShowState.closing){
-    pagesEl.innerHTML=`<div class="filters-empty">Selecciona "Portada", "Mapa", "Tabla", "Layout" y/o "Cierre" arriba para ver la presentación.</div>`;
+    pagesEl.innerHTML=`<div class="filters-empty">Check "Cover", "Map", "Table", "Layout", and/or "Closing" above to see the presentation.</div>`;
     return;
   }
   const logoSrc=DECK_LOGO_SRC;
@@ -8017,7 +8017,7 @@ const PHOTO_KINDS_PROPIEDADES_PARKS=[
   {key:"EXT", label:"Exterior Photo", required:false},
   {key:"INT", label:"Interior Photo", required:false},
   {key:"AEREA", label:"Aerial Photo", required:false},
-  {key:"DOCKS", label:"Foto Docks", required:false},
+  {key:"DOCKS", label:"Docks Photo", required:false},
   {key:"LAYOUT", label:"Layout", required:false},
 ];
 /* Terrenos (v3.34.1): reemplaza la única foto sin sufijo que tenía antes (pedido explícito del usuario) por
@@ -8029,9 +8029,9 @@ const PHOTO_KINDS_PROPIEDADES_PARKS=[
    pero huérfano (el sistema deja de buscarlo), igual que cualquier columna/campo que se deja de usar en
    esta app sin borrar el dato real.*/
 const PHOTO_KINDS_LAND=[
-  {key:"SATELITAL", label:"Foto Satelital", required:false},
-  {key:"PANORAMICA", label:"Foto Panorámica", required:false},
-  {key:"LAYOUT", label:"Foto Layout", required:false},
+  {key:"SATELITAL", label:"Satellite Photo", required:false},
+  {key:"PANORAMICA", label:"Panoramic Photo", required:false},
+  {key:"LAYOUT", label:"Layout Photo", required:false},
 ];
 const PHOTO_KINDS_BY_ENTITY={PROPIEDADES:PHOTO_KINDS_PROPIEDADES_PARKS, PARKS:PHOTO_KINDS_PROPIEDADES_PARKS, LAND:PHOTO_KINDS_LAND};
 const MULTI_PHOTO_ENTITIES=new Set(Object.keys(PHOTO_KINDS_BY_ENTITY));
@@ -8717,11 +8717,11 @@ function setConsolidatedChip(officeCount, fileCount, totalRecords){
   const note=document.getElementById("consolidatedPathNote");
   if(!chip) return;
   if(consolidatedMode){
-    chip.textContent="● Activo — "+officeCount+" oficina(s), "+totalRecords+" registro(s)";
+    chip.textContent="● Active — "+officeCount+" office(s), "+totalRecords+" record(s)";
     chip.style.background="rgba(30,158,90,.14)"; chip.style.color="var(--green)";
-    if(note) note.textContent=fileCount+" archivo(s) leído/s de \""+(consolidatedRootHandle?consolidatedRootHandle.name:"")+"\"";
+    if(note) note.textContent=fileCount+" file(s) read from \""+(consolidatedRootHandle?consolidatedRootHandle.name:"")+"\"";
   } else {
-    chip.textContent="Inactivo"; chip.style.background="rgba(107,116,128,.15)"; chip.style.color="var(--muted)";
+    chip.textContent="Inactive"; chip.style.background="rgba(107,116,128,.15)"; chip.style.color="var(--muted)";
     if(note) note.textContent="";
   }
 }

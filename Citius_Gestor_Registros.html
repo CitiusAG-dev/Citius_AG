@@ -1436,7 +1436,7 @@ const BUNDLE = {"PROPIEDADES":{"fields":[{"key":"MAPPING_CODE","group":"IDENTIFI
 
 /* ==== Entity config: tabs, labels, key fields for the list view ==== */
 const ENTITIES = {
-  PROPIEDADES: { label:"Properties / Buildings", listCols:["MAPPING_CODE","PROPERTY_NAME","PROPERTY_TPYE","SUBMARKET","MARKET_STATUS","AVAILABLE_AREA_VALUE","STATUS"], titleField:"PROPERTY_NAME", statusField:"MARKET_STATUS" },
+  PROPIEDADES: { label:"Buildings", listCols:["MAPPING_CODE","PROPERTY_NAME","PROPERTY_TPYE","SUBMARKET","MARKET_STATUS","AVAILABLE_AREA_VALUE","STATUS"], titleField:"PROPERTY_NAME", statusField:"MARKET_STATUS" },
   PARKS:       { label:"Parks", listCols:["ID_PARK","PARK_NAME","PROPERTY_TYPE","SUBMARKET","STATUS","AVAILABLE_LAND_VALUE","CLASS"], titleField:"PARK_NAME", statusField:"STATUS" },
   LAND:        { label:"Land", listCols:["ID__LAND","PROPERTY_NAME","MARKET","SUBMARKET","TOTAL_LAND_SIZE_VALUE","ASKING_PRICE_VALUE","INFRAESTRUCTURE_STATUS"], titleField:"PROPERTY_NAME", statusField:null },
   TRANSACCIONES:{ label:"Transactions", listCols:["TRANSACTION_DATE","MAPPING_CODE","PROPERTY_NAME","SUBMARKET","TRANSACCION_TYPE","TRANSACTION_AREA","TENANT_BUYER_USER"], titleField:"PROPERTY_NAME", statusField:null }
@@ -1649,6 +1649,35 @@ for(const ent in BUNDLE){
   const newLatIdx=arr.findIndex(f=>f.key==="LATITUDE"); // recalcular índice tras el splice
   arr.splice(newLatIdx,0,adressField);
 });
+/* Traducción del sistema a inglés: los "group" de BUNDLE (los nombres de las pestañas de la ficha,
+   ej. "IDENTIFICACIÓN"→"IDENTIFICATION") ya cambiaron en el archivo, pero quien YA tenía fieldConfig
+   guardado en este navegador se queda con el group VIEJO en español — mismo motivo exacto que la
+   migración de ADRESS arriba: fieldConfig es una copia persistida aparte, no se deriva de BUNDLE de
+   nuevo una vez que existe. Sin esta migración, esos groups viejos ya no coinciden con ninguna clave de
+   GROUP_META (más abajo en el archivo) y la ficha cae al ícono genérico (círculo) en vez del propio de
+   cada pestaña — visualmente se veía como "ya no aparecen los íconos". Incluye las 2 parejas de nombres
+   con error de tipeo que ya existían en BUNDLE antes de la traducción (CARAC.GENERALES/CARACT. GENERALES,
+   ISNTALACIONES GENERALES/INSTALACIONES GENERALES) — ambas quedan unificadas al mismo nombre en inglés. */
+const GROUP_NAME_ES_TO_EN={
+  "IDENTIFICACIÓN":"IDENTIFICATION",
+  "UBICACIÓN":"LOCATION",
+  "CARACT. GENERALES":"GENERAL CHARACTERISTICS",
+  "CARAC.GENERALES":"GENERAL CHARACTERISTICS",
+  "MEDIDAS Y DIVISIBILIDAD":"MEASUREMENTS AND DIVISIBILITY",
+  "MEDIDAS":"MEASUREMENTS",
+  "SERVICIOS E INFRAESTRUCTURA":"SERVICES AND INFRASTRUCTURE",
+  "COMERCIAL":"COMMERCIAL",
+  "DETALLES DE TRANSACCIÓN":"TRANSACTION DETAILS",
+  "TÉRMINOS ECONÓMICOS":"ECONOMIC TERMS",
+  "CONDICIONES COMERCIALES":"COMMERCIAL CONDITIONS",
+  "CONSTRUCCIÓN":"CONSTRUCTION",
+  "INFRAESTRUCTURA":"INFRASTRUCTURE",
+  "INSTALACIONES GENERALES":"GENERAL FACILITIES",
+  "ISNTALACIONES GENERALES":"GENERAL FACILITIES"
+};
+for(const ent in fieldConfig){
+  (fieldConfig[ent]||[]).forEach(f=>{ if(GROUP_NAME_ES_TO_EN[f.group]) f.group=GROUP_NAME_ES_TO_EN[f.group]; });
+}
 saveFieldConfigLocal();
 /* ==== Catálogo de ubicación (Región→Estado→Mercado→Submercado) — listas condicionales solo para estos 4 campos ==== */
 let cascadeCatalog=[];
@@ -1986,7 +2015,7 @@ function fcFieldRowHtml(f,gi,fi,allGroupNames){
       ?`<span class="fc-cascade-note" title="Este campo se llena desde el catálogo de ubicación (Región/Estado/Mercado/Submercado), filtrado según el campo anterior de la cadena">Cascada Región/Estado/Mercado/Submercado</span>`
       :`<select title="${escapeAttr(f.list||"Ninguna")}" onchange="fcSetField(${gi},${fi},'list',this.value)">${listOptions}</select>`}
     <select title="${escapeAttr(f.group)}" onchange="fcMoveFieldToGroup(${gi},${fi},this.value)">${groupOptions}</select>
-    <button type="button" class="fc-help-btn${f.help?" has-help":""}" onclick="event.stopPropagation();editFieldHelp(${gi},${fi})" title="${f.help?"Editar texto de ayuda":"Agregar texto de ayuda"}">
+    <button type="button" class="fc-help-btn${f.help?" has-help":""}" onclick="event.stopPropagation();editFieldHelp(${gi},${fi})" title="${f.help?"Edit help text":"Add help text"}">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
     </button>
   </div>`;
@@ -2232,12 +2261,12 @@ function toggleSortPanel(evt){
   el.className="columns-panel sort-panel";
   el.innerHTML=`
     <div class="columns-panel-head">
-      <h5>Ordenar por</h5>
+      <h5>Sort by</h5>
       <button type="button" class="x" onclick="closeSortPanel()">&times;</button>
     </div>
     <div class="sort-levels" id="sortLevelsList"></div>
     <div class="columns-panel-actions" style="display:flex;gap:8px">
-      <button type="button" class="btn ghost" onclick="addSortLevel()">+ Agregar nivel</button>
+      <button type="button" class="btn ghost" onclick="addSortLevel()">+ Add level</button>
       <button type="button" class="btn ghost" onclick="clearSortLevels()">Clear all</button>
     </div>`;
   document.body.appendChild(el);
@@ -2252,7 +2281,7 @@ function renderSortLevelsList(){
   if(!el) return;
   const levels=sortState[current]||[];
   if(!levels.length){
-    el.innerHTML=`<p class="sort-levels-empty">Sin niveles de orden. Agrega uno para empezar.</p>`;
+    el.innerHTML=`<p class="sort-levels-empty">No sort levels yet. Add one to get started.</p>`;
     return;
   }
   el.innerHTML=levels.map((lvl,i)=>`
@@ -2790,7 +2819,7 @@ function renderPathNote(key, containerId){
   if(!el) return;
   const note=pathNotes[key];
   el.innerHTML=note
-    ? `<span class="path-note-text" title="${escapeAttr(note)}"><span style="margin-right:5px;vertical-align:-2px">${ICO_FOLDER}</span>${escapeHtml(note)}</span><button type="button" class="path-note-edit" onclick="editPathNote('${key}','${containerId}')" title="Editar ruta">${ICO_EDIT}</button>`
+    ? `<span class="path-note-text" title="${escapeAttr(note)}"><span style="margin-right:5px;vertical-align:-2px">${ICO_FOLDER}</span>${escapeHtml(note)}</span><button type="button" class="path-note-edit" onclick="editPathNote('${key}','${containerId}')" title="Edit path">${ICO_EDIT}</button>`
     : `<button type="button" class="path-note-add" onclick="editPathNote('${key}','${containerId}')">+ Agregar ruta de referencia</button>`;
 }
 function editPathNote(key, containerId){
@@ -3915,7 +3944,7 @@ function toggleColumnsPanel(evt){
   el.className="columns-panel";
   el.innerHTML=`
     <div class="columns-panel-head">
-      <h5>Columnas visibles</h5>
+      <h5>Visible columns</h5>
       <button type="button" class="x" onclick="closeColumnsPanel()">&times;</button>
     </div>
     <div class="columns-panel-visible" id="colVisibleList"></div>
@@ -3943,7 +3972,7 @@ function renderColumnsVisibleList(){
          ondrop="colDrop(event,${i})" ondragleave="colDragLeave(event)">
       ${FC_DRAG_ICON}
       <span class="col-row-label" title="${escapeAttr(fieldLabel(key))}">${escapeHtml(fieldLabel(key))}</span>
-      <button type="button" class="col-row-remove" title="Ocultar columna" onclick="hideColumn(${i})" ${cols.length<=1?"disabled":""}>✕</button>
+      <button type="button" class="col-row-remove" title="Hide column" onclick="hideColumn(${i})" ${cols.length<=1?"disabled":""}>✕</button>
     </div>`).join("");
 }
 function renderColumnsAddList(){
@@ -4282,26 +4311,24 @@ function polygonSummary(raw){
   }catch(e){ return "Polygon captured"; }
 }
 const GROUP_META = {
-  "Fotografía": {label:"Fotografía", icon:'<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>'},
+  "Photography": {label:"Photography", icon:'<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>'},
   "GENERAL": {label:"General", icon:'<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>'},
-  "IDENTIFICATION": {label:"Identificación", icon:'<path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>'},
-  "LOCATION": {label:"Ubicación", icon:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>'},
-  "GENERAL CHARACTERISTICS": {label:"Caract. generales", icon:'<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>'},
-  "MEASUREMENTS": {label:"Medidas", icon:'<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>'},
-  "CONSTRUCTION": {label:"Construcción", icon:'<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>'},
-  "INFRASTRUCTURE": {label:"Infraestructura", icon:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>'},
-  "GENERAL FACILITIES": {label:"Inst. generales", icon:'<path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>'},
-  "COMMERCIAL CONDITIONS": {label:"Cond. comerciales", icon:'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'},
-  "GENERAL CHARACTERISTICS": {label:"Caract. generales", icon:'<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>'},
-  "GENERAL FACILITIES": {label:"Inst. generales", icon:'<path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>'},
-  "TRANSACTION DETAILS": {label:"Detalles trans.", icon:'<polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>'},
-  /* v3.44.7, pedido explícito del usuario: pestaña "Propiedad" de Transacciones (antes "Ubicación", ver
+  "IDENTIFICATION": {label:"Identification", icon:'<path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>'},
+  "LOCATION": {label:"Location", icon:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>'},
+  "GENERAL CHARACTERISTICS": {label:"Gen. Characteristics", icon:'<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>'},
+  "MEASUREMENTS": {label:"Measurements", icon:'<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>'},
+  "CONSTRUCTION": {label:"Construction", icon:'<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>'},
+  "INFRASTRUCTURE": {label:"Infrastructure", icon:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>'},
+  "GENERAL FACILITIES": {label:"Gen. Facilities", icon:'<path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>'},
+  "COMMERCIAL CONDITIONS": {label:"Comm. Conditions", icon:'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'},
+  "TRANSACTION DETAILS": {label:"Trans. Details", icon:'<polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>'},
+  /* v3.44.7, pedido explícito del usuario: pestaña "Property" de Transacciones (antes "Location", ver
      TRANSACCION_FIELD_GROUP) — ícono de casa, distinto del genérico de círculo que le tocaría por default. */
-  "PROPIEDAD": {label:"Propiedad", icon:'<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>'},
-  "ECONOMIC TERMS": {label:"Términos econ.", icon:'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'},
-  "MEASUREMENTS AND DIVISIBILITY": {label:"Medidas y divisibilidad", icon:'<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>'},
-  "SERVICES AND INFRASTRUCTURE": {label:"Servicios e infraestructura", icon:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>'},
-  "COMMERCIAL": {label:"Comercial", icon:'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'},
+  "PROPIEDAD": {label:"Property", icon:'<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>'},
+  "ECONOMIC TERMS": {label:"Econ. Terms", icon:'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'},
+  "MEASUREMENTS AND DIVISIBILITY": {label:"Measurements & Divisibility", icon:'<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>'},
+  "SERVICES AND INFRASTRUCTURE": {label:"Services & Infrastructure", icon:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>'},
+  "COMMERCIAL": {label:"Commercial", icon:'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'},
 };
 function groupMeta(g){
   const fallbackLabel=g.charAt(0)+g.slice(1).toLowerCase();
@@ -4623,7 +4650,7 @@ function buildForm(ent, record){
     html+=`</div>`;
     panels.push({label:g, html, missing:countMissingRequired(ent, groups[g], record)});
   }
-  if(PHOTO_ID_FIELD[ent]) panels.push({label:"Fotografía", html:buildImageBlock(ent), missing:photoMissingCount(ent,record)});
+  if(PHOTO_ID_FIELD[ent]) panels.push({label:"Photography", html:buildImageBlock(ent), missing:photoMissingCount(ent,record)});
   const nav=panels.map((p,i)=>{
     const meta=groupMeta(p.label);
     const badge=p.missing>0?`<span class="form-nav-badge">${p.missing}</span>`:"";
@@ -4740,7 +4767,7 @@ function buildViewForm(ent, record){
     html+=`</div>`;
     panels.push({label:g, html, missing:countMissingRequired(ent, groups[g], record)});
   }
-  if(PHOTO_ID_FIELD[ent]) panels.push({label:"Fotografía", html:buildImageViewBlock(ent), missing:photoMissingCount(ent,record)});
+  if(PHOTO_ID_FIELD[ent]) panels.push({label:"Photography", html:buildImageViewBlock(ent), missing:photoMissingCount(ent,record)});
   const nav=panels.map((p,i)=>{
     const meta=groupMeta(p.label);
     const badge=p.missing>0?`<span class="form-nav-badge">${p.missing}</span>`:"";
@@ -7278,7 +7305,7 @@ function reRenderTransactionForm(){
 function enterEditMode(rec){
   if(current==="PARKS" && rec) recomputeParkDerivedFields(rec);
   editingOriginalPhotoId=(rec&&PHOTO_ID_FIELD[current])?rec[PHOTO_ID_FIELD[current]]:null;
-  document.getElementById("mTitle").textContent=rec?"Editar · "+(rec[ENTITIES[current].titleField]||ENTITIES[current].label):"Nuevo · "+ENTITIES[current].label;
+  document.getElementById("mTitle").textContent=rec?"Edit · "+(rec[ENTITIES[current].titleField]||ENTITIES[current].label):"New · "+ENTITIES[current].label;
   document.getElementById("mBody").innerHTML=buildForm(current,rec);
   document.getElementById("modalEditBtn").style.display="none";
   document.getElementById("modalExitEditBtn").style.display=rec?"":"none";
@@ -7303,7 +7330,7 @@ function openAdd(){
    esperando indefinidamente; el escaneo real sigue en segundo plano y queda cacheado para la próxima. */
 function showFichaLoading(){
   document.getElementById("overlay").classList.add("show");
-  document.getElementById("mTitle").textContent="Cargando…";
+  document.getElementById("mTitle").textContent="Loading…";
   document.getElementById("mBody").innerHTML=`<div class="empty">Cargando registro…</div>`;
   document.getElementById("modalFoot").style.display="none";
   document.getElementById("modalEditBtn").style.display="none";
@@ -8289,7 +8316,7 @@ function rotateImageToBlob(srcBlob, degrees){
 }
 function refreshPhotoNavBadge(){
   const buttons=[...document.querySelectorAll("#mBody .form-nav button")];
-  const photoBtn=buttons.find(b=>b.querySelector("span")?.textContent==="Fotografía");
+  const photoBtn=buttons.find(b=>b.querySelector("span")?.textContent==="Photography");
   if(!photoBtn) return;
   const missing=photoMissingCount(current, {[PHOTO_ID_FIELD[current]]: currentPhotoId()});
   let badge=photoBtn.querySelector(".form-nav-badge");

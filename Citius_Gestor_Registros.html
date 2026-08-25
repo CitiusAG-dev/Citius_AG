@@ -1000,7 +1000,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v3.45.25</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v3.46.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -2719,6 +2719,13 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"3.46.0", date:"2026-08-25", items:[
+    "The entire system is now in English: sidebar navigation, all topbars, Settings and its 4 panels (Files, Fields, Lists, Release notes), the record editor (buttons, confirm dialogs, tab groups/icons), column filter/sort/columns panels, toast messages, empty states, pagination, Summary (KPI cards, help text, all tables), the Map (layers, filters, basemap names, popups), and the Presentation view (counters, empty states, cover-data editor, photo labels). Code comments and the release-note history up to and including v3.45.25 stay in Spanish on purpose (developer-facing / historical record) — only new entries from here on are written in English.",
+    "\"Properties / Buildings\" renamed to just \"Buildings\" throughout.",
+    "New \"List\" page in the Properties presentation deck (Design panel, right below \"Table\"): a compact, one-row-per-property summary table (\"Building Options\") with Submarket/Name/Developer/Location/Size/Occupied/Available/Clear Height/Status/Class/Gen/Asking Rate — reuses the exact same unit/value logic as \"Table\" so numbers always match. Paginates 20 rows per page with continuous numbering across pages; Confidential mode fully hides the Developer and Location columns (not just redacted); column headers wrap to a 2nd line instead of truncating and are centered; the legal disclaimer stays anchored to the bottom of the page regardless of how many rows it has; and every List page now always prints — and displays inside the app — at the exact same page height as Cover/Closing, even when it has few rows.",
+    "The Presentation design panel (which sections to include: Cover/Map/Table/Layout/Closing) moved out of the cramped topbar into its own floating \"Design\" panel, opened with a button (same pattern as the table's \"Columns\" panel).",
+    "Fixed an overly long field label in the Properties Layout page (\"Installed Capacity | Transformer\") that was visually cut off — now just \"Installed Capacity\"."
+  ]},
   {version:"3.45.25", date:"2026-08-25", items:[
     "Corregido bug real en Resumen (reportado por el usuario): al filtrar por un Mercado cuyos Submercados tienen nombres genéricos repetidos en otros Mercados (ej. \"West\"/\"East\", usados en Reynosa, Matamoros y Nuevo Laredo a la vez), las secciones \"Absorción por Submercado\", \"Transacciones Completadas\" e \"Inventario Disponible\" podían no mostrar nada para ese Mercado, o mezclar sus números con los de otro Mercado que por coincidencia usa el mismo nombre de Submercado. Ahora cada fila se identifica y se calcula usando el Mercado real capturado en cada registro, sin depender de que el nombre del Submercado sea único en todo el sistema."
   ]},

@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "/Citius_Gestor_Registros.html" }
+  ]
+}

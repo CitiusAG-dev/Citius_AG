@@ -807,14 +807,22 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      por completo — ese botón ahora también usa `.field-recordpicker`, mismo criterio/estilo que los demás
      botones de acción de la ficha. */
   .field-polygon{grid-column:span 2}
-  /* Campo de lista con selección múltiple (checklist), ver MULTI_LIST_FIELD_KEYS — ocupa la fila completa
-     (mismo criterio que .field-polygon arriba) porque el checklist necesita más ancho que 1 columna del
-     grid de 4. Reusa el estilo de casilla .col-filter-item (mismo look que el filtro de columnas) pero en
-     fila con wrap en vez de columna con scroll (aquí no hay tantos valores como para necesitar scroll). */
-  .field-multilist{grid-column:1/-1}
-  .multilist-options{display:flex;flex-wrap:wrap;gap:4px 16px;padding:8px 10px;background:var(--panel-2);
-                      border:1px solid var(--line);border-radius:8px}
-  .multilist-options .col-filter-item{padding:2px 0}
+  /* Campo de lista con selección múltiple, ver MULTI_LIST_FIELD_KEYS — v3.48.4, pedido explícito del
+     usuario ("se veía muy feo" el checklist en fila de v3.48.1): ahora es un desplegable cerrado, igual look
+     que .field select (mismo padding/borde/flechita), que al hacer clic abre un popover con checkboxes —
+     mismo mecanismo EXACTO que el selector de fecha (.date-field/.date-picker-popover, ver
+     openDatePicker/closeDatePicker), solo que el popover aquí es una lista de checkboxes en vez de un
+     calendario. El popover reusa .col-filter-list/.col-filter-item (mismo look que el filtro de columnas). */
+  .multilist-field{position:relative;display:flex;flex:1;min-width:0}
+  .multilist-trigger{width:100%;padding:8px 30px 8px 10px;background:var(--panel-2);border:1px solid var(--line);
+               border-radius:8px;color:var(--txt);font-size:13px;font-family:inherit;cursor:pointer;
+               background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7480' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+               background-repeat:no-repeat;background-position:right 8px center;background-size:16px}
+  .multilist-trigger:focus{outline:none;border-color:var(--accent)}
+  .multilist-picker-popover{position:fixed;background:var(--panel);border:1px solid var(--line);
+                        border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.25);z-index:300;padding:10px 12px;
+                        animation:colFilterIn .12s ease-out}
+  .multilist-picker-popover .col-filter-list{max-height:240px}
   /* v3.42.1, pedido explícito del usuario: "el botón de Seleccionar Parque al lado de ID Park" — antes
      `grid-column:1/-1` lo mandaba a su propia fila completa debajo; ahora es una celda normal de 1 columna
      (cae justo a la derecha del campo readonly que lo precede, por simple orden de aparición en el HTML)
@@ -1494,16 +1502,17 @@ const ENTITIES = {
   PROPIEDADES: { label:"Buildings", listCols:["MAPPING_CODE","PROPERTY_NAME","PROPERTY_TPYE","SUBMARKET","MARKET_STATUS","AVAILABLE_AREA_VALUE","STATUS"], titleField:"PROPERTY_NAME", statusField:"MARKET_STATUS" },
   PARKS:       { label:"Parks", listCols:["ID_PARK","PARK_NAME","PROPERTY_TYPE","SUBMARKET","STATUS","AVAILABLE_LAND_VALUE","CLASS"], titleField:"PARK_NAME", statusField:"STATUS" },
   LAND:        { label:"Land", listCols:["ID__LAND","PROPERTY_NAME","MARKET","SUBMARKET","TOTAL_LAND_SIZE_VALUE","ASKING_PRICE_VALUE","INFRAESTRUCTURE_STATUS"], titleField:"PROPERTY_NAME", statusField:null },
-  TRANSACCIONES:{ label:"Transactions", listCols:["TRANSACTION_DATE","MAPPING_CODE","PROPERTY_NAME","SUBMARKET","TRANSACCION_TYPE","TRANSACTION_AREA","TENANT_BUYER_USER"], titleField:"PROPERTY_NAME", statusField:null },
-  /* v3.48.0, entidad nueva (ver análisis de "Definición Datos Oficinas.xlsx" con el usuario). Va después de
-     Transacciones a propósito: el usuario pidió el orden de menú "Offices primero, luego Spaces" — Spaces
-     (etapa 3, todavía no existe) se agregará justo después de esta entrada. */
+  /* v3.48.0, entidad nueva (ver análisis de "Definición Datos Oficinas.xlsx" con el usuario). */
   OFICINAS:    { label:"Offices", listCols:["MAPPING_CODE","PROPERTY_NAME","CATEGORY_OFFICES","SUBMARKET","MARKET_STATUS","AVAILABLE_AREA_VALUE","STATUS"], titleField:"PROPERTY_NAME", statusField:"MARKET_STATUS" },
   /* v3.48.2, etapa 3 (Spaces) — enlazada a OFICINAS por MAPPING_CODE (mismo patrón exacto que TRANSACCIONES
      con PROPIEDADES: picker + autofill de solo lectura, ver openOfficePickerForSpace/
      autofillSpaceFromMappingCode). titleField es LEVEL_FLOOR (no PROPERTY_NAME, que aquí es un campo
      heredado/de solo lectura, no lo que el usuario captura para identificar ESTE registro). */
-  SPACES:      { label:"Spaces", listCols:["MAPPING_CODE","PROPERTY_NAME","LEVEL_FLOOR","OFFICE_NO","CONDITION","NET_LEASABLE_AREA_VALUE","ASKING_RATE_VALUE"], titleField:"LEVEL_FLOOR", statusField:"MARKET_STATUS" }
+  SPACES:      { label:"Spaces", listCols:["MAPPING_CODE","PROPERTY_NAME","LEVEL_FLOOR","OFFICE_NO","CONDITION","NET_LEASABLE_AREA_VALUE","ASKING_RATE_VALUE"], titleField:"LEVEL_FLOOR", statusField:"MARKET_STATUS" },
+  /* v3.48.3, pedido explícito del usuario: Transacciones se mueve al final del menú, después de Spaces
+     (antes iba justo después de Land) — el orden de ENTITIES es lo único que determina el orden real de las
+     pestañas del sidebar (ver Object.keys(ENTITIES) en el render de tabsEl), así que basta con moverla aquí. */
+  TRANSACCIONES:{ label:"Transactions", listCols:["TRANSACTION_DATE","MAPPING_CODE","PROPERTY_NAME","SUBMARKET","TRANSACCION_TYPE","TRANSACTION_AREA","TENANT_BUYER_USER"], titleField:"PROPERTY_NAME", statusField:null }
 };
 const STORE_KEY = "citius_mi_records_v1";
 
@@ -4411,23 +4420,75 @@ function clearColumnFilter(){
 
 /* ==== Form modal ==== */
 const POLYGON_FIELD_KEYS = new Set(["GEOJSON_POLIGONO","GEO_JSON","GEOJSON_POLYGON"]);
-/* Campos de lista con selección MÚLTIPLE (v3.48.1, pedido explícito del usuario para AMENITIES de Oficinas)
-   — a diferencia de un campo de lista normal (<select> de un solo valor), estos se capturan como checklist
-   (una casilla por valor de la lista, ver renderMultiListField) y se guardan como un solo string con los
-   valores separados por ", " (mismo formato en el que se vería una celda de Excel con varios valores) — el
-   <input type="hidden" data-key="..."> que guarda ese string es lo único que saveBtn.onclick necesita leer,
-   así que no hace falta tocar ese collector genérico para nada. */
+/* Campos de lista con selección MÚLTIPLE (v3.48.1, pedido explícito del usuario para AMENITIES de Oficinas;
+   v3.48.4, rediseñado a desplegable — pedido explícito del usuario, el checklist en fila "se veía muy feo")
+   — a diferencia de un campo de lista normal (<select> de un solo valor), se guardan como un solo string con
+   los valores separados por ", " (mismo formato en el que se vería una celda de Excel con varios valores) —
+   el <input type="hidden" data-key="..."> que guarda ese string es lo único que saveBtn.onclick necesita
+   leer, así que no hace falta tocar ese collector genérico para nada. En pantalla es un desplegable cerrado
+   (.multilist-trigger, mismo look que <select>) que al hacer clic abre un popover con checkboxes — mismo
+   mecanismo EXACTO que el selector de fecha (openDatePicker/closeDatePicker/onDocClickForDatePicker un poco
+   más arriba), solo que el popover muestra una lista de checkboxes en vez de un calendario. */
 const MULTI_LIST_FIELD_KEYS = new Set(["AMENITIES"]);
 function multiListValues(raw){ return String(raw||"").split(",").map(s=>s.trim()).filter(Boolean); }
-/* Al marcar/desmarcar una casilla del checklist, se releen TODAS las casillas de ese campo (en el orden en
-   que aparecen en pantalla, no en el que se marcaron) y se escribe el string unido en el input oculto — el
-   mismo que luego lee el collector genérico de saveBtn.onclick, sin ningún caso especial ahí. */
-function onMultiListToggle(key, checkboxEl){
-  const container=document.getElementById("multilist_"+key);
-  const hidden=document.querySelector(`#mBody input[type="hidden"][data-key="${key}"]`);
-  if(!container || !hidden) return;
-  const checked=[...container.querySelectorAll('input[type="checkbox"]:checked')].map(el=>el.value);
+let multiListPickerState=null; // {key}
+function closeMultiListPicker(){
+  const el=document.getElementById("multiListPickerPopover");
+  if(el) el.remove();
+  multiListPickerState=null;
+  document.removeEventListener("click", onDocClickForMultiListPicker, true);
+}
+function onDocClickForMultiListPicker(e){
+  const el=document.getElementById("multiListPickerPopover");
+  if(el && !el.contains(e.target) && !e.target.closest(".multilist-field")){
+    e.stopPropagation();
+    closeMultiListPicker();
+  }
+}
+function openMultiListPicker(evt, key){
+  evt.stopPropagation();
+  const alreadyOpen=multiListPickerState && multiListPickerState.key===key;
+  closeMultiListPicker();
+  if(alreadyOpen) return;
+  multiListPickerState={key};
+  const el=document.createElement("div");
+  el.id="multiListPickerPopover";
+  el.className="multilist-picker-popover";
+  document.body.appendChild(el);
+  renderMultiListPicker();
+  const anchor=evt.currentTarget.closest(".multilist-field")||evt.currentTarget;
+  const r=anchor.getBoundingClientRect();
+  el.style.width=Math.max(220, r.width)+"px";
+  el.style.left=Math.max(8, Math.min(r.left, window.innerWidth-8-el.offsetWidth))+"px";
+  el.style.top=(r.bottom+4)+"px";
+  setTimeout(()=>document.addEventListener("click", onDocClickForMultiListPicker, true), 0);
+}
+function renderMultiListPicker(){
+  const el=document.getElementById("multiListPickerPopover");
+  if(!el || !multiListPickerState) return;
+  const {key}=multiListPickerState;
+  const f=fields(current).find(f=>f.key===key);
+  if(!f){ closeMultiListPicker(); return; }
+  const hidden=document.getElementById("multilistValue_"+key);
+  const selected=new Set(multiListValues(hidden?hidden.value:""));
+  const options=lists[f.list]||[];
+  el.innerHTML=`<div class="col-filter-list">${options.length?options.map(o=>{
+    const oAttr=escapeAttr(o);
+    return `<label class="col-filter-item"><input type="checkbox" value="${oAttr}" ${selected.has(o)?"checked":""} onchange="toggleMultiListValue('${key}',this)">${escapeHtml(o)}</label>`;
+  }).join(""):`<div class="col-filter-empty">No options configured</div>`}</div>`;
+}
+/* Al marcar/desmarcar una casilla, se releen TODAS las del popover (en el orden en que aparecen, que es el
+   orden de la lista — no el orden en que se marcaron) y se escribe el string unido tanto en el input oculto
+   (lo que lee saveBtn.onclick) como en el desplegable cerrado (lo que ve el usuario), sin cerrar el popover
+   — así se pueden marcar varias seguidas sin que se cierre entre cada clic. */
+function toggleMultiListValue(key, checkboxEl){
+  const hidden=document.getElementById("multilistValue_"+key);
+  const trigger=document.getElementById("multilistTrigger_"+key);
+  const popover=document.getElementById("multiListPickerPopover");
+  if(!hidden || !popover) return;
+  const checked=[...popover.querySelectorAll('input[type="checkbox"]:checked')].map(el=>el.value);
   hidden.value=checked.join(", ");
+  if(trigger) trigger.value=hidden.value;
   hidden.dispatchEvent(new Event("input",{bubbles:true}));
 }
 /* Campo(s) de fecha+hora calculados por el sistema (nunca editables a mano) — se muestran como texto de
@@ -4757,15 +4818,11 @@ function buildForm(ent, record){
     }
     if(MULTI_LIST_FIELD_KEYS.has(f.key) && f.list){
       const rawVal=record&&record[f.key]!=null?String(record[f.key]):"";
-      const selected=new Set(multiListValues(rawVal));
-      const options=lists[f.list]||[];
-      const optionsHtml=options.map(o=>{
-        const oAttr=escapeAttr(o);
-        return `<label class="col-filter-item"><input type="checkbox" value="${oAttr}" ${selected.has(o)?"checked":""} onchange="onMultiListToggle('${f.key}',this)">${escapeHtml(o)}</label>`;
-      }).join("");
-      return `<div class="field field-multilist"><label>${fieldLabel(f.key)}${reqMark}${helpIcon}</label>
-        <div class="multilist-options" id="multilist_${f.key}">${optionsHtml}</div>
-        <input type="hidden" data-key="${f.key}" value="${escapeAttr(rawVal)}"></div>`;
+      return `<div class="field"><label>${fieldLabel(f.key)}${reqMark}${helpIcon}</label>
+        <div class="multilist-field">
+          <input type="text" class="multilist-trigger" id="multilistTrigger_${f.key}" value="${escapeAttr(rawVal)}" placeholder="Select…" readonly onclick="openMultiListPicker(event,'${f.key}')">
+          <input type="hidden" data-key="${f.key}" id="multilistValue_${f.key}" value="${escapeAttr(rawVal)}">
+        </div></div>`;
     }
     const listName=f.list||"";
     if(listName){

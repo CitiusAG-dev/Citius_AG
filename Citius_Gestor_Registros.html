@@ -1005,7 +1005,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v3.46.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v3.47.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -2735,6 +2735,10 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"3.47.0", date:"2026-08-26", items:[
+    "Transactions: added new Gross-only fields (COMPS Sale Price, Free Rent, TI Allowance, Cap Rate, Data Source, Verified By, Verification Date) and renamed the existing \"COMPS\" field to \"COMPS (LEASE)\" to distinguish it from the new sale-comp fields.",
+    "Fixed the Location Map basemap in the Properties and Land presentations, plus the \"Light streets\" option on the Map page: CARTO stopped serving those tiles without an API key, so they showed an \"API KEY REQUIRED\" watermark instead of the actual map. Added a CARTO API key and a small OpenStreetMap/CARTO credit on the two Location Map widgets (required by the terms of the free key)."
+  ]},
   {version:"3.46.0", date:"2026-08-25", items:[
     "The entire system is now in English: sidebar navigation, all topbars, Settings and its 4 panels (Files, Fields, Lists, Release notes), the record editor (buttons, confirm dialogs, tab groups/icons), column filter/sort/columns panels, toast messages, empty states, pagination, Summary (KPI cards, help text, all tables), the Map (layers, filters, basemap names, popups), and the Presentation view (counters, empty states, cover-data editor, photo labels). Code comments and the release-note history up to and including v3.45.25 stay in Spanish on purpose (developer-facing / historical record) — only new entries from here on are written in English.",
     "\"Properties / Buildings\" renamed to just \"Buildings\" throughout.",

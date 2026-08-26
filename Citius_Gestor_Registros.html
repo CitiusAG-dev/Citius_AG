@@ -1936,7 +1936,7 @@ const TRANS_CATEGORY_LINK={
     fieldMap:{PROPERTY_NAME:"PROPERTY_NAME", DEVELOPER:"DEVELOPER_OWNER", PARK_NAME:null, LISTING_BROKER:null, TRANSACCION_TYPE:null, BROKER_BUILDING:null},
     columns:[{key:"ID__LAND", label:"ID Land", width:"1fr"}, {key:"PROPERTY_NAME", label:"Property Name", width:"1.5fr"}, {key:"DEVELOPER_OWNER", label:"Developer/Owner", width:"1.2fr"}, {key:"MARKET", label:"Market", width:"1fr"}, {key:"SUBMARKET", label:"Submarket", width:"1fr"}] },
   Offices:{ ent:"OFICINAS", codeKey:"MAPPING_CODE", label:"Select Office…", pickerTitle:"Select Office",
-    fieldMap:{PROPERTY_NAME:"PROPERTY_NAME", DEVELOPER:"DEVELOPER", PARK_NAME:null, LISTING_BROKER:"LISTING_BROKER", TRANSACCION_TYPE:"TRANSACTION_AVAILABLE", BROKER_BUILDING:null},
+    fieldMap:{PROPERTY_NAME:"PROPERTY_NAME", DEVELOPER:"DEVELOPER", PARK_NAME:null, LISTING_BROKER:null, TRANSACCION_TYPE:"TRANSACTION_AVAILABLE", BROKER_BUILDING:null},
     columns:[{key:"MAPPING_CODE", label:"Mapping Code", width:"1fr"}, {key:"PROPERTY_NAME", label:"Property Name", width:"1.5fr"}, {key:"CATEGORY_OFFICES", label:"Category", width:"1.2fr"}, {key:"MARKET", label:"Market", width:"1fr"}, {key:"SUBMARKET", label:"Submarket", width:"1fr"}] }
 };
 function openLinkedRecordPickerForTransaction(){
@@ -4688,16 +4688,22 @@ const TRANSACCION_FIELDS_NEGATIVE=["PROPERTY_TYPE","ABSORPTION_TYPE","TRANSACTIO
    Industrial Type/Building Type/Park Name/Broker Building, que no aplican aquí — Oficinas no tiene concepto
    de "parque"). LEASE_EXPIRATION_APROX es el único campo genuinamente nuevo — el resto ya existía en
    Transacciones desde antes (agregado en v3.46.1 en anticipación a este momento). v3.49.1, pedido explícito
-   del usuario ("afinar el grupo de datos... que quede similar a Building"): Submarket y Listing Broker se
-   agregan a la pestaña Property aunque el documento fuente no los pedía explícitamente para Oficinas — así
-   esa pestaña queda estructuralmente igual a la de Building (mismos 2 campos, Oficinas sí los tiene en su
-   propia ficha, ver TRANS_CATEGORY_LINK.Offices.fieldMap). */
+   del usuario ("afinar el grupo de datos... que quede similar a Building"): Submarket se agrega a la
+   pestaña Property aunque el documento fuente no la pedía explícitamente para Oficinas — así esa pestaña
+   queda estructuralmente más parecida a la de Building (Oficinas sí tiene Submarket en su propia ficha, ver
+   TRANS_CATEGORY_LINK.Offices.fieldMap). Listing Broker se probó igual pero el usuario pidió quitarlo de
+   nuevo — Oficinas no lo captura en esta pestaña. v3.49.2, pedido explícito del usuario: el ORDEN dentro del
+   array determina el orden de las pestañas (primer campo de cada grupo = orden en que aparece esa pestaña,
+   ver buildForm()) — antes Term Months/Lease Expiration (grupo ECONOMIC TERMS) quedaban ANTES del bloque de
+   Property, así que Economic Terms salía como 2da pestaña y Property al final. Se movieron junto con el
+   resto de Economic Terms, al final, para que el orden quede Transaction Details -> Property -> Economic
+   Terms, igual que Building. */
 const TRANSACCION_FIELDS_OFFICE=["PROPERTY_TYPE","ABSORPTION_TYPE","TRANSACTION_DATE","TRANSACTION_AREA","TRANSACTION_UNIT",
   "TRANSACCION_TYPE","OFFICE_SPACE_USE","OFFICE_TYPE","TENANT_BUYER_USER","ORIGIN","TENANT_REP_BROKER","INVESTMENT",
-  "TERM_MONTHS","LEASE_EXPIRATION_APROX",
-  "MAPPING_CODE","PROPERTY_NAME","DEVELOPER","LISTING_BROKER","REGION","STATE","MARKET","SUBMARKET",
+  "MAPPING_CODE","PROPERTY_NAME","DEVELOPER","REGION","STATE","MARKET","SUBMARKET",
   "COMPS_VALUE","COMPS_UNIT","COMPS_SALE_PRICE_VALUE","COMPS_SALE_PRICE_UNIT","FREE_RENT_MONTHS",
-  "TI_ALLOWANCE_VALUE","TI_ALLOWANCE_UNIT","CAP_RATE","DATA_SOURCE","VERIFIED_BY","VERIFICATION_DATE","NOTAS"];
+  "TI_ALLOWANCE_VALUE","TI_ALLOWANCE_UNIT","CAP_RATE","DATA_SOURCE","VERIFIED_BY","VERIFICATION_DATE",
+  "TERM_MONTHS","LEASE_EXPIRATION_APROX","NOTAS"];
 /* Campos de Propiedad que se autocompletan al elegir desde el picker (openLinkedRecordPickerForTransaction())
    y NUNCA se pueden teclear a mano — mismo criterio que ID_PARK/PARK_NAME de Propiedades. PROPERTY_TYPE ya
    NO va aquí desde v3.49.0 (dejó de autocompletarse — ahora es el selector manual de categoría, lo primero

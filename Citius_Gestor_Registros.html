@@ -5536,9 +5536,10 @@ function setMapBasemap(key){
 const MAP_LAYERS=[
   {ent:"PROPIEDADES", label:"Properties", color:"#f0b323", titleField:"PROPERTY_NAME", subField:"MAPPING_CODE"},
   {ent:"PARKS",       label:"Parks",      color:"#2e78c9", titleField:"PARK_NAME",     subField:"ID_PARK"},
-  {ent:"LAND",        label:"Land",       color:"#1e9e5a", titleField:"PROPERTY_NAME", subField:"ID__LAND"}
+  {ent:"LAND",        label:"Land",       color:"#1e9e5a", titleField:"PROPERTY_NAME", subField:"ID__LAND"},
+  {ent:"OFICINAS",    label:"Offices",    color:"#8b5cf6", titleField:"PROPERTY_NAME", subField:"MAPPING_CODE"}
 ];
-let mapLayerFilter={PROPIEDADES:true, PARKS:true, LAND:true};
+let mapLayerFilter={PROPIEDADES:true, PARKS:true, LAND:true, OFICINAS:true};
 /* La entidad puede no tener (todavía) un campo de polígono configurado (ej. si se quita desde Configuración > Campos) */
 function polygonKeyFor(ent){ const f=fields(ent).find(f=>POLYGON_FIELD_KEYS.has(f.key)); return f?f.key:null; }
 function hasValidLatLng(row){ const lat=Number(row.LATITUDE), lng=Number(row.LONGITUDE); return isFinite(lat)&&isFinite(lng); }
@@ -5658,14 +5659,14 @@ function renderComplementaryLayers(){
 const MAP_FILTERS_KEY="citius_map_filters_v1";
 function loadMapFilters(){
   try{ const s=localStorage.getItem(MAP_FILTERS_KEY); if(s) return JSON.parse(s); }catch(e){}
-  return {shared:{}, perEntity:{PROPIEDADES:[],PARKS:[],LAND:[]}};
+  return {shared:{}, perEntity:{PROPIEDADES:[],PARKS:[],LAND:[],OFICINAS:[]}};
 }
 function saveMapFiltersLocal(){ try{ localStorage.setItem(MAP_FILTERS_KEY, JSON.stringify(mapFilters)); }catch(e){} }
 let mapFilters=loadMapFilters();
 const MAP_FILTER_PANEL_FIELDS_KEY="citius_map_filter_panel_fields_v1";
 function loadMapFilterPanelFields(){
   try{ const s=localStorage.getItem(MAP_FILTER_PANEL_FIELDS_KEY); if(s) return JSON.parse(s); }catch(e){}
-  return {shared:[], perEntity:{PROPIEDADES:[],PARKS:[],LAND:[]}};
+  return {shared:[], perEntity:{PROPIEDADES:[],PARKS:[],LAND:[],OFICINAS:[]}};
 }
 function saveMapFilterPanelFieldsLocal(){ try{ localStorage.setItem(MAP_FILTER_PANEL_FIELDS_KEY, JSON.stringify(mapFilterPanelFields)); }catch(e){} }
 let mapFilterPanelFields=loadMapFilterPanelFields();
@@ -5780,7 +5781,7 @@ function removeMapFilterField(scope,key){
   renderMapFilterSidebar();
 }
 function clearAllMapFilters(){
-  mapFilters={shared:{}, perEntity:{PROPIEDADES:[],PARKS:[],LAND:[]}};
+  mapFilters={shared:{}, perEntity:{PROPIEDADES:[],PARKS:[],LAND:[],OFICINAS:[]}};
   saveMapFiltersLocal();
   renderAllPolygonsMap();
   renderMapFilterSidebar();

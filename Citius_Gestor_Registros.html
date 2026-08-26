@@ -1936,7 +1936,7 @@ const TRANS_CATEGORY_LINK={
     fieldMap:{PROPERTY_NAME:"PROPERTY_NAME", DEVELOPER:"DEVELOPER_OWNER", PARK_NAME:null, LISTING_BROKER:null, TRANSACCION_TYPE:null, BROKER_BUILDING:null},
     columns:[{key:"ID__LAND", label:"ID Land", width:"1fr"}, {key:"PROPERTY_NAME", label:"Property Name", width:"1.5fr"}, {key:"DEVELOPER_OWNER", label:"Developer/Owner", width:"1.2fr"}, {key:"MARKET", label:"Market", width:"1fr"}, {key:"SUBMARKET", label:"Submarket", width:"1fr"}] },
   Offices:{ ent:"OFICINAS", codeKey:"MAPPING_CODE", label:"Select Office…", pickerTitle:"Select Office",
-    fieldMap:{PROPERTY_NAME:"PROPERTY_NAME", DEVELOPER:"DEVELOPER", PARK_NAME:null, LISTING_BROKER:null, TRANSACCION_TYPE:"TRANSACTION_AVAILABLE", BROKER_BUILDING:null},
+    fieldMap:{PROPERTY_NAME:"PROPERTY_NAME", DEVELOPER:"DEVELOPER", PARK_NAME:null, LISTING_BROKER:"LISTING_BROKER", TRANSACCION_TYPE:"TRANSACTION_AVAILABLE", BROKER_BUILDING:null},
     columns:[{key:"MAPPING_CODE", label:"Mapping Code", width:"1fr"}, {key:"PROPERTY_NAME", label:"Property Name", width:"1.5fr"}, {key:"CATEGORY_OFFICES", label:"Category", width:"1.2fr"}, {key:"MARKET", label:"Market", width:"1fr"}, {key:"SUBMARKET", label:"Submarket", width:"1fr"}] }
 };
 function openLinkedRecordPickerForTransaction(){
@@ -4684,15 +4684,18 @@ const TRANSACCION_FIELDS_GROSS=["PROPERTY_TYPE","ABSORPTION_TYPE","TRANSACTION_D
 const TRANSACCION_FIELDS_NEGATIVE=["PROPERTY_TYPE","ABSORPTION_TYPE","TRANSACTION_DATE","TRANSACTION_AREA","TRANSACTION_UNIT",
   "MAPPING_CODE","PROPERTY_NAME","DEVELOPER","PARK_NAME","LISTING_BROKER","REGION","STATE","MARKET","SUBMARKET"];
 /* Set de Oficinas (v3.49.0), tomado de la hoja "Transactions" de "Definición Datos Oficinas.xlsx" — mismas 3
-   pestañas de siempre (ver TRANSACCION_FIELD_GROUP), pero sin Submarket (el documento solo pide Region/
-   State/Market para Oficinas) ni los campos específicos de Building (Building Use/Industrial Type/Building
-   Type/Park Name/Listing Broker/Broker Building) que no aplican aquí. LEASE_EXPIRATION_APROX es el único
-   campo genuinamente nuevo — el resto ya existía en Transacciones desde antes (agregado en v3.46.1 en
-   anticipación a este momento). */
+   pestañas de siempre (ver TRANSACCION_FIELD_GROUP), sin los campos específicos de Building (Building Use/
+   Industrial Type/Building Type/Park Name/Broker Building, que no aplican aquí — Oficinas no tiene concepto
+   de "parque"). LEASE_EXPIRATION_APROX es el único campo genuinamente nuevo — el resto ya existía en
+   Transacciones desde antes (agregado en v3.46.1 en anticipación a este momento). v3.49.1, pedido explícito
+   del usuario ("afinar el grupo de datos... que quede similar a Building"): Submarket y Listing Broker se
+   agregan a la pestaña Property aunque el documento fuente no los pedía explícitamente para Oficinas — así
+   esa pestaña queda estructuralmente igual a la de Building (mismos 2 campos, Oficinas sí los tiene en su
+   propia ficha, ver TRANS_CATEGORY_LINK.Offices.fieldMap). */
 const TRANSACCION_FIELDS_OFFICE=["PROPERTY_TYPE","ABSORPTION_TYPE","TRANSACTION_DATE","TRANSACTION_AREA","TRANSACTION_UNIT",
   "TRANSACCION_TYPE","OFFICE_SPACE_USE","OFFICE_TYPE","TENANT_BUYER_USER","ORIGIN","TENANT_REP_BROKER","INVESTMENT",
   "TERM_MONTHS","LEASE_EXPIRATION_APROX",
-  "MAPPING_CODE","PROPERTY_NAME","DEVELOPER","REGION","STATE","MARKET",
+  "MAPPING_CODE","PROPERTY_NAME","DEVELOPER","LISTING_BROKER","REGION","STATE","MARKET","SUBMARKET",
   "COMPS_VALUE","COMPS_UNIT","COMPS_SALE_PRICE_VALUE","COMPS_SALE_PRICE_UNIT","FREE_RENT_MONTHS",
   "TI_ALLOWANCE_VALUE","TI_ALLOWANCE_UNIT","CAP_RATE","DATA_SOURCE","VERIFIED_BY","VERIFICATION_DATE","NOTAS"];
 /* Campos de Propiedad que se autocompletan al elegir desde el picker (openLinkedRecordPickerForTransaction())

@@ -379,6 +379,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
                    border-radius:4px;box-shadow:0 2px 10px rgba(0,0,0,.2);display:flex;align-items:center;gap:10px}
   .map-page-badge img{width:26px;height:26px;object-fit:contain}
   .map-page-badge h2{margin:0;font-size:18px;font-weight:400;color:#666;font-family:'Dala Moa',Georgia,serif}
+  /* Crédito de CARTO/OpenStreetMap requerido por los términos de la API key gratuita de CARTO (ver
+     CARTO_API_KEY) — esquina opuesta al badge para no competir con él, texto chico y discreto a propósito. */
+  .map-page-attribution{position:absolute;top:16px;right:16px;z-index:1000;background:rgba(255,255,255,.85);
+                         padding:3px 8px;border-radius:4px;font-size:9px;color:#888;font-family:'Unitext',sans-serif}
   .map-page .deck-note{position:absolute;left:16px;bottom:12px;right:16px;margin-top:0;background:rgba(255,255,255,.9);
                         padding:6px 10px;border-radius:4px;z-index:1000}
   .map-pin{background:#e03131;width:26px;height:26px;border-radius:50% 50% 50% 0;border:2px solid #fff;
@@ -610,6 +614,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      (pantalla y print), así que su posición `left` no necesita override aquí. */
   body.printing-deck .deck-page.map-page{padding:14px 28px 14px 0}
   body.printing-deck .map-page-badge{top:30px}
+  body.printing-deck .map-page-attribution{top:30px;right:44px}
   body.printing-deck .map-page .deck-note{right:44px;bottom:26px}
   table{border-collapse:collapse;width:100%;font-size:12px}
   th,td{padding:6px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
@@ -5235,16 +5240,20 @@ document.getElementById("pinOverlay").onclick=e=>{ if(e.target.id==="pinOverlay"
 let allPolyMap=null, allPolyLayerGroup=null;
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 /* ==== Estilo de basemap del mapa (satelital/calles/topográfico/escala de grises/oscuro) ====
-   Todas las opciones son servicios REST públicos de Esri (mismo dominio y patrón ya usado para el basemap
-   satelital de siempre y para el "Esri Gray Canvas" del mini-mapa de Presentación) — sin llave de API,
-   sin dependencia nueva. */
+   La mayoría son servicios REST públicos de Esri (mismo dominio y patrón ya usado para el basemap satelital
+   de siempre) — sin llave de API, sin dependencia nueva. La excepción es "Light streets" (CARTO Voyager):
+   CARTO dejó de servir esas tiles sin llave (muestran la marca de agua "API KEY REQUIRED" si CARTO_API_KEY
+   queda vacío) — se pide gratis en carto.com/basemaps/apikey (sin cuenta, gratis hasta 5M tiles/mes) y se
+   pega aquí UNA sola vez; alimenta esta opción y los 2 Location Map de Presentación (mismo endpoint, ver
+   renderLandPresMap/renderPresMap). */
+const CARTO_API_KEY="";
 const MAP_BASEMAPS=[
   {key:"satellite", label:"Satellite", layers:[
     {url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution:'Tiles &copy; Esri'},
     {url:'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', attribution:'Labels &copy; Esri'}
   ]},
   {key:"voyager", label:"Light streets", layers:[
-    {url:'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', attribution:'&copy; OpenStreetMap contributors &copy; CARTO', subdomains:'abcd'}
+    {url:`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=${CARTO_API_KEY}`, attribution:'&copy; OpenStreetMap contributors &copy; CARTO', subdomains:'abcd'}
   ]},
   {key:"streets", label:"Streets", layers:[
     {url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', attribution:'Tiles &copy; Esri'}
@@ -6666,6 +6675,7 @@ function buildLandMapPageHtml(list, logoSrc){
   return `<div class="deck-page map-page">
     <div class="map-page-canvas" id="landPresMapCanvas"></div>
     <div class="map-page-badge"><img src="${logoSrc}"><h2>Location Map</h2></div>
+    <div class="map-page-attribution">&copy; OpenStreetMap &copy; CARTO</div>
     ${missing?`<p class="deck-note">*${missing} terreno(s) sin latitud/longitud capturada no se muestran en el mapa.</p>`:""}
   </div>`;
 }
@@ -6681,7 +6691,7 @@ function renderLandPresMap(list){
     pts.push({lat,lng,num:i+1,rec});
   });
   landPresMapInstance=L.map(canvas,{zoomControl:false,attributionControl:false,zoomSnap:0.25,zoomDelta:0.25,wheelPxPerZoomLevel:200});
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',{
+  L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=${CARTO_API_KEY}`,{
     maxZoom:16, subdomains:'abcd'
   }).addTo(landPresMapInstance);
   const markerData=[];
@@ -6897,6 +6907,7 @@ function buildMapPageHtml(list, logoSrc){
   return `<div class="deck-page map-page">
     <div class="map-page-canvas" id="presMapCanvas"></div>
     <div class="map-page-badge"><img src="${logoSrc}"><h2>Location Map</h2></div>
+    <div class="map-page-attribution">&copy; OpenStreetMap &copy; CARTO</div>
     ${missing?`<p class="deck-note">*${missing} propiedad(es) sin latitud/longitud capturada no se muestran en el mapa.</p>`:""}
   </div>`;
 }
@@ -6936,7 +6947,7 @@ function renderPresMap(list){
     pts.push({lat,lng,num:i+1,rec});
   });
   presMapInstance=L.map(canvas,{zoomControl:false,attributionControl:false,zoomSnap:0.25,zoomDelta:0.25,wheelPxPerZoomLevel:200});
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',{
+  L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=${CARTO_API_KEY}`,{
     maxZoom:16, subdomains:'abcd'
   }).addTo(presMapInstance);
   const markerData=[];

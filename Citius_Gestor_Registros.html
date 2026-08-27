@@ -9150,7 +9150,11 @@ function extractEntityRowsReadOnly(wb, tag, officeLabel, merged){
    Un archivo que no se pueda leer (permiso denegado, corrupto, con el nombre "~$" de un lock de Excel
    abierto en ese instante, etc.) simplemente se salta — no detiene la lectura del resto. */
 async function loadConsolidatedFromRoot(rootHandle, onProgress){
-  const merged={PROPIEDADES:[],PARKS:[],TRANSACCIONES:[],LAND:[]};
+  // v3.51.2, bug encontrado junto con el de "Desvincular" (mismo reporte del usuario): extractEntityRowsReadOnly()
+  // de abajo YA recorre `for(const ent in ENTITIES)` genérico (incluye Oficinas/Spaces desde que se agregaron) y
+  // hace `merged[ent].push(...)` — si algún archivo de Modo Consolidado tuviera una hoja OFICINAS/SPACES, esto
+  // habría tronado (`undefined.push`) porque `merged` no traía esas 2 keys inicializadas.
+  const merged={PROPIEDADES:[],PARKS:[],TRANSACCIONES:[],LAND:[],OFICINAS:[],SPACES:[]};
   let officeCount=0, fileCount=0, skipped=[], officeIdx=0;
   for await (const [officeName, officeHandle] of rootHandle.entries()){
     if(officeHandle.kind!=="directory") continue;
@@ -9263,7 +9267,7 @@ document.getElementById("refreshConsolidatedBannerBtn").onclick=refreshConsolida
 
 async function exitConsolidatedMode(){
   consolidatedMode=false; consolidatedRootHandle=null;
-  state.PROPIEDADES=[]; state.PARKS=[]; state.TRANSACCIONES=[]; state.LAND=[];
+  state.PROPIEDADES=[]; state.PARKS=[]; state.TRANSACCIONES=[]; state.LAND=[]; state.OFICINAS=[]; state.SPACES=[];
   invalidateSubmarketToMarketCache();
   setConsolidatedChip(0,0,0);
   applyConsolidatedUIState();
@@ -9271,7 +9275,7 @@ async function exitConsolidatedMode(){
   await restoreLandFile();
   if(!fileHandle && !landFileHandle){
     const backup=loadState();
-    if(backup && Object.keys(backup).length) state=Object.assign({PROPIEDADES:[],PARKS:[],TRANSACCIONES:[],LAND:[]}, backup);
+    if(backup && Object.keys(backup).length) state=Object.assign({PROPIEDADES:[],PARKS:[],TRANSACCIONES:[],LAND:[],OFICINAS:[],SPACES:[]}, backup);
   }
   renderTable();
 }
@@ -9349,9 +9353,14 @@ document.getElementById("openFileBtn").onclick=async()=>{
    abra la app. */
 document.getElementById("unlinkFileBtn").onclick=async()=>{
   if(!fileHandle) return;
-  if(!confirm(`Unlink "${fileHandle.name}"? This will ERASE all Properties, Parks, and Transactions records already loaded in this browser — this cannot be undone. Link the file again to recover them.`)) return;
+  // v3.51.2, bug reportado por el usuario: Oficinas y Spaces viven en este mismo Excel (ver
+  // loadFromWorkbook()/buildWorkbook(), ambos ya genéricos por ENTITIES desde que se agregaron) pero
+  // "Desvincular" seguía borrando solo los 3 nombres hardcodeados de antes de que existieran — sus datos se
+  // quedaban huérfanos en el navegador después de desvincular, a diferencia de Propiedades/Parques/
+  // Transacciones. Se agregan aquí igual que las demás.
+  if(!confirm(`Unlink "${fileHandle.name}"? This will ERASE all Properties, Parks, Transactions, Offices, and Spaces records already loaded in this browser — this cannot be undone. Link the file again to recover them.`)) return;
   fileHandle=null; lastKnownFileModTime=null;
-  state.PROPIEDADES=[]; state.PARKS=[]; state.TRANSACCIONES=[];
+  state.PROPIEDADES=[]; state.PARKS=[]; state.TRANSACCIONES=[]; state.OFICINAS=[]; state.SPACES=[];
   await saveHandle(null);
   backupLocal();
   document.getElementById("reconnectBar").style.display="none";

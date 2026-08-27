@@ -1981,6 +1981,26 @@ function autofillSpaceFromMappingCode(inputEl){
   });
   updateFormNavBadges();
 }
+/* v3.51.4, pedido explícito del usuario: los campos autocompletados de Spaces (Property Name/Market Status/
+   Region/State/Market/Submarket/Available Area) solo se refrescaban al VOLVER a elegir la Oficina desde el
+   picker — si después editabas la Oficina (ej. le cambiabas el Property Name, o hasta el propio Mapping
+   Code), los Spaces ya enlazados se quedaban con los valores viejos hasta que alguien reabriera cada uno y
+   la volviera a seleccionar. Ahora, cada vez que se guarda una Oficina, TODOS los Spaces enlazados a ella se
+   refrescan solos — mismo patrón que ya usa recomputeAllParkDerivedFields() cuando se guarda una Propiedad.
+   `previousMappingCode` (el valor ANTES de este guardado, ver editingOriginalPhotoId en saveBtn.onclick) es
+   necesario para encontrar los Spaces que quedaron enlazados con el código VIEJO si el Mapping Code de la
+   Oficina cambió — si no se buscara por el código viejo, esos Spaces quedarían huérfanos (su Mapping Code ya
+   no calza con ninguna Oficina real) en vez de seguir la Oficina a su nuevo código. */
+function recomputeAllSpaceLinkedFields(office, previousMappingCode){
+  const newCode=String(office.MAPPING_CODE||"").trim();
+  const oldCode=previousMappingCode!=null?String(previousMappingCode).trim():newCode;
+  if(!oldCode) return;
+  (state.SPACES||[]).forEach(space=>{
+    if(!ciEq(space.MAPPING_CODE, oldCode)) return;
+    space.MAPPING_CODE=newCode;
+    SPACE_AUTOFILL_READONLY_KEYS.forEach(key=>{ space[key]=(office[key]!=null?office[key]:""); });
+  });
+}
 /* Reads a sheet whose name contains "LISTA" (if present) and replaces `lists` with what it finds; returns true if it changed anything */
 function loadListsFromSheet(wb){
   const listsSheetName=wb.SheetNames.find(n=>n.toUpperCase().includes("LISTA"));
@@ -7945,6 +7965,12 @@ document.getElementById("saveBtn").onclick=()=>{
   // quedan frescos en el Excel exportado sin depender de que alguien vuelva a abrir la ficha de ese Parque.
   if(current==="PARKS") recomputeParkDerivedFields(rec);
   else if(current==="PROPIEDADES") recomputeAllParkDerivedFields();
+  // v3.51.4, pedido explícito del usuario: si se guardó una Oficina, refresca TODOS los Spaces enlazados a
+  // ella (mismo criterio que el bloque de arriba para Parques/Propiedades) — ver
+  // recomputeAllSpaceLinkedFields(). `editingOriginalPhotoId` todavía tiene el Mapping Code ANTERIOR a este
+  // guardado en este punto (se reasigna un poco más abajo), así que sirve para encontrar los Spaces que
+  // quedaron enlazados con el código viejo si cambió.
+  else if(current==="OFICINAS") recomputeAllSpaceLinkedFields(rec, editingOriginalPhotoId);
   const photoIdKey=PHOTO_ID_FIELD[current];
   if(photoIdKey && editingOriginalPhotoId && rec[photoIdKey] && rec[photoIdKey]!==editingOriginalPhotoId){
     renameImageFile(current, editingOriginalPhotoId, rec[photoIdKey]);

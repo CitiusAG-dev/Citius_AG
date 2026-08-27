@@ -8475,6 +8475,15 @@ const MULTI_PHOTO_ENTITIES=new Set(Object.keys(PHOTO_KINDS_BY_ENTITY));
 function photoKindsFor(ent){ return PHOTO_KINDS_BY_ENTITY[ent] || [{key:"", label:"", required:true}]; }
 function photoFileBase(code, kindKey){ return kindKey ? code+"_"+kindKey : code; }
 const PHOTO_TARGET_W=600, PHOTO_TARGET_H=405; // 400×270 × 1.5 — mismo recorte "cover", solo más resolución
+const PHOTO_DEFAULT_QUALITY=0.85;
+/* v3.50.1, pedido explícito del usuario: las fotos de Oficinas se ven "de baja calidad" a como se van a usar
+   — mayor tamaño y calidad que el resto (Propiedades/Parques/Terrenos/Spaces se quedan igual que siempre,
+   no se tocaron). Misma proporción "cover" de siempre (900:608 ≈ 600:405), solo más resolución + más
+   calidad JPEG. Si otra entidad necesita su propio tamaño/calidad a futuro, se agrega aquí — el resto del
+   mecanismo (confirmPhotoEditSave/buildImageBlock) ya lee de photoTargetFor(ent), no de las constantes
+   PHOTO_TARGET_W/H directo. */
+const PHOTO_SIZE_OVERRIDES={ OFICINAS:{w:900, h:608, quality:0.92} };
+function photoTargetFor(ent){ return PHOTO_SIZE_OVERRIDES[ent] || {w:PHOTO_TARGET_W, h:PHOTO_TARGET_H, quality:PHOTO_DEFAULT_QUALITY}; }
 let photoSet=null;
 let photoSetLoading=null;
 async function ensurePhotoSet(){
@@ -8599,8 +8608,9 @@ function buildImageBlock(ent){
     </div>
   </div>`;
   }).join("");
+  const target=photoTargetFor(ent);
   return `<div class="image-blocks-grid${showTitles?" multi":""}">${blocks}</div>
-    <p class="map-hint" style="margin:16px 0 0">Arrastra una imagen sobre el recuadro, o usa "Subir foto" — en ambos casos se puede girar antes de guardar. Se guardan como ${PHOTO_TARGET_W}×${PHOTO_TARGET_H} JPG en la carpeta de imágenes, usando el ${escapeHtml(idLabel)}${kinds.length>1?" + un sufijo por tipo":""} como nombre de archivo.</p>`;
+    <p class="map-hint" style="margin:16px 0 0">Arrastra una imagen sobre el recuadro, o usa "Subir foto" — en ambos casos se puede girar antes de guardar. Se guardan como ${target.w}×${target.h} JPG en la carpeta de imágenes, usando el ${escapeHtml(idLabel)}${kinds.length>1?" + un sufijo por tipo":""} como nombre de archivo.</p>`;
 }
 function initImageField(){
   photoKindsFor(current).forEach(k=>loadImagePreview(k.key));
@@ -8845,7 +8855,8 @@ async function renderPhotoEditPreview(){
 /* Guardado real (antes vivía dentro de handleImageFileChosen): toma el Blob YA rotado y lo pasa por el
    algoritmo de recorte que le toca según el tipo de foto — "Layout" usa processImageFitWidthWhiteBg
    (ajuste a lo ancho, sin recortar, fondo blanco, v3.33.1); el resto sigue con processImageToCoverCrop de
-   siempre (recorte "cover") — mismo PHOTO_TARGET_W×H y calidad 0.85 en ambos casos, solo cambia el
+   siempre (recorte "cover") — mismo tamaño/calidad en ambos casos (ver photoTargetFor(), v3.50.1: por
+   default PHOTO_TARGET_W×H a 85%, Oficinas usa su propio override más grande/nítido), solo cambia el
    algoritmo. Idéntico al flujo anterior a v3.30.3 en todo lo demás, solo que la fuente es el Blob rotado en
    vez del archivo crudo. */
 async function confirmPhotoEditSave(){
@@ -8855,10 +8866,11 @@ async function confirmPhotoEditSave(){
   if(!code||!imagesDirHandle){ closePhotoEditModal(); return; }
   if(!(await ensurePermission(imagesDirHandle,"readwrite"))){ toast("Permission denied for the images folder","err"); return; }
   const base=photoFileBase(code,kindKey);
+  const {w:targetW, h:targetH, quality}=photoTargetFor(current);
   try{
     const finalBlob = kindKey==="LAYOUT"
-      ? await processImageFitWidthWhiteBg(rotatedBlob, PHOTO_TARGET_W, PHOTO_TARGET_H, 0.85)
-      : await processImageToCoverCrop(rotatedBlob, PHOTO_TARGET_W, PHOTO_TARGET_H, 0.85);
+      ? await processImageFitWidthWhiteBg(rotatedBlob, targetW, targetH, quality)
+      : await processImageToCoverCrop(rotatedBlob, targetW, targetH, quality);
     const fh=await imagesDirHandle.getFileHandle(base+".jpg",{create:true});
     const w=await fh.createWritable();
     await w.write(finalBlob); await w.close();

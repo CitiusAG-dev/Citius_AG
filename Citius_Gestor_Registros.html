@@ -6796,11 +6796,14 @@ function renderOfficeOptionsPanel(){
   }
   list.innerHTML=officePresOptions.map((opt,i)=>{
     const info=officeOptionInfo(opt);
-    const badge=info.count>1?`<span class="pill green">Grouped</span>`:`<span class="pill gray">Individual</span>`;
+    // v4.1.2, pedido explícito del usuario: chip abreviado a 3 letras — "Ind" (Individual) ya calzaba
+    // solo, "Grp" (Grouped) elegido para que quede igual de corto y reconocible.
+    const badge=info.count>1?`<span class="pill green">Grp</span>`:`<span class="pill gray">Ind</span>`;
     return `<div class="office-option-row">
       <div class="office-option-main">
         <div class="office-option-title">${i+1}. ${escapeHtml(info.buildings)} ${badge}</div>
-        <div class="office-option-sub">${info.floors?`Floor(s): ${escapeHtml(info.floors)} — `:""}${info.count} space(s) — ${fmt(Math.round(info.area))} ${info.areaUnit}</div>
+        <div class="office-option-sub">${fmt(Math.round(info.area))} ${info.areaUnit}</div>
+        <div class="office-option-sub">${info.floors?`Floor(s): ${escapeHtml(info.floors)}`:"—"}</div>
       </div>
       <button type="button" class="icon-btn" title="Remove this option" onclick="removeOfficePresOption('${opt.id}')">✕</button>
     </div>`;

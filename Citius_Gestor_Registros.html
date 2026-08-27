@@ -3691,7 +3691,11 @@ function renderTable(){
     const staging=current==="SPACES" ? officeSpaceStaging.length : 0;
     officeStagingBar.style.display=staging?"flex":"none";
     if(staging){
-      document.getElementById("officeStagingGroupBtn").textContent=`Group as one option (${staging})`;
+      // v4.1.3, pedido explícito del usuario: mientras va marcando pisos quiere ver la suma de área que
+      // llevaría esa Opción ANTES de confirmarla — mismo cálculo (y misma unidad, según el selector
+      // "Units") que ya usa cada Opción ya armada, ver officeOptionAreaForDisplay().
+      const stagingArea=officeOptionAreaForDisplay(officeSpaceStaging);
+      document.getElementById("officeStagingGroupBtn").textContent=`Group as one option (${staging} — ${fmt(Math.round(stagingArea.value))} ${stagingArea.unit})`;
       document.getElementById("officeStagingIndividualBtn").textContent=staging>1?`Add ${staging} individually`:"Add individually";
     }
   }

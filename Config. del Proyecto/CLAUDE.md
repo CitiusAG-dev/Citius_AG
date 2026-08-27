@@ -2533,16 +2533,24 @@ reusa literalmente `renderOfficeOptionsPanel()` (parametrizada con `targetId`, v
   `unitPref` opcional (default `unitViewPref` si se omite) para poder pasar cualquiera de los 2 según dónde
   se esté pintando la lista.
 - **Rediseño del Mapa** (referencia visual del usuario): reemplaza el badge flotante genérico de
-  `.map-page-badge`/`.map-page-attribution` por un banner blanco arriba (emblema de Citius —
-  `CITIUS_ICON_SRC`, el ícono circular solo, SIN el wordmark "Citius AG" que sí usa `DECK_LOGO_SRC` en los
-  otros 2 decks — + nombre del Mercado) y un banner amarillo a la derecha (cada Submercado con la lista
-  numerada de sus edificios, `.office-map-legend`). Los pines del mapa y los números de la leyenda usan la
-  MISMA lista reordenada por submercado (`officePresBuildingsGroupedBySubmarket()`, calculada una sola vez
-  en `renderOfficePresentationView()` y reusada tanto para el HTML de la leyenda como para
-  `renderOfficePresMap()`) — nunca la lista cruda de `officePresBuildingList()`, para que un pin y su número
-  en la leyenda siempre calcen. La página conserva la clase `.map-page` (además de la nueva
-  `.office-map-page`) a propósito: `preparePrintPageSize()` agrupa el tamaño de impresión por esa clase (ver
-  `groupOf()`), perderla la habría hecho caer en el grupo "tablePage" por default.
+  `.map-page-badge`/`.map-page-attribution` por un banner blanco arriba (`DECK_LOGO_SRC` + nombre del
+  Mercado — **corrección v4.2.4**: `DECK_LOGO_SRC` ES el ícono circular solo, sin ningún wordmark; la nota
+  original aquí decía lo contrario y estaba mal — se creó una `CITIUS_ICON_SRC` redundante por error en
+  v4.2.1/2 y se eliminó al confirmarse que era el mismo PNG) y un banner amarillo a la derecha (cada
+  Submercado con la lista numerada de sus edificios, `.office-map-legend`). Los pines del mapa y los
+  números de la leyenda usan la MISMA lista reordenada por submercado
+  (`officePresBuildingsGroupedBySubmarket()`, calculada una sola vez en `renderOfficePresentationView()` y
+  reusada tanto para el HTML de la leyenda como para `renderOfficePresMap()`) — nunca la lista cruda de
+  `officePresBuildingList()`, para que un pin y su número en la leyenda siempre calcen. La página conserva
+  la clase `.map-page` (además de la nueva `.office-map-page`) a propósito: `preparePrintPageSize()` agrupa
+  el tamaño de impresión por esa clase (ver `groupOf()`), perderla la habría hecho caer en el grupo
+  "tablePage" por default.
+- **v4.2.4, corrección pedida por el usuario**: el logo/texto del banner blanco se había igualado a
+  `.map-page-badge` (el mapa CHICO de Propiedades/Terrenos, 26px/18px) — el usuario aclaró que se refería a
+  la cabecera de la TABLA COMPARATIVA "Building Options" (`.deck-header`/`.deck-logo`/`.deck-header h2`,
+  34px/32px, mucho más grande). Se igualó a esa especificación en su lugar. Además, un 2do incremento de
+  letra del banner amarillo (13px/14px → 15px/17px), pedido explícito, tras el primer incremento de v4.2.2
+  (11px/12px → 13px/14px) resultar insuficiente.
 
 **Etapa 2, ajustes (v4.2.2, pedidos explícitos del usuario tras probar el mapa nuevo)**:
 - **Bug real: "no está mostrando todos los pins"** — causa confirmada: `officePresBuildingList()` resolvía

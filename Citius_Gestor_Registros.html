@@ -2028,6 +2028,14 @@ function loadListsFromSheet(wb){
     if(!newLists[key].includes(val)) newLists[key].push(val);
   }
   if(!Object.keys(newLists).length) return false;
+  // v3.51.7, bug reportado por el usuario (con captura real del panel Configuración > Listas): igual que
+  // fieldConfig con el Archivo de Configuración, `lists` se REEMPLAZA por completo con lo que traiga esta
+  // hoja — una lista que exista en el código (DEFAULT_LISTS) pero todavía no en el Excel vinculado (ej.
+  // TRANSACTION_PROPERTY_TYPE, agregada en v3.49.0, después de que este archivo se exportó por última vez)
+  // desaparecía sin más. El merge de DEFAULT_LISTS que ya corre una vez al arrancar la app (ver más abajo)
+  // no alcanza a cubrir ESTE momento, porque pasa DESPUÉS, cada vez que se lee/refresca el archivo — se
+  // repite aquí mismo, por la misma razón.
+  for(const k in DEFAULT_LISTS){ if(!(k in newLists)) newLists[k]=DEFAULT_LISTS[k].slice(); }
   lists=newLists; saveLists(); currentListName=null;
   return true;
 }
@@ -2055,11 +2063,19 @@ function loadFieldConfigFromSheet(wb){
     // archivo) y la ficha cae al ícono/label genérico para ESE grupo en TODAS las computadoras del equipo
     // que lean este mismo archivo — mismo mapa de traducción que ya usa la migración de fieldConfig local.
     const rawGroup=String(row[ci.group]||"").trim();
+    // v3.51.7, bug reportado por el usuario (con captura real del panel Configuración > Campos): el Archivo
+    // de Configuración vinculado sigue diciendo "PROPERTY_TYPE" (la lista vieja) en la celda LISTA de
+    // TRANSACCIONES/PROPERTY_TYPE — como esta función SIEMPRE gana sobre cualquier valor local (se relee
+    // cada vez que el archivo cambia), la migración de fieldConfig local de v3.51.6 no se sostenía: en
+    // cuanto se releía el archivo, el valor viejo volvía. Mismo criterio que GROUP_NAME_ES_TO_EN arriba —
+    // corregir el valor AQUÍ, al leerlo, para que no importe qué diga la celda real del Excel.
+    let rawList=String(row[ci.list]||"").trim();
+    if(ent==="TRANSACCIONES" && key==="PROPERTY_TYPE" && rawList==="PROPERTY_TYPE") rawList="TRANSACTION_PROPERTY_TYPE";
     (byEnt[ent]=byEnt[ent]||[]).push({
       key, group:(GROUP_NAME_ES_TO_EN[rawGroup]||rawGroup)||"OTHER",
       required:String(row[ci.req]||"").trim().toUpperCase()==="SI",
       type:(["text","int","decimal","date"].includes(String(row[ci.type]||"").trim().toLowerCase())?String(row[ci.type]).trim().toLowerCase():"text"),
-      list:String(row[ci.list]||"").trim(),
+      list:rawList,
       help:ci.help>=0?String(row[ci.help]||"").trim():"",
       __orden:Number(row[ci.orden])||0
     });

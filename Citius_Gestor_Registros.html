@@ -1057,17 +1057,22 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     <header class="topbar">
       <div class="topbar-controls" id="tableTopbarControls" style="display:none">
         <div class="topbar-controls-left">
-          <span class="pill amber" id="presSelectedChip" style="display:none"></span>
           <!-- Presentación de Oficinas, Etapa 1 (v4.1.0 en construcción, pedido explícito del usuario): a
                diferencia de Propiedades/Terrenos (deck completo aparte), la selección para armar Opciones
                vive DIRECTO en la tabla de Spaces — ver toggleOfficeSpaceStaging()/groupOfficeStagingAsOption()/
                addOfficeStagingIndividually()/toggleOfficeOptionsPanel() en el JS. Nada de esto se persiste
-               (pedido explícito: "no necesita guardarse"), vive solo mientras la app está abierta. -->
+               (pedido explícito: "no necesita guardarse"), vive solo mientras la app está abierta.
+               v4.1.4, pedido explícito del usuario ("quiero que estos controles queden en el siguiente
+               orden"): "Presentation options" primero, luego "Add Group"/"Add Individually", y el chip de
+               selección ("N selected ×") AL FINAL — antes el chip iba primero. Para Propiedades/Terrenos
+               (donde el chip es "N in presentation" y los otros 2 botones siempre están ocultos) este
+               reordenamiento no cambia nada visible. -->
+          <button type="button" class="btn ghost" id="officeOptionsBtn" style="display:none" onclick="toggleOfficeOptionsPanel()">Presentation options<span class="pill amber" id="officeOptionsCountPill" style="display:none;margin-left:6px"></span></button>
           <div class="office-staging-actions" id="officeStagingActions" style="display:none">
             <button type="button" class="btn ghost" id="officeStagingGroupBtn" onclick="groupOfficeStagingAsOption()"></button>
             <button type="button" class="btn ghost" id="officeStagingIndividualBtn" onclick="addOfficeStagingIndividually()"></button>
           </div>
-          <button type="button" class="btn ghost" id="officeOptionsBtn" style="display:none" onclick="toggleOfficeOptionsPanel()">Presentation options<span class="pill amber" id="officeOptionsCountPill" style="display:none;margin-left:6px"></span></button>
+          <span class="pill amber" id="presSelectedChip" style="display:none"></span>
         </div>
         <div class="topbar-controls-right" style="margin-left:auto">
           <span class="count" id="count"></span>
@@ -1198,7 +1203,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
             <h5>Presentation options</h5>
             <button type="button" class="icon-btn" title="Hide panel" onclick="toggleOfficeOptionsPanel()">✕</button>
           </div>
-          <p class="office-options-panel-hint">Session only — not saved when you close or reload the app. Go to Spaces, check the floors you want to offer, then use "Group as one option" or "Add individually".</p>
+          <p class="office-options-panel-hint">Session only — not saved when you close or reload the app. Go to Spaces, check the floors you want to offer, then use "Add Group" or "Add Individually".</p>
           <div class="office-options-panel-body" id="officeOptionsList"></div>
         </aside>
       </div>
@@ -3683,7 +3688,7 @@ function renderTable(){
       presChip.innerHTML=`${presOrder.length} ${chipLabel}<span class="chip-x" onclick="${clearFn}()" title="Remove all from the selection">&times;</span>`;
     } else presChip.style.display="none";
   }
-  /* Presentación de Oficinas, Etapa 1 — barra de acciones (Group as one option / Add individually) y botón
+  /* Presentación de Oficinas, Etapa 1 — barra de acciones (Add Group / Add Individually) y botón
      de "Presentation options" con el conteo de Opciones ya armadas. Ver comentario extenso más arriba, junto
      a `showSelect`. */
   const officeStagingBar=document.getElementById("officeStagingActions");
@@ -3695,8 +3700,8 @@ function renderTable(){
       // llevaría esa Opción ANTES de confirmarla — mismo cálculo (y misma unidad, según el selector
       // "Units") que ya usa cada Opción ya armada, ver officeOptionAreaForDisplay().
       const stagingArea=officeOptionAreaForDisplay(officeSpaceStaging);
-      document.getElementById("officeStagingGroupBtn").textContent=`Group as one option (${staging} — ${fmt(Math.round(stagingArea.value))} ${stagingArea.unit})`;
-      document.getElementById("officeStagingIndividualBtn").textContent=staging>1?`Add ${staging} individually`:"Add individually";
+      document.getElementById("officeStagingGroupBtn").textContent=`Add Group (${staging} — ${fmt(Math.round(stagingArea.value))} ${stagingArea.unit})`;
+      document.getElementById("officeStagingIndividualBtn").textContent=`Add Individually (${staging})`;
     }
   }
   const officeOptionsBtn=document.getElementById("officeOptionsBtn");
@@ -6795,7 +6800,7 @@ function renderOfficeOptionsPanel(){
   const list=document.getElementById("officeOptionsList");
   if(!list) return;
   if(!officePresOptions.length){
-    list.innerHTML=`<div class="empty">No options built yet. Check the floors you want to offer, then use "Group as one option" or "Add individually".</div>`;
+    list.innerHTML=`<div class="empty">No options built yet. Check the floors you want to offer, then use "Add Group" or "Add Individually".</div>`;
     return;
   }
   list.innerHTML=officePresOptions.map((opt,i)=>{

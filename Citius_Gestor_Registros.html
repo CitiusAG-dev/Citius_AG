@@ -667,6 +667,12 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .pill.red{background:rgba(226,72,61,.14);color:var(--red)}
   .chip-x{margin-left:6px;cursor:pointer;font-weight:700;opacity:.75}
   .chip-x:hover{opacity:1}
+  /* Presentación de Oficinas, Etapa 1 — ver comentario en el HTML de topbar-controls-left. */
+  .office-staging-actions{display:flex;gap:8px}
+  .office-option-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;
+                      border:1px solid var(--line);border-radius:10px;margin-bottom:8px}
+  .office-option-title{font-weight:700;font-size:13px;display:flex;align-items:center;gap:8px}
+  .office-option-sub{font-size:12px;color:var(--muted);margin-top:2px}
   .pill.completion{font-weight:800}
   .pill.completion.green{color:#0d7a3f}
   .pill.completion.amber{color:#9a5b00}
@@ -1036,6 +1042,16 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       <div class="topbar-controls" id="tableTopbarControls" style="display:none">
         <div class="topbar-controls-left">
           <span class="pill amber" id="presSelectedChip" style="display:none"></span>
+          <!-- Presentación de Oficinas, Etapa 1 (v4.1.0 en construcción, pedido explícito del usuario): a
+               diferencia de Propiedades/Terrenos (deck completo aparte), la selección para armar Opciones
+               vive DIRECTO en la tabla de Spaces — ver toggleOfficeSpaceStaging()/groupOfficeStagingAsOption()/
+               addOfficeStagingIndividually()/openOfficeOptionsPanel() en el JS. Nada de esto se persiste
+               (pedido explícito: "no necesita guardarse"), vive solo mientras la app está abierta. -->
+          <div class="office-staging-actions" id="officeStagingActions" style="display:none">
+            <button type="button" class="btn ghost" id="officeStagingGroupBtn" onclick="groupOfficeStagingAsOption()"></button>
+            <button type="button" class="btn ghost" id="officeStagingIndividualBtn" onclick="addOfficeStagingIndividually()"></button>
+          </div>
+          <button type="button" class="btn ghost" id="officeOptionsBtn" style="display:none" onclick="openOfficeOptionsPanel()">Presentation options<span class="pill amber" id="officeOptionsCountPill" style="display:none;margin-left:6px"></span></button>
         </div>
         <div class="topbar-controls-right" style="margin-left:auto">
           <span class="count" id="count"></span>
@@ -1498,6 +1514,23 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       <div style="flex:1"></div>
       <button class="btn ghost" onclick="closePhotoEditModal()">Cancel</button>
       <button class="btn" id="photoEditSaveBtn" onclick="confirmPhotoEditSave()">Save photo</button>
+    </div>
+  </div>
+</div>
+
+<!-- Presentación de Oficinas, Etapa 1 (v4.1.0 en construcción) — panel con las Opciones armadas hasta ahora
+     (agrupadas o individuales), cada una removible. La Etapa 2 (diseño/generación real del deck, pendiente
+     de confirmar con el analista contra la referencia de Citius AG) se conectará aquí después. Ver
+     renderOfficeOptionsPanel()/openOfficeOptionsPanel()/closeOfficeOptionsPanel() en el JS. -->
+<div class="overlay" id="officeOptionsOverlay">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-head"><h3>Presentation options</h3><button class="x" onclick="closeOfficeOptionsPanel()">&times;</button></div>
+    <div class="modal-body">
+      <p class="map-hint">Built for this session only — options here are not saved when you close or reload the app. Go to Spaces, check the floors you want to offer, then choose "Group as one option" or "Add individually".</p>
+      <div id="officeOptionsList"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" onclick="closeOfficeOptionsPanel()">Close</button>
     </div>
   </div>
 </div>
@@ -3548,15 +3581,19 @@ function renderTable(){
   const tbody=document.querySelector("#tbl tbody");
   /* Selección para presentación: Propiedades usa `presentationOrder` (deck de siempre); Terrenos (v3.37.0,
      pedido explícito del usuario, "igual a como lo tenemos en Propiedades") usa su PROPIO
-     `landPresentationOrder` — son 2 decks completamente separados, nunca comparten selección. */
-  const showSelect=current==="PROPIEDADES" || current==="LAND";
-  const presOrder=current==="LAND" ? landPresentationOrder : presentationOrder;
-  const toggleOneFn=current==="LAND" ? "toggleLandPresentationSelection" : "togglePresentationSelection";
-  const toggleAllFn=current==="LAND" ? "toggleSelectAllLandPresentation" : "toggleSelectAllPresentation";
+     `landPresentationOrder` — son 2 decks completamente separados, nunca comparten selección. Spaces
+     (Presentación de Oficinas, Etapa 1, v4.1.0 en construcción) reusa el MISMO checkbox de columna, pero con
+     `officeSpaceStaging` — una selección transitoria (no un deck en sí) que el analista convierte en Opciones
+     vía groupOfficeStagingAsOption()/addOfficeStagingIndividually(), ver esas funciones más abajo. */
+  const showSelect=current==="PROPIEDADES" || current==="LAND" || current==="SPACES";
+  const presOrder=current==="LAND" ? landPresentationOrder : (current==="SPACES" ? officeSpaceStaging : presentationOrder);
+  const toggleOneFn=current==="LAND" ? "toggleLandPresentationSelection" : (current==="SPACES" ? "toggleOfficeSpaceStaging" : "togglePresentationSelection");
+  const toggleAllFn=current==="LAND" ? "toggleSelectAllLandPresentation" : (current==="SPACES" ? "toggleSelectAllOfficeSpaceStaging" : "toggleSelectAllPresentation");
   const selectAllChecked=showSelect && rows.length>0 && rows.every(r=>presOrder.includes(r.__id));
+  const selectTitle=current==="SPACES" ? "Select to build a presentation option" : "Use in presentation";
   const activeFilterKeys=new Set((filters[current]||[]).map(f=>f.key));
   const theadHtml="<tr>"
-    +(showSelect?`<th class="th-select"><input type="checkbox" ${selectAllChecked?"checked":""} onchange="${toggleAllFn}(this.checked)" title="Select all filtered rows for the presentation"></th>`:"")
+    +(showSelect?`<th class="th-select"><input type="checkbox" ${selectAllChecked?"checked":""} onchange="${toggleAllFn}(this.checked)" title="Select all filtered rows${current==="SPACES"?" to build presentation options":" for the presentation"}"></th>`:"")
     +cols.map((c,i)=>`<th draggable="true" ondragstart="colDragStart(event,${i})" ondragover="colDragOver(event,${i})" ondrop="colDrop(event,${i})" ondragleave="colDragLeave(event)" title="Drag to reorder" style="${colWidthStyle(current,c)}"><div class="th-cell sortable" onclick="toggleSort('${c}')" title="Sort"><span>${fieldLabel(c)}</span><span class="th-cell-right">${sortIconHtml(c)}<button type="button" class="col-filter-btn${activeFilterKeys.has(c)?" active":""}" onclick="toggleColumnFilter(event,'${c}')" title="Filter"><svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M3 4h18l-7 9v6l-4 2v-8L3 4z"/></svg></button></span></div>${colResizeHandleHtml(c)}</th>`).join("")
     +`<th class="days-col" style="${colWidthStyle(current,DAYS_COL_WIDTH_KEY)}"><div class="th-cell sortable" onclick="toggleSort('${DAYS_SORT_KEY}')" title="Sort" style="justify-content:center">Days Since Update${sortIconHtml(DAYS_SORT_KEY)}</div>${colResizeHandleHtml(DAYS_COL_WIDTH_KEY)}</th>`
     +`<th class="pct-col" style="${colWidthStyle(current,PCT_COL_WIDTH_KEY)}"><div class="th-cell sortable" onclick="toggleSort('${PCT_SORT_KEY}')" title="Sort" style="justify-content:center">% Complete${sortIconHtml(PCT_SORT_KEY)}</div>${colResizeHandleHtml(PCT_COL_WIDTH_KEY)}</th><th style="${colWidthStyle(current,ACTIONS_COL_WIDTH_KEY)}">Actions${colResizeHandleHtml(ACTIONS_COL_WIDTH_KEY)}</th></tr>`;
@@ -3614,7 +3651,7 @@ function renderTable(){
         if(c===cfg.statusField) return `<td style="${colStyle}">${c==="MARKET_STATUS"?marketStatusPill(r[c]):statusPill(r[c])}</td>`;
         return `<td style="${colStyle}">${cellVal}</td>`;
       }).join("");
-      const selectTd=showSelect?`<td class="td-select"><input type="checkbox" ${presOrder.includes(r.__id)?"checked":""} onchange="${toggleOneFn}('${r.__id}',this.checked)" title="Use in presentation"></td>`:"";
+      const selectTd=showSelect?`<td class="td-select"><input type="checkbox" ${presOrder.includes(r.__id)?"checked":""} onchange="${toggleOneFn}('${r.__id}',this.checked)" title="${selectTitle}"></td>`:"";
       const daysTd=`<td class="days-col" style="${colWidthStyle(current,DAYS_COL_WIDTH_KEY)}">${daysSinceUpdateHtml(daysSinceUpdate(r))}</td>`;
       const pctTd=`<td class="pct-col" style="${colWidthStyle(current,PCT_COL_WIDTH_KEY)}">${completionPill(completionStats(current, r))}</td>`;
       return `<tr class="row-selectable" onclick="handleRowClick(event,'${r.__id}')">${selectTd}${tds}${daysTd}${pctTd}<td class="actions" style="${colWidthStyle(current,ACTIONS_COL_WIDTH_KEY)}">
@@ -3625,11 +3662,33 @@ function renderTable(){
   document.getElementById("count").textContent=`${rows.length} of ${(state[current]||[]).length} record(s)`;
   const presChip=document.getElementById("presSelectedChip");
   if(presChip){
-    const clearFn=current==="LAND" ? "clearAllLandPresentationSelection" : "clearAllPresentationSelection";
+    const clearFn=current==="LAND" ? "clearAllLandPresentationSelection" : (current==="SPACES" ? "clearAllOfficeSpaceStaging" : "clearAllPresentationSelection");
+    const chipLabel=current==="SPACES" ? "selected" : "in presentation";
     if(showSelect && presOrder.length){
       presChip.style.display="";
-      presChip.innerHTML=`${presOrder.length} in presentation<span class="chip-x" onclick="${clearFn}()" title="Remove all from the presentation">&times;</span>`;
+      presChip.innerHTML=`${presOrder.length} ${chipLabel}<span class="chip-x" onclick="${clearFn}()" title="Remove all from the selection">&times;</span>`;
     } else presChip.style.display="none";
+  }
+  /* Presentación de Oficinas, Etapa 1 — barra de acciones (Group as one option / Add individually) y botón
+     de "Presentation options" con el conteo de Opciones ya armadas. Ver comentario extenso más arriba, junto
+     a `showSelect`. */
+  const officeStagingBar=document.getElementById("officeStagingActions");
+  if(officeStagingBar){
+    const staging=current==="SPACES" ? officeSpaceStaging.length : 0;
+    officeStagingBar.style.display=staging?"flex":"none";
+    if(staging){
+      document.getElementById("officeStagingGroupBtn").textContent=`Group as one option (${staging})`;
+      document.getElementById("officeStagingIndividualBtn").textContent=staging>1?`Add ${staging} individually`:"Add individually";
+    }
+  }
+  const officeOptionsBtn=document.getElementById("officeOptionsBtn");
+  if(officeOptionsBtn){
+    officeOptionsBtn.style.display=current==="SPACES"?"inline-flex":"none";
+    const officeOptionsPill=document.getElementById("officeOptionsCountPill");
+    if(officeOptionsPill){
+      if(officePresOptions.length){ officeOptionsPill.style.display=""; officeOptionsPill.textContent=officePresOptions.length; }
+      else officeOptionsPill.style.display="none";
+    }
   }
   if(PHOTO_ID_FIELD[current] && imagesDirHandle && photoSet===null){
     const reqEnt=current;
@@ -6615,6 +6674,107 @@ function getOrderedLandPresentationList(){
   const valid=(landPresentationOrder||[]).filter(id=>byId.has(id));
   if(valid.length!==landPresentationOrder.length){ landPresentationOrder=valid; saveLandPresentationOrder(); }
   return valid.map(id=>byId.get(id));
+}
+/* ==== Presentación de Oficinas — Etapa 1 (v4.1.0 en construcción, pedido explícito del usuario) ====
+   Distinta de Propiedades/Terrenos a propósito: ahí "seleccionar" ES "ya está en el deck". Aquí la selección
+   (`officeSpaceStaging`) es solo un paso intermedio — el analista marca 1+ Spaces (pisos) en la tabla y
+   DECIDE, manualmente, si van agrupados en 1 sola Opción (suma de Área neta rentable — ej. 4 pisos de un
+   mismo edificio ofrecidos como un solo paquete de 1,200 m²) o agregados individualmente (1 Opción por
+   Space — ej. 5 pisos de 300 m² cada uno en el mismo edificio, ofrecidos como 5 opciones separadas, NUNCA
+   sumados automáticamente). Esa decisión nunca es automática por edificio — confirmado explícitamente por
+   el usuario. `officePresOptions` (las Opciones ya armadas) y `officeSpaceStaging` viven solo en memoria:
+   pedido explícito del usuario, "no necesita guardarse" — no hay localStorage aquí, a propósito, a
+   diferencia de PRES_ORDER_KEY/LAND_PRES_ORDER_KEY.
+   La Etapa 2 (diseño/generación del deck en sí, formato aún por confirmar contra la referencia de Citius AG)
+   consumirá `officePresOptions` — cada Opción ya trae todo lo necesario (los Space __id incluidos), así que
+   no debería requerir cambios a esta Etapa 1. */
+let officeSpaceStaging=[]; // Space __id marcados, pendientes de convertirse en Opción(es)
+let officePresOptions=[]; // {id, spaceIds:[...]} — 1 spaceId = Opción individual; 2+ = Opción agrupada
+let officeOptionIdSeq=1;
+function toggleOfficeSpaceStaging(id, checked){
+  if(checked){ if(!officeSpaceStaging.includes(id)) officeSpaceStaging.push(id); }
+  else officeSpaceStaging=officeSpaceStaging.filter(x=>x!==id);
+  renderTable();
+}
+function toggleSelectAllOfficeSpaceStaging(checked){
+  const rows=applyFilters(state.SPACES||[], "SPACES");
+  if(checked){
+    rows.forEach(r=>{ if(!officeSpaceStaging.includes(r.__id)) officeSpaceStaging.push(r.__id); });
+  } else {
+    const idsToRemove=new Set(rows.map(r=>r.__id));
+    officeSpaceStaging=officeSpaceStaging.filter(id=>!idsToRemove.has(id));
+  }
+  renderTable();
+}
+function clearAllOfficeSpaceStaging(){
+  officeSpaceStaging=[];
+  renderTable();
+}
+/* Un solo click junta TODO lo marcado en 1 sola Opción (suma de área) — para "varios pisos del mismo
+   edificio ofrecidos como un solo paquete" (ej. Torre Equus, 4 pisos = 1,200 m²). */
+function groupOfficeStagingAsOption(){
+  if(!officeSpaceStaging.length) return;
+  officePresOptions.push({id:"opt"+(officeOptionIdSeq++), spaceIds:[...officeSpaceStaging]});
+  officeSpaceStaging=[];
+  renderTable();
+}
+/* Un click crea 1 Opción POR CADA Space marcado — para "varios pisos, cada uno ofrecido por separado, sin
+   sumarlos" (ej. 5 pisos de 300 m² en el mismo edificio = 5 Opciones, nunca 1,500 m²). */
+function addOfficeStagingIndividually(){
+  if(!officeSpaceStaging.length) return;
+  officeSpaceStaging.forEach(id=>{ officePresOptions.push({id:"opt"+(officeOptionIdSeq++), spaceIds:[id]}); });
+  officeSpaceStaging=[];
+  renderTable();
+}
+function removeOfficePresOption(id){
+  officePresOptions=officePresOptions.filter(o=>o.id!==id);
+  renderOfficeOptionsPanel();
+  renderTable();
+}
+/* Suma de Área neta rentable (NET_LEASABLE_AREA_VALUE) de los Spaces de una Opción, normalizada a SF antes
+   de sumar — mismo criterio ya corregido en Resumen (v3.51.8, ver areaValueInSF) para no mezclar SF y m²
+   como si fueran el mismo número. NET_LEASABLE_AREA_VALUE (no AVAILABLE_AREA_VALUE) a propósito:
+   AVAILABLE_AREA_VALUE en Spaces es un campo AUTOFILL de solo lectura tomado del Oficina completa (ver
+   SPACE_AUTOFILL_READONLY_KEYS) — sumarlo entre varios Spaces del mismo edificio contaría el área
+   disponible del edificio varias veces. NET_LEASABLE_AREA_VALUE sí es específico de cada piso/Space. */
+function officeOptionAreaSF(spaceIds){
+  const byId=new Map((state.SPACES||[]).map(r=>[r.__id,r]));
+  let total=0;
+  spaceIds.forEach(id=>{ const r=byId.get(id); if(r) total+=areaValueInSF(r,"NET_LEASABLE_AREA_VALUE"); });
+  return total;
+}
+function officeOptionInfo(opt){
+  const byId=new Map((state.SPACES||[]).map(r=>[r.__id,r]));
+  const recs=opt.spaceIds.map(id=>byId.get(id)).filter(Boolean);
+  const buildings=[...new Set(recs.map(r=>r.PROPERTY_NAME).filter(v=>v!=null && v!==""))];
+  const floors=[...new Set(recs.map(r=>r.LEVEL_FLOOR).filter(v=>v!=null && v!==""))];
+  return { buildings: buildings.join(", ")||"(unnamed building)", floors: floors.join(", "), count: recs.length, area: officeOptionAreaSF(opt.spaceIds) };
+}
+function renderOfficeOptionsPanel(){
+  const list=document.getElementById("officeOptionsList");
+  if(!list) return;
+  if(!officePresOptions.length){
+    list.innerHTML=`<div class="empty">No options built yet. Go to Spaces, check the floors you want to offer, then use "Group as one option" or "Add individually".</div>`;
+    return;
+  }
+  list.innerHTML=officePresOptions.map((opt,i)=>{
+    const info=officeOptionInfo(opt);
+    const badge=info.count>1?`<span class="pill green">Grouped</span>`:`<span class="pill gray">Individual</span>`;
+    return `<div class="office-option-row">
+      <div class="office-option-main">
+        <div class="office-option-title">${i+1}. ${escapeHtml(info.buildings)} ${badge}</div>
+        <div class="office-option-sub">${info.floors?`Floor(s): ${escapeHtml(info.floors)} — `:""}${info.count} space(s) — ${fmt(Math.round(info.area))} SF</div>
+      </div>
+      <button type="button" class="icon-btn" title="Remove this option" onclick="removeOfficePresOption('${opt.id}')">✕</button>
+    </div>`;
+  }).join("");
+}
+function openOfficeOptionsPanel(){
+  renderOfficeOptionsPanel();
+  document.getElementById("officeOptionsOverlay").classList.add("show");
+}
+function closeOfficeOptionsPanel(){
+  document.getElementById("officeOptionsOverlay").classList.remove("show");
 }
 function renderPresSelectedList(list){
   const el=document.getElementById("presSelectedList");

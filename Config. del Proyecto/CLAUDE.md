@@ -2429,6 +2429,55 @@ etapa 1) se **eliminó por completo** — ya no queda ningún botón usándola.
   ningún problema nuevo de renderizado (dado el historial de esa app con PDFs generados por Chrome, ver
   `## Presentación (deck)` arriba).
 
+### Presentación de Oficinas — Etapa 1 (selección en la tabla de Spaces, v4.1.0 en construcción)
+
+Pedido explícito del usuario, tras liberar los módulos de Oficinas/Spaces a PRD (v4.0.0): un deck nuevo,
+distinto de Propiedades/Terrenos, pensado para ofrecer pisos (Spaces) a un cliente. Confirmado vía
+`AskUserQuestion` con el usuario 2 decisiones de diseño antes de empezar:
+
+1. **El requerimiento del cliente se cumple seleccionando 1+ Spaces**, y el analista decide MANUALMENTE, por
+   cada selección, si van agrupados en 1 sola Opción (suma de área — ej. 4 pisos de un mismo edificio
+   ofrecidos como un solo paquete de 1,200 m²) o agregados individualmente (1 Opción por Space — ej. 5 pisos
+   de 300 m² en el mismo edificio, ofrecidos como 5 opciones separadas, **nunca** sumados automáticamente).
+   Esta decisión **nunca es automática por edificio** — puede haber varias Opciones (agrupadas o no) dentro
+   del mismo edificio en una misma propuesta.
+2. La propuesta armada **no necesita guardarse** (vive una sola sesión) y el flujo **arranca directo en la
+   tabla de Spaces** — a diferencia de Propiedades/Terrenos, que tienen un deck/vista completa aparte
+   (`presentationView`/`landPresentationView`), la Etapa 1 no agrega ninguna vista nueva.
+
+**Mecanismo (Etapa 1, ya implementado):**
+- La tabla de Spaces reusa la MISMA columna de checkbox que ya usan Propiedades/Terrenos (`showSelect` en
+  `renderTable()`), pero con su propio arreglo transitorio `officeSpaceStaging` (Space `__id` marcados,
+  pendientes de convertirse en Opción) — nunca comparte selección con `presentationOrder`/
+  `landPresentationOrder`. Checkbox "Select all", chip de conteo y su "×" (limpiar) funcionan igual que en
+  Propiedades/Terrenos, solo apuntando a `officeSpaceStaging` (ver `toggleOfficeSpaceStaging`/
+  `toggleSelectAllOfficeSpaceStaging`/`clearAllOfficeSpaceStaging`).
+- Con 1+ Spaces marcados aparece una barra de 2 acciones junto al chip: **"Group as one option (N)"**
+  (`groupOfficeStagingAsOption()`, junta TODO lo marcado en 1 sola Opción) y **"Add N individually"**
+  (`addOfficeStagingIndividually()`, crea 1 Opción por cada Space marcado). Cualquiera de las 2 vacía
+  `officeSpaceStaging` al terminar.
+- Cada Opción es `{id, spaceIds:[...]}` — 1 `spaceId` = individual, 2+ = agrupada (la etiqueta "Grouped"/
+  "Individual" se deriva del largo del arreglo, no se guarda por separado). Viven en `officePresOptions`,
+  **sin `localStorage`** (a propósito, pedido explícito "no necesita guardarse" — a diferencia de
+  `PRES_ORDER_KEY`/`LAND_PRES_ORDER_KEY`, que sí persisten).
+- Botón "Presentation options" (con pill de conteo) siempre visible en la tabla de Spaces, abre un modal
+  simple (`officeOptionsOverlay`/`openOfficeOptionsPanel()`) con la lista de Opciones armadas hasta ahora —
+  edificio(s), piso(s), # de spaces, área total y badge Grouped/Individual — cada una removible
+  (`removeOfficePresOption()`).
+- **Área sumada = `NET_LEASABLE_AREA_VALUE` de cada Space, NO `AVAILABLE_AREA_VALUE`.** Trampa real evitada
+  a propósito: `AVAILABLE_AREA_VALUE` en Spaces es un campo autofill de solo lectura tomado de la Oficina
+  completa (ver `SPACE_AUTOFILL_READONLY_KEYS`) — sumarlo entre varios Spaces del mismo edificio contaría el
+  área disponible del edificio varias veces. `NET_LEASABLE_AREA_VALUE` sí es específico de cada piso.
+  Normalizado a SF antes de sumar reusando `areaValueInSF()` (mismo criterio que Resumen, v3.51.8) para no
+  mezclar SF y m² como si fueran el mismo número.
+
+**Etapa 2 (pendiente, NO empezada)**: diseño y generación del deck en sí (comparación de Opciones + info de
+edificio/piso, foto, plano), formato a confirmar contra la referencia real de Citius AG que compartió el
+usuario (`Arca 4,000 m2 (VM).pdf` — 37 páginas: portada, mapa de submercados, 1 página de detalle + 1 de
+fotos por edificio/opción, y un "Resumen de Espacios Propuestos" final con una tabla comparativa de todas
+las opciones). `officePresOptions` ya trae todo lo necesario (los Space `__id` incluidos en cada Opción), la
+Etapa 2 debería poder consumirlo sin tener que tocar la Etapa 1.
+
 ## Convención de versionado
 
 Debajo del botón Configuración se muestra un tag de versión (`<div class="app-version">v3.40.1</div>`,

@@ -2544,6 +2544,21 @@ reusa literalmente `renderOfficeOptionsPanel()` (parametrizada con `targetId`, v
   `.office-map-page`) a propósito: `preparePrintPageSize()` agrupa el tamaño de impresión por esa clase (ver
   `groupOf()`), perderla la habría hecho caer en el grupo "tablePage" por default.
 
+**Etapa 2, ajustes (v4.2.2, pedidos explícitos del usuario tras probar el mapa nuevo)**:
+- **Bug real: "no está mostrando todos los pins"** — causa confirmada: `officePresBuildingList()` resolvía
+  cada Space a su Oficina buscando `sp.MAPPING_CODE` en un `Map` de Oficinas; si ese código no calzaba
+  EXACTO con ningún registro (dato mal capturado/editado a mano en alguno de los 2 lados), el edificio se
+  descartaba **en silencio** — ni pin, ni aviso, ni contaba como "sin coordenadas". Ahora se cuenta
+  (`unresolvedCount`) y se avisa en la página del mapa junto a la nota de coordenadas faltantes. No se
+  intentó "adivinar" el match (ej. comparar sin mayúsculas/espacios) — MAPPING_CODE es llave exacta en toda
+  la app, así que si el dato real no calza es mejor que el usuario lo vea y lo corrija en Spaces/Oficinas.
+- **Banner blanco del Mapa** ahora es EXACTAMENTE la misma especificación que el badge de "Building Options"
+  (`.map-page-badge`/`img`/`h2`: fila, gap 10px, ícono 26x26, texto 18px/400/#666/'Dala Moa') — se quitó la
+  línea decorativa que tenía antes (esa badge tampoco la tiene).
+- **Banner amarillo**: la lista de submercados/edificios ahora arranca a la misma altura donde arranca el
+  mapa (antes arrancaba pegada arriba, a la altura del banner blanco) y con letra más grande (11px/12px →
+  13px/14px).
+
 **Etapa 2, pendiente**: la página de comparación de Opciones (formato aún por confirmar contra la
 referencia completa de 37 páginas — 1 página de detalle + 1 de fotos por Opción, más un "Resumen de
 Espacios Propuestos" final), y las páginas divisoras por submercado (usarían `OFFICE_DIVIDER_IMAGE_SRC`, ya

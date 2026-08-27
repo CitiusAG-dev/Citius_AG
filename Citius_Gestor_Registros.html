@@ -404,22 +404,28 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      `.deck-page`/2 clases para igualar o superar la especificidad de `.deck-page.map-page`/`.map-page
      .deck-note` de arriba y así ganar por orden de aparición, nunca por !important. */
   .deck-page.office-map-page{aspect-ratio:1652/1269;background:#eee}
+  /* v4.2.2, pedido explícito del usuario: "el nombre del mercado al lado del logo de Citius, exactamente
+     igual [a] la ubicación del logo, tamaño... y ubicación del texto" que en "Building Options" — reusa la
+     MISMA especificación que `.map-page-badge img`/`.map-page-badge h2` (fila, gap 10, ícono 26x26, texto
+     18px/400/#666/'Dala Moa'), sin la línea decorativa que tenía antes (esa badge tampoco la tiene). */
   .office-map-topbar{position:absolute;left:0;top:0;right:24%;height:14%;background:#fff;z-index:10;
-                      display:flex;flex-direction:column;justify-content:center;gap:8px;
+                      display:flex;align-items:center;gap:10px;
                       padding:0 4%;box-sizing:border-box}
-  .office-map-logo{width:34px;height:34px;object-fit:contain}
-  .office-map-title{display:flex;align-items:center;gap:12px;font-family:'Dala Moa',Georgia,serif;
-                     font-size:20px;font-weight:400;color:#6b6f76}
-  .office-map-title-rule{width:26px;height:1px;background:#c9cbcf;display:inline-block;flex-shrink:0}
+  .office-map-logo{width:26px;height:26px;object-fit:contain;flex-shrink:0}
+  .office-map-title{margin:0;font-size:18px;font-weight:400;color:#666;font-family:'Dala Moa',Georgia,serif}
   .office-map-canvas{position:absolute;left:0;top:14%;right:24%;bottom:0;background:#eee;z-index:0}
+  /* v4.2.2, pedido explícito del usuario: "que empiecen más abajo... más abajo tipo en donde empieza el
+     mapa, y con un tamaño de letra más grande" — `padding-top` sube de 24px a 14% (mismo alto que el
+     banner blanco, para que el primer encabezado arranque a la misma altura donde arranca el mapa) y las 2
+     fuentes suben de 11px/12px a 13px/14px. */
   .office-map-legend{position:absolute;right:0;top:0;bottom:0;width:24%;background:var(--accent);
-                      color:#fff;padding:24px 20px;box-sizing:border-box;overflow-y:auto;z-index:10}
-  .office-map-legend-group{margin-bottom:18px}
+                      color:#fff;padding:14% 20px 24px;box-sizing:border-box;overflow-y:auto;z-index:10}
+  .office-map-legend-group{margin-bottom:20px}
   .office-map-legend-group:last-child{margin-bottom:0}
-  .office-map-legend-heading{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
-                              color:#fff;margin-bottom:5px}
-  .office-map-legend-list{margin:0;padding-left:18px;font-size:12px;color:rgba(255,255,255,.94)}
-  .office-map-legend-list li{margin-bottom:3px}
+  .office-map-legend-heading{font-size:13px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
+                              color:#fff;margin-bottom:6px}
+  .office-map-legend-list{margin:0;padding-left:18px;font-size:14px;color:rgba(255,255,255,.94)}
+  .office-map-legend-list li{margin-bottom:4px}
   .office-map-page .office-map-note{left:16px;right:calc(24% + 16px)}
   body.printing-deck .deck-page.office-map-page{padding:0}
   .map-pin{background:#e03131;width:26px;height:26px;border-radius:50% 50% 50% 0;border:2px solid #fff;
@@ -7708,21 +7714,31 @@ function buildOfficeCoverPageHtml(){
 /* Building list del mapa: NO son Spaces (varios pisos del mismo edificio serían el mismo pin repetido) sino
    los edificios (OFICINAS) únicos referenciados por los Spaces de TODAS las Opciones armadas hasta ahora —
    deduplicados por MAPPING_CODE, para que un edificio con 3 pisos ofrecidos en 2 Opciones distintas
-   aparezca en el mapa una sola vez. */
+   aparezca en el mapa una sola vez.
+   v4.2.2, pedido explícito del usuario ("no está mostrando todos los pins"): antes, un Space cuyo
+   MAPPING_CODE no calzara EXACTO (mayúsculas/espacios/edición manual) con ningún registro de OFICINAS se
+   descartaba en silencio (`if(off && ...)` — sin `off`, ese edificio simplemente desaparecía del mapa sin
+   ningún aviso, ni siquiera contaba como "sin latitud/longitud"). Ahora se cuenta cuántos Spaces no
+   resolvieron a una Oficina real (`unresolvedCount`) para poder avisarlo en la página del mapa — no se
+   intenta adivinar/normalizar el match (ej. comparar sin mayúsculas) porque el resto de la app usa
+   MAPPING_CODE como llave exacta en todos lados; si el dato real no calza, mejor que el usuario lo vea y lo
+   corrija en Spaces/Oficinas que enmascararlo aquí con un match aproximado. */
 function officePresBuildingList(){
   const spaceById=new Map((state.SPACES||[]).map(r=>[r.__id,r]));
   const officeByCode=new Map((state.OFICINAS||[]).map(r=>[r.MAPPING_CODE,r]));
   const seen=new Set();
-  const out=[];
+  const buildings=[];
+  let unresolvedCount=0;
   officePresOptions.forEach(opt=>{
     opt.spaceIds.forEach(id=>{
       const sp=spaceById.get(id);
       if(!sp) return;
       const off=officeByCode.get(sp.MAPPING_CODE);
-      if(off && !seen.has(off.MAPPING_CODE)){ seen.add(off.MAPPING_CODE); out.push(off); }
+      if(!off){ unresolvedCount++; return; }
+      if(!seen.has(off.MAPPING_CODE)){ seen.add(off.MAPPING_CODE); buildings.push(off); }
     });
   });
-  return out;
+  return {buildings, unresolvedCount};
 }
 /* Agrupa la building list por SUBMARKET (preservando el orden de primera aparición, tanto de grupo como
    dentro de cada grupo — igual que hace officePresBuildingList con las Opciones) — necesario porque el
@@ -7747,7 +7763,7 @@ function officePresBuildingsGroupedBySubmarket(list){
    lista numerada de sus edificios) — antes era el mismo `.map-page` genérico de Propiedades/Terrenos
    (badge flotante + atribución). Recibe `grouped` (de officePresBuildingsGroupedBySubmarket), no la lista
    cruda, para que la numeración de la leyenda calce con la de los pines (ver renderOfficePresMap). */
-function buildOfficeMapPageHtml(grouped){
+function buildOfficeMapPageHtml(grouped, unresolvedCount){
   const {groups, ordered}=grouped;
   const withCoords=ordered.filter(r=>r.LATITUDE!=null && r.LATITUDE!=="" && r.LONGITUDE!=null && r.LONGITUDE!=="");
   const missing=ordered.length-withCoords.length;
@@ -7765,11 +7781,14 @@ function buildOfficeMapPageHtml(grouped){
   return `<div class="deck-page map-page office-map-page">
     <div class="office-map-topbar">
       <img class="office-map-logo" src="${CITIUS_ICON_SRC}" alt="Citius AG">
-      <div class="office-map-title"><span class="office-map-title-rule"></span>${escapeHtml(market||"Location Map")}</div>
+      <h2 class="office-map-title">${escapeHtml(market||"Location Map")}</h2>
     </div>
     <div class="office-map-canvas" id="officePresMapCanvas"></div>
     <div class="office-map-legend">${legendHtml}</div>
-    ${missing?`<p class="deck-note office-map-note">*${missing} oficina(s) sin latitud/longitud capturada no se muestran en el mapa.</p>`:""}
+    ${missing||unresolvedCount?`<p class="deck-note office-map-note">${[
+      missing?`*${missing} oficina(s) sin latitud/longitud capturada no se muestran en el mapa.`:"",
+      unresolvedCount?`*${unresolvedCount} piso(s) seleccionado(s) no encontraron su Oficina (Mapping Code no coincide) y no se muestran en el mapa.`:""
+    ].filter(Boolean).join(" ")}</p>`:""}
   </div>`;
 }
 let officePresMapInstance=null;
@@ -7823,7 +7842,7 @@ let officePresUnitPref=loadOfficePresUnitPref();
    de dibujar las suyas (preparePrintPageSize() busca .deck-page de forma global, sin distinguir contenedor).
    Sin Tabla todavía (Stage 3) — el aviso de "nada que ver" solo lista Cover/Map/Closing. */
 function renderOfficePresentationView(){
-  const buildings=officePresBuildingList();
+  const {buildings, unresolvedCount}=officePresBuildingList();
   document.getElementById("officePresCount").textContent=`${officePresOptions.length} option(s) — ${buildings.length} building(s) in presentation`;
   renderOfficeOptionsPanel("officePresSelectedList", officePresUnitPref);
   const pagesEl=document.getElementById("officePresPages");
@@ -7844,7 +7863,7 @@ function renderOfficePresentationView(){
   const officeMapGrouped=officePresShowState.map ? officePresBuildingsGroupedBySubmarket(buildings) : null;
   let html="";
   if(officePresShowState.cover) html+=buildOfficeCoverPageHtml();
-  if(officePresShowState.map) html+=buildOfficeMapPageHtml(officeMapGrouped);
+  if(officePresShowState.map) html+=buildOfficeMapPageHtml(officeMapGrouped, unresolvedCount);
   if(officePresShowState.closing) html+=buildClosingPageHtml(OFFICE_CLOSING_IMAGE_SRC);
   pagesEl.innerHTML=html;
   if(officePresShowState.map) renderOfficePresMap(officeMapGrouped.ordered);

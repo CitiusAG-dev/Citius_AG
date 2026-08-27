@@ -1772,6 +1772,18 @@ const GROUP_NAME_ES_TO_EN={
 for(const ent in fieldConfig){
   (fieldConfig[ent]||[]).forEach(f=>{ if(GROUP_NAME_ES_TO_EN[f.group]) f.group=GROUP_NAME_ES_TO_EN[f.group]; });
 }
+/* v3.51.6, bug reportado por el usuario (con captura real: el desplegable de Property Type en Transacciones
+   seguía mostrando Industrial/Land/Offices/Retail en vez de Buildings/Parks/Land/Offices): PROPERTY_TYPE de
+   Transacciones cambió de lista en v3.49.0 (FIELD_LIST_MAP.TRANSACCIONES.PROPERTY_TYPE pasó de "PROPERTY_TYPE"
+   a "TRANSACTION_PROPERTY_TYPE", ver TRANS_CATEGORY_LINK) — pero quien ya tenía fieldConfig guardado en este
+   navegador (de antes de ese cambio) se quedó con la lista vieja apuntada ahí adentro. Mismo motivo EXACTO
+   que la migración de GROUP_NAME_ES_TO_EN de arriba (fieldConfig es una copia persistida aparte, no se
+   deriva de FIELD_LIST_MAP de nuevo una vez que existe) — mismo arreglo: si todavía apunta al valor viejo,
+   se actualiza al nuevo, una sola vez. */
+if(fieldConfig.TRANSACCIONES){
+  const propType=fieldConfig.TRANSACCIONES.find(f=>f.key==="PROPERTY_TYPE");
+  if(propType && propType.list==="PROPERTY_TYPE") propType.list="TRANSACTION_PROPERTY_TYPE";
+}
 saveFieldConfigLocal();
 /* ==== Catálogo de ubicación (Región→Estado→Mercado→Submercado) — listas condicionales solo para estos 4 campos ==== */
 let cascadeCatalog=[];
@@ -2611,6 +2623,20 @@ let state = loadState();
 if(!state.LAND) state.LAND=[]; // migración: usuarios con datos ya guardados no tenían esta entidad
 if(!state.OFICINAS) state.OFICINAS=[]; // migración: misma idea, para quien ya tenía datos guardados antes de v3.48.0
 if(!state.SPACES) state.SPACES=[]; // migración: misma idea, para quien ya tenía datos guardados antes de v3.48.2
+/* v3.51.6, migración de datos ya capturados (pedido explícito del usuario): PROPERTY_TYPE de Transacciones
+   cambió de lista en v3.49.0 (Industrial/Land/Offices/Retail -> Buildings/Parks/Land/Offices, ver
+   TRANS_CATEGORY_LINK) — "Land"/"Offices" ya calzan igual, pero transacciones viejas con "Industrial" o
+   "Retail" ya capturadas se quedaban con un valor que no existe en la lista nueva: transactionVisibleFields()
+   no las reconoce y cae al set completo sin organizar en pestañas, en vez del Gross/Negative de siempre.
+   Se corre tanto al arrancar (datos ya guardados en este navegador) como al leer/refrescar el Excel vinculado
+   (ver loadFromWorkbook) — "Retail" se trata igual que "Industrial": en la práctica ambas estaban enlazadas
+   a un registro de Propiedades por Mapping Code, mismo flujo de campos que Buildings de todas formas. */
+function migrateTransactionPropertyTypeValues(){
+  (state.TRANSACCIONES||[]).forEach(r=>{
+    if(r.PROPERTY_TYPE==="Industrial" || r.PROPERTY_TYPE==="Retail") r.PROPERTY_TYPE="Buildings";
+  });
+}
+migrateTransactionPropertyTypeValues();
 let current = "PROPIEDADES";
 /* ==== Última pestaña visitada: se restaura sola al recargar el navegador (antes siempre mandaba a
    Propiedades). "table" guarda también qué entidad (Propiedades/Parques/Terrenos/Transacciones) estaba
@@ -8123,6 +8149,7 @@ function loadFromWorkbook(wb){
     state[ent]=rows;
     matchedSheets++;
   }
+  migrateTransactionPropertyTypeValues();
   if(!configFileHandle){ loadListsFromSheet(wb); loadFieldConfigFromSheet(wb); loadCascadeCatalogFromSheet(wb); }
   return matchedSheets;
 }

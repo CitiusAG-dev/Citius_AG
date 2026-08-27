@@ -4959,8 +4959,11 @@ function buildForm(ent, record){
     /* Available Area de Spaces (v3.51.0, pedido explícito del usuario): igual que PROPERTY_NAME/REGION/etc.
        (SPACE_AUTOFILL_READONLY_KEYS), se llena SOLO al elegir la Oficina desde el picker — de solo lectura,
        nunca a mano. Es el único campo de ese Set que es un par Valor+Unidad en vez de un campo suelto, así
-       que necesita su propia rama aquí (renderStandaloneField ya cubre los demás). */
-    if(SPACE_AUTOFILL_READONLY_KEYS.has(valueField.key)){
+       que necesita su propia rama aquí (renderStandaloneField ya cubre los demás). v3.51.1, bug reportado
+       por el usuario: sin el `ent==="SPACES"` esta rama también agarraba a AVAILABLE_AREA_VALUE/UNIT de
+       OFICINAS (mismo key EXACTO, a propósito, para que el autofill copie directo sin mapa de renombre) —
+       dejaba ese campo de solo lectura ahí también, cuando en Oficinas SÍ se captura a mano. */
+    if(ent==="SPACES" && SPACE_AUTOFILL_READONLY_KEYS.has(valueField.key)){
       const displayVal=val||"—", displayUnit=rawUnit||"—";
       return `<div class="field field-readonly"><label>${label}${helpIcon}</label>
         <div class="vu-group">

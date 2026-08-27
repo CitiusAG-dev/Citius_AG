@@ -7907,7 +7907,21 @@ document.getElementById("saveBtn").onclick=()=>{
   const uniqueKey=PHOTO_ID_FIELD[current];
   if(uniqueKey){
     const uniqueVal=rec[uniqueKey]!=null?String(rec[uniqueKey]).trim():"";
-    if(uniqueVal && (state[current]||[]).some(r=>r.__id!==editingId && String(r[uniqueKey]||"").trim()===uniqueVal)){
+    // v3.51.3, pedido explícito del usuario: el ID de cada tabla (Mapping Code/ID Park/ID Terreno/Space
+    // Code) hasta ahora se marcaba "requerido" nada más visualmente (asterisco rojo) — un valor vacío en
+    // CUALQUIER otro campo requerido nunca bloqueaba el guardado ("Missing required fields no longer block
+    // saving", ver comentario más abajo, sigue aplicando tal cual para el resto de los campos), así que en
+    // la práctica se podía guardar un registro sin ID. Este bloqueo es específico al campo ID de cada
+    // entidad (el mismo que usa PHOTO_ID_FIELD para nombrar fotos y detectar duplicados) — no cambia el
+    // comportamiento de ningún otro campo "requerido". Transacciones no tiene entrada en PHOTO_ID_FIELD (su
+    // Mapping Code es un enlace a otra tabla, no un ID propio del registro), así que no se ve afectada.
+    if(!uniqueVal){
+      const el=document.querySelector(`#mBody [data-key="${uniqueKey}"]`);
+      if(el){ el.classList.add("field-error"); const panel=el.closest(".form-panel"); if(panel) switchFormPanel(Number(panel.dataset.panel)); }
+      toast(`${fieldLabel(uniqueKey)} is required — can't save without it`,"err");
+      return;
+    }
+    if((state[current]||[]).some(r=>r.__id!==editingId && String(r[uniqueKey]||"").trim()===uniqueVal)){
       const el=document.querySelector(`#mBody [data-key="${uniqueKey}"]`);
       if(el){ el.classList.add("field-error"); const panel=el.closest(".form-panel"); if(panel) switchFormPanel(Number(panel.dataset.panel)); }
       toast(`Another record already has ${fieldLabel(uniqueKey)} = "${uniqueVal}" — can't save`,"err");

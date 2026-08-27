@@ -3822,9 +3822,23 @@ function quarterRange(year, q){
   const p2=n=>String(n).padStart(2,"0");
   return [`${year}-${p2(startMonth)}-01`, `${year}-${p2(endMonth)}-${p2(lastDay)}`];
 }
+/* v3.51.8, pedido explícito del usuario: Resumen sumaba valores de área en SF y en m² tal cual, como si
+   fueran el mismo número (mezclados) — "Total Market" era el que se notó, pero TODO Resumen (Available
+   Inventory, Absorción, Transacciones Completadas, cada tabla por Submercado) suma a través de esta misma
+   función, así que se corrige aquí una sola vez. Encuentra la unidad REAL capturada en ese registro
+   (irregular para TRANSACTION_AREA/TRANSACTION_UNIT, ver IRREGULAR_VALUE_UNIT_PAIRS; sufijo _VALUE/_UNIT
+   para el resto) y solo convierte si esa unidad es "m²" (usa el mismo factor que ya usa la vista Métrico/
+   Imperial de la tabla, UNIT_CONVERSIONS.SF_M2) — cualquier otra unidad (SF, vacío, "has" de Terrenos/
+   Parques, que es una familia de unidad distinta) se deja tal cual, igual que antes. */
+function areaValueInSF(row, valueKey){
+  const raw=Number(row[valueKey])||0;
+  const unitKey=IRREGULAR_VALUE_UNIT_PAIRS[valueKey] || (valueKey.endsWith("_VALUE") ? valueKey.slice(0,-6)+"_UNIT" : null);
+  const unit=unitKey ? row[unitKey] : null;
+  return ciEq(unit,"m²") ? raw/UNIT_CONVERSIONS.SF_M2.toMetric : raw;
+}
 function sumByPredicate(rows, valueKey, predicateFn){
   let total=0;
-  (rows||[]).forEach(r=>{ if(predicateFn(r)) total+=Number(r[valueKey])||0; });
+  (rows||[]).forEach(r=>{ if(predicateFn(r)) total+=areaValueInSF(r, valueKey); });
   return total;
 }
 function countByPredicate(rows, predicateFn){
@@ -4050,7 +4064,7 @@ function renderResumenView(){
     (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); });
   const txBucketHtml=resumenBreakdownTableHtml("Deals by Size", "Number of transactions this year, grouped by size range (SF)",
     RESUMEN_SIZE_BUCKETS.map(b=>({key:b,label:b[2]})),
-    (sm,bucket)=>countByPredicate(state.TRANSACCIONES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd&&inSizeBucket(r.TRANSACTION_AREA,bucket)));
+    (sm,bucket)=>countByPredicate(state.TRANSACCIONES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd&&inSizeBucket(areaValueInSF(r,"TRANSACTION_AREA"),bucket)));
   const txBuildingTypeHtml=resumenBreakdownTableHtml("By Building Type", "Area with Gross absorption this year, by transaction building type",
     [{key:"Inventory",label:"Inventory"},{key:"Expansion",label:"Expansion"},{key:"STS",label:"Spec to Suit"},{key:"BTS",label:"Build to Suit"}],
     (sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.BUILDING_TYPE,type)&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd));
@@ -4066,7 +4080,7 @@ function renderResumenView(){
     (sm,cls)=>sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.CLASSIFICATION,cls)&&ciEq(r.MARKET_STATUS,"Available")));
   const availBucketHtml=resumenBreakdownTableHtml("Available Buildings by Size", "Number of available buildings, grouped by size range (SF)",
     RESUMEN_SIZE_BUCKETS.map(b=>({key:b,label:b[2]})),
-    (sm,bucket)=>countByPredicate(state.PROPIEDADES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.MARKET_STATUS,"Available")&&inSizeBucket(r.AVAILABLE_AREA_VALUE,bucket)));
+    (sm,bucket)=>countByPredicate(state.PROPIEDADES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.MARKET_STATUS,"Available")&&inSizeBucket(areaValueInSF(r,"AVAILABLE_AREA_VALUE"),bucket)));
   const availStatusHtml=resumenBreakdownTableHtml("By Status", "\"Sublease\" is taken from Transaction Available, not Status, so the number reflects real data",
     [{key:"Ready",label:"Ready"},{key:"Under Construction",label:"Under Construction"},{key:"Planned",label:"Planned"},{key:"Sublease",label:"Sublease"}],
     (sm,status)=>{

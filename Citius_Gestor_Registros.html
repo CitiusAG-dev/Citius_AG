@@ -669,10 +669,26 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .chip-x:hover{opacity:1}
   /* Presentación de Oficinas, Etapa 1 — ver comentario en el HTML de topbar-controls-left. */
   .office-staging-actions{display:flex;gap:8px}
-  .office-option-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;
-                      border:1px solid var(--line);border-radius:10px;margin-bottom:8px}
-  .office-option-title{font-weight:700;font-size:13px;display:flex;align-items:center;gap:8px}
-  .office-option-sub{font-size:12px;color:var(--muted);margin-top:2px}
+  button.btn.ghost.active{background:rgba(240,179,35,.16);border-color:var(--accent);color:var(--accent-ink)}
+  /* Panel acoplado (docked) junto a la tabla de Spaces, v4.1.1 — reemplazó el modal original a pedido
+     explícito del usuario ("que sea como un panel delgado, no un popup"). `.table-and-panel-row` es el
+     único cambio de layout: antes `.tablewrap` era hijo directo de `.wrap` (flex-column); ahora vive dentro
+     de esta fila junto al panel, sin afectar en nada el resto de vistas (Resumen/Mapa/Presentación de
+     Propiedades-Terrenos no usan `#wrap`). */
+  .table-and-panel-row{display:flex;flex:1;min-height:0;gap:12px}
+  .table-and-panel-row .tablewrap{flex:1;min-width:0}
+  .office-options-panel{width:280px;flex-shrink:0;display:flex;flex-direction:column;min-height:0;
+                         border:1px solid var(--line);border-radius:var(--radius);background:var(--panel)}
+  .office-options-panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;
+                              padding:12px 14px;border-bottom:1px solid var(--line)}
+  .office-options-panel-head h5{margin:0;font-size:13px}
+  .office-options-panel-hint{font-size:11px;color:var(--muted);margin:10px 14px;line-height:1.4}
+  .office-options-panel-body{flex:1;min-height:0;overflow-y:auto;padding:0 14px 14px}
+  .office-option-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:10px 0;
+                      border-bottom:1px solid var(--line)}
+  .office-option-row:last-child{border-bottom:none}
+  .office-option-title{font-weight:700;font-size:12px;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+  .office-option-sub{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.4}
   .pill.completion{font-weight:800}
   .pill.completion.green{color:#0d7a3f}
   .pill.completion.amber{color:#9a5b00}
@@ -1045,13 +1061,13 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
           <!-- Presentación de Oficinas, Etapa 1 (v4.1.0 en construcción, pedido explícito del usuario): a
                diferencia de Propiedades/Terrenos (deck completo aparte), la selección para armar Opciones
                vive DIRECTO en la tabla de Spaces — ver toggleOfficeSpaceStaging()/groupOfficeStagingAsOption()/
-               addOfficeStagingIndividually()/openOfficeOptionsPanel() en el JS. Nada de esto se persiste
+               addOfficeStagingIndividually()/toggleOfficeOptionsPanel() en el JS. Nada de esto se persiste
                (pedido explícito: "no necesita guardarse"), vive solo mientras la app está abierta. -->
           <div class="office-staging-actions" id="officeStagingActions" style="display:none">
             <button type="button" class="btn ghost" id="officeStagingGroupBtn" onclick="groupOfficeStagingAsOption()"></button>
             <button type="button" class="btn ghost" id="officeStagingIndividualBtn" onclick="addOfficeStagingIndividually()"></button>
           </div>
-          <button type="button" class="btn ghost" id="officeOptionsBtn" style="display:none" onclick="openOfficeOptionsPanel()">Presentation options<span class="pill amber" id="officeOptionsCountPill" style="display:none;margin-left:6px"></span></button>
+          <button type="button" class="btn ghost" id="officeOptionsBtn" style="display:none" onclick="toggleOfficeOptionsPanel()">Presentation options<span class="pill amber" id="officeOptionsCountPill" style="display:none;margin-left:6px"></span></button>
         </div>
         <div class="topbar-controls-right" style="margin-left:auto">
           <span class="count" id="count"></span>
@@ -1167,9 +1183,24 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       <button class="btn" id="exitConsolidatedBannerBtn" style="padding:5px 12px;margin-left:6px">Exit consolidated mode</button>
     </div>
     <div class="wrap" id="wrap">
-      <div class="tablewrap">
-        <table id="tbl"><thead></thead><tbody></tbody></table>
-        <div id="tablePagination" style="display:none"></div>
+      <div class="table-and-panel-row">
+        <div class="tablewrap">
+          <table id="tbl"><thead></thead><tbody></tbody></table>
+          <div id="tablePagination" style="display:none"></div>
+        </div>
+        <!-- Presentación de Oficinas, Etapa 1 (v4.1.1, pedido explícito del usuario: "en vez de que sea un
+             popup se muestre al lado de la tabla... un panel delgado") — antes era un modal (`.overlay`); se
+             reemplazó por este panel acoplado (docked) junto a la tabla, solo visible en Spaces y solo
+             cuando `officeOptionsPanelOpen` es true (el botón "Presentation options" del topbar lo
+             prende/apaga, ver toggleOfficeOptionsPanel() en el JS — ya no hay open/close por separado). -->
+        <aside class="office-options-panel" id="officeOptionsPanel" style="display:none">
+          <div class="office-options-panel-head">
+            <h5>Presentation options</h5>
+            <button type="button" class="icon-btn" title="Hide panel" onclick="toggleOfficeOptionsPanel()">✕</button>
+          </div>
+          <p class="office-options-panel-hint">Session only — not saved when you close or reload the app. Go to Spaces, check the floors you want to offer, then use "Group as one option" or "Add individually".</p>
+          <div class="office-options-panel-body" id="officeOptionsList"></div>
+        </aside>
       </div>
     </div>
     <div class="wrap resumenview" id="resumenView" style="display:none">
@@ -1514,23 +1545,6 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       <div style="flex:1"></div>
       <button class="btn ghost" onclick="closePhotoEditModal()">Cancel</button>
       <button class="btn" id="photoEditSaveBtn" onclick="confirmPhotoEditSave()">Save photo</button>
-    </div>
-  </div>
-</div>
-
-<!-- Presentación de Oficinas, Etapa 1 (v4.1.0 en construcción) — panel con las Opciones armadas hasta ahora
-     (agrupadas o individuales), cada una removible. La Etapa 2 (diseño/generación real del deck, pendiente
-     de confirmar con el analista contra la referencia de Citius AG) se conectará aquí después. Ver
-     renderOfficeOptionsPanel()/openOfficeOptionsPanel()/closeOfficeOptionsPanel() en el JS. -->
-<div class="overlay" id="officeOptionsOverlay">
-  <div class="modal" style="max-width:640px">
-    <div class="modal-head"><h3>Presentation options</h3><button class="x" onclick="closeOfficeOptionsPanel()">&times;</button></div>
-    <div class="modal-body">
-      <p class="map-hint">Built for this session only — options here are not saved when you close or reload the app. Go to Spaces, check the floors you want to offer, then choose "Group as one option" or "Add individually".</p>
-      <div id="officeOptionsList"></div>
-    </div>
-    <div class="modal-foot">
-      <button class="btn ghost" onclick="closeOfficeOptionsPanel()">Close</button>
     </div>
   </div>
 </div>
@@ -3689,6 +3703,17 @@ function renderTable(){
       if(officePresOptions.length){ officeOptionsPill.style.display=""; officeOptionsPill.textContent=officePresOptions.length; }
       else officeOptionsPill.style.display="none";
     }
+  }
+  /* Panel acoplado (v4.1.1): solo se muestra en Spaces Y si el usuario lo dejó abierto
+     (`officeOptionsPanelOpen`, prendido/apagado por el botón "Presentation options" — ver
+     toggleOfficeOptionsPanel()). Si el usuario navega a otra tabla el panel se oculta solo (no se cierra
+     `officeOptionsPanelOpen`, así que vuelve a aparecer si regresa a Spaces sin haberlo cerrado a mano). */
+  const officeOptionsPanelEl=document.getElementById("officeOptionsPanel");
+  if(officeOptionsPanelEl){
+    const showPanel=current==="SPACES" && officeOptionsPanelOpen;
+    officeOptionsPanelEl.style.display=showPanel?"flex":"none";
+    if(officeOptionsBtn) officeOptionsBtn.classList.toggle("active", showPanel);
+    if(showPanel) renderOfficeOptionsPanel();
   }
   if(PHOTO_ID_FIELD[current] && imagesDirHandle && photoSet===null){
     const reqEnt=current;
@@ -6743,18 +6768,30 @@ function officeOptionAreaSF(spaceIds){
   spaceIds.forEach(id=>{ const r=byId.get(id); if(r) total+=areaValueInSF(r,"NET_LEASABLE_AREA_VALUE"); });
   return total;
 }
+/* v4.1.1, pedido explícito del usuario: "la suma... quiero que cambie según el selector de Units que tengo
+   arriba en ese módulo" — el total (siempre calculado en SF por officeOptionAreaSF, ver comentario ahí)
+   se convierte aquí a la unidad que el selector "Units" de la tabla (`unitViewPref`) tenga elegida en ese
+   momento: "Metric" pasa el total a m² (mismo factor que usa el resto de la tabla,
+   UNIT_CONVERSIONS.SF_M2), "Imperial" y "As captured" (mixed — no hay una sola unidad real que mostrar
+   cuando se mezclan Spaces capturados en SF y en m², así que se queda en SF) lo dejan en SF. */
+function officeOptionAreaForDisplay(spaceIds){
+  const totalSF=officeOptionAreaSF(spaceIds);
+  if(unitViewPref==="metric") return { value: totalSF*UNIT_CONVERSIONS.SF_M2.toMetric, unit: UNIT_CONVERSIONS.SF_M2.metric };
+  return { value: totalSF, unit: UNIT_CONVERSIONS.SF_M2.imperial };
+}
 function officeOptionInfo(opt){
   const byId=new Map((state.SPACES||[]).map(r=>[r.__id,r]));
   const recs=opt.spaceIds.map(id=>byId.get(id)).filter(Boolean);
   const buildings=[...new Set(recs.map(r=>r.PROPERTY_NAME).filter(v=>v!=null && v!==""))];
   const floors=[...new Set(recs.map(r=>r.LEVEL_FLOOR).filter(v=>v!=null && v!==""))];
-  return { buildings: buildings.join(", ")||"(unnamed building)", floors: floors.join(", "), count: recs.length, area: officeOptionAreaSF(opt.spaceIds) };
+  const areaDisp=officeOptionAreaForDisplay(opt.spaceIds);
+  return { buildings: buildings.join(", ")||"(unnamed building)", floors: floors.join(", "), count: recs.length, area: areaDisp.value, areaUnit: areaDisp.unit };
 }
 function renderOfficeOptionsPanel(){
   const list=document.getElementById("officeOptionsList");
   if(!list) return;
   if(!officePresOptions.length){
-    list.innerHTML=`<div class="empty">No options built yet. Go to Spaces, check the floors you want to offer, then use "Group as one option" or "Add individually".</div>`;
+    list.innerHTML=`<div class="empty">No options built yet. Check the floors you want to offer, then use "Group as one option" or "Add individually".</div>`;
     return;
   }
   list.innerHTML=officePresOptions.map((opt,i)=>{
@@ -6763,18 +6800,20 @@ function renderOfficeOptionsPanel(){
     return `<div class="office-option-row">
       <div class="office-option-main">
         <div class="office-option-title">${i+1}. ${escapeHtml(info.buildings)} ${badge}</div>
-        <div class="office-option-sub">${info.floors?`Floor(s): ${escapeHtml(info.floors)} — `:""}${info.count} space(s) — ${fmt(Math.round(info.area))} SF</div>
+        <div class="office-option-sub">${info.floors?`Floor(s): ${escapeHtml(info.floors)} — `:""}${info.count} space(s) — ${fmt(Math.round(info.area))} ${info.areaUnit}</div>
       </div>
       <button type="button" class="icon-btn" title="Remove this option" onclick="removeOfficePresOption('${opt.id}')">✕</button>
     </div>`;
   }).join("");
 }
-function openOfficeOptionsPanel(){
-  renderOfficeOptionsPanel();
-  document.getElementById("officeOptionsOverlay").classList.add("show");
-}
-function closeOfficeOptionsPanel(){
-  document.getElementById("officeOptionsOverlay").classList.remove("show");
+/* v4.1.1, pedido explícito del usuario: "el botón de presentation options lo pueda usar para mostrar u
+   ocultar ese panel" — un solo toggle (antes eran openOfficeOptionsPanel()/closeOfficeOptionsPanel(),
+   abrían/cerraban el modal `.overlay` que ya no existe). El estado (`officeOptionsPanelOpen`) lo lee/actualiza
+   renderTable() en cada render — ver ese bloque, junto a `officeOptionsBtn`. */
+let officeOptionsPanelOpen=false;
+function toggleOfficeOptionsPanel(){
+  officeOptionsPanelOpen=!officeOptionsPanelOpen;
+  renderTable();
 }
 function renderPresSelectedList(list){
   const el=document.getElementById("presSelectedList");

@@ -2514,6 +2514,36 @@ reusa literalmente `renderOfficeOptionsPanel()` (parametrizada con `targetId`, v
   `localStorage`) — pero `officePresCoverInfo`/`officePresShowState` (Cliente/Fecha, qué secciones se
   muestran) SÍ persisten en `localStorage`, igual que sus equivalentes de Propiedades/Terrenos.
 
+**Etapa 2, ajustes (v4.2.1, pedidos explícitos del usuario tras la primera prueba)**:
+- **Bug real: "hice una prueba de impresión y no me mostró nada... hojas en blanco"** — causa confirmada:
+  las 2 reglas CSS de `@media print`/`body.printing-deck` que hacen visible el deck activo
+  (`#presPages`/`#landPresPages{visibility:visible}` y su versión `position:static`) nunca se habían
+  extendido a `#officePresPages` — heredaba `visibility:hidden` de la regla `body *` de arriba sin importar
+  que `preparePrintPageSize()` sí midiera bien sus `.deck-page`. Se agregó `#officePresPages` a ambas reglas
+  (ver `@media print` y el bloque `body.printing-deck` cerca de la línea 590 del HTML).
+- **Reordenar Opciones (drag&drop)** — mismo mecanismo que `.pres-item` de Propiedades
+  (`officeOptionDragStart`/`DragOver`/`Drop` sobre `officePresOptions`, `FC_DRAG_ICON` incluido). Funciona
+  en los 2 lugares donde vive `renderOfficeOptionsPanel()` (panel acoplado de Spaces y sidebar del deck),
+  porque ambos pintan el mismo `officePresOptions` — reordenar en cualquiera de los 2 refresca ambos (y el
+  deck completo, si está activo, porque el orden también cambia la numeración de páginas/pines).
+- **Selector "Units" propio del deck** (`officePresUnitSelect`/`officePresUnitPref`, con su propio
+  `localStorage`) — controla el área mostrada en el sidebar de Opciones DE ESTE deck, independiente del
+  selector "Units" de la tabla de Spaces (`unitViewPref`, que sigue controlando el panel acoplado ahí).
+  `officeOptionAreaForDisplay()`/`officeOptionInfo()`/`renderOfficeOptionsPanel()` ahora aceptan un
+  `unitPref` opcional (default `unitViewPref` si se omite) para poder pasar cualquiera de los 2 según dónde
+  se esté pintando la lista.
+- **Rediseño del Mapa** (referencia visual del usuario): reemplaza el badge flotante genérico de
+  `.map-page-badge`/`.map-page-attribution` por un banner blanco arriba (emblema de Citius —
+  `CITIUS_ICON_SRC`, el ícono circular solo, SIN el wordmark "Citius AG" que sí usa `DECK_LOGO_SRC` en los
+  otros 2 decks — + nombre del Mercado) y un banner amarillo a la derecha (cada Submercado con la lista
+  numerada de sus edificios, `.office-map-legend`). Los pines del mapa y los números de la leyenda usan la
+  MISMA lista reordenada por submercado (`officePresBuildingsGroupedBySubmarket()`, calculada una sola vez
+  en `renderOfficePresentationView()` y reusada tanto para el HTML de la leyenda como para
+  `renderOfficePresMap()`) — nunca la lista cruda de `officePresBuildingList()`, para que un pin y su número
+  en la leyenda siempre calcen. La página conserva la clase `.map-page` (además de la nueva
+  `.office-map-page`) a propósito: `preparePrintPageSize()` agrupa el tamaño de impresión por esa clase (ver
+  `groupOf()`), perderla la habría hecho caer en el grupo "tablePage" por default.
+
 **Etapa 2, pendiente**: la página de comparación de Opciones (formato aún por confirmar contra la
 referencia completa de 37 páginas — 1 página de detalle + 1 de fotos por Opción, más un "Resumen de
 Espacios Propuestos" final), y las páginas divisoras por submercado (usarían `OFFICE_DIVIDER_IMAGE_SRC`, ya

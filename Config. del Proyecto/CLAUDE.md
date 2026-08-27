@@ -2471,12 +2471,53 @@ distinto de Propiedades/Terrenos, pensado para ofrecer pisos (Spaces) a un clien
   Normalizado a SF antes de sumar reusando `areaValueInSF()` (mismo criterio que Resumen, v3.51.8) para no
   mezclar SF y m² como si fueran el mismo número.
 
-**Etapa 2 (pendiente, NO empezada)**: diseño y generación del deck en sí (comparación de Opciones + info de
-edificio/piso, foto, plano), formato a confirmar contra la referencia real de Citius AG que compartió el
-usuario (`Arca 4,000 m2 (VM).pdf` — 37 páginas: portada, mapa de submercados, 1 página de detalle + 1 de
-fotos por edificio/opción, y un "Resumen de Espacios Propuestos" final con una tabla comparativa de todas
-las opciones). `officePresOptions` ya trae todo lo necesario (los Space `__id` incluidos en cada Opción), la
-Etapa 2 debería poder consumirlo sin tener que tocar la Etapa 1.
+**Etapa 2, primera parte (Cover/Mapa/Cierre — v4.2.0 en construcción, pedido explícito del usuario: "de
+entrada ya vayamos generando la portada, el mapa, y el cierre")**: el deck real de Oficinas, como 3ra opción
+del mini-menú "Presentación" (`togglePresentationMenu`/`selectPresentationMenuOption('oficinas')`), deck
+SEPARADO de Propiedades/Terrenos (mismo criterio de siempre) — `showOfficePresentationView()`/
+`renderOfficePresentationView()`, shell `#officePresentationView` (sidebar + `#officePresPages`) y
+`#officePresTopbarControls` (Design/Cover data/Print, mismo patrón que Terrenos, sin checkbox "Table" porque
+esa página no existe todavía). Diferencia real con Propiedades/Terrenos: este deck **no tiene su propio
+checkbox de selección** — solo LEE `officePresOptions` (la Etapa 1, arriba), nunca la modifica; el sidebar
+reusa literalmente `renderOfficeOptionsPanel()` (parametrizada con `targetId`, v4.2.0) apuntando a
+`#officePresSelectedList`, una sola fuente de verdad.
+
+- **3 imágenes nuevas** (`OFFICE_COVER_IMAGE_SRC`/`OFFICE_DIVIDER_IMAGE_SRC`/`OFFICE_CLOSING_IMAGE_SRC`),
+  tomadas de `Config. del Proyecto/Logo/OFFICINA_PORTADA.jpeg`/`OFFICINA_SEPARADOR.jpeg`/`OFFICINA_CIERRE.jpeg`
+  (compartidas por el usuario) y embebidas en base64 exactamente igual que `COVER_IMAGE_SRC`/
+  `CLOSING_IMAGE_SRC` de Propiedades/Terrenos — Oficinas necesitaba fondos propios (distintos), así que no
+  comparte esas 2 constantes. `OFFICE_DIVIDER_IMAGE_SRC` ("Separador") **todavía no se usa en ninguna
+  página** — reservada para las páginas divisoras por submercado de una etapa posterior (ver la referencia de
+  37 páginas del usuario, `Arca 4,000 m2 (VM).pdf`), se dejó lista de una vez.
+- **Portada** (`buildOfficeCoverPageHtml`): a diferencia de `.cover-overlay` de Propiedades/Terrenos
+  (mes/año + m² + lista de mercados), la imagen base de Oficinas YA trae "Análisis de Mercado" quemado en la
+  foto — el overlay dinámico (`.office-cover-overlay`, nueva clase CSS) es solo "Para: / [Cliente] /
+  [Fecha]", 2 campos (`officePresCoverInfo`, editables desde "Cover data") en vez de los 5 de Propiedades
+  (sin Size/Markets/Brokers/Company — no aplican a este formato de portada).
+- **Mapa** (`buildOfficeMapPageHtml`/`renderOfficePresMap`, propia instancia `officePresMapInstance` +
+  canvas `#officePresMapCanvas`, mismo patrón CARTO Voyager + `declutterMapPins` que los otros 2 mapas):
+  los pines NO son los Spaces de `officePresOptions` (varios pisos del mismo edificio serían el mismo pin
+  repetido) sino los **edificios (OFICINAS) únicos** referenciados por esas Opciones —
+  `officePresBuildingList()` resuelve cada Space a su Oficina vía `MAPPING_CODE` y deduplica.
+- **Cierre**: `buildClosingPageHtml()` se parametrizó (`imgSrc` opcional, default `CLOSING_IMAGE_SRC` — sin
+  cambios para Propiedades/Terrenos) en vez de duplicarse una 3ra vez, ya que el resto de esa página sigue
+  siendo agnóstico de entidad; Oficinas la llama como `buildClosingPageHtml(OFFICE_CLOSING_IMAGE_SRC)`.
+- **Guard de cross-contaminación** (mismo criterio que Propiedades↔Terrenos): `renderPresentationView()` y
+  `renderLandPresentationView()` ahora TAMBIÉN limpian `#officePresPages`, y
+  `renderOfficePresentationView()` limpia `#presPages`/`#landPresPages` — en cualquier momento dado solo el
+  deck que se está viendo tiene páginas reales en el DOM (`preparePrintPageSize()`/impresión buscan
+  `.deck-page` de forma global, sin distinguir contenedor).
+- **Imprimir/PDF** (`officePresPrintBtn`) — mismo flujo exacto que Propiedades/Terrenos,
+  `buildOfficePresPdfFilename()` usa el nombre del Cliente. `preparePrintPageSize()` no necesitó ningún
+  cambio (ya agrupa por clase `.cover-page`/`.map-page`, agnóstico de qué deck las generó).
+- Sin persistir nada de `officePresOptions` (eso sigue siendo la Etapa 1, deliberadamente sin
+  `localStorage`) — pero `officePresCoverInfo`/`officePresShowState` (Cliente/Fecha, qué secciones se
+  muestran) SÍ persisten en `localStorage`, igual que sus equivalentes de Propiedades/Terrenos.
+
+**Etapa 2, pendiente**: la página de comparación de Opciones (formato aún por confirmar contra la
+referencia completa de 37 páginas — 1 página de detalle + 1 de fotos por Opción, más un "Resumen de
+Espacios Propuestos" final), y las páginas divisoras por submercado (usarían `OFFICE_DIVIDER_IMAGE_SRC`, ya
+embebida y lista).
 
 ## Convención de versionado
 

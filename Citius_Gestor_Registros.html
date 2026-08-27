@@ -1028,7 +1028,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v3.47.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v4.0.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -2927,6 +2927,16 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"4.0.0", date:"2026-08-27", items:[
+    "New module: Offices — full capture (Identification, Location, Characteristics, Measures, General Facilities, Parking), same conventions as Buildings/Land. Photos (Facade, Lobby, Amenities (1)/(2)) saved at higher resolution/quality (900×608 @ 92%) than the rest of the system. Own layer on the Map (polygons and pins), alongside Properties/Parks/Land.",
+    "New module: Spaces — individual leasable units (floors/suites) linked to an Office by Mapping Code, with its own \"Measurements\" tab (Available Area, Net Leasable Area, Net Useable Area, Terrace Area) and photos (Layout, Interior (1)-(4)). Property Name/Market Status/Region/State/Market/Submarket/Available Area stay in sync automatically whenever the linked Office is edited (including a Mapping Code change) — no need to re-select it by hand.",
+    "Amenities (Offices/Spaces) is now a multi-select dropdown instead of a single-choice list.",
+    "Transactions: new \"Property Type\" category selector (Buildings/Parks/Land/Offices) at the top of the form, deciding which fields show — Buildings/Parks/Land keep the exact same fields/behavior as before; Offices uses its own set (Space Use, Offices Type, Lease Expiration Aprox, etc.). For Offices specifically, \"Select…\" now picks the Spaces (floors) that actually closed in the deal instead of the building directly — supports selecting several floors in one transaction (locked to a single Office at a time) and shows them in a new \"Transacted Spaces\" field.",
+    "Fixed: Summary was adding SF and m² area values together as if they were the same number (Total Market and every other KPI/breakdown table) — everything now converts to SF before summing.",
+    "Fixed: a decimal value typed as \".2\" (without the leading 0) failed to save, across every entity in the system.",
+    "Saving a record now requires its own ID (Mapping Code / ID Park / ID Land / Space Code) — before, an empty ID didn't actually block saving even though it showed as required.",
+    "Fixed: unlinking the data Excel, or exiting Consolidated Mode, left stale Offices/Spaces data behind (only the original 3 entities were being cleared)."
+  ]},
   {version:"3.47.0", date:"2026-08-26", items:[
     "Transactions: added new Gross-only fields (COMPS Sale Price, Free Rent, TI Allowance, Cap Rate, Data Source, Verified By, Verification Date) and renamed the existing \"COMPS\" field to \"COMPS (LEASE)\" to distinguish it from the new sale-comp fields.",
     "Fixed the Location Map basemap in the Properties and Land presentations, plus the \"Light streets\" option on the Map page: CARTO stopped serving those tiles without an API key, so they showed an \"API KEY REQUIRED\" watermark instead of the actual map. Added a CARTO API key and a small OpenStreetMap/CARTO credit on the two Location Map widgets (required by the terms of the free key)."

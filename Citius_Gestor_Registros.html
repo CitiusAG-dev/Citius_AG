@@ -5139,8 +5139,13 @@ function buildViewForm(ent, record){
       // v3.44.7 (ajuste, pedido explícito del usuario): mismo forzado de fila nueva que buildForm() — ver
       // su comentario junto a TRANSACCION_AUTOFILL_READONLY_KEYS. v3.45.16: se agregan ADRESS/LATITUDE
       // (sin restricción de entidad) para que la vista de solo lectura muestre las mismas filas separadas
-      // que ahora usa el modo edición (ver ese mismo comentario en renderStandaloneField).
-      const forceNewRow=((ent==="TRANSACCIONES" && f.key==="REGION") || f.key==="ADRESS" || f.key==="LATITUDE") ? ' style="grid-column:1"' : "";
+      // que ahora usa el modo edición (ver ese mismo comentario en renderStandaloneField). v3.51.5, bug
+      // reportado por el usuario (captura real): esta copia se quedó fija en TRANSACCIONES desde antes de
+      // que existiera Spaces — buildForm() (edición) SÍ fuerza fila nueva para REGION de Spaces desde la
+      // etapa 3 (ver el `if(ent==="SPACES" && SPACE_AUTOFILL_READONLY_KEYS.has(f.key))` de más arriba), pero
+      // esta vista de solo lectura no, así que Region/State/Market/Submarket solo quedaban en la misma fila
+      // en modo edición, no en modo vista.
+      const forceNewRow=(((ent==="TRANSACCIONES"||ent==="SPACES") && f.key==="REGION") || f.key==="ADRESS" || f.key==="LATITUDE") ? ' style="grid-column:1"' : "";
       html+=`<div class="field"${forceNewRow}><label>${fieldLabel(f.key)}${reqMark}${helpIcon}</label><div class="view-val${mismatchCls}"${mismatchTitle}>${displayVal}</div></div>`;
     });
     html+=`</div>`;

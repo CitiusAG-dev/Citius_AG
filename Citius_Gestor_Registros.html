@@ -466,7 +466,15 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      letra") — se dejó de usar el estilo propio con línea+serif chico y ahora reusa literal `.deck-header`/
      `.deck-logo` (34px + 32px, la misma especificación de "Building Options" que ya usa el Mapa), sin
      agregar ninguna clase nueva. */
+  /* v4.4.7, bug real reportado por el usuario (persistía tras quitar `white-space:nowrap` en v4.4.6): la
+     causa de fondo era otra — un hijo de CSS Grid tiene `min-width:auto` por default (no `0`), así que el
+     TRACK de la columna podía terminar creciendo (o el contenido desbordándose sin encogerse) para no
+     bajar del ancho mínimo de su contenido, sin importar que la tabla tuviera `table-layout:fixed`/texto
+     que sí podía envolver — un problema conocido de tablas dentro de Grid/Flexbox. `min-width:0` en los
+     hijos directos de la grilla (y en la tabla misma, por si acaso) fuerza a que sí respeten el ancho de su
+     columna en vez de desbordarse. */
   .office-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px 40px;margin-bottom:16px}
+  .office-detail-grid>div{min-width:0}
   .office-detail-photo{width:100%;aspect-ratio:4/3;background:#eee;border:1px solid var(--line);
                         overflow:hidden;display:flex;align-items:center;justify-content:center}
   .office-detail-photo img{width:100%;height:100%;object-fit:cover;display:block}
@@ -504,7 +512,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      tenemos"): antes la etiqueta era gris + peso normal y el valor negrita; ahora la etiqueta es gris +
      negrita (mismo gris de antes, solo se le agrega negrita — el usuario no pidió cambiar el color) y el
      valor pasa a peso normal. */
-  .office-detail-table{width:100%;border-collapse:collapse;font-size:14px;table-layout:fixed}
+  .office-detail-table{width:100%;min-width:0;border-collapse:collapse;font-size:14px;table-layout:fixed}
   .office-detail-table tr{border-bottom:1px solid var(--line)}
   .office-detail-table tr:last-child{border-bottom:none}
   .office-detail-table td{padding:7px 0}
@@ -519,7 +527,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      `table-layout:fixed` (columna de ancho fijo) un valor largo como una lista de Amenidades no tenía a
      dónde ir más que desbordarse fuera de la celda. Quitado — el texto ahora envuelve normal dentro de su
      columna, como cualquier valor largo debería. */
-  .office-detail-table td:last-child{font-weight:400}
+  .office-detail-table td:last-child{font-weight:400;overflow-wrap:break-word}
   /* v4.4.2: 2do incremento de letra pedido explícito ("quiero que las notas sean un poco más grandes"),
      tras el primer incremento de v4.4.1 (9px -> 11px) resultar insuficiente. */
   /* v4.4.3: reducida un poco, pedido explícito del usuario — 13px (v4.4.2) se sentía grande. */

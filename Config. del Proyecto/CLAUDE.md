@@ -2767,6 +2767,15 @@ detalle por Opción + selector de idioma EN/ES.**
   (`top:33.3%`, `transform:translateY(-50%)` para centrarlo verticalmente sobre ese punto) arrancando justo
   después de donde termina la línea real (`left:6.5%`). Letra más grande (32px → 40px).
 
+**Etapa 3, v4.4.7 — el desborde de texto (Amenidades) seguía pasando tras v4.4.6**: quitar `white-space:
+nowrap` no fue suficiente porque la causa de fondo era otra. Un hijo de CSS Grid tiene `min-width:auto` por
+default (no `0`) — el TRACK de la columna (o la tabla dentro de él) podía terminar desbordándose sin
+encogerse para no bajar del ancho mínimo de su contenido, sin importar que la tabla ya tuviera
+`table-layout:fixed` y texto que sí podía envolver (un problema conocido de tablas dentro de Grid/Flexbox).
+Fix: `min-width:0` en los hijos directos de `.office-detail-grid` y en `.office-detail-table` misma, más
+`overflow-wrap:break-word` en `td:last-child` como red de seguridad para un valor sin espacios donde
+envolver.
+
 **Etapa 3, pendiente**: el "Resumen de Espacios Propuestos" final (tabla comparativa de todas las Opciones).
 
 ## Convención de versionado

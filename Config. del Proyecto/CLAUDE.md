@@ -2785,6 +2785,11 @@ reemplazó por 2 `<div>` en fila (flexbox, `.office-detail-row`/`.office-detail-
 simple y confiable para que un texto largo (Amenidades) envuelva dentro de su columna. `officeDeckInfoTableHtml()`
 ya no genera un `<table>`, genera estos `<div>`.
 
+**Etapa 3, v4.4.9, pedido explícito del usuario**: "Floor(s)"/"Nivel(es)" se movió de 1er lugar en
+"Información del Espacio" a justo debajo de "Delivery Condition"/"Condición de Entrega" (`officeDeckSpaceInfoRows()`)
+— las menciones más arriba en este documento de que es "la 1ra fila" quedan como historial de la Etapa 3
+original, ya no reflejan el orden actual.
+
 **Etapa 3, pendiente**: el "Resumen de Espacios Propuestos" final (tabla comparativa de todas las Opciones).
 
 ## Convención de versionado

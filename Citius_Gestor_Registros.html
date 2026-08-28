@@ -8097,14 +8097,16 @@ function officeDeckSpaceInfoRows(opt, unitPref){
   const office=officeOptionOfficeRecord(opt);
   const info=officeOptionInfo(opt);
   const u=unitPref==="metric"?"m²":"SF";
+  // v4.4.9, pedido explícito del usuario: "Floor(s)"/"Nivel(es)" se mueve de 1er lugar a justo debajo de
+  // "Delivery Condition"/"Condición de Entrega" — el resto del orden no cambia.
   return [
-    {label:{en:"Floor(s)",es:"Nivel(es)"}, value: info.floors||"—"},
     {label:{en:`Net Leasable Area (${u})`,es:`Área Neta Rentable (${u})`},
      value: officeDeckAreaText(sumSpacesAreaSF(recs,"NET_LEASABLE_AREA_VALUE"), unitPref)},
     {label:{en:`Net Useable Area (${u})`,es:`Área Neta Útil (${u})`},
      value: officeDeckAreaText(sumSpacesAreaSF(recs,"NET_USEABLE_AREA_VALUE"), unitPref)},
     {label:{en:"Delivery Condition",es:"Condición de Entrega"},
      value: officeDeckPlainFmt(officePresTranslateValue("CONDITION", primary&&primary.CONDITION))},
+    {label:{en:"Floor(s)",es:"Nivel(es)"}, value: info.floors||"—"},
     {label:{en:"Parking Ratio",es:"Radio de Estacionamiento"},
      value: officeDeckPlainFmt(office&&office.PARKING_RATIO)},
     {label:{en:"Included Parking Spots",es:"Cajones Incluidos"},

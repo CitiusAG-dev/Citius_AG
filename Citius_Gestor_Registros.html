@@ -460,21 +460,31 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .office-detail-photo{width:100%;aspect-ratio:4/3;background:#eee;border:1px solid var(--line);
                         overflow:hidden;display:flex;align-items:center;justify-content:center}
   .office-detail-photo img{width:100%;height:100%;object-fit:cover;display:block}
-  /* El plano NO debe recortarse (pedido explícito del usuario: "no lo amplíes porque recorta la imagen,
-     tiene que verse todo lo que quepa... sin hacer que cubra todos los bordes") — a diferencia de la foto
-     del edificio/interiores (que sí llenan el recuadro con `cover`), el plano usa `contain` (se ve completo,
-     con franjas del fondo gris si no calza exacto al recuadro 4:3). */
+  /* v4.4.2, pedido explícito del usuario ("no me rellene espacio en gris... se ve que rellenó algo arriba y
+     abajo"): el recuadro genérico usa 4:3, pero los Layout de Spaces se GUARDAN siempre a 600x405
+     (PHOTO_TARGET_W/H, sin override para SPACES — ver photoTargetFor()) — 4:3=1.33 vs 600/405=1.48, esa
+     diferencia era justo el relleno gris que sobraba arriba/abajo con `contain` (v4.4.1). Con el recuadro
+     ya al mismo aspect-ratio real del archivo guardado, `contain` deja de necesitar rellenar nada — sigue
+     ahí solo como red de seguridad, no como el mecanismo que resuelve el ajuste. También se quita el marco
+     (pedido explícito: "quita el contorno del recuadro de la imagen del plano"), a diferencia de la foto
+     del edificio/interiores, que sí lo conservan. */
+  .office-detail-plan{aspect-ratio:600/405;border:none}
   .office-detail-plan img{object-fit:contain}
   .office-detail-section-title{font-size:13px;font-weight:700;color:var(--accent-ink);margin-bottom:8px}
-  .office-detail-table{width:100%;border-collapse:collapse;font-size:12px}
+  /* v4.4.2, pedido explícito del usuario ("no está alineado donde comienzan los datos... quiero que
+     empiecen igual"): "Información del Espacio" y "Información del Edificio" son 2 <table> DISTINTAS —
+     sin un ancho fijo, cada una autoajustaba su columna de etiqueta al texto MÁS LARGO de ESA tabla nada
+     más, así que la columna de valor de cada una arrancaba en un punto distinto. Con `table-layout:fixed` +
+     un ancho fijo igual en las 2 tablas, ambas columnas de valor arrancan exactamente en el mismo punto. */
+  .office-detail-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
   .office-detail-table tr{border-bottom:1px solid var(--line)}
   .office-detail-table tr:last-child{border-bottom:none}
   .office-detail-table td{padding:7px 0}
-  .office-detail-table td:first-child{color:var(--muted);padding-right:12px}
+  .office-detail-table td:first-child{color:var(--muted);padding-right:12px;width:230px}
   .office-detail-table td:last-child{font-weight:600;white-space:nowrap}
-  /* v4.4.1, pedido explícito del usuario: alineada a la izquierda (antes centrada) y letra un poco más
-     grande (9px -> 11px). */
-  .office-detail-note{font-size:11px;color:var(--muted);text-align:left;margin-top:8px}
+  /* v4.4.2: 2do incremento de letra pedido explícito ("quiero que las notas sean un poco más grandes"),
+     tras el primer incremento de v4.4.1 (9px -> 11px) resultar insuficiente. */
+  .office-detail-note{font-size:13px;color:var(--muted);text-align:left;margin-top:8px}
   .office-photos-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   .office-photos-grid .office-detail-photo{aspect-ratio:4/3}
   .map-pin{background:#e03131;width:26px;height:26px;border-radius:50% 50% 50% 0;border:2px solid #fff;

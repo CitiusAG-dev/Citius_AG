@@ -2679,6 +2679,24 @@ detalle por Opción + selector de idioma EN/ES.**
   (`.office-detail-plan img{object-fit:contain}`) que lo deja con franjas del fondo gris si no calza exacto
   al recuadro 4:3, en vez de recortar bordes.
 
+**Etapa 3, ajustes (v4.4.2, pedidos explícitos del usuario tras ver el `contain` de arriba en pantalla)**:
+- **Relleno gris arriba/abajo del plano, corregido de raíz** — el recuadro genérico es 4:3 (1.33), pero los
+  Layout de Spaces se GUARDAN siempre a 600×405 (`PHOTO_TARGET_W`/`H`, SPACES no tiene entrada en
+  `PHOTO_SIZE_OVERRIDES`) — 600/405 ≈ 1.48, esa diferencia de proporción era justo el relleno gris que
+  `contain` (v4.4.1) dejaba arriba/abajo. `.office-detail-plan{aspect-ratio:600/405}` iguala el recuadro al
+  aspect-ratio REAL del archivo guardado — `contain` sigue ahí solo como red de seguridad, ya no como el
+  mecanismo que "resuelve" el ajuste rellenando.
+- **Marco del plano quitado** (`.office-detail-plan{border:none}`) — a diferencia de la foto del
+  edificio/interiores, que sí lo conservan.
+- **Alineación entre "Información del Espacio" e "Información del Edificio"** — son 2 `<table>` DISTINTAS;
+  sin ancho fijo, cada una autoajustaba su columna de etiqueta al texto más largo de ESA tabla nada más
+  (`Space` tiene etiquetas más largas, ej. "Additional Spot Cost ($/spot/month)"), así que la columna de
+  valor de cada una arrancaba en un punto horizontal distinto. Fix: `table-layout:fixed` +
+  `td:first-child{width:230px}` igual en las 2 — ahora ambas columnas de valor arrancan exactamente en el
+  mismo punto.
+- **2do incremento de letra de la nota de pie** (11px → 13px), tras el primero (v4.4.1, 9px → 11px)
+  resultar insuficiente.
+
 **Etapa 3, pendiente**: el "Resumen de Espacios Propuestos" final (tabla comparativa de todas las Opciones)
 y las páginas divisoras por submercado (usarían `OFFICE_DIVIDER_IMAGE_SRC`, ya embebida y lista).
 

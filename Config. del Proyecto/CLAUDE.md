@@ -2616,10 +2616,56 @@ reusa literalmente `renderOfficeOptionsPanel()` (parametrizada con `targetId`, v
   mapa (antes arrancaba pegada arriba, a la altura del banner blanco) y con letra más grande (11px/12px →
   13px/14px).
 
-**Etapa 2, pendiente**: la página de comparación de Opciones (formato aún por confirmar contra la
-referencia completa de 37 páginas — 1 página de detalle + 1 de fotos por Opción, más un "Resumen de
-Espacios Propuestos" final), y las páginas divisoras por submercado (usarían `OFFICE_DIVIDER_IMAGE_SRC`, ya
-embebida y lista).
+**Etapa 3 (v4.4.0 en construcción, pedido explícito del usuario con referencia visual real): página de
+detalle por Opción + selector de idioma EN/ES.**
+
+- **Selector de idioma** (`officePresLangSelect`/`officePresLangPref`, propio de este deck, con su propio
+  `localStorage`) — solo cambia el TEXTO mostrado: las etiquetas fijas de la página nueva (bilingües,
+  `{en,es}` en cada fila de `officeDeckSpaceInfoRows`/`officeDeckBuildingInfoRows`, elegidas con el helper
+  local `t(en,es)` dentro de cada `build*Html()`) y los VALORES que vienen de una lista (vía
+  `officePresTranslateValue(listName, valor)`/`officePresTranslateMulti` para AMENITIES, que usa
+  `listTranslationsEs` — la traducción global de la Etapa de Configuración > Listas, ver arriba). Los datos
+  capturados (`lists`) nunca se tocan — si no hay traducción registrada para un valor, se muestra el inglés
+  tal cual, nunca vacío.
+- **2 páginas por Opción** (`buildOfficeOptionDetailPageHtml`/`buildOfficeOptionPhotosPageHtml`), agregadas
+  entre Mapa y Cierre, con su propio toggle "Options" en el panel Design (`officePresShowState.options`,
+  default `true`):
+  1. Foto del edificio (arriba-izq) + tabla "Información del Espacio" (arriba-der) + Plano (abajo-izq) +
+     tabla "Información del Edificio" (abajo-der). La 1ra fila de "Información del Espacio" es "Nivel(es)"
+     (pedido explícito del usuario: "esta información esté en la tabla como primer dato antes de área neta
+     rentable, justo como ya lo muestra en el selector de espacios" — reusa el mismo `info.floors` que ya
+     arma `officeOptionInfo()` para el panel de Opciones).
+  2. 4 fotos de interior.
+  - **Regla de grupo, confirmada explícitamente por el usuario**: cuando una Opción agrupa 2+ Spaces, la
+    foto del edificio/plano/4 fotos de interior SIEMPRE se toman del **primer Space del grupo**
+    (`officeOptionPrimarySpace()`, primer elemento de `opt.spaceIds` en el orden en que se marcaron) —
+    NUNCA se combinan fotos de varios Spaces en una sola página. Las ÁREAS sí se SUMAN entre todos los
+    Spaces del grupo (`sumSpacesAreaSF`, mismo criterio que ya usaba `officeOptionAreaSF` para el sidebar);
+    el resto de los campos del Space (condición, disponibilidad, tarifas) usa el primer Space, mismo
+    criterio que las fotos — documentado aquí por si el usuario pide un criterio distinto más adelante (ej.
+    mostrar un rango cuando los pisos del grupo difieren).
+  - **Fallback de las 4 fotos de interior, pedido explícito del usuario**: slots 1-2 son SIEMPRE Interior
+    (1)/(2) del Space primario; slots 3-4 son Interior (3)/(4) del MISMO Space **si existen**
+    (`hasPhoto()`), y si no, caen a Lobby + la 1ra foto de Amenidades del EDIFICIO ("si no tiene 4 fotos
+    del interior sería usar al menos 2... las otras 2 de abajo serían del Lobby y la primera de amenidades
+    del edificio").
+  - **Mapeo de campos** (`officeDeckSpaceInfoRows`/`officeDeckBuildingInfoRows`) — elegido a falta de un
+    campo 1:1 exacto en algunos casos, documentado para que el usuario lo corrija si no es lo que esperaba:
+    "Uso del Edificio" usa `CATEGORY_OFFICES` (no hay un campo "Building Use" separado); "Desarrollador" usa
+    `OFICINAS.DEVELOPER` (lista de códigos A/B/C/D, igual que en el resto de la app). Tarifas (Precio de
+    renta/Mantenimiento/Costo de cajón) reusan el mismo criterio de `presValueFor()` de Propiedades: 2
+    decimales siempre, prefijo "MX $"/"US $" real (`presCurrencyPrefix`, agnóstica de entidad),
+    convertidas a la unidad de área elegida vía `convertCellForView` (ya sabe convertir la lista
+    CON_COMERCIAL, ej. "MXN/SF" ↔ "MXN/m²" — sin necesitar ningún cambio ahí).
+  - **`renderOfficePresentationView()` ahora es `async`** — primer deck de Oficinas con fotos reales, por
+    lo que `await ensurePhotoSet()` antes de decidir el fallback (necesita saber si Interior 3/4 existen
+    ANTES de renderizar) y `revokeAllDeckPhotoUrls()` al inicio (mismo criterio que
+    `renderPresentationView()` de Propiedades). `.office-detail-page` es una `.deck-page` normal (padding
+    de siempre, sin aspect-ratio forzado) — cae en el bucket "tablePage" por default de
+    `preparePrintPageSize()`, igual que "Table"/"List" de Propiedades, sin necesitar ningún cambio ahí.
+
+**Etapa 3, pendiente**: el "Resumen de Espacios Propuestos" final (tabla comparativa de todas las Opciones)
+y las páginas divisoras por submercado (usarían `OFFICE_DIVIDER_IMAGE_SRC`, ya embebida y lista).
 
 ## Convención de versionado
 

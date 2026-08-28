@@ -448,6 +448,30 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .office-map-legend-list li{margin-bottom:5px}
   .office-map-page .office-map-note{left:16px;right:calc(24% + 16px)}
   body.printing-deck .deck-page.office-map-page{padding:0}
+  /* Página de detalle de Opción (v4.4.0 en construcción) — foto+tabla arriba, plano+tabla abajo (página 1)
+     o 4 fotos (página 2), referencia visual del usuario. Usa la clase `.deck-page` de siempre (padding
+     26px 30px normal, sin aspect-ratio forzado) — cae en el bucket "tablePage" por default de
+     preparePrintPageSize(), igual que "Table"/"List" de Propiedades, sin necesitar ningún cambio ahí. */
+  .office-detail-header{margin-bottom:10px}
+  .office-detail-logo{width:26px;height:26px;object-fit:contain}
+  .office-detail-title-row{display:flex;align-items:center;gap:10px;margin-bottom:20px}
+  .office-detail-title-rule{width:26px;height:1px;background:#c9cbcf;flex-shrink:0}
+  .office-detail-title{font-family:'Dala Moa',Georgia,serif;font-size:20px;font-weight:400;color:#6b6f76}
+  .office-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px 40px;margin-bottom:16px}
+  .office-detail-photo{width:100%;aspect-ratio:4/3;background:#eee;border:1px solid var(--line);
+                        overflow:hidden;display:flex;align-items:center;justify-content:center}
+  .office-detail-photo img{width:100%;height:100%;object-fit:cover;display:block}
+  .office-detail-section-title{font-size:13px;font-weight:700;color:var(--accent-ink);margin-bottom:8px}
+  .office-detail-table{width:100%;border-collapse:collapse;font-size:12px}
+  .office-detail-table tr{border-bottom:1px solid var(--line)}
+  .office-detail-table tr:last-child{border-bottom:none}
+  .office-detail-table td{padding:7px 0}
+  .office-detail-table td:first-child{color:var(--muted);padding-right:12px}
+  .office-detail-table td:last-child{font-weight:600;white-space:nowrap}
+  .office-detail-plan-caption{font-size:11px;color:var(--muted);margin-top:6px}
+  .office-detail-note{font-size:9px;color:var(--muted);text-align:center;margin-top:8px}
+  .office-photos-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .office-photos-grid .office-detail-photo{aspect-ratio:4/3}
   .map-pin{background:#e03131;width:26px;height:26px;border-radius:50% 50% 50% 0;border:2px solid #fff;
            transform:rotate(-45deg);box-shadow:0 2px 5px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center}
   .map-pin a{transform:rotate(45deg);color:#fff;font-weight:700;font-size:11px;font-family:'Unitext',sans-serif;text-decoration:none}
@@ -1260,6 +1284,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
           <div class="pres-design-panel" id="officePresDesignPanel">
             <label><input type="checkbox" id="officePresShowCover"> Cover</label>
             <label><input type="checkbox" id="officePresShowMap"> Map</label>
+            <label><input type="checkbox" id="officePresShowOptions"> Options</label>
             <label><input type="checkbox" id="officePresShowClosing"> Closing</label>
           </div>
         </div>
@@ -1272,6 +1297,16 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
           <select id="officePresUnitSelect">
             <option value="imperial">Imperial</option>
             <option value="metric">Metric</option>
+          </select>
+        </div>
+        <!-- v4.4.0, pedido explícito del usuario: control de idioma EN/ES — solo cambia el texto mostrado
+             (etiquetas fijas de la página de Opción + valores de listas vía listTranslationsEs), nunca los
+             datos capturados (que siguen siendo 100% inglés, ver officePresTranslateValue/Multi en el JS). -->
+        <div class="unit-view-select" title="Language the presentation is generated in">
+          <label for="officePresLangSelect">Language</label>
+          <select id="officePresLangSelect">
+            <option value="en">English</option>
+            <option value="es">Español</option>
           </select>
         </div>
         <button type="button" class="btn ghost" id="officePresCoverEditBtn" title="Edit the cover's client and date">
@@ -7898,8 +7933,9 @@ function renderOfficePresMap(list){
     declutterMapPins(officePresMapInstance, markerData);
   },50);
 }
+// v4.4.0: se agrega `options` (la página de detalle + fotos por Opción, ver más abajo) al default.
 const OFFICE_PRES_SHOW_KEY="citius_office_pres_show_v1";
-function loadOfficePresShowState(){ try{ const s=localStorage.getItem(OFFICE_PRES_SHOW_KEY); if(s) return JSON.parse(s); }catch(e){} return {cover:true, map:true, closing:true}; }
+function loadOfficePresShowState(){ try{ const s=localStorage.getItem(OFFICE_PRES_SHOW_KEY); if(s) return JSON.parse(s); }catch(e){} return {cover:true, map:true, options:true, closing:true}; }
 function saveOfficePresShowState(){ try{ localStorage.setItem(OFFICE_PRES_SHOW_KEY, JSON.stringify(officePresShowState)); }catch(e){} }
 let officePresShowState=loadOfficePresShowState();
 /* Selector "Units" propio del deck de Oficinas (v4.2.1, pedido explícito del usuario) — controla el área
@@ -7909,11 +7945,210 @@ const OFFICE_PRES_UNIT_KEY="citius_office_pres_unit_v1";
 function loadOfficePresUnitPref(){ try{ return localStorage.getItem(OFFICE_PRES_UNIT_KEY)||"imperial"; }catch(e){ return "imperial"; } }
 function saveOfficePresUnitPref(){ try{ localStorage.setItem(OFFICE_PRES_UNIT_KEY, officePresUnitPref); }catch(e){} }
 let officePresUnitPref=loadOfficePresUnitPref();
+/* Selector de idioma (v4.4.0, pedido explícito del usuario) — EN/ES, propio de este deck. Nunca toca
+   `lists`/los datos capturados (siempre en inglés, ver `officePresTranslateValue`/`Multi` abajo) — solo
+   decide qué texto (etiquetas fijas de la página de Opción + valores de listas vía `listTranslationsEs`)
+   se muestra en el HTML de la presentación. */
+const OFFICE_PRES_LANG_KEY="citius_office_pres_lang_v1";
+function loadOfficePresLangPref(){ try{ return localStorage.getItem(OFFICE_PRES_LANG_KEY)||"en"; }catch(e){ return "en"; } }
+function saveOfficePresLangPref(){ try{ localStorage.setItem(OFFICE_PRES_LANG_KEY, officePresLangPref); }catch(e){} }
+let officePresLangPref=loadOfficePresLangPref();
+/* Traduce el VALOR de un campo de lista (ej. CONDITION="Grey Shell" -> "Obra Gris") usando
+   `listTranslationsEs` — si no hay traducción registrada para ese valor, o el idioma es inglés, regresa el
+   valor tal cual (nunca se cae a "vacío"). `Multi` es para campos de selección múltiple guardados como un
+   solo string separado por comas (ej. AMENITIES, ver MULTI_LIST_FIELD_KEYS/multiListValues) — traduce cada
+   valor por separado y los vuelve a unir. */
+function officePresTranslateValue(listName, value){
+  if(officePresLangPref!=="es" || !listName || value==null || value==="") return value;
+  const map=listTranslationsEs[listName];
+  return (map && map[value]) || value;
+}
+function officePresTranslateMulti(listName, raw){
+  if(!raw) return raw;
+  if(officePresLangPref!=="es") return raw;
+  return multiListValues(raw).map(v=>officePresTranslateValue(listName,v)).join(", ");
+}
+/* ==== Página de detalle de Opción (v4.4.0 en construcción, pedido explícito del usuario con referencia
+   visual real): 2 páginas por Opción — 1) foto del edificio + "Información del espacio" arriba, plano +
+   "Información del edificio" abajo; 2) 4 fotos de interior. Reglas confirmadas explícitamente por el
+   usuario para Opciones AGRUPADAS (2+ Spaces): la foto/plano y las 4 fotos de interior SIEMPRE se toman
+   del PRIMER Space del grupo (el orden en que se fueron marcando/agregando, `opt.spaceIds[0]`) — nunca se
+   combinan fotos de varios Spaces en una sola página. Las ÁREAS sí se suman entre todos los Spaces del
+   grupo (igual que ya hace officeOptionAreaSF para el sidebar); el resto de los campos de "Información del
+   espacio" (condición, disponibilidad, tarifas) se toman también del primer Space — mismo criterio que las
+   fotos, documentado aquí por si el usuario pide un criterio distinto más adelante (ej. mostrar un rango). */
+function officeOptionSpaceRecords(opt){
+  const spaceById=new Map((state.SPACES||[]).map(r=>[r.__id,r]));
+  return opt.spaceIds.map(id=>spaceById.get(id)).filter(Boolean);
+}
+function officeOptionOfficeRecord(opt){
+  const recs=officeOptionSpaceRecords(opt);
+  if(!recs.length) return null;
+  const officeByCode=new Map((state.OFICINAS||[]).map(r=>[r.MAPPING_CODE,r]));
+  return officeByCode.get(recs[0].MAPPING_CODE)||null;
+}
+function officeOptionPrimarySpace(opt){ return officeOptionSpaceRecords(opt)[0]||null; }
+function sumSpacesAreaSF(recs, valueKey){ let t=0; recs.forEach(r=>{ t+=areaValueInSF(r,valueKey); }); return t; }
+function sumSpacesNumber(recs, key){ let t=0; recs.forEach(r=>{ const n=Number(r[key]); if(!isNaN(n)) t+=n; }); return t; }
+/* Formato de texto PLANO (nunca el HTML con <span class="muted"> que regresa el fmt() genérico de la
+   tabla principal para valores vacíos) — las celdas de esta página se escapan con escapeHtml() antes de
+   insertarse; escapar ese <span> lo mostraría como texto literal en vez de renderizarlo. */
+function officeDeckPlainFmt(v){
+  if(v===undefined||v===null||v==="") return "—";
+  if(typeof v==="number") return v.toLocaleString("en-US");
+  return String(v);
+}
+function officeDeckAreaText(totalSF, unitPref){
+  const v=unitPref==="metric" ? totalSF*UNIT_CONVERSIONS.SF_M2.toMetric : totalSF;
+  return `${officeDeckPlainFmt(Math.round(v))} ${unitPref==="metric"?UNIT_CONVERSIONS.SF_M2.metric:UNIT_CONVERSIONS.SF_M2.imperial}`;
+}
+function officeDeckUnitConvertedText(ent, valueKey, unitKey, rec, unitPref){
+  if(!rec || rec[valueKey]==null || rec[valueKey]==="") return "—";
+  const conv=convertCellForView(ent, valueKey, unitKey, rec[valueKey], rec[unitKey], unitPref);
+  const val=typeof conv.value==="number"?Math.round(conv.value):conv.value;
+  return `${officeDeckPlainFmt(val)} ${conv.unit||""}`.trim();
+}
+/* Tarifas (Precio de renta/Mantenimiento/Costo de cajón) — mismo criterio EXACTO que ya usa el deck de
+   Propiedades para sus filas "RATE" (presValueFor): 2 decimales siempre, prefijo "MX $"/"US $" según la
+   moneda real capturada (presCurrencyPrefix, agnóstica de entidad), convertido a la unidad de área elegida
+   (convertCellForView ya sabe convertir la lista CON_COMERCIAL, ej. "MXN/SF" <-> "MXN/m²"). */
+function officeDeckRateText(ent, valueKey, unitKey, rec, unitPref){
+  if(!rec || rec[valueKey]==null || rec[valueKey]==="") return "—";
+  const conv=convertCellForView(ent, valueKey, unitKey, rec[valueKey], rec[unitKey], unitPref);
+  const prefix=presCurrencyPrefix(conv.unit||rec[unitKey]);
+  const num=Number(conv.value);
+  const numText=isNaN(num)?String(conv.value):num.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+  return prefix+numText;
+}
+function officeDeckSpaceInfoRows(opt, unitPref){
+  const recs=officeOptionSpaceRecords(opt);
+  const primary=officeOptionPrimarySpace(opt);
+  const office=officeOptionOfficeRecord(opt);
+  const info=officeOptionInfo(opt);
+  const u=unitPref==="metric"?"m²":"SF";
+  return [
+    {label:{en:"Floor(s)",es:"Nivel(es)"}, value: info.floors||"—"},
+    {label:{en:`Net Leasable Area (${u})`,es:`Área Neta Rentable (${u})`},
+     value: officeDeckAreaText(sumSpacesAreaSF(recs,"NET_LEASABLE_AREA_VALUE"), unitPref)},
+    {label:{en:`Net Useable Area (${u})`,es:`Área Neta Útil (${u})`},
+     value: officeDeckAreaText(sumSpacesAreaSF(recs,"NET_USEABLE_AREA_VALUE"), unitPref)},
+    {label:{en:"Delivery Condition",es:"Condición de Entrega"},
+     value: officeDeckPlainFmt(officePresTranslateValue("CONDITION", primary&&primary.CONDITION))},
+    {label:{en:"Parking Ratio",es:"Radio de Estacionamiento"},
+     value: officeDeckPlainFmt(office&&office.PARKING_RATIO)},
+    {label:{en:"Included Parking Spots",es:"Cajones Incluidos"},
+     value: officeDeckPlainFmt(sumSpacesNumber(recs,"ASSIGNED_PARKING_SPOTS"))},
+    {label:{en:"Additional Spot Cost ($/spot/month)",es:"Costo de Cajón Adicional ($/cajón/mes)"},
+     value: officeDeckRateText("SPACES","ADDITIONAL_SPOT_PRICE_VALUE","ADDITIONAL_SPOT_PRICE_UNIT",primary,unitPref)},
+    {label:{en:"Availability",es:"Disponibilidad"},
+     value: officeDeckPlainFmt(officePresTranslateValue("AVAILABILITY_DELIVERY", primary&&primary.AVAILABILITY_DELIVERY))},
+    {label:{en:`Asking Rent ($/${u}/month)`,es:`Precio de Renta ($/${u}/mes)`},
+     value: officeDeckRateText("SPACES","ASKING_RATE_VALUE","ASKING_RATE_UNIT",primary,unitPref)},
+    {label:{en:`Maintenance ($/${u}/month)`,es:`Mantenimiento ($/${u}/mes)`},
+     value: officeDeckRateText("SPACES","COMMON_AREA_MAINTENANCE_CAM_VALUE","COMMON_AREA_MAINTENANCE_CAM_UNIT",primary,unitPref)},
+  ];
+}
+function officeDeckBuildingInfoRows(office, unitPref){
+  if(!office) return [];
+  const u=unitPref==="metric"?"m²":"SF";
+  return [
+    {label:{en:"Developer",es:"Desarrollador"}, value: officeDeckPlainFmt(officePresTranslateValue("DEVELOPER", office.DEVELOPER))},
+    {label:{en:"Building Use",es:"Uso del Edificio"}, value: officeDeckPlainFmt(officePresTranslateValue("CATEGORY_OFFICES", office.CATEGORY_OFFICES))},
+    {label:{en:"Total Levels",es:"Niveles Totales"}, value: officeDeckPlainFmt(office.TOTAL_BUILDING_LEVELS)},
+    {label:{en:"Office Levels",es:"Niveles de Oficina"}, value: officeDeckPlainFmt(office.TOTAL_OFFICE_LEVELS)},
+    {label:{en:`Total Rentable Area (${u})`,es:`Área Rentable Total (${u})`},
+     value: officeDeckUnitConvertedText("OFICINAS","LEASABLE_AREA_GLA_VALUE","LEASABLE_AREA_GLA_UNIT",office,unitPref)},
+    {label:{en:`Typical Floor Plate (${u})`,es:`Planta Tipo (${u})`},
+     value: officeDeckUnitConvertedText("OFICINAS","FLOOR_PLATE_VALUE","FLOOR_PLATE_UNIT",office,unitPref)},
+    {label:{en:"Amenities",es:"Amenidades"}, value: officeDeckPlainFmt(officePresTranslateMulti("OFFICE_AMENITIES", office.AMENITIES))},
+    {label:{en:"Year Built",es:"Año de Construcción"}, value: officeDeckPlainFmt(office.YEAR_BUILT_DEVELOPED)},
+  ];
+}
+function officeDeckInfoTableHtml(rows){
+  return `<table class="office-detail-table">${rows.map(r=>
+    `<tr><td>${escapeHtml(officePresLangPref==="es"?r.label.es:r.label.en)}</td><td>${escapeHtml(r.value)}</td></tr>`
+  ).join("")}</table>`;
+}
+function buildOfficeOptionDetailPageHtml(opt, idx){
+  const primary=officeOptionPrimarySpace(opt);
+  const office=officeOptionOfficeRecord(opt);
+  const info=officeOptionInfo(opt);
+  const t=(en,es)=>officePresLangPref==="es"?es:en;
+  const noPhotoText=t("No photo","Sin foto");
+  return `<div class="deck-page office-detail-page">
+    <div class="office-detail-header"><img class="office-detail-logo" src="${DECK_LOGO_SRC}" alt="Citius AG"></div>
+    <div class="office-detail-title-row"><span class="office-detail-title-rule"></span><span class="office-detail-title">${idx+1}. ${escapeHtml(info.buildings||"")}</span></div>
+    <div class="office-detail-grid">
+      <div class="office-detail-photo" id="officeDetailPhoto_${idx}"><div class="image-placeholder">${noPhotoText}</div></div>
+      <div>
+        <div class="office-detail-section-title">${t("Space Information","Información del Espacio")}</div>
+        ${officeDeckInfoTableHtml(officeDeckSpaceInfoRows(opt, officePresUnitPref))}
+      </div>
+      <div>
+        <div class="office-detail-section-title">${t("Floor Plan","Plano")}</div>
+        <div class="office-detail-photo office-detail-plan" id="officeDetailPlan_${idx}"><div class="image-placeholder">${noPhotoText}</div></div>
+        <div class="office-detail-plan-caption">${info.floors?escapeHtml(`${t("Level(s)","Niveles")} ${info.floors}`):""}</div>
+      </div>
+      <div>
+        <div class="office-detail-section-title">${t("Building Information","Información del Edificio")}</div>
+        ${officeDeckInfoTableHtml(officeDeckBuildingInfoRows(office, officePresUnitPref))}
+      </div>
+    </div>
+    <p class="office-detail-note">${t(
+      "Note: This information was created by Citius AG analysts and brokers. However, Citius AG offers no guarantee as to the accuracy of the data until a formal quote.",
+      "Nota: Esta información ha sido creada por analistas y brokers de Citius AG. Sin embargo, Citius AG no ofrece garantía en cuanto a la exactitud de los datos hasta una cotización formal."
+    )}</p>
+  </div>`;
+}
+/* 2da página por Opción: 4 fotos. Pedido explícito del usuario — slots 1-2 SIEMPRE son Interior (1)/(2)
+   del Space primario (si el grupo, el primero); slots 3-4 son Interior (3)/(4) del MISMO Space si existen,
+   y si no, caen a Lobby + la 1ra foto de Amenidades del EDIFICIO ("si no tiene 4 fotos del interior sería
+   usar al menos 2... las otras 2 de abajo serían del Lobby y la primera de amenidades del edificio"). */
+function buildOfficeOptionPhotosPageHtml(opt, idx){
+  const info=officeOptionInfo(opt);
+  const t=(en,es)=>officePresLangPref==="es"?es:en;
+  const noPhotoText=t("No photo","Sin foto");
+  let html=`<div class="deck-page office-detail-page">
+    <div class="office-detail-header"><img class="office-detail-logo" src="${DECK_LOGO_SRC}" alt="Citius AG"></div>
+    <div class="office-detail-title-row"><span class="office-detail-title-rule"></span><span class="office-detail-title">${idx+1}. ${escapeHtml(info.buildings||"")}</span></div>
+    <div class="office-photos-grid">`;
+  for(let s=0;s<4;s++) html+=`<div class="office-detail-photo" id="officePhotosSlot_${idx}_${s}"><div class="image-placeholder">${noPhotoText}</div></div>`;
+  html+=`</div></div>`;
+  return html;
+}
+/* Carga real de las fotos de las 2 páginas de Opción de arriba — separada de build*Html() porque
+   loadDeckPhotoInto() es async y necesita que el <div id> ya exista en el DOM (mismo patrón que
+   loadDeckPhotoInto ya usa para Propiedades/Terrenos, llamado DESPUÉS de fijar pagesEl.innerHTML). */
+function loadOfficeOptionPages(options){
+  options.forEach((opt,idx)=>{
+    const office=officeOptionOfficeRecord(opt);
+    const primary=officeOptionPrimarySpace(opt);
+    if(office && office.MAPPING_CODE) loadDeckPhotoInto(`officeDetailPhoto_${idx}`, photoFileBase(office.MAPPING_CODE,"FACHADA"));
+    if(primary && primary.SPACE_CODE) loadDeckPhotoInto(`officeDetailPlan_${idx}`, photoFileBase(primary.SPACE_CODE,"LAYOUT"));
+    if(primary && primary.SPACE_CODE){
+      loadDeckPhotoInto(`officePhotosSlot_${idx}_0`, photoFileBase(primary.SPACE_CODE,"INTERIOR_1"));
+      loadDeckPhotoInto(`officePhotosSlot_${idx}_1`, photoFileBase(primary.SPACE_CODE,"INTERIOR_2"));
+      const code3=photoFileBase(primary.SPACE_CODE,"INTERIOR_3");
+      const code4=photoFileBase(primary.SPACE_CODE,"INTERIOR_4");
+      if(hasPhoto(code3)) loadDeckPhotoInto(`officePhotosSlot_${idx}_2`, code3);
+      else if(office && office.MAPPING_CODE) loadDeckPhotoInto(`officePhotosSlot_${idx}_2`, photoFileBase(office.MAPPING_CODE,"LOBBY"));
+      if(hasPhoto(code4)) loadDeckPhotoInto(`officePhotosSlot_${idx}_3`, code4);
+      else if(office && office.MAPPING_CODE) loadDeckPhotoInto(`officePhotosSlot_${idx}_3`, photoFileBase(office.MAPPING_CODE,"AMENIDADES_1"));
+    } else if(office && office.MAPPING_CODE){
+      loadDeckPhotoInto(`officePhotosSlot_${idx}_2`, photoFileBase(office.MAPPING_CODE,"LOBBY"));
+      loadDeckPhotoInto(`officePhotosSlot_${idx}_3`, photoFileBase(office.MAPPING_CODE,"AMENIDADES_1"));
+    }
+  });
+}
 /* Implementación real del deck de Oficinas — LEE officePresOptions (Etapa 1), nunca la modifica. Mismo
    guard de cross-contaminación que Propiedades/Terrenos: limpia los otros 2 contenedores de páginas antes
    de dibujar las suyas (preparePrintPageSize() busca .deck-page de forma global, sin distinguir contenedor).
-   Sin Tabla todavía (Stage 3) — el aviso de "nada que ver" solo lista Cover/Map/Closing. */
-function renderOfficePresentationView(){
+   v4.4.0: ahora es async — necesita `await ensurePhotoSet()` antes de decidir el fallback de fotos 3/4 (ver
+   loadOfficeOptionPages/hasPhoto arriba); revoca las URLs de foto del render anterior igual que
+   renderPresentationView() de Propiedades (primer deck de Oficinas con fotos reales). */
+async function renderOfficePresentationView(){
+  revokeAllDeckPhotoUrls();
+  await ensurePhotoSet();
   const {buildings, unresolvedCount}=officePresBuildingList();
   document.getElementById("officePresCount").textContent=`${officePresOptions.length} option(s) — ${buildings.length} building(s) in presentation`;
   renderOfficeOptionsPanel("officePresSelectedList", officePresUnitPref);
@@ -7925,8 +8160,8 @@ function renderOfficePresentationView(){
     pagesEl.innerHTML=`<div class="filters-empty">You haven't built any presentation options yet.<br>Go to Spaces, check the floors you want to offer, then use "Add Group" or "Add Individually".</div>`;
     return;
   }
-  if(!officePresShowState.cover && !officePresShowState.map && !officePresShowState.closing){
-    pagesEl.innerHTML=`<div class="filters-empty">Check "Cover", "Map", and/or "Closing" above to see the presentation.</div>`;
+  if(!officePresShowState.cover && !officePresShowState.map && !officePresShowState.options && !officePresShowState.closing){
+    pagesEl.innerHTML=`<div class="filters-empty">Check "Cover", "Map", "Options", and/or "Closing" above to see the presentation.</div>`;
     return;
   }
   // Agrupar 1 sola vez y reusar el mismo `grouped.ordered` para la leyenda del HTML y los pines del mapa —
@@ -7936,9 +8171,13 @@ function renderOfficePresentationView(){
   let html="";
   if(officePresShowState.cover) html+=buildOfficeCoverPageHtml();
   if(officePresShowState.map) html+=buildOfficeMapPageHtml(officeMapGrouped, unresolvedCount);
+  if(officePresShowState.options){
+    officePresOptions.forEach((opt,idx)=>{ html+=buildOfficeOptionDetailPageHtml(opt,idx)+buildOfficeOptionPhotosPageHtml(opt,idx); });
+  }
   if(officePresShowState.closing) html+=buildClosingPageHtml(OFFICE_CLOSING_IMAGE_SRC);
   pagesEl.innerHTML=html;
   if(officePresShowState.map) renderOfficePresMap(officeMapGrouped.ordered);
+  if(officePresShowState.options) loadOfficeOptionPages(officePresOptions);
 }
 function buildOfficePresPdfFilename(){
   const client=(officePresCoverInfo.client||"").trim();
@@ -7960,15 +8199,20 @@ document.getElementById("officePresPrintBtn").onclick=()=>{
 document.getElementById("officePresCoverEditBtn").onclick=toggleOfficeCoverEditPanel;
 const officePresShowCoverEl=document.getElementById("officePresShowCover");
 const officePresShowMapEl=document.getElementById("officePresShowMap");
+const officePresShowOptionsEl=document.getElementById("officePresShowOptions");
 const officePresShowClosingEl=document.getElementById("officePresShowClosing");
 officePresShowCoverEl.checked=officePresShowState.cover;
 officePresShowMapEl.checked=officePresShowState.map;
+officePresShowOptionsEl.checked=officePresShowState.options;
 officePresShowClosingEl.checked=officePresShowState.closing;
 officePresShowCoverEl.onchange=()=>{ officePresShowState.cover=officePresShowCoverEl.checked; saveOfficePresShowState(); renderOfficePresentationView(); };
 officePresShowMapEl.onchange=()=>{ officePresShowState.map=officePresShowMapEl.checked; saveOfficePresShowState(); renderOfficePresentationView(); };
+officePresShowOptionsEl.onchange=()=>{ officePresShowState.options=officePresShowOptionsEl.checked; saveOfficePresShowState(); renderOfficePresentationView(); };
 officePresShowClosingEl.onchange=()=>{ officePresShowState.closing=officePresShowClosingEl.checked; saveOfficePresShowState(); renderOfficePresentationView(); };
 document.getElementById("officePresUnitSelect").value=officePresUnitPref;
 document.getElementById("officePresUnitSelect").onchange=function(){ officePresUnitPref=this.value; saveOfficePresUnitPref(); renderOfficePresentationView(); };
+document.getElementById("officePresLangSelect").value=officePresLangPref;
+document.getElementById("officePresLangSelect").onchange=function(){ officePresLangPref=this.value; saveOfficePresLangPref(); renderOfficePresentationView(); };
 const PRES_COVER_KEY="citius_pres_cover_v1";
 /* `brokers`/`company` (v3.32.0) son 2 campos MÁS que se guardan junto con los 3 de siempre, pero que
    deliberadamente NUNCA se dibujan en `buildCoverPageHtml()` — el usuario los pidió para guardar este dato

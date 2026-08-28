@@ -2711,6 +2711,19 @@ detalle por Opción + selector de idioma EN/ES.**
   reordenarlas arrastrando en el sidebar). No tiene su propio toggle en Design — vive bajo "Options"
   (dividers solo tienen sentido si las páginas de Opción están visibles).
 
+**Etapa 3, ajustes (v4.4.4, pedidos explícitos del usuario)**:
+- **Tipografía real del deck** — `.office-detail-page{font-family:'Unitext',sans-serif}` (nuevo). `.deck-page`
+  nunca trae font-family propio (cada hijo lo declara aparte: `.deck-grid`/`.deck-note`/`.layout-table`); la
+  tabla de Opción nunca lo había declarado, así que caía en la fuente del sistema de la app en vez de
+  'Unitext' (la que el usuario ve en el resto de la presentación, y a la que se refería como "OpenSans").
+  Se declara UNA vez en el contenedor y cae en cascada a la tabla/nota/título de sección — `.deck-header h2`
+  (los títulos, "Dala Moa" serif) no se ve afectado, tiene su propio font-family más específico.
+- **Etiqueta/valor invertidos** ("quiero que el título de la etiqueta... esté en negritas y los datos en
+  normal, al revés de como los tenemos") — antes la etiqueta era gris + peso normal y el valor negrita;
+  ahora la etiqueta es gris + NEGRITA (mismo gris de siempre, el usuario no pidió cambiar el color) y el
+  valor pasa a peso normal.
+- Letra de la tabla más grande (12px → 14px).
+
 **Etapa 3, pendiente**: el "Resumen de Espacios Propuestos" final (tabla comparativa de todas las Opciones).
 
 ## Convención de versionado

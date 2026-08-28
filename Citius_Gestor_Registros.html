@@ -486,12 +486,25 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      sin un ancho fijo, cada una autoajustaba su columna de etiqueta al texto MÁS LARGO de ESA tabla nada
      más, así que la columna de valor de cada una arrancaba en un punto distinto. Con `table-layout:fixed` +
      un ancho fijo igual en las 2 tablas, ambas columnas de valor arrancan exactamente en el mismo punto. */
-  .office-detail-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
+  /* v4.4.4, pedido explícito del usuario: "asegúrate de que estemos usando la tipografía que tenemos en
+     las otras presentaciones" — `.deck-page` no trae ningún font-family propio (el resto de sus hijos,
+     `.deck-grid`/`.deck-note`/`.layout-table`, lo declaran cada uno a mano); esta tabla nunca lo había
+     hecho, así que caía en la fuente del sistema de la app en vez de 'Unitext' (la que el usuario ve en el
+     resto del deck). Se declara una sola vez aquí y cae en cascada a toda la tabla/nota/título de sección
+     de abajo (`.deck-header h2`, que sigue siendo 'Dala Moa' serif para los títulos, no se ve afectado —
+     tiene su propio font-family explícito que gana). */
+  .office-detail-page{font-family:'Unitext',sans-serif}
+  /* v4.4.4: letra más grande (12px -> 14px) y ETIQUETA/VALOR invertidos — pedido explícito del usuario
+     ("quiero que el título de la etiqueta... esté en negritas y los datos en normal, al revés de como los
+     tenemos"): antes la etiqueta era gris + peso normal y el valor negrita; ahora la etiqueta es gris +
+     negrita (mismo gris de antes, solo se le agrega negrita — el usuario no pidió cambiar el color) y el
+     valor pasa a peso normal. */
+  .office-detail-table{width:100%;border-collapse:collapse;font-size:14px;table-layout:fixed}
   .office-detail-table tr{border-bottom:1px solid var(--line)}
   .office-detail-table tr:last-child{border-bottom:none}
   .office-detail-table td{padding:7px 0}
-  .office-detail-table td:first-child{color:var(--muted);padding-right:12px;width:230px}
-  .office-detail-table td:last-child{font-weight:600;white-space:nowrap}
+  .office-detail-table td:first-child{color:var(--muted);font-weight:700;padding-right:12px;width:230px}
+  .office-detail-table td:last-child{font-weight:400;white-space:nowrap}
   /* v4.4.2: 2do incremento de letra pedido explícito ("quiero que las notas sean un poco más grandes"),
      tras el primer incremento de v4.4.1 (9px -> 11px) resultar insuficiente. */
   /* v4.4.3: reducida un poco, pedido explícito del usuario — 13px (v4.4.2) se sentía grande. */

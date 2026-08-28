@@ -1813,6 +1813,29 @@ diseño con el usuario vía `AskUserQuestion`:
   reales de esas 2 entidades, en NINGÚN lugar de la app (tabla, Mapa, Resumen), no solo en esta gráfica
   nueva. Se agregaron las 2 líneas que faltaban, mismo patrón que las otras 4.
 
+**Rediseño completo de la gráfica (v4.5.1), pedido explícito del usuario** ("está rara... el eje de tiempo
+no se ve bien... no me dice nada de dato de la cantidad, ni siquiera se ve al pasar el cursor... quiero
+algo más interactivo web"). La v4.5.0 original era solo un `<div>` por barra en flexbox, sin eje Y, con el
+`title` nativo del navegador como único "hover" — ese tooltip nativo aparece con casi 1s de retraso y sin
+ningún estilo propio, fácil de no notarlo del todo (justo lo que reportó el usuario). Reescrita por
+completo, sin agregar ninguna librería de charting (esta app nunca cargó una, sigue sin hacerlo):
+- **Eje Y** (`.resumen-usage-yaxis`, 3 etiquetas: máximo/mitad/cero del rango visible) + **gridlines**
+  punteadas (`.resumen-usage-gridline`) en esas mismas 2 alturas intermedias, para poder leer la magnitud
+  de una barra sin tener que pasar el cursor.
+- **Eje X repartido parejo** (`resumenUsageLabelIndices(n, maxLabels)`) — antes se mostraba una etiqueta
+  cada N barras (`labelEvery`, fijo por rango de días); ahora se calculan índices EQUIESPACIADOS que
+  siempre incluyen el primer y el último día, sin importar cuántas barras haya (30/60/90) — evita que las
+  etiquetas queden amontonadas hacia un lado. Cada etiqueta se posiciona con `left` absoluto (porcentaje
+  del índice de esa barra), no depende de que las columnas de la grilla midan exactamente lo mismo.
+- **Tooltip propio por columna** (`.resumen-usage-tip`, mismo patrón CSS-only que ya usa
+  `fieldHelpIconHtml` para el ícono de ayuda "i" de los campos — `:hover` puro, sin JS): aparece al
+  instante, con el mismo estilo oscuro/flotante que el resto de los popovers de la app, mostrando la
+  cantidad exacta y la fecha completa (día de la semana incluido). El área de hover es la COLUMNA completa
+  del día (`.resumen-usage-bar-col`, alto 100% del panel) — no solo el pixel visible de la barra, que en un
+  día sin actividad casi no existe (se le da un "nub" de 2% de alto, en gris, para que también sea
+  encontrable con el cursor). Hover también resalta la barra (`var(--accent-2)`) y tiñe levemente el fondo
+  de toda la columna, feedback visual inmediato de "estás sobre este día".
+
 ## Presentación (deck)
 
 Genera una presentación imprimible a partir de los registros marcados con el círculo amarillo en la tabla

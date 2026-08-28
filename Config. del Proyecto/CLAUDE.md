@@ -2888,6 +2888,14 @@ pasa a comportarse igual que las demás.
 `.office-detail-row-value` bajaron de 16px (v4.4.11) a 15px — el usuario probó 16px y lo sintió un poco
 grande.
 
+**Etapa 3, v4.4.14, pedido explícito del usuario (con captura real)**: en el Divisor de Submercado quedaba
+un hueco visible entre donde termina la línea quemada en la foto (`OFFICE_DIVIDER_IMAGE_SRC`) y donde
+arranca el texto del submercado — "la idea es que la línea esté literal al final de la letra". Ajuste fino
+de posición en `.office-divider-overlay`: `top` 33.3%→31.5% (sube el texto un poco) y `left` 6.5%→7.5%
+(lo recorre un poco a la derecha), sin tocar `font-size`/`transform`. Mismo criterio de siempre para este
+tipo de ajuste visual a ojo — pendiente de que el usuario confirme con otra captura si hace falta afinar
+más.
+
 **Etapa 3, pendiente**: el "Resumen de Espacios Propuestos" final (tabla comparativa de todas las Opciones).
 
 ## Convención de versionado

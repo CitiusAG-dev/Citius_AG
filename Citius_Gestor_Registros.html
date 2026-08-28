@@ -385,7 +385,14 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      archivo). Ahora el texto se posiciona a la altura exacta de esa línea (`top` = el mismo % que la línea,
      `transform:translateY(-50%)` para centrar verticalmente el texto sobre ese punto) y arranca justo
      después de donde termina (`left:6.5%`), sin dibujar nada propio. Letra más grande (32px -> 40px). */
-  .office-divider-overlay{position:absolute;left:6.5%;top:33.3%;transform:translateY(-50%);
+  /* v4.4.14, pedido explícito del usuario, con captura real mostrando el resultado de v4.4.6: quedaba un
+     hueco visible entre donde termina la línea quemada en la foto y donde arranca el texto — "la idea es
+     que la línea esté literal al final de la letra". Se sube el texto un poco (`top` más chico, la misma
+     línea de arriba sigue siendo el ancla — `translateY(-50%)` sin cambios) y se recorre un poco a la
+     derecha (`left` más grande) para cerrar ese hueco. Ajuste fino a ojo, mismo criterio que el resto de
+     los ajustes de impresión/posición de este deck — pendiente de que el usuario confirme con otra
+     captura si hace falta afinar más. */
+  .office-divider-overlay{position:absolute;left:7.5%;top:31.5%;transform:translateY(-50%);
                            font-family:'Dala Moa',Georgia,serif;font-size:40px;font-weight:400;color:#6b6f76}
   .cover-edit-panel{width:300px}
   .cover-edit-panel .field{margin-bottom:10px}

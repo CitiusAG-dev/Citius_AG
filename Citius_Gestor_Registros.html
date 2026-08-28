@@ -512,22 +512,20 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      tenemos"): antes la etiqueta era gris + peso normal y el valor negrita; ahora la etiqueta es gris +
      negrita (mismo gris de antes, solo se le agrega negrita — el usuario no pidió cambiar el color) y el
      valor pasa a peso normal. */
-  .office-detail-table{width:100%;min-width:0;border-collapse:collapse;font-size:14px;table-layout:fixed}
-  .office-detail-table tr{border-bottom:1px solid var(--line)}
-  .office-detail-table tr:last-child{border-bottom:none}
-  .office-detail-table td{padding:7px 0}
-  /* v4.4.5, pedido explícito del usuario ("los datos empiecen un poco más a la derecha, en algunos casos
-     casi se sobreponen") — la etiqueta más larga ("Additional Spot Cost ($/spot/month)") casi tocaba el
-     valor con 230px + 12px, sobre todo ahora que la etiqueta es negrita (v4.4.4, ocupa más ancho que el
-     mismo texto en peso normal). Sube a 270px + 18px de aire. */
-  .office-detail-table td:first-child{color:var(--muted);font-weight:700;padding-right:18px;width:270px}
-  /* v4.4.6, bug real reportado por el usuario ("se desborda la información de la tabla... con las
-     amenidades") — `white-space:nowrap` (pensado para que un valor corto tipo "$320.00" nunca partiera a
-     media palabra) forzaba TODO el texto a una sola línea sin importar qué tan largo fuera; con
-     `table-layout:fixed` (columna de ancho fijo) un valor largo como una lista de Amenidades no tenía a
-     dónde ir más que desbordarse fuera de la celda. Quitado — el texto ahora envuelve normal dentro de su
-     columna, como cualquier valor largo debería. */
-  .office-detail-table td:last-child{font-weight:400;overflow-wrap:break-word}
+  /* v4.4.8, el desborde de Amenidades seguía pasando incluso después de `table-layout:fixed` +
+     `white-space:nowrap` quitado (v4.4.6) + `min-width:0` en la tabla y en los hijos de la grilla (v4.4.7)
+     — el elemento `<table>` seguía sin respetar el ancho de su columna en este contexto anidado
+     (Grid > div > table), pedido explícito del usuario: "quiero que si es más largo... se pase a 2 líneas".
+     En vez de seguir peleando contra el algoritmo de layout de `<table>` (which sigue teniendo casos raros
+     dentro de Grid/Flexbox incluso con table-layout:fixed), se reemplazó la tabla por 2 `<div>` en fila
+     (flexbox) — mismo look exacto (etiqueta fija a la izquierda, valor a la derecha, línea divisoria),
+     pero un `<div>` con `flex:1;min-width:0` es un patrón mucho más simple y confiable para "que un texto
+     largo envuelva dentro de su columna" que una tabla anidada. */
+  .office-detail-rows{width:100%}
+  .office-detail-row{display:flex;align-items:baseline;gap:18px;padding:7px 0;border-bottom:1px solid var(--line)}
+  .office-detail-row:last-child{border-bottom:none}
+  .office-detail-row-label{flex:0 0 270px;min-width:0;color:var(--muted);font-weight:700}
+  .office-detail-row-value{flex:1;min-width:0;font-weight:400;overflow-wrap:break-word}
   /* v4.4.2: 2do incremento de letra pedido explícito ("quiero que las notas sean un poco más grandes"),
      tras el primer incremento de v4.4.1 (9px -> 11px) resultar insuficiente. */
   /* v4.4.3: reducida un poco, pedido explícito del usuario — 13px (v4.4.2) se sentía grande. */
@@ -8137,10 +8135,13 @@ function officeDeckBuildingInfoRows(office, unitPref){
     {label:{en:"Year Built",es:"Año de Construcción"}, value: officeDeckPlainFmt(office.YEAR_BUILT_DEVELOPED)},
   ];
 }
+/* v4.4.8: ya no es una <table> (ver comentario largo en el CSS, `.office-detail-rows`) — 2 <div> en fila
+   (flexbox) por cada dato, mismo look, pero un texto largo (ej. Amenidades) envuelve dentro de su columna
+   de forma confiable en vez de desbordarse. */
 function officeDeckInfoTableHtml(rows){
-  return `<table class="office-detail-table">${rows.map(r=>
-    `<tr><td>${escapeHtml(officePresLangPref==="es"?r.label.es:r.label.en)}</td><td>${escapeHtml(r.value)}</td></tr>`
-  ).join("")}</table>`;
+  return `<div class="office-detail-rows">${rows.map(r=>
+    `<div class="office-detail-row"><div class="office-detail-row-label">${escapeHtml(officePresLangPref==="es"?r.label.es:r.label.en)}</div><div class="office-detail-row-value">${escapeHtml(r.value)}</div></div>`
+  ).join("")}</div>`;
 }
 function buildOfficeOptionDetailPageHtml(opt, idx){
   const primary=officeOptionPrimarySpace(opt);

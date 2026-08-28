@@ -2776,6 +2776,15 @@ Fix: `min-width:0` en los hijos directos de `.office-detail-grid` y en `.office-
 `overflow-wrap:break-word` en `td:last-child` como red de seguridad para un valor sin espacios donde
 envolver.
 
+**Etapa 3, v4.4.8 — el desborde de Amenidades seguía pasando tras v4.4.6/v4.4.7**: el elemento `<table>`
+seguía sin respetar el ancho de su columna en este contexto anidado (Grid > div > table), incluso con
+`table-layout:fixed` + `white-space:nowrap` quitado + `min-width:0` en la tabla y en los hijos de la
+grilla. En vez de seguir peleando contra el algoritmo de layout de `<table>` dentro de Grid/Flexbox, se
+reemplazó por 2 `<div>` en fila (flexbox, `.office-detail-row`/`.office-detail-row-label`/
+`.office-detail-row-value`, `flex:1;min-width:0` en el valor) — mismo look exacto, pero un patrón mucho más
+simple y confiable para que un texto largo (Amenidades) envuelva dentro de su columna. `officeDeckInfoTableHtml()`
+ya no genera un `<table>`, genera estos `<div>`.
+
 **Etapa 3, pendiente**: el "Resumen de Espacios Propuestos" final (tabla comparativa de todas las Opciones).
 
 ## Convención de versionado

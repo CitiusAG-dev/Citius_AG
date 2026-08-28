@@ -2790,6 +2790,68 @@ ya no genera un `<table>`, genera estos `<div>`.
 — las menciones más arriba en este documento de que es "la 1ra fila" quedan como historial de la Etapa 3
 original, ya no reflejan el orden actual.
 
+**Etapa 3, v4.4.10, 3 ajustes más de la página de detalle, pedidos explícitos del usuario (captura con 4
+puntos)**:
+1. **Línea final en las tablas de información** — `.office-detail-row:last-child{border-bottom:none}` le
+   quitaba a propósito el borde a la ÚLTIMA fila (criterio normal de "no dejar una línea colgando"), pero el
+   usuario quiere justo lo contrario ("así como se tiene en cada valor") — se quitó esa excepción, ahora la
+   última fila también cierra con su `border-bottom`.
+2. **Más espacio entre el Título y las imágenes/tabla** — `.deck-header{margin-bottom:16px}` es GLOBAL (la
+   comparten el Mapa y "Building Options"), así que no se tocó esa regla directo; se agregó un override más
+   específico `.office-detail-page .deck-header{margin-bottom:32px}` (2 clases le gana a 1 sin importar el
+   orden en la hoja) que solo afecta esta página.
+3. **Área de cada piso en paréntesis, en la fila "Floor(s)"** — antes esa fila reusaba
+   `officeOptionInfo(opt).floors` (un join de los `LEVEL_FLOOR` únicos del grupo, sin ningún dato de área).
+   Función nueva `officeDeckFloorsWithArea(recs, unitPref)`: recorre cada Space del grupo SIN deduplicar por
+   piso (a propósito — 2 Spaces podrían compartir el mismo `LEVEL_FLOOR` pero cada uno tiene su propia
+   área) y arma `"Piso (área unidad)"` por cada uno, reusando `areaValueInSF`/`officeDeckAreaText` (misma
+   fuente de conversión/redondeo que ya usa el total sumado de "Net Leasable Area" arriba) para que la
+   unidad siempre calce con la vista Métrico/Imperial activa.
+
+**Market Status pasa a ser un campo propio de Spaces, ya no de Oficinas (v4.4.10)** — 4to punto de la misma
+captura ("Market Status debe estar en los espacios no en Offices"), confirmado con el usuario vía
+`AskUserQuestion` que se trataba del **modelo de datos** (no de agregar una fila nueva a la página de
+detalle del deck). Antes de este cambio, `MARKET_STATUS` existía en LAS 2 entidades a la vez con roles
+distintos: en `BUNDLE.OFICINAS.fields` era un campo editable de verdad (con su propio `<select>`, vía
+`FIELD_LIST_MAP.OFICINAS`); en `BUNDLE.SPACES.fields` (grupo "PROPIEDAD") vivía como copia de **solo
+lectura**, autocompletada desde la Oficina ligada por `MAPPING_CODE` — parte de
+`SPACE_AUTOFILL_READONLY_KEYS`, así que se llenaba sola al elegir la Oficina desde el picker
+(`autofillSpaceFromMappingCode`) y se volvía a sobreescribir cada vez que esa Oficina se guardaba
+(`recomputeAllSpaceLinkedFields`), sin que el usuario pudiera nunca editarla directo en el Space. El pedido
+invierte esa relación: el estatus de mercado es genuinamente por-piso (un edificio puede tener pisos
+Vacant/Available/Occupied distintos a la vez), así que debe capturarse en Spaces, y Oficinas deja de tener
+su propio Market Status independiente.
+- **`BUNDLE.OFICINAS.fields`**: se quitó la entrada `{"key":"MARKET_STATUS","group":"IDENTIFICATION"}` —
+  mismo patrón ya establecido varias veces en este documento ("Quitar un campo de esta app sin tocar el
+  Excel del usuario", ver `## Modelo de datos`): `pruneFieldConfigToKnownFields()` limpia sola
+  `fieldConfig.OFICINAS` en la próxima carga, y `buildWorkbook()` deja de escribir esa columna pero
+  preserva intacta cualquier columna/dato ya capturado en el Excel real (cae a `r.__row[ci]`, el valor
+  crudo). También se quitó su entrada de `FIELD_LIST_MAP.OFICINAS`.
+- **`FIELD_LIST_MAP.SPACES`** ganó `"MARKET_STATUS":"MARKET_STATUS"` (antes no existía ahí, porque el
+  campo nunca necesitó su propio `<select>` — se llenaba solo). `SPACE_AUTOFILL_READONLY_KEYS` perdió
+  `"MARKET_STATUS"` — con eso, el branch de `renderStandaloneField()` que renderiza los campos de este Set
+  como `<input readonly>` (línea ~5392) deja de interceptarlo, y el campo cae al branch genérico de lista
+  (`if(listName)`, ~línea 5444): se renderiza como un `<select>` normal, editable, con la lista
+  `MARKET_STATUS` (Available/Vacant/Occupied) — igual que cualquier otro campo de lista de la ficha.
+- **`ENTITIES.OFICINAS`**: se quitó `"MARKET_STATUS"` de `listCols`, y `statusField` pasó de
+  `"MARKET_STATUS"` a `"STATUS"` (Ready/Under Construction/Under Development/Planned, campo que Oficinas ya
+  tenía desde antes) — el chip de color de esa columna en la tabla de Oficinas ahora usa `statusPill()`
+  genérico (por substring) en vez de `marketStatusPill()` (comparación exacta contra
+  Available/Vacant/Occupied), mismo tratamiento que ya usa Parques para su propio `statusField:"STATUS"`.
+  El dispatch en `renderTable()` (`c==="MARKET_STATUS"?marketStatusPill(...):statusPill(...)`) es por
+  NOMBRE DE COLUMNA, no por entidad, así que no necesitó ningún cambio — simplemente ya no evalúa a
+  verdadero para la tabla de Oficinas.
+- **`ENTITIES.SPACES`** no cambió — ya tenía `statusField:"MARKET_STATUS"` desde que se creó esa entidad
+  (aunque el campo en sí fuera de solo lectura hasta ahora), así que la tabla de Spaces ya mostraba el chip
+  de color correcto; lo único que cambia es que ahora el VALOR se captura ahí mismo en vez de heredarse.
+- **Datos ya capturados no se pierden ni se tocan**: los Spaces que ya tenían un `MARKET_STATUS` copiado
+  (de cuando aún era autofill) se quedan con ese mismo valor tal cual — simplemente deja de refrescarse
+  solo cuando se edite la Oficina ligada; el usuario lo puede corregir a mano desde ahora si hace falta.
+  Ningún otro punto del código (Resumen, KPIs, el deck de Oficinas) leía `OFICINAS.MARKET_STATUS`
+  directamente — se revisó cada uso real de `MARKET_STATUS` en el archivo antes de hacer el cambio y todos
+  los demás (Resumen, `AVAILABLE_BUILDINGS` de Parques) ya operan sobre `state.PROPIEDADES`, nunca sobre
+  `state.OFICINAS`.
+
 **Etapa 3, pendiente**: el "Resumen de Espacios Propuestos" final (tabla comparativa de todas las Opciones).
 
 ## Convención de versionado

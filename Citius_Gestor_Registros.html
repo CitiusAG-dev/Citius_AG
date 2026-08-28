@@ -377,13 +377,16 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .office-cover-overlay-label{font-size:14px;letter-spacing:1px;color:#8a8f98;text-transform:uppercase;margin-bottom:8px}
   .office-cover-overlay-client{font-size:22px;font-weight:600;color:#3f4550;margin-bottom:6px}
   .office-cover-overlay-date{font-size:14px;color:#565b64}
-  /* Divisor de Submercado (v4.4.3) — el ícono blanco ya viene quemado en OFFICE_DIVIDER_IMAGE_SRC, esto
-     solo posiciona el nombre del submercado sobre el lado amarillo, mismo estilo línea+serif que ya usan
-     el Mapa/las páginas de Opción (`.deck-header h2`), aplicado a mano acá porque este overlay es
-     `position:absolute` sobre una foto, no un `.deck-header` normal en flujo. */
-  .office-divider-overlay{position:absolute;left:9.5%;top:28%;display:flex;align-items:center;gap:12px;
-                           font-family:'Dala Moa',Georgia,serif;font-size:32px;font-weight:400;color:#6b6f76}
-  .office-divider-overlay-rule{width:30px;height:1px;background:#6b6f76;flex-shrink:0}
+  /* Divisor de Submercado — el ícono blanco Y la línea horizontal YA vienen quemados en
+     OFFICE_DIVIDER_IMAGE_SRC (parte de la foto, no algo que este CSS dibuje) — v4.4.6, corrección pedida
+     explícitamente por el usuario: antes se dibujaba una 2da línea propia (`.office-divider-overlay-rule`,
+     ya eliminada) que quedaba redundante con la de la foto, y el texto no estaba alineado con la línea real
+     (que arranca en el borde izquierdo, x=0, y termina ~5%, a ~33% de alto — medido directo sobre el
+     archivo). Ahora el texto se posiciona a la altura exacta de esa línea (`top` = el mismo % que la línea,
+     `transform:translateY(-50%)` para centrar verticalmente el texto sobre ese punto) y arranca justo
+     después de donde termina (`left:6.5%`), sin dibujar nada propio. Letra más grande (32px -> 40px). */
+  .office-divider-overlay{position:absolute;left:6.5%;top:33.3%;transform:translateY(-50%);
+                           font-family:'Dala Moa',Georgia,serif;font-size:40px;font-weight:400;color:#6b6f76}
   .cover-edit-panel{width:300px}
   .cover-edit-panel .field{margin-bottom:10px}
   .cover-edit-panel .field:last-of-type{margin-bottom:0}
@@ -510,7 +513,13 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      valor con 230px + 12px, sobre todo ahora que la etiqueta es negrita (v4.4.4, ocupa más ancho que el
      mismo texto en peso normal). Sube a 270px + 18px de aire. */
   .office-detail-table td:first-child{color:var(--muted);font-weight:700;padding-right:18px;width:270px}
-  .office-detail-table td:last-child{font-weight:400;white-space:nowrap}
+  /* v4.4.6, bug real reportado por el usuario ("se desborda la información de la tabla... con las
+     amenidades") — `white-space:nowrap` (pensado para que un valor corto tipo "$320.00" nunca partiera a
+     media palabra) forzaba TODO el texto a una sola línea sin importar qué tan largo fuera; con
+     `table-layout:fixed` (columna de ancho fijo) un valor largo como una lista de Amenidades no tenía a
+     dónde ir más que desbordarse fuera de la celda. Quitado — el texto ahora envuelve normal dentro de su
+     columna, como cualquier valor largo debería. */
+  .office-detail-table td:last-child{font-weight:400}
   /* v4.4.2: 2do incremento de letra pedido explícito ("quiero que las notas sean un poco más grandes"),
      tras el primer incremento de v4.4.1 (9px -> 11px) resultar insuficiente. */
   /* v4.4.3: reducida un poco, pedido explícito del usuario — 13px (v4.4.2) se sentía grande. */
@@ -7875,9 +7884,18 @@ function buildOfficeCoverPageHtml(){
    intenta adivinar/normalizar el match (ej. comparar sin mayúsculas) porque el resto de la app usa
    MAPPING_CODE como llave exacta en todos lados; si el dato real no calza, mejor que el usuario lo vea y lo
    corrija en Spaces/Oficinas que enmascararlo aquí con un match aproximado. */
+/* v4.4.6, bug real reportado por el usuario ("no me muestra el pin... Mapping Code no coincide", con
+   captura de que Oficina y Space SÍ tenían el mismo Mapping Code capturado): la causa real está en
+   saveBtn.onclick (ver ID_LIKE_FIELD_KEYS más abajo) — un Mapping Code que "parece" numérico (ej. "1") se
+   convertía a Number cada vez que se guardaba ESE registro, pero el otro lado (Oficina u otro Space con el
+   mismo código, guardado en otro momento) podía quedarse como String — `Map.get()` usa igualdad estricta,
+   así que "1" (String) y 1 (Number) nunca hacían match aunque se vieran idénticos en pantalla. Ya se
+   corrigió de raíz en saveBtn.onclick (nunca se vuelve a producir), pero acá se compara con `String(...)`
+   de los 2 lados de todos modos — mismo criterio ya usado en `relatedParkFor()` (ID_PARK) — para no
+   depender de que TODOS los datos ya guardados (antes del fix) se vuelvan a resalvar a mano. */
 function officePresBuildingList(){
   const spaceById=new Map((state.SPACES||[]).map(r=>[r.__id,r]));
-  const officeByCode=new Map((state.OFICINAS||[]).map(r=>[r.MAPPING_CODE,r]));
+  const officeByCode=new Map((state.OFICINAS||[]).map(r=>[String(r.MAPPING_CODE),r]));
   const seen=new Set();
   const buildings=[];
   let unresolvedCount=0;
@@ -7885,7 +7903,7 @@ function officePresBuildingList(){
     opt.spaceIds.forEach(id=>{
       const sp=spaceById.get(id);
       if(!sp) return;
-      const off=officeByCode.get(sp.MAPPING_CODE);
+      const off=officeByCode.get(String(sp.MAPPING_CODE));
       if(!off){ unresolvedCount++; return; }
       if(!seen.has(off.MAPPING_CODE)){ seen.add(off.MAPPING_CODE); buildings.push(off); }
     });
@@ -8026,11 +8044,13 @@ function officeOptionSpaceRecords(opt){
   const spaceById=new Map((state.SPACES||[]).map(r=>[r.__id,r]));
   return opt.spaceIds.map(id=>spaceById.get(id)).filter(Boolean);
 }
+/* Comparado con String() de los 2 lados — ver el comentario extenso en officePresBuildingList() (mismo
+   bug real de tipos String/Number en Mapping Code, misma corrección). */
 function officeOptionOfficeRecord(opt){
   const recs=officeOptionSpaceRecords(opt);
   if(!recs.length) return null;
-  const officeByCode=new Map((state.OFICINAS||[]).map(r=>[r.MAPPING_CODE,r]));
-  return officeByCode.get(recs[0].MAPPING_CODE)||null;
+  const officeByCode=new Map((state.OFICINAS||[]).map(r=>[String(r.MAPPING_CODE),r]));
+  return officeByCode.get(String(recs[0].MAPPING_CODE))||null;
 }
 function officeOptionPrimarySpace(opt){ return officeOptionSpaceRecords(opt)[0]||null; }
 function sumSpacesAreaSF(recs, valueKey){ let t=0; recs.forEach(r=>{ t+=areaValueInSF(r,valueKey); }); return t; }
@@ -8172,7 +8192,7 @@ function officeOptionSubmarket(opt){
 function buildOfficeDividerPageHtml(submarket){
   return `<div class="deck-page cover-page office-divider-page">
     <img src="${OFFICE_DIVIDER_IMAGE_SRC}" alt="Divider">
-    <div class="office-divider-overlay"><span class="office-divider-overlay-rule"></span>${escapeHtml(submarket||"")}</div>
+    <div class="office-divider-overlay">${escapeHtml(submarket||"")}</div>
   </div>`;
 }
 /* Carga real de las fotos de las 2 páginas de Opción de arriba — separada de build*Html() porque
@@ -9065,6 +9085,19 @@ function exitEditMode(){
   openView(editingId, activeIdx);
 }
 function closeModal(){ document.getElementById("overlay").classList.remove("show"); revokeAllFichaPhotoUrls(); }
+/* v4.4.6, bug real reportado por el usuario ("selecciono espacios... en el mapa no me muestra el pin...
+   Mapping Code no coincide", con capturas confirmando que Oficina y Space tenían el MISMO código
+   capturado) — causa raíz encontrada en el colector de abajo: cualquier campo de texto cuyo valor "parezca"
+   numérico (ej. "1") se convertía a Number vía maybeNum() cada vez que ESE registro se guardaba — sin
+   importar el campo, `isNumericField()` siempre regresa `true`. Un Mapping Code/ID/Space Code que sea un
+   número corto ("1", "7") pasaba de String a Number en el registro que se acababa de guardar, mientras el
+   otro lado de la relación (un Space con ese mismo código, guardado en otro momento, o nunca vuelto a
+   guardar) se quedaba como String — cualquier comparación estricta entre los 2 (`Map.get()`,
+   `.find(r=>r.MAPPING_CODE===...)`) dejaba de encontrar el match, aunque en pantalla se vieran idénticos.
+   Estos 4 campos son códigos/IDs (los mismos 4 valores de PHOTO_ID_FIELD, más "MAPPING_CODE" que además se
+   reusa como referencia foránea en Spaces/Transacciones) — nunca deben convertirse a número sin importar
+   qué tan "numérico" se vea su valor. */
+const ID_LIKE_FIELD_KEYS = new Set(["MAPPING_CODE","ID_PARK","ID__LAND","SPACE_CODE"]);
 document.getElementById("saveBtn").onclick=()=>{
   if(blockIfConsolidated()) return;
   const cfgByKey={}; fields(current).forEach(f=>cfgByKey[f.key]=f);
@@ -9092,6 +9125,8 @@ document.getElementById("saveBtn").onclick=()=>{
       rec[inp.dataset.key]=parseFloat(clean);
     } else if(cfg&&cfg.type==="date"){
       rec[inp.dataset.key]=v;
+    } else if(ID_LIKE_FIELD_KEYS.has(inp.dataset.key)){
+      rec[inp.dataset.key]=v; // nunca lo convierte a número, aunque "parezca" uno — ver comentario arriba
     } else {
       rec[inp.dataset.key]=isNumericField(inp.value)?maybeNum(v):v;
     }

@@ -2731,6 +2731,42 @@ detalle por Opción + selector de idioma EN/ES.**
 - **2do incremento del título de tabla** ("tienen que resaltar más"), 15px → 19px, tras el primero (v4.4.3,
   13px → 15px) no ser suficiente.
 
+**Etapa 3, ajustes (v4.4.6, bugs reales reportados por el usuario)**:
+- **Bug grave de raíz: Mapping Code cambiaba de tipo (String↔Number) al guardar** — reportado como "en el
+  mapa no me muestra el pin... Mapping Code no coincide" y "esto solo pasa cuando edito algo de las
+  Propiedades/Oficinas, no pasa con los Spaces" (con capturas confirmando que Oficina y Space SÍ tenían el
+  mismo código capturado en pantalla). Causa raíz real, en `saveBtn.onclick`: el colector genérico de
+  campos de texto convertía CUALQUIER valor que "pareciera" numérico a un Number de JS vía `maybeNum()` —
+  `isNumericField()` siempre regresa `true`, así que esto aplicaba a TODOS los campos de texto sin
+  distinción. Un Mapping Code corto como "1" pasaba de String a Number cada vez que ESE registro se
+  guardaba; el otro lado de la relación (un Space con el mismo código, guardado en otro momento) se quedaba
+  como String — cualquier comparación estricta (`Map.get()`, `.find(r=>r.MAPPING_CODE===...)`) dejaba de
+  encontrar el match, aunque en pantalla ambos se vieran idénticos ("1" y 1 se muestran igual). Esto
+  explica también por qué el usuario podía "arreglarlo" resolviendo cada Space a mano (los dejaba con el
+  MISMO tipo que la Oficina en ese momento) pero se volvía a romper la próxima vez que editara la Oficina
+  (que reconvierte su propio Mapping Code a Number en cada guardado, sin importar qué campo se haya
+  editado).
+  - **Fix de raíz**: nuevo `ID_LIKE_FIELD_KEYS = new Set(["MAPPING_CODE","ID_PARK","ID__LAND","SPACE_CODE"])`
+    — estos 4 campos (los mismos valores de `PHOTO_ID_FIELD`, más "MAPPING_CODE" que además se reusa como
+    referencia foránea en Spaces/Transacciones) quedan EXENTOS de `maybeNum()` en el colector — nunca se
+    convierten a número sin importar qué tan "numérico" parezca su valor, de aquí en adelante.
+  - **Defensa adicional** en el código de Oficinas construido en esta Etapa (`officePresBuildingList()`/
+    `officeOptionOfficeRecord()`): sus 2 `Map` de Mapping Code → Oficina ahora comparan con `String(...)` de
+    los 2 lados (mismo criterio que ya usaba `relatedParkFor()` con ID_PARK, un bug de la misma familia
+    corregido antes) — así los datos que YA quedaron con el tipo equivocado (guardados antes de este fix)
+    también encuentran su match, sin que el usuario tenga que volver a guardar nada a mano.
+- **Bug real: texto largo se desbordaba de la tabla** (reportado con Amenidades) — `white-space:nowrap`
+  (pensado para que un valor corto tipo "$320.00" nunca partiera a media palabra) forzaba TODO el texto a
+  una sola línea; con la columna de ancho fijo (`table-layout:fixed`), un valor largo no tenía a dónde ir
+  más que desbordarse. Quitado de `td:last-child` — el texto envuelve normal dentro de su columna.
+- **Divisor de Submercado, reposicionado** (pedido explícito del usuario) — el ícono Y la línea horizontal
+  YA vienen quemados en `OFFICE_DIVIDER_IMAGE_SRC` (parte de la foto); antes se dibujaba una 2da línea
+  propia (CSS) redundante con la de la foto, y el texto no estaba alineado con la línea real. Medido
+  directo sobre el archivo: la línea real arranca en el borde izquierdo (x=0) y termina ~5% del ancho, a
+  ~33% de alto. Se quitó la línea propia y el texto ahora se posiciona exactamente a esa altura
+  (`top:33.3%`, `transform:translateY(-50%)` para centrarlo verticalmente sobre ese punto) arrancando justo
+  después de donde termina la línea real (`left:6.5%`). Letra más grande (32px → 40px).
+
 **Etapa 3, pendiente**: el "Resumen de Espacios Propuestos" final (tabla comparativa de todas las Opciones).
 
 ## Convención de versionado

@@ -7016,7 +7016,12 @@ function renderOfficeOptionsPanel(targetId, unitPref){
   const list=document.getElementById(targetId||"officeOptionsList");
   if(!list) return;
   if(!officePresOptions.length){
-    list.innerHTML=`<div class="empty">No options built yet. Check the floors you want to offer, then use "Add Group" or "Add Individually".</div>`;
+    // v4.3.1, pedido explícito del usuario: mismo texto de vacío que Propiedades/Terrenos
+    // (renderPresSelectedList/renderPresLandSelectedList, "None yet.") — la guía completa ("Check the
+    // floors...") ya vive arriba, en el hint fijo de cada contenedor (`.office-options-panel-hint` en el
+    // panel acoplado de Spaces, el `<p class="map-hint">` del sidebar de este deck), así que repetirla aquí
+    // era redundante.
+    list.innerHTML=`<p class="muted" style="font-size:12px">None yet.</p>`;
     return;
   }
   list.innerHTML=officePresOptions.map((opt,i)=>{

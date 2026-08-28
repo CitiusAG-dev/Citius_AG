@@ -1584,6 +1584,47 @@ ocupando todo el ancho/alto disponible (`renderConfigSections`):
 No existe ya un botón "Listas" aparte en el sidebar ni el modal `#listsOverlay` — todo vive dentro de este
 menú de Configuración.
 
+### Traducción ES de las listas (v4.3.0, pedido explícito del usuario)
+
+Motivo: las presentaciones se generarán en inglés Y en español, pero el usuario fue explícito: **"en el
+sistema todos los datos siempre se llenarán y se mostrarán en inglés, solo las traducciones se usarán para
+las presentaciones"** — `lists`/`DEFAULT_LISTS` (captura de datos) NO se tocaron para nada; se agregó un
+mapa **nuevo y paralelo**, `listTranslationsEs`/`DEFAULT_LIST_TRANSLATIONS_ES`, shape
+`{LISTNAME: {"Valor en inglés": "Traducción"}}` — mismo patrón exacto de `localStorage`/merge-de-claves-
+faltantes que `lists`/`DEFAULT_LISTS` (`LIST_TRANSLATIONS_KEY = "citius_list_translations_es_v1"`,
+`loadListTranslationsEs()`/`saveListTranslationsEs()`), pero en un `localStorage` y una variable
+completamente separados — nunca se mezclan.
+
+- **Semilla inicial**: el usuario compartió `LISTAS_CAMPOS.xlsx` (su archivo de referencia, hoja
+  "(LD) Lista Desp", columnas `TABLA`/`EN`) y pidió llenarle una 3ra columna `ES` con la traducción de sus
+  ~740 valores (99 listas) — se hizo con un script de Python/openpyxl, tradujo todo lo que es terminología
+  real (`AVAILABILITY_DELIVERY.Immediate` → "Inmediata", `CONDITION."Grey Shell"` → "Obra Gris", reusando
+  el vocabulario ya visto en la referencia de la Presentación de Oficinas donde aplicaba) y **reflejó sin
+  traducir** (mismo valor en ES) los valores que son nombres propios/códigos: `BROKERS_CAG` (nombres de
+  personas), `ADMIN`/`DEVELOPER`/`OWNER`/`CLASSIFICATION` (A/B/C/D), `ESTATE` (estados de México, ya en
+  español), unidades/monedas (`CM_IN`/`FT_M`/`SF_M2`/`CURRENCY`/`CON_COMERCIAL`/etc.), y nombres de marca
+  (`NATURAL_GAS_LAND`/`TELECOMMUNICATIONS_LAND`). `ORIGIN_COUNTRY` (193 países) sí se tradujo completo a su
+  nombre en español. `DEFAULT_LIST_TRANSLATIONS_ES` (JS) se generó 1:1 desde esa misma columna ES ya
+  llenada — una sola fuente de verdad entre el Excel y el código.
+- **`loadListsFromSheet()`** ahora también lee una 3ra columna `ES` opcional de la hoja "(LD) Lista Desp"
+  vinculada. A diferencia de `lists` (que se REEMPLAZA completo con lo que traiga la hoja, ver arriba), las
+  traducciones se **mezclan valor por valor**: si la celda ES de una fila viene vacía, NO borra una
+  traducción que ya existiera en la app (editada a mano) — el Excel solo gana para los valores que sí trae
+  traducidos. `buildConfigWorkbook()` escribe esa 3ra columna de vuelta al guardar ("Guardar listas" con un
+  Archivo de Configuración vinculado).
+- **UI, `Configuración > Listas`** (`renderListValues()`): cada fila de valor ahora tiene **2 inputs** en
+  vez de 1 — el de siempre (inglés, sigue editando `lists[currentListName][i]`, usado para captura) y uno
+  nuevo con tinte azul (`.lists-value-es`, `editListValueTranslation(i, valor)`, guarda en
+  `listTranslationsEs[currentListName][valorEnIngles]`) — encabezado de columnas nuevo (`#listsValuesHeader`,
+  "English"/"Spanish (presentations only)") explica cuál es cuál. Renombrar un valor en inglés
+  (`editListValue`) migra su traducción existente a la nueva key en vez de perderla; borrar un valor
+  (`deleteListValue`) borra también su traducción; renombrar/borrar una LISTA completa
+  (`renameCurrentList`/`deleteCurrentList`) migra/borra `listTranslationsEs[nombre]` igual que ya hacía con
+  `lists[nombre]`.
+- **Todavía no se usa en ningún deck** — esto es solo la infraestructura de datos + su UI de mantenimiento;
+  conectar `listTranslationsEs` a la generación real de una presentación en español queda pendiente para
+  cuando esa función se construya.
+
 ## Resumen (dashboard de indicadores)
 
 Primera pestaña del menú lateral (`#resumenView`/`#resumenContent`, mostrada por `showResumenView()`/
@@ -1720,6 +1761,57 @@ pestaña "Portada" (absorción, disponibilidad, inventario, tasas, desglosados p
   su propio `.resumen-scroll` para las últimas columnas en pantallas medianas. Si se agrega otra tabla de
   varias columnas dentro de `.resumen-row-3` (o un layout de N-en-fila similar), aplicar el mismo patrón
   (`min-width` + scroll propio) en vez de dejar que `table-layout:fixed` comprima libremente.
+
+### "Tool Usage" — gráfica de barras de actividad (v4.5.0)
+
+Pedido explícito del usuario: al fondo de Resumen, después de "Compliance", una gráfica de barras del
+"uso que le están dando los usuarios a la herramienta". Antes de construirla se confirmaron 2 decisiones de
+diseño con el usuario vía `AskUserQuestion`:
+
+1. **Qué cuenta como "uso"**: la fecha de `LAST_MODIFIED`/`LAST_UPDATE` (el timestamp que el sistema ya
+   escribe solo en cada guardado exitoso, ver `## Ficha de edición/vista de un registro` arriba) de **las 6
+   entidades** (Propiedades, Parques, Transacciones, Terrenos, Oficinas, Spaces) — no solo las 4 que ya
+   cubre "Compliance" en esta misma vista. Es la primera vez que Oficinas/Spaces aparecen en Resumen.
+2. **Granularidad del filtro "por documento de Excel"**: por ARCHIVO real cargado (ej. "OF_MTY_IG.xlsx"),
+   no por oficina/mercado — aunque en la práctica casi siempre coincide 1:1 (cada oficina normalmente tiene
+   un solo Excel), el usuario pidió explícitamente esa granularidad más fina.
+
+**Mecánica**:
+- `RESUMEN_USAGE_ENTITIES = ["PROPIEDADES","PARKS","TRANSACCIONES","LAND","OFICINAS","SPACES"]`.
+- `recordSourceDoc(ent, rec)` resuelve el "documento" de un registro:
+  - **Modo Consolidado**: lee `rec.__sourceDoc`, un campo NUEVO agregado a `extractEntityRowsReadOnly()`
+    (recibe ahora también `fileName`, el nombre real del `.xlsx` que se está leyendo en ese momento del
+    loop de `loadConsolidatedFromRoot()`) — antes esa función solo guardaba `__consolidatedOffice` (la
+    carpeta/oficina), sin el nombre del archivo en sí, insuficiente para el filtro que pidió el usuario.
+  - **Modo normal (un solo Excel de datos vinculado)**: Terrenos SIEMPRE vive en su propio archivo aparte
+    (ver `## Terrenos`), así que hay como máximo 2 documentos posibles — se resuelve por ENTIDAD, no por
+    registro (`ent==="LAND" ? landFileHandle?.name : fileHandle?.name`, con un texto de fallback si no hay
+    archivo vinculado) — no hizo falta guardar nada nuevo en `state` para este modo, ya que todos los
+    registros de una misma entidad vienen siempre del mismo archivo aquí.
+- `resumenUsageDocsAvailable()` — lista de documentos distintos presentes hoy en `state` (las 6 entidades),
+  para poblar el `<select>` del filtro. `resumenUsageData(days, docFilter)` — cuenta, por cada uno de los
+  últimos `days` días de calendario (incluyendo hoy, línea de tiempo CONTINUA — un día sin actividad
+  aparece con barra en 0, no se omite), cuántos registros de las 6 entidades tienen esa fecha en su
+  `LAST_MODIFIED`/`LAST_UPDATE` (mismo lookup genérico `rec.LAST_MODIFIED||rec.LAST_UPDATE` que ya usa
+  `daysSinceUpdate()`, nunca ambiguo porque cada entidad solo tiene uno de los 2 campos), filtrando primero
+  por `docFilter` si el usuario eligió uno.
+- `resumenUsageChartHtml(data)` — gráfica de barras 100% CSS (esta app nunca cargó ninguna librería de
+  charting, ni falta hacía para esto): un `<div>` por día, alto proporcional al máximo del rango visible.
+  Con hasta 90 barras, mostrar la fecha de TODAS se encimaría — `labelEvery` (cada 3/6/10 barras según el
+  período elegido) espacía las etiquetas.
+- **2 selectores propios de esta sección** (`#resumenUsageDocSelect`/`#resumenUsageDaysSelect`, 30/60/90
+  días), en memoria (`resumenUsageDays`/`resumenUsageDoc`, no persistidos — mismo criterio que
+  `resumenYear`/`resumenMarket`) — a propósito NO viven en `.resumen-header-controls` (el filtro global de
+  Mercado/Año arriba del todo), ya que el usuario fue explícito: "solo para esa gráfica", nunca deben
+  afectar el resto del dashboard.
+- **Bug real encontrado y corregido de paso, necesario para que la gráfica cuente bien Oficinas/Spaces en
+  modo Consolidado**: `applyConsolidatedResult()` nunca volcaba `merged.OFICINAS`/`merged.SPACES` a
+  `state` — esas 2 keys existían en `merged` desde v3.51.2 (se agregaron solo para evitar un crash si algún
+  archivo consolidado trae esas hojas), pero la función solo asignaba las otras 4 entidades a `state`.
+  Efecto real: en Consolidado, Oficinas/Spaces se quedaban con lo que hubiera en `state` de ANTES de entrar
+  a ese modo (datos de un Excel individual ya desvinculado, o vacío) — nunca con los datos consolidados
+  reales de esas 2 entidades, en NINGÚN lugar de la app (tabla, Mapa, Resumen), no solo en esta gráfica
+  nueva. Se agregaron las 2 líneas que faltaban, mismo patrón que las otras 4.
 
 ## Presentación (deck)
 
@@ -2344,6 +2436,14 @@ arma las páginas de tabla en chunks de 6.
   fila) agrega la clase `deck-cell-sm` solo a su celda de valor. `buildLandDeckPageHtml` pasó de llamar
   `escapeHtml(presLandValueFor(...))` directo a `presLandCellHtml(...)` para que este link (y cualquier otro
   caso especial futuro) se aplique sin tener que tocar el bucle de nuevo.
+- **"Water Supply" y "Natural Gas" muestran "TBC" cuando están vacíos (v4.4.15)**, pedido explícito del
+  usuario. Ninguno de los 2 rows tenía `rule` asignado desde que se armó `PRESENTATION_ROWS_LAND` — caían en
+  el fallback genérico de `presLandValueFor` (`if(v==null||v==="") return "—";"`), mostrando un guion en vez
+  de "TBC". Se les agregó `rule:"tbc_empty"` — la misma regla que ya usan "Sewer System"/
+  "Telecommunications"/"Railroad" (vacío → "TBC", sin caso especial para 0, ya que son campos categóricos) —
+  sin necesitar ningún cambio en `presLandValueFor()` mismo, la regla ya estaba implementada. **"Water
+  Capacity" (el campo numérico vecino, distinto de "Water Supply") no se tocó** — sigue con su propia regla
+  `"viability_none"` (0→"Viability", vacío→"None"), que el usuario no pidió cambiar.
 - **Prefijo de moneda en "Asking Price" (v3.38.2)**, pedido explícito del usuario ("similar a la que
   tenemos en propiedades con su signo de $"): unidad del row cambiada de `"month/m2"` a `"$/m2"`, y nuevo
   flag `row.currency:true` en `presLandValueFor` — antepone `"MX $ "`/`"US $ "` según la moneda real
@@ -2428,6 +2528,434 @@ etapa 1) se **eliminó por completo** — ya no queda ningún botón usándola.
   (sin páginas de más/de menos, con el nombre de archivo esperado) y que Vista Previa de macOS no muestra
   ningún problema nuevo de renderizado (dado el historial de esa app con PDFs generados por Chrome, ver
   `## Presentación (deck)` arriba).
+
+### Presentación de Oficinas — Etapa 1 (selección en la tabla de Spaces, v4.1.0 en construcción)
+
+Pedido explícito del usuario, tras liberar los módulos de Oficinas/Spaces a PRD (v4.0.0): un deck nuevo,
+distinto de Propiedades/Terrenos, pensado para ofrecer pisos (Spaces) a un cliente. Confirmado vía
+`AskUserQuestion` con el usuario 2 decisiones de diseño antes de empezar:
+
+1. **El requerimiento del cliente se cumple seleccionando 1+ Spaces**, y el analista decide MANUALMENTE, por
+   cada selección, si van agrupados en 1 sola Opción (suma de área — ej. 4 pisos de un mismo edificio
+   ofrecidos como un solo paquete de 1,200 m²) o agregados individualmente (1 Opción por Space — ej. 5 pisos
+   de 300 m² en el mismo edificio, ofrecidos como 5 opciones separadas, **nunca** sumados automáticamente).
+   Esta decisión **nunca es automática por edificio** — puede haber varias Opciones (agrupadas o no) dentro
+   del mismo edificio en una misma propuesta.
+2. La propuesta armada **no necesita guardarse** (vive una sola sesión) y el flujo **arranca directo en la
+   tabla de Spaces** — a diferencia de Propiedades/Terrenos, que tienen un deck/vista completa aparte
+   (`presentationView`/`landPresentationView`), la Etapa 1 no agrega ninguna vista nueva.
+
+**Mecanismo (Etapa 1, ya implementado):**
+- La tabla de Spaces reusa la MISMA columna de checkbox que ya usan Propiedades/Terrenos (`showSelect` en
+  `renderTable()`), pero con su propio arreglo transitorio `officeSpaceStaging` (Space `__id` marcados,
+  pendientes de convertirse en Opción) — nunca comparte selección con `presentationOrder`/
+  `landPresentationOrder`. Checkbox "Select all", chip de conteo y su "×" (limpiar) funcionan igual que en
+  Propiedades/Terrenos, solo apuntando a `officeSpaceStaging` (ver `toggleOfficeSpaceStaging`/
+  `toggleSelectAllOfficeSpaceStaging`/`clearAllOfficeSpaceStaging`).
+- Con 1+ Spaces marcados aparece una barra de 2 acciones junto al chip: **"Group as one option (N)"**
+  (`groupOfficeStagingAsOption()`, junta TODO lo marcado en 1 sola Opción) y **"Add N individually"**
+  (`addOfficeStagingIndividually()`, crea 1 Opción por cada Space marcado). Cualquiera de las 2 vacía
+  `officeSpaceStaging` al terminar.
+- Cada Opción es `{id, spaceIds:[...]}` — 1 `spaceId` = individual, 2+ = agrupada (la etiqueta "Grouped"/
+  "Individual" se deriva del largo del arreglo, no se guarda por separado). Viven en `officePresOptions`,
+  **sin `localStorage`** (a propósito, pedido explícito "no necesita guardarse" — a diferencia de
+  `PRES_ORDER_KEY`/`LAND_PRES_ORDER_KEY`, que sí persisten).
+- Botón "Presentation options" (con pill de conteo) siempre visible en la tabla de Spaces, abre un modal
+  simple (`officeOptionsOverlay`/`openOfficeOptionsPanel()`) con la lista de Opciones armadas hasta ahora —
+  edificio(s), piso(s), # de spaces, área total y badge Grouped/Individual — cada una removible
+  (`removeOfficePresOption()`).
+- **Área sumada = `NET_LEASABLE_AREA_VALUE` de cada Space, NO `AVAILABLE_AREA_VALUE`.** Trampa real evitada
+  a propósito: `AVAILABLE_AREA_VALUE` en Spaces es un campo autofill de solo lectura tomado de la Oficina
+  completa (ver `SPACE_AUTOFILL_READONLY_KEYS`) — sumarlo entre varios Spaces del mismo edificio contaría el
+  área disponible del edificio varias veces. `NET_LEASABLE_AREA_VALUE` sí es específico de cada piso.
+  Normalizado a SF antes de sumar reusando `areaValueInSF()` (mismo criterio que Resumen, v3.51.8) para no
+  mezclar SF y m² como si fueran el mismo número.
+
+**Etapa 2, primera parte (Cover/Mapa/Cierre — v4.2.0 en construcción, pedido explícito del usuario: "de
+entrada ya vayamos generando la portada, el mapa, y el cierre")**: el deck real de Oficinas, como 3ra opción
+del mini-menú "Presentación" (`togglePresentationMenu`/`selectPresentationMenuOption('oficinas')`), deck
+SEPARADO de Propiedades/Terrenos (mismo criterio de siempre) — `showOfficePresentationView()`/
+`renderOfficePresentationView()`, shell `#officePresentationView` (sidebar + `#officePresPages`) y
+`#officePresTopbarControls` (Design/Cover data/Print, mismo patrón que Terrenos, sin checkbox "Table" porque
+esa página no existe todavía). Diferencia real con Propiedades/Terrenos: este deck **no tiene su propio
+checkbox de selección** — solo LEE `officePresOptions` (la Etapa 1, arriba), nunca la modifica; el sidebar
+reusa literalmente `renderOfficeOptionsPanel()` (parametrizada con `targetId`, v4.2.0) apuntando a
+`#officePresSelectedList`, una sola fuente de verdad.
+
+- **3 imágenes nuevas** (`OFFICE_COVER_IMAGE_SRC`/`OFFICE_DIVIDER_IMAGE_SRC`/`OFFICE_CLOSING_IMAGE_SRC`),
+  tomadas de `Config. del Proyecto/Logo/OFFICINA_PORTADA.jpeg`/`OFFICINA_SEPARADOR.jpeg`/`OFFICINA_CIERRE.jpeg`
+  (compartidas por el usuario) y embebidas en base64 exactamente igual que `COVER_IMAGE_SRC`/
+  `CLOSING_IMAGE_SRC` de Propiedades/Terrenos — Oficinas necesitaba fondos propios (distintos), así que no
+  comparte esas 2 constantes. `OFFICE_DIVIDER_IMAGE_SRC` ("Separador") **todavía no se usa en ninguna
+  página** — reservada para las páginas divisoras por submercado de una etapa posterior (ver la referencia de
+  37 páginas del usuario, `Arca 4,000 m2 (VM).pdf`), se dejó lista de una vez.
+- **Portada** (`buildOfficeCoverPageHtml`): a diferencia de `.cover-overlay` de Propiedades/Terrenos
+  (mes/año + m² + lista de mercados), la imagen base de Oficinas YA trae "Análisis de Mercado" quemado en la
+  foto — el overlay dinámico (`.office-cover-overlay`, nueva clase CSS) es solo "Para: / [Cliente] /
+  [Fecha]", 2 campos (`officePresCoverInfo`, editables desde "Cover data") en vez de los 5 de Propiedades
+  (sin Size/Markets/Brokers/Company — no aplican a este formato de portada).
+- **Mapa** (`buildOfficeMapPageHtml`/`renderOfficePresMap`, propia instancia `officePresMapInstance` +
+  canvas `#officePresMapCanvas`, mismo patrón CARTO Voyager + `declutterMapPins` que los otros 2 mapas):
+  los pines NO son los Spaces de `officePresOptions` (varios pisos del mismo edificio serían el mismo pin
+  repetido) sino los **edificios (OFICINAS) únicos** referenciados por esas Opciones —
+  `officePresBuildingList()` resuelve cada Space a su Oficina vía `MAPPING_CODE` y deduplica.
+- **Cierre**: `buildClosingPageHtml()` se parametrizó (`imgSrc` opcional, default `CLOSING_IMAGE_SRC` — sin
+  cambios para Propiedades/Terrenos) en vez de duplicarse una 3ra vez, ya que el resto de esa página sigue
+  siendo agnóstico de entidad; Oficinas la llama como `buildClosingPageHtml(OFFICE_CLOSING_IMAGE_SRC)`.
+- **Guard de cross-contaminación** (mismo criterio que Propiedades↔Terrenos): `renderPresentationView()` y
+  `renderLandPresentationView()` ahora TAMBIÉN limpian `#officePresPages`, y
+  `renderOfficePresentationView()` limpia `#presPages`/`#landPresPages` — en cualquier momento dado solo el
+  deck que se está viendo tiene páginas reales en el DOM (`preparePrintPageSize()`/impresión buscan
+  `.deck-page` de forma global, sin distinguir contenedor).
+- **Imprimir/PDF** (`officePresPrintBtn`) — mismo flujo exacto que Propiedades/Terrenos,
+  `buildOfficePresPdfFilename()` usa el nombre del Cliente. `preparePrintPageSize()` no necesitó ningún
+  cambio (ya agrupa por clase `.cover-page`/`.map-page`, agnóstico de qué deck las generó).
+- Sin persistir nada de `officePresOptions` (eso sigue siendo la Etapa 1, deliberadamente sin
+  `localStorage`) — pero `officePresCoverInfo`/`officePresShowState` (Cliente/Fecha, qué secciones se
+  muestran) SÍ persisten en `localStorage`, igual que sus equivalentes de Propiedades/Terrenos.
+
+**Etapa 2, ajustes (v4.2.1, pedidos explícitos del usuario tras la primera prueba)**:
+- **Bug real: "hice una prueba de impresión y no me mostró nada... hojas en blanco"** — causa confirmada:
+  las 2 reglas CSS de `@media print`/`body.printing-deck` que hacen visible el deck activo
+  (`#presPages`/`#landPresPages{visibility:visible}` y su versión `position:static`) nunca se habían
+  extendido a `#officePresPages` — heredaba `visibility:hidden` de la regla `body *` de arriba sin importar
+  que `preparePrintPageSize()` sí midiera bien sus `.deck-page`. Se agregó `#officePresPages` a ambas reglas
+  (ver `@media print` y el bloque `body.printing-deck` cerca de la línea 590 del HTML).
+- **Reordenar Opciones (drag&drop)** — mismo mecanismo que `.pres-item` de Propiedades
+  (`officeOptionDragStart`/`DragOver`/`Drop` sobre `officePresOptions`, `FC_DRAG_ICON` incluido). Funciona
+  en los 2 lugares donde vive `renderOfficeOptionsPanel()` (panel acoplado de Spaces y sidebar del deck),
+  porque ambos pintan el mismo `officePresOptions` — reordenar en cualquiera de los 2 refresca ambos (y el
+  deck completo, si está activo, porque el orden también cambia la numeración de páginas/pines).
+- **Selector "Units" propio del deck** (`officePresUnitSelect`/`officePresUnitPref`, con su propio
+  `localStorage`) — controla el área mostrada en el sidebar de Opciones DE ESTE deck, independiente del
+  selector "Units" de la tabla de Spaces (`unitViewPref`, que sigue controlando el panel acoplado ahí).
+  `officeOptionAreaForDisplay()`/`officeOptionInfo()`/`renderOfficeOptionsPanel()` ahora aceptan un
+  `unitPref` opcional (default `unitViewPref` si se omite) para poder pasar cualquiera de los 2 según dónde
+  se esté pintando la lista.
+- **Rediseño del Mapa** (referencia visual del usuario): reemplaza el badge flotante genérico de
+  `.map-page-badge`/`.map-page-attribution` por un banner blanco arriba (`DECK_LOGO_SRC` + nombre del
+  Mercado — **corrección v4.2.4**: `DECK_LOGO_SRC` ES el ícono circular solo, sin ningún wordmark; la nota
+  original aquí decía lo contrario y estaba mal — se creó una `CITIUS_ICON_SRC` redundante por error en
+  v4.2.1/2 y se eliminó al confirmarse que era el mismo PNG) y un banner amarillo a la derecha (cada
+  Submercado con la lista numerada de sus edificios, `.office-map-legend`). Los pines del mapa y los
+  números de la leyenda usan la MISMA lista reordenada por submercado
+  (`officePresBuildingsGroupedBySubmarket()`, calculada una sola vez en `renderOfficePresentationView()` y
+  reusada tanto para el HTML de la leyenda como para `renderOfficePresMap()`) — nunca la lista cruda de
+  `officePresBuildingList()`, para que un pin y su número en la leyenda siempre calcen. La página conserva
+  la clase `.map-page` (además de la nueva `.office-map-page`) a propósito: `preparePrintPageSize()` agrupa
+  el tamaño de impresión por esa clase (ver `groupOf()`), perderla la habría hecho caer en el grupo
+  "tablePage" por default.
+- **v4.2.4, corrección pedida por el usuario**: el logo/texto del banner blanco se había igualado a
+  `.map-page-badge` (el mapa CHICO de Propiedades/Terrenos, 26px/18px) — el usuario aclaró que se refería a
+  la cabecera de la TABLA COMPARATIVA "Building Options" (`.deck-header`/`.deck-logo`/`.deck-header h2`,
+  34px/32px, mucho más grande). Se igualó a esa especificación en su lugar. Además, un 2do incremento de
+  letra del banner amarillo (13px/14px → 15px/17px), pedido explícito, tras el primer incremento de v4.2.2
+  (11px/12px → 13px/14px) resultar insuficiente.
+- **v4.2.5, bug real reportado por el usuario ("empiece un poco más arriba, a la misma altura de como
+  empieza el mapa")**: aun con `padding-top:14%` (v4.2.2) el contenido del banner amarillo seguía arrancando
+  visiblemente más abajo que el mapa. Causa: `padding-top`/`padding-bottom` de CUALQUIER caja (posicionada o
+  no) se resuelve en CSS contra el ANCHO del contenedor, nunca el alto — con la página en horizontal (ancho
+  > alto), 14% del ancho daba más píxeles que 14% del alto real del banner. Fix: se movió ese offset de
+  `padding-top` (en `.office-map-legend`) a `top` (offset real, que sí se resuelve contra el alto) en un
+  nuevo wrapper interno, `.office-map-legend-inner` — el `overflow-y:auto` para scroll también se movió a
+  ese wrapper.
+
+**Etapa 2, ajustes (v4.2.2, pedidos explícitos del usuario tras probar el mapa nuevo)**:
+- **Bug real: "no está mostrando todos los pins"** — causa confirmada: `officePresBuildingList()` resolvía
+  cada Space a su Oficina buscando `sp.MAPPING_CODE` en un `Map` de Oficinas; si ese código no calzaba
+  EXACTO con ningún registro (dato mal capturado/editado a mano en alguno de los 2 lados), el edificio se
+  descartaba **en silencio** — ni pin, ni aviso, ni contaba como "sin coordenadas". Ahora se cuenta
+  (`unresolvedCount`) y se avisa en la página del mapa junto a la nota de coordenadas faltantes. No se
+  intentó "adivinar" el match (ej. comparar sin mayúsculas/espacios) — MAPPING_CODE es llave exacta en toda
+  la app, así que si el dato real no calza es mejor que el usuario lo vea y lo corrija en Spaces/Oficinas.
+- **Banner blanco del Mapa** ahora es EXACTAMENTE la misma especificación que el badge de "Building Options"
+  (`.map-page-badge`/`img`/`h2`: fila, gap 10px, ícono 26x26, texto 18px/400/#666/'Dala Moa') — se quitó la
+  línea decorativa que tenía antes (esa badge tampoco la tiene).
+- **Banner amarillo**: la lista de submercados/edificios ahora arranca a la misma altura donde arranca el
+  mapa (antes arrancaba pegada arriba, a la altura del banner blanco) y con letra más grande (11px/12px →
+  13px/14px).
+
+**Etapa 3 (v4.4.0 en construcción, pedido explícito del usuario con referencia visual real): página de
+detalle por Opción + selector de idioma EN/ES.**
+
+- **Selector de idioma** (`officePresLangSelect`/`officePresLangPref`, propio de este deck, con su propio
+  `localStorage`) — solo cambia el TEXTO mostrado: las etiquetas fijas de la página nueva (bilingües,
+  `{en,es}` en cada fila de `officeDeckSpaceInfoRows`/`officeDeckBuildingInfoRows`, elegidas con el helper
+  local `t(en,es)` dentro de cada `build*Html()`) y los VALORES que vienen de una lista (vía
+  `officePresTranslateValue(listName, valor)`/`officePresTranslateMulti` para AMENITIES, que usa
+  `listTranslationsEs` — la traducción global de la Etapa de Configuración > Listas, ver arriba). Los datos
+  capturados (`lists`) nunca se tocan — si no hay traducción registrada para un valor, se muestra el inglés
+  tal cual, nunca vacío.
+- **2 páginas por Opción** (`buildOfficeOptionDetailPageHtml`/`buildOfficeOptionPhotosPageHtml`), agregadas
+  entre Mapa y Cierre, con su propio toggle "Options" en el panel Design (`officePresShowState.options`,
+  default `true`):
+  1. Foto del edificio (arriba-izq) + tabla "Información del Espacio" (arriba-der) + Plano (abajo-izq) +
+     tabla "Información del Edificio" (abajo-der). La 1ra fila de "Información del Espacio" es "Nivel(es)"
+     (pedido explícito del usuario: "esta información esté en la tabla como primer dato antes de área neta
+     rentable, justo como ya lo muestra en el selector de espacios" — reusa el mismo `info.floors` que ya
+     arma `officeOptionInfo()` para el panel de Opciones).
+  2. 4 fotos de interior.
+  - **Regla de grupo, confirmada explícitamente por el usuario**: cuando una Opción agrupa 2+ Spaces, la
+    foto del edificio/plano/4 fotos de interior SIEMPRE se toman del **primer Space del grupo**
+    (`officeOptionPrimarySpace()`, primer elemento de `opt.spaceIds` en el orden en que se marcaron) —
+    NUNCA se combinan fotos de varios Spaces en una sola página. Las ÁREAS sí se SUMAN entre todos los
+    Spaces del grupo (`sumSpacesAreaSF`, mismo criterio que ya usaba `officeOptionAreaSF` para el sidebar);
+    el resto de los campos del Space (condición, disponibilidad, tarifas) usa el primer Space, mismo
+    criterio que las fotos — documentado aquí por si el usuario pide un criterio distinto más adelante (ej.
+    mostrar un rango cuando los pisos del grupo difieren).
+  - **Fallback de las 4 fotos de interior, pedido explícito del usuario**: slots 1-2 son SIEMPRE Interior
+    (1)/(2) del Space primario; slots 3-4 son Interior (3)/(4) del MISMO Space **si existen**
+    (`hasPhoto()`), y si no, caen a Lobby + la 1ra foto de Amenidades del EDIFICIO ("si no tiene 4 fotos
+    del interior sería usar al menos 2... las otras 2 de abajo serían del Lobby y la primera de amenidades
+    del edificio").
+  - **Mapeo de campos** (`officeDeckSpaceInfoRows`/`officeDeckBuildingInfoRows`) — elegido a falta de un
+    campo 1:1 exacto en algunos casos, documentado para que el usuario lo corrija si no es lo que esperaba:
+    "Uso del Edificio" usa `CATEGORY_OFFICES` (no hay un campo "Building Use" separado); "Desarrollador" usa
+    `OFICINAS.DEVELOPER` (lista de códigos A/B/C/D, igual que en el resto de la app). Tarifas (Precio de
+    renta/Mantenimiento/Costo de cajón) reusan el mismo criterio de `presValueFor()` de Propiedades: 2
+    decimales siempre, prefijo "MX $"/"US $" real (`presCurrencyPrefix`, agnóstica de entidad),
+    convertidas a la unidad de área elegida vía `convertCellForView` (ya sabe convertir la lista
+    CON_COMERCIAL, ej. "MXN/SF" ↔ "MXN/m²" — sin necesitar ningún cambio ahí).
+  - **`renderOfficePresentationView()` ahora es `async`** — primer deck de Oficinas con fotos reales, por
+    lo que `await ensurePhotoSet()` antes de decidir el fallback (necesita saber si Interior 3/4 existen
+    ANTES de renderizar) y `revokeAllDeckPhotoUrls()` al inicio (mismo criterio que
+    `renderPresentationView()` de Propiedades). `.office-detail-page` es una `.deck-page` normal (padding
+    de siempre, sin aspect-ratio forzado) — cae en el bucket "tablePage" por default de
+    `preparePrintPageSize()`, igual que "Table"/"List" de Propiedades, sin necesitar ningún cambio ahí.
+
+**Etapa 3, ajustes (v4.4.1, pedidos explícitos del usuario tras la primera prueba)**:
+- **Título + ícono de la página de Opción, igualado al del Mapa** ("mismo tamaño de ícono y de letra") —
+  se dejó de usar el estilo propio (línea + serif 20px, calcado del building-detail de la referencia Arca)
+  y ahora reusa literal `.deck-header`/`.deck-logo`/`<h2>` (34px/32px, la misma especificación de
+  "Building Options" que ya usa el Mapa) — ya no existen las clases `.office-detail-header`/
+  `.office-detail-title-row`/`.office-detail-title-rule`/`.office-detail-title`/`.office-detail-logo`.
+- **Quitadas 2 etiquetas redundantes**: el título "Plano"/"Floor Plan" arriba de la foto del plano, y el
+  texto "Niveles X, Y" debajo de él (`.office-detail-plan-caption`, eliminada) — el nivel/piso ya se ve
+  como 1ra fila de "Información del Espacio" ("Nivel(es)"), pedido explícito: "no es necesario" repetirlo.
+- **Nota de pie de página**: alineada a la izquierda (antes centrada) y letra más grande (9px → 11px).
+- **El plano ya NO se recorta**: usaba `object-fit:cover` (igual que la foto del edificio/interiores, que sí
+  deben llenar el recuadro) — el plano necesita verse COMPLETO, así que tiene su propia regla
+  (`.office-detail-plan img{object-fit:contain}`) que lo deja con franjas del fondo gris si no calza exacto
+  al recuadro 4:3, en vez de recortar bordes.
+
+**Etapa 3, ajustes (v4.4.2, pedidos explícitos del usuario tras ver el `contain` de arriba en pantalla)**:
+- **Relleno gris arriba/abajo del plano, corregido de raíz** — el recuadro genérico es 4:3 (1.33), pero los
+  Layout de Spaces se GUARDAN siempre a 600×405 (`PHOTO_TARGET_W`/`H`, SPACES no tiene entrada en
+  `PHOTO_SIZE_OVERRIDES`) — 600/405 ≈ 1.48, esa diferencia de proporción era justo el relleno gris que
+  `contain` (v4.4.1) dejaba arriba/abajo. `.office-detail-plan{aspect-ratio:600/405}` iguala el recuadro al
+  aspect-ratio REAL del archivo guardado — `contain` sigue ahí solo como red de seguridad, ya no como el
+  mecanismo que "resuelve" el ajuste rellenando.
+- **Marco del plano quitado** (`.office-detail-plan{border:none}`) — a diferencia de la foto del
+  edificio/interiores, que sí lo conservan.
+- **Alineación entre "Información del Espacio" e "Información del Edificio"** — son 2 `<table>` DISTINTAS;
+  sin ancho fijo, cada una autoajustaba su columna de etiqueta al texto más largo de ESA tabla nada más
+  (`Space` tiene etiquetas más largas, ej. "Additional Spot Cost ($/spot/month)"), así que la columna de
+  valor de cada una arrancaba en un punto horizontal distinto. Fix: `table-layout:fixed` +
+  `td:first-child{width:230px}` igual en las 2 — ahora ambas columnas de valor arrancan exactamente en el
+  mismo punto.
+- **2do incremento de letra de la nota de pie** (11px → 13px), tras el primero (v4.4.1, 9px → 11px)
+  resultar insuficiente.
+
+**Etapa 3, ajustes (v4.4.3, pedidos explícitos del usuario)**:
+- Título de tabla ("Space Information"/"Building Information") más grande (13px → 15px) y en el amarillo
+  REAL de Citius (`--accent`, no `--accent-ink` — ese es el tono oscuro para texto SOBRE el amarillo).
+- Nota de pie reducida un poco (13px → 12px) — el 2do incremento de arriba se sintió grande.
+- **Divisor de Submercado** (`buildOfficeDividerPageHtml()`) — usa `OFFICE_DIVIDER_IMAGE_SRC` (embebida
+  desde la Etapa 2, reservada para esto desde entonces; el ícono blanco ya viene quemado en la foto, lo
+  único dinámico es el nombre del submercado, mismo estilo línea+serif que el resto del deck). Se inserta
+  en `renderOfficePresentationView()` cada vez que el submercado de la Opción actual
+  (`officeOptionSubmarket()`, vía la Oficina ligada) difiere del de la anterior, **en el orden actual de
+  `officePresOptions`** — no se reagrupan/reordenan las Opciones por submercado; si el usuario quiere los
+  divisores agrupando un mismo submercado, debe dejar esas Opciones contiguas él mismo (ya puede
+  reordenarlas arrastrando en el sidebar). No tiene su propio toggle en Design — vive bajo "Options"
+  (dividers solo tienen sentido si las páginas de Opción están visibles).
+
+**Etapa 3, ajustes (v4.4.4, pedidos explícitos del usuario)**:
+- **Tipografía real del deck** — `.office-detail-page{font-family:'Unitext',sans-serif}` (nuevo). `.deck-page`
+  nunca trae font-family propio (cada hijo lo declara aparte: `.deck-grid`/`.deck-note`/`.layout-table`); la
+  tabla de Opción nunca lo había declarado, así que caía en la fuente del sistema de la app en vez de
+  'Unitext' (la que el usuario ve en el resto de la presentación, y a la que se refería como "OpenSans").
+  Se declara UNA vez en el contenedor y cae en cascada a la tabla/nota/título de sección — `.deck-header h2`
+  (los títulos, "Dala Moa" serif) no se ve afectado, tiene su propio font-family más específico.
+- **Etiqueta/valor invertidos** ("quiero que el título de la etiqueta... esté en negritas y los datos en
+  normal, al revés de como los tenemos") — antes la etiqueta era gris + peso normal y el valor negrita;
+  ahora la etiqueta es gris + NEGRITA (mismo gris de siempre, el usuario no pidió cambiar el color) y el
+  valor pasa a peso normal.
+- Letra de la tabla más grande (12px → 14px).
+
+**Etapa 3, ajustes (v4.4.5, pedidos explícitos del usuario)**:
+- **Columna de valor casi se sobreponía con la etiqueta** ("Additional Spot Cost ($/spot/month)" era la más
+  larga, y con la etiqueta en negrita de v4.4.4 ocupaba más ancho que antes) — `td:first-child` sube de
+  230px+12px a 270px+18px de aire.
+- **2do incremento del título de tabla** ("tienen que resaltar más"), 15px → 19px, tras el primero (v4.4.3,
+  13px → 15px) no ser suficiente.
+
+**Etapa 3, ajustes (v4.4.6, bugs reales reportados por el usuario)**:
+- **Bug grave de raíz: Mapping Code cambiaba de tipo (String↔Number) al guardar** — reportado como "en el
+  mapa no me muestra el pin... Mapping Code no coincide" y "esto solo pasa cuando edito algo de las
+  Propiedades/Oficinas, no pasa con los Spaces" (con capturas confirmando que Oficina y Space SÍ tenían el
+  mismo código capturado en pantalla). Causa raíz real, en `saveBtn.onclick`: el colector genérico de
+  campos de texto convertía CUALQUIER valor que "pareciera" numérico a un Number de JS vía `maybeNum()` —
+  `isNumericField()` siempre regresa `true`, así que esto aplicaba a TODOS los campos de texto sin
+  distinción. Un Mapping Code corto como "1" pasaba de String a Number cada vez que ESE registro se
+  guardaba; el otro lado de la relación (un Space con el mismo código, guardado en otro momento) se quedaba
+  como String — cualquier comparación estricta (`Map.get()`, `.find(r=>r.MAPPING_CODE===...)`) dejaba de
+  encontrar el match, aunque en pantalla ambos se vieran idénticos ("1" y 1 se muestran igual). Esto
+  explica también por qué el usuario podía "arreglarlo" resolviendo cada Space a mano (los dejaba con el
+  MISMO tipo que la Oficina en ese momento) pero se volvía a romper la próxima vez que editara la Oficina
+  (que reconvierte su propio Mapping Code a Number en cada guardado, sin importar qué campo se haya
+  editado).
+  - **Fix de raíz**: nuevo `ID_LIKE_FIELD_KEYS = new Set(["MAPPING_CODE","ID_PARK","ID__LAND","SPACE_CODE"])`
+    — estos 4 campos (los mismos valores de `PHOTO_ID_FIELD`, más "MAPPING_CODE" que además se reusa como
+    referencia foránea en Spaces/Transacciones) quedan EXENTOS de `maybeNum()` en el colector — nunca se
+    convierten a número sin importar qué tan "numérico" parezca su valor, de aquí en adelante.
+  - **Defensa adicional** en el código de Oficinas construido en esta Etapa (`officePresBuildingList()`/
+    `officeOptionOfficeRecord()`): sus 2 `Map` de Mapping Code → Oficina ahora comparan con `String(...)` de
+    los 2 lados (mismo criterio que ya usaba `relatedParkFor()` con ID_PARK, un bug de la misma familia
+    corregido antes) — así los datos que YA quedaron con el tipo equivocado (guardados antes de este fix)
+    también encuentran su match, sin que el usuario tenga que volver a guardar nada a mano.
+- **Bug real: texto largo se desbordaba de la tabla** (reportado con Amenidades) — `white-space:nowrap`
+  (pensado para que un valor corto tipo "$320.00" nunca partiera a media palabra) forzaba TODO el texto a
+  una sola línea; con la columna de ancho fijo (`table-layout:fixed`), un valor largo no tenía a dónde ir
+  más que desbordarse. Quitado de `td:last-child` — el texto envuelve normal dentro de su columna.
+- **Divisor de Submercado, reposicionado** (pedido explícito del usuario) — el ícono Y la línea horizontal
+  YA vienen quemados en `OFFICE_DIVIDER_IMAGE_SRC` (parte de la foto); antes se dibujaba una 2da línea
+  propia (CSS) redundante con la de la foto, y el texto no estaba alineado con la línea real. Medido
+  directo sobre el archivo: la línea real arranca en el borde izquierdo (x=0) y termina ~5% del ancho, a
+  ~33% de alto. Se quitó la línea propia y el texto ahora se posiciona exactamente a esa altura
+  (`top:33.3%`, `transform:translateY(-50%)` para centrarlo verticalmente sobre ese punto) arrancando justo
+  después de donde termina la línea real (`left:6.5%`). Letra más grande (32px → 40px).
+
+**Etapa 3, v4.4.7 — el desborde de texto (Amenidades) seguía pasando tras v4.4.6**: quitar `white-space:
+nowrap` no fue suficiente porque la causa de fondo era otra. Un hijo de CSS Grid tiene `min-width:auto` por
+default (no `0`) — el TRACK de la columna (o la tabla dentro de él) podía terminar desbordándose sin
+encogerse para no bajar del ancho mínimo de su contenido, sin importar que la tabla ya tuviera
+`table-layout:fixed` y texto que sí podía envolver (un problema conocido de tablas dentro de Grid/Flexbox).
+Fix: `min-width:0` en los hijos directos de `.office-detail-grid` y en `.office-detail-table` misma, más
+`overflow-wrap:break-word` en `td:last-child` como red de seguridad para un valor sin espacios donde
+envolver.
+
+**Etapa 3, v4.4.8 — el desborde de Amenidades seguía pasando tras v4.4.6/v4.4.7**: el elemento `<table>`
+seguía sin respetar el ancho de su columna en este contexto anidado (Grid > div > table), incluso con
+`table-layout:fixed` + `white-space:nowrap` quitado + `min-width:0` en la tabla y en los hijos de la
+grilla. En vez de seguir peleando contra el algoritmo de layout de `<table>` dentro de Grid/Flexbox, se
+reemplazó por 2 `<div>` en fila (flexbox, `.office-detail-row`/`.office-detail-row-label`/
+`.office-detail-row-value`, `flex:1;min-width:0` en el valor) — mismo look exacto, pero un patrón mucho más
+simple y confiable para que un texto largo (Amenidades) envuelva dentro de su columna. `officeDeckInfoTableHtml()`
+ya no genera un `<table>`, genera estos `<div>`.
+
+**Etapa 3, v4.4.9, pedido explícito del usuario**: "Floor(s)"/"Nivel(es)" se movió de 1er lugar en
+"Información del Espacio" a justo debajo de "Delivery Condition"/"Condición de Entrega" (`officeDeckSpaceInfoRows()`)
+— las menciones más arriba en este documento de que es "la 1ra fila" quedan como historial de la Etapa 3
+original, ya no reflejan el orden actual.
+
+**Etapa 3, v4.4.10, 3 ajustes más de la página de detalle, pedidos explícitos del usuario (captura con 4
+puntos)**:
+1. **Línea final en las tablas de información** — `.office-detail-row:last-child{border-bottom:none}` le
+   quitaba a propósito el borde a la ÚLTIMA fila (criterio normal de "no dejar una línea colgando"), pero el
+   usuario quiere justo lo contrario ("así como se tiene en cada valor") — se quitó esa excepción, ahora la
+   última fila también cierra con su `border-bottom`.
+2. **Más espacio entre el Título y las imágenes/tabla** — `.deck-header{margin-bottom:16px}` es GLOBAL (la
+   comparten el Mapa y "Building Options"), así que no se tocó esa regla directo; se agregó un override más
+   específico `.office-detail-page .deck-header{margin-bottom:32px}` (2 clases le gana a 1 sin importar el
+   orden en la hoja) que solo afecta esta página.
+3. **Área de cada piso en paréntesis, en la fila "Floor(s)"** — antes esa fila reusaba
+   `officeOptionInfo(opt).floors` (un join de los `LEVEL_FLOOR` únicos del grupo, sin ningún dato de área).
+   Función nueva `officeDeckFloorsWithArea(recs, unitPref)`: recorre cada Space del grupo SIN deduplicar por
+   piso (a propósito — 2 Spaces podrían compartir el mismo `LEVEL_FLOOR` pero cada uno tiene su propia
+   área) y arma `"Piso (área unidad)"` por cada uno, reusando `areaValueInSF`/`officeDeckAreaText` (misma
+   fuente de conversión/redondeo que ya usa el total sumado de "Net Leasable Area" arriba) para que la
+   unidad siempre calce con la vista Métrico/Imperial activa.
+
+**Market Status pasa a ser un campo propio de Spaces, ya no de Oficinas (v4.4.10)** — 4to punto de la misma
+captura ("Market Status debe estar en los espacios no en Offices"), confirmado con el usuario vía
+`AskUserQuestion` que se trataba del **modelo de datos** (no de agregar una fila nueva a la página de
+detalle del deck). Antes de este cambio, `MARKET_STATUS` existía en LAS 2 entidades a la vez con roles
+distintos: en `BUNDLE.OFICINAS.fields` era un campo editable de verdad (con su propio `<select>`, vía
+`FIELD_LIST_MAP.OFICINAS`); en `BUNDLE.SPACES.fields` (grupo "PROPIEDAD") vivía como copia de **solo
+lectura**, autocompletada desde la Oficina ligada por `MAPPING_CODE` — parte de
+`SPACE_AUTOFILL_READONLY_KEYS`, así que se llenaba sola al elegir la Oficina desde el picker
+(`autofillSpaceFromMappingCode`) y se volvía a sobreescribir cada vez que esa Oficina se guardaba
+(`recomputeAllSpaceLinkedFields`), sin que el usuario pudiera nunca editarla directo en el Space. El pedido
+invierte esa relación: el estatus de mercado es genuinamente por-piso (un edificio puede tener pisos
+Vacant/Available/Occupied distintos a la vez), así que debe capturarse en Spaces, y Oficinas deja de tener
+su propio Market Status independiente.
+- **`BUNDLE.OFICINAS.fields`**: se quitó la entrada `{"key":"MARKET_STATUS","group":"IDENTIFICATION"}` —
+  mismo patrón ya establecido varias veces en este documento ("Quitar un campo de esta app sin tocar el
+  Excel del usuario", ver `## Modelo de datos`): `pruneFieldConfigToKnownFields()` limpia sola
+  `fieldConfig.OFICINAS` en la próxima carga, y `buildWorkbook()` deja de escribir esa columna pero
+  preserva intacta cualquier columna/dato ya capturado en el Excel real (cae a `r.__row[ci]`, el valor
+  crudo). También se quitó su entrada de `FIELD_LIST_MAP.OFICINAS`.
+- **`FIELD_LIST_MAP.SPACES`** ganó `"MARKET_STATUS":"MARKET_STATUS"` (antes no existía ahí, porque el
+  campo nunca necesitó su propio `<select>` — se llenaba solo). `SPACE_AUTOFILL_READONLY_KEYS` perdió
+  `"MARKET_STATUS"` — con eso, el branch de `renderStandaloneField()` que renderiza los campos de este Set
+  como `<input readonly>` (línea ~5392) deja de interceptarlo, y el campo cae al branch genérico de lista
+  (`if(listName)`, ~línea 5444): se renderiza como un `<select>` normal, editable, con la lista
+  `MARKET_STATUS` (Available/Vacant/Occupied) — igual que cualquier otro campo de lista de la ficha.
+- **`ENTITIES.OFICINAS`**: se quitó `"MARKET_STATUS"` de `listCols`, y `statusField` pasó de
+  `"MARKET_STATUS"` a `"STATUS"` (Ready/Under Construction/Under Development/Planned, campo que Oficinas ya
+  tenía desde antes) — el chip de color de esa columna en la tabla de Oficinas ahora usa `statusPill()`
+  genérico (por substring) en vez de `marketStatusPill()` (comparación exacta contra
+  Available/Vacant/Occupied), mismo tratamiento que ya usa Parques para su propio `statusField:"STATUS"`.
+  El dispatch en `renderTable()` (`c==="MARKET_STATUS"?marketStatusPill(...):statusPill(...)`) es por
+  NOMBRE DE COLUMNA, no por entidad, así que no necesitó ningún cambio — simplemente ya no evalúa a
+  verdadero para la tabla de Oficinas.
+- **`ENTITIES.SPACES`** no cambió — ya tenía `statusField:"MARKET_STATUS"` desde que se creó esa entidad
+  (aunque el campo en sí fuera de solo lectura hasta ahora), así que la tabla de Spaces ya mostraba el chip
+  de color correcto; lo único que cambia es que ahora el VALOR se captura ahí mismo en vez de heredarse.
+- **Datos ya capturados no se pierden ni se tocan**: los Spaces que ya tenían un `MARKET_STATUS` copiado
+  (de cuando aún era autofill) se quedan con ese mismo valor tal cual — simplemente deja de refrescarse
+  solo cuando se edite la Oficina ligada; el usuario lo puede corregir a mano desde ahora si hace falta.
+  Ningún otro punto del código (Resumen, KPIs, el deck de Oficinas) leía `OFICINAS.MARKET_STATUS`
+  directamente — se revisó cada uso real de `MARKET_STATUS` en el archivo antes de hacer el cambio y todos
+  los demás (Resumen, `AVAILABLE_BUILDINGS` de Parques) ya operan sobre `state.PROPIEDADES`, nunca sobre
+  `state.OFICINAS`.
+
+**Etapa 3, v4.4.11, 3 ajustes más, pedidos explícitos del usuario**:
+1. **Letra más grande (etiquetas y datos)** — `.office-detail-row-label`/`.office-detail-row-value` nunca
+   habían declarado su propio `font-size`: caían en los 14px heredados de `body`. Esto en realidad era una
+   regresión sin detectar de v4.4.8 — el `<table>` original SÍ tenía 14px explícito (desde v4.4.4), y se
+   perdió al reemplazar la tabla por estos 2 `<div>` (coincidió por casualidad con el 14px de `body`, así
+   que nadie lo notó visualmente en su momento). Ahora ambas quedan explícitas en 16px.
+2. **Unidad quitada de los VALORES cuando ya está en el título** — varias filas repetían la unidad 2 veces
+   (ej. label "Net Leasable Area (SF)" + valor "50,000 SF"). `officeDeckAreaText()`/
+   `officeDeckUnitConvertedText()` ganaron un 3er parámetro opcional `includeUnit` (default `true`, ningún
+   llamador existente se rompe) — se pasa `false` solo en las 4 filas cuyo LABEL ya trae la unidad entre
+   paréntesis: Net Leasable Area, Net Useable Area (Space Information) y Total Rentable Area/Typical Floor
+   Plate (Building Information). **`officeDeckFloorsWithArea()` (la fila "Floor(s)") NO se tocó** — su
+   label ("Floor(s)"/"Nivel(es)") no trae ninguna unidad, así que ahí la unidad por piso sigue siendo la
+   ÚNICA fuente de esa información, no es redundante. Las filas de Tarifa (Asking Rent/Maintenance/
+   Additional Spot Cost) ya no tenían este problema — `officeDeckRateText()` nunca agregó un sufijo de
+   unidad al valor (solo el prefijo de moneda), a diferencia de las otras 2 funciones.
+3. **Espacio quitado entre el signo de moneda y el número** ("MX $ 4.18" → "MX $4.18") —
+   `presCurrencyPrefix()` es una función AGNÓSTICA DE ENTIDAD, compartida con los decks de Propiedades
+   ("Asking Rate") y Terrenos ("Asking Price"), que sí quieren ese espacio final (no se pidió cambiar ahí,
+   y cambiarla ahí habría alterado esos 2 decks sin que se pidiera). Por eso el espacio se recorta
+   (`.replace(/\s+$/,"")`) DENTRO de `officeDeckRateText()`, solo para el deck de Oficinas, dejando
+   `presCurrencyPrefix()` intacta.
+
+**Etapa 3, v4.4.12, pedido explícito del usuario**: en la fila "Floor(s)"/"Nivel(es)" (Space Information),
+la unidad ahora se muestra UNA sola vez en el TÍTULO de la fila ("Floor(s) (SF)"/"Nivel(es) (SF)", según la
+vista Métrico/Imperial activa) en vez de repetida junto a cada piso ("Nivel 7 (500 SF)" → "Nivel 7 (500)")
+— mismo criterio ya aplicado en v4.4.11 a Net Leasable/Useable Area y Total Rentable Area/Typical Floor
+Plate. Mecánicamente, `officeDeckFloorsWithArea()` ahora llama `officeDeckAreaText(...,false)` (el
+`includeUnit=false` agregado en v4.4.11) en vez del default `true` que tenía hasta ahora — era la única
+llamada que todavía necesitaba la unidad en el valor porque su label no la incluía; con el label actualizado,
+pasa a comportarse igual que las demás.
+
+**Etapa 3, v4.4.13, ajuste fino, pedido explícito del usuario**: `.office-detail-row-label`/
+`.office-detail-row-value` bajaron de 16px (v4.4.11) a 15px — el usuario probó 16px y lo sintió un poco
+grande.
+
+**Etapa 3, v4.4.14, pedido explícito del usuario (con captura real)**: en el Divisor de Submercado quedaba
+un hueco visible entre donde termina la línea quemada en la foto (`OFFICE_DIVIDER_IMAGE_SRC`) y donde
+arranca el texto del submercado — "la idea es que la línea esté literal al final de la letra". Ajuste fino
+de posición en `.office-divider-overlay`: `top` 33.3%→31.5% (sube el texto un poco) y `left` 6.5%→7.5%
+(lo recorre un poco a la derecha), sin tocar `font-size`/`transform`. Mismo criterio de siempre para este
+tipo de ajuste visual a ojo — pendiente de que el usuario confirme con otra captura si hace falta afinar
+más.
+
+**Etapa 3, pendiente**: el "Resumen de Espacios Propuestos" final (tabla comparativa de todas las Opciones).
 
 ## Convención de versionado
 

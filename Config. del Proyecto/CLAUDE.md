@@ -2385,6 +2385,14 @@ arma las páginas de tabla en chunks de 6.
   fila) agrega la clase `deck-cell-sm` solo a su celda de valor. `buildLandDeckPageHtml` pasó de llamar
   `escapeHtml(presLandValueFor(...))` directo a `presLandCellHtml(...)` para que este link (y cualquier otro
   caso especial futuro) se aplique sin tener que tocar el bucle de nuevo.
+- **"Water Supply" y "Natural Gas" muestran "TBC" cuando están vacíos (v4.4.15)**, pedido explícito del
+  usuario. Ninguno de los 2 rows tenía `rule` asignado desde que se armó `PRESENTATION_ROWS_LAND` — caían en
+  el fallback genérico de `presLandValueFor` (`if(v==null||v==="") return "—";"`), mostrando un guion en vez
+  de "TBC". Se les agregó `rule:"tbc_empty"` — la misma regla que ya usan "Sewer System"/
+  "Telecommunications"/"Railroad" (vacío → "TBC", sin caso especial para 0, ya que son campos categóricos) —
+  sin necesitar ningún cambio en `presLandValueFor()` mismo, la regla ya estaba implementada. **"Water
+  Capacity" (el campo numérico vecino, distinto de "Water Supply") no se tocó** — sigue con su propia regla
+  `"viability_none"` (0→"Viability", vacío→"None"), que el usuario no pidió cambiar.
 - **Prefijo de moneda en "Asking Price" (v3.38.2)**, pedido explícito del usuario ("similar a la que
   tenemos en propiedades con su signo de $"): unidad del row cambiada de `"month/m2"` a `"$/m2"`, y nuevo
   flag `row.currency:true` en `presLandValueFor` — antepone `"MX $ "`/`"US $ "` según la moneda real

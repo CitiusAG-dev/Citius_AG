@@ -7450,10 +7450,10 @@ const PRESENTATION_ROWS_LAND = [
   {label:"Infrastructure Status", key:"INFRAESTRUCTURE_STATUS"},
   {label:"Electric Service", key:"ELECTRIC_SERVICE_(kv)", unit:"kv"},
   {label:"Electric Capacity", key:"ELECTRIC_CAPACITY_KVA", unit:"kVA", rule:"none_zero_tbc_empty"},
-  {label:"Water Supply", key:"WATER_SUPPLY"},
+  {label:"Water Supply", key:"WATER_SUPPLY", rule:"tbc_empty"},
   {label:"Water Capacity", key:"WATER_CAPACITY_LPS", unit:"lps", rule:"viability_none"},
   {label:"Sewer System", key:"SEWER_SYSTEM", rule:"tbc_empty"},
-  {label:"Natural Gas", key:"NATURAL_GAS"},
+  {label:"Natural Gas", key:"NATURAL_GAS", rule:"tbc_empty"},
   {label:"Telecommunications", key:"TELECOMUNICATIONS", rule:"tbc_empty"},
   {label:"Railroad", key:"RAILROAD", rule:"tbc_empty"},
   {label:"Min Transaction Area", key:"MINIMUM_TRANSACTION_AREA_VALUE", unit:"has", highlight:true},
@@ -7466,8 +7466,9 @@ const PRESENTATION_ROWS_LAND = [
    - "none_zero_tbc_empty" (Electric Capacity): 0 → "None", vacío → "TBC" — distinta de "viability_none"
      (que usaba antes y quedó mal: mostraba "Viability" en 0) y también distinta de "tbc_empty" (que
      dejaría el 0 tal cual, algo que el usuario corrigió después de pedirlo así la primera vez).
-   - "tbc_empty" (Sewer System, Telecommunications, Railroad): vacío → "TBC"; un valor real se muestra con
-     el formato normal, sin caso especial para 0 (son campos categóricos, no numéricos).
+   - "tbc_empty" (Sewer System, Telecommunications, Railroad; Water Supply y Natural Gas sumados en
+     v4.4.15, mismo pedido explícito del usuario para esos 2 campos): vacío → "TBC"; un valor real se
+     muestra con el formato normal, sin caso especial para 0 (son campos categóricos, no numéricos).
    - "upon_request_zero" (Asking Price): 0 → "Upon Request" (un precio real de $0 no tiene sentido; se usa
      como valor centinela para "disponible bajo solicitud"). */
 function presLandValueFor(rec,row){

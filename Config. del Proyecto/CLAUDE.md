@@ -2875,6 +2875,15 @@ su propio Market Status independiente.
    (`.replace(/\s+$/,"")`) DENTRO de `officeDeckRateText()`, solo para el deck de Oficinas, dejando
    `presCurrencyPrefix()` intacta.
 
+**Etapa 3, v4.4.12, pedido explícito del usuario**: en la fila "Floor(s)"/"Nivel(es)" (Space Information),
+la unidad ahora se muestra UNA sola vez en el TÍTULO de la fila ("Floor(s) (SF)"/"Nivel(es) (SF)", según la
+vista Métrico/Imperial activa) en vez de repetida junto a cada piso ("Nivel 7 (500 SF)" → "Nivel 7 (500)")
+— mismo criterio ya aplicado en v4.4.11 a Net Leasable/Useable Area y Total Rentable Area/Typical Floor
+Plate. Mecánicamente, `officeDeckFloorsWithArea()` ahora llama `officeDeckAreaText(...,false)` (el
+`includeUnit=false` agregado en v4.4.11) en vez del default `true` que tenía hasta ahora — era la única
+llamada que todavía necesitaba la unidad en el valor porque su label no la incluía; con el label actualizado,
+pasa a comportarse igual que las demás.
+
 **Etapa 3, pendiente**: el "Resumen de Espacios Propuestos" final (tabla comparativa de todas las Opciones).
 
 ## Convención de versionado

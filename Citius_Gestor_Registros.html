@@ -8095,11 +8095,15 @@ function sumSpacesNumber(recs, key){ let t=0; recs.forEach(r=>{ const n=Number(r
    `areaValueInSF`/`officeDeckAreaText` (misma fuente de conversión/redondeo que ya usa el total sumado de
    arriba, "Net Leasable Area") para que la unidad mostrada siempre calce con la vista Métrico/Imperial
    activa del deck. */
+/* v4.4.12, pedido explícito del usuario: la unidad ahora se muestra UNA sola vez en el título de la fila
+   ("Floor(s) (SF)"/"Nivel(es) (SF)", ver officeDeckSpaceInfoRows) en vez de repetida en cada piso — mismo
+   criterio que ya se aplicó a Net Leasable/Useable Area y Total Rentable Area/Typical Floor Plate en
+   v4.4.11 (`includeUnit=false`, agregado ahí mismo a officeDeckAreaText). */
 function officeDeckFloorsWithArea(recs, unitPref){
   if(!recs.length) return "";
   return recs.map(r=>{
     const floor=r.LEVEL_FLOOR;
-    const areaText=officeDeckAreaText(areaValueInSF(r,"NET_LEASABLE_AREA_VALUE"), unitPref);
+    const areaText=officeDeckAreaText(areaValueInSF(r,"NET_LEASABLE_AREA_VALUE"), unitPref, false);
     return (floor!=null && floor!=="") ? `${floor} (${areaText})` : areaText;
   }).join(", ");
 }
@@ -8115,9 +8119,10 @@ function officeDeckPlainFmt(v){
    aparece en los títulos de los datos en la tabla" — la etiqueta de varias filas YA incluye la unidad
    entre paréntesis (ej. "Net Leasable Area (SF)"), así que repetirla también en el valor ("50,000 SF") es
    redundante. Se agrega un 3er parámetro opcional `includeUnit` (default `true`, sin romper ningún
-   llamador existente) para poder omitir el sufijo de unidad SOLO donde el label ya la muestra —
-   `officeDeckFloorsWithArea()` (la única llamada que sigue necesitando la unidad, porque su label "Floor(s)"
-   no la incluye) sigue funcionando exactamente igual, sin tocarla. */
+   llamador existente) para poder omitir el sufijo de unidad SOLO donde el label ya la muestra.
+   v4.4.12: `officeDeckFloorsWithArea()` (fila "Floor(s)") pasó de `includeUnit` implícito (`true`, porque
+   en ese momento su label no traía unidad) a `false` — el label ganó su propio "(SF)"/"(m²)" y ahora la
+   unidad se muestra UNA sola vez ahí, no repetida en cada piso. */
 function officeDeckAreaText(totalSF, unitPref, includeUnit){
   if(includeUnit===undefined) includeUnit=true;
   const v=unitPref==="metric" ? totalSF*UNIT_CONVERSIONS.SF_M2.toMetric : totalSF;
@@ -8165,9 +8170,11 @@ function officeDeckSpaceInfoRows(opt, unitPref){
     {label:{en:"Delivery Condition",es:"Condición de Entrega"},
      value: officeDeckPlainFmt(officePresTranslateValue("CONDITION", primary&&primary.CONDITION))},
     // v4.4.10, pedido explícito del usuario: cada piso ahora muestra su propia área entre paréntesis
-    // (ej. "Nivel 7 (500 SF), Nivel 8 (300 SF)") — ver officeDeckFloorsWithArea(), ya no reusa
+    // (ej. "Nivel 7 (500), Nivel 8 (300)") — ver officeDeckFloorsWithArea(), ya no reusa
     // officeOptionInfo(opt).floors (que solo daba los nombres de piso, sin ningún dato de área).
-    {label:{en:"Floor(s)",es:"Nivel(es)"}, value: officeDeckFloorsWithArea(recs, unitPref)||"—"},
+    // v4.4.12, pedido explícito del usuario: la unidad se movió al TÍTULO de la fila ("Floor(s) (SF)"),
+    // una sola vez, en vez de repetirse en cada piso — mismo criterio que las demás filas de área.
+    {label:{en:`Floor(s) (${u})`,es:`Nivel(es) (${u})`}, value: officeDeckFloorsWithArea(recs, unitPref)||"—"},
     {label:{en:"Parking Ratio",es:"Radio de Estacionamiento"},
      value: officeDeckPlainFmt(office&&office.PARKING_RATIO)},
     {label:{en:"Included Parking Spots",es:"Cajones Incluidos"},

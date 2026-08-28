@@ -1762,6 +1762,57 @@ pestaña "Portada" (absorción, disponibilidad, inventario, tasas, desglosados p
   varias columnas dentro de `.resumen-row-3` (o un layout de N-en-fila similar), aplicar el mismo patrón
   (`min-width` + scroll propio) en vez de dejar que `table-layout:fixed` comprima libremente.
 
+### "Tool Usage" — gráfica de barras de actividad (v4.5.0)
+
+Pedido explícito del usuario: al fondo de Resumen, después de "Compliance", una gráfica de barras del
+"uso que le están dando los usuarios a la herramienta". Antes de construirla se confirmaron 2 decisiones de
+diseño con el usuario vía `AskUserQuestion`:
+
+1. **Qué cuenta como "uso"**: la fecha de `LAST_MODIFIED`/`LAST_UPDATE` (el timestamp que el sistema ya
+   escribe solo en cada guardado exitoso, ver `## Ficha de edición/vista de un registro` arriba) de **las 6
+   entidades** (Propiedades, Parques, Transacciones, Terrenos, Oficinas, Spaces) — no solo las 4 que ya
+   cubre "Compliance" en esta misma vista. Es la primera vez que Oficinas/Spaces aparecen en Resumen.
+2. **Granularidad del filtro "por documento de Excel"**: por ARCHIVO real cargado (ej. "OF_MTY_IG.xlsx"),
+   no por oficina/mercado — aunque en la práctica casi siempre coincide 1:1 (cada oficina normalmente tiene
+   un solo Excel), el usuario pidió explícitamente esa granularidad más fina.
+
+**Mecánica**:
+- `RESUMEN_USAGE_ENTITIES = ["PROPIEDADES","PARKS","TRANSACCIONES","LAND","OFICINAS","SPACES"]`.
+- `recordSourceDoc(ent, rec)` resuelve el "documento" de un registro:
+  - **Modo Consolidado**: lee `rec.__sourceDoc`, un campo NUEVO agregado a `extractEntityRowsReadOnly()`
+    (recibe ahora también `fileName`, el nombre real del `.xlsx` que se está leyendo en ese momento del
+    loop de `loadConsolidatedFromRoot()`) — antes esa función solo guardaba `__consolidatedOffice` (la
+    carpeta/oficina), sin el nombre del archivo en sí, insuficiente para el filtro que pidió el usuario.
+  - **Modo normal (un solo Excel de datos vinculado)**: Terrenos SIEMPRE vive en su propio archivo aparte
+    (ver `## Terrenos`), así que hay como máximo 2 documentos posibles — se resuelve por ENTIDAD, no por
+    registro (`ent==="LAND" ? landFileHandle?.name : fileHandle?.name`, con un texto de fallback si no hay
+    archivo vinculado) — no hizo falta guardar nada nuevo en `state` para este modo, ya que todos los
+    registros de una misma entidad vienen siempre del mismo archivo aquí.
+- `resumenUsageDocsAvailable()` — lista de documentos distintos presentes hoy en `state` (las 6 entidades),
+  para poblar el `<select>` del filtro. `resumenUsageData(days, docFilter)` — cuenta, por cada uno de los
+  últimos `days` días de calendario (incluyendo hoy, línea de tiempo CONTINUA — un día sin actividad
+  aparece con barra en 0, no se omite), cuántos registros de las 6 entidades tienen esa fecha en su
+  `LAST_MODIFIED`/`LAST_UPDATE` (mismo lookup genérico `rec.LAST_MODIFIED||rec.LAST_UPDATE` que ya usa
+  `daysSinceUpdate()`, nunca ambiguo porque cada entidad solo tiene uno de los 2 campos), filtrando primero
+  por `docFilter` si el usuario eligió uno.
+- `resumenUsageChartHtml(data)` — gráfica de barras 100% CSS (esta app nunca cargó ninguna librería de
+  charting, ni falta hacía para esto): un `<div>` por día, alto proporcional al máximo del rango visible.
+  Con hasta 90 barras, mostrar la fecha de TODAS se encimaría — `labelEvery` (cada 3/6/10 barras según el
+  período elegido) espacía las etiquetas.
+- **2 selectores propios de esta sección** (`#resumenUsageDocSelect`/`#resumenUsageDaysSelect`, 30/60/90
+  días), en memoria (`resumenUsageDays`/`resumenUsageDoc`, no persistidos — mismo criterio que
+  `resumenYear`/`resumenMarket`) — a propósito NO viven en `.resumen-header-controls` (el filtro global de
+  Mercado/Año arriba del todo), ya que el usuario fue explícito: "solo para esa gráfica", nunca deben
+  afectar el resto del dashboard.
+- **Bug real encontrado y corregido de paso, necesario para que la gráfica cuente bien Oficinas/Spaces en
+  modo Consolidado**: `applyConsolidatedResult()` nunca volcaba `merged.OFICINAS`/`merged.SPACES` a
+  `state` — esas 2 keys existían en `merged` desde v3.51.2 (se agregaron solo para evitar un crash si algún
+  archivo consolidado trae esas hojas), pero la función solo asignaba las otras 4 entidades a `state`.
+  Efecto real: en Consolidado, Oficinas/Spaces se quedaban con lo que hubiera en `state` de ANTES de entrar
+  a ese modo (datos de un Excel individual ya desvinculado, o vacío) — nunca con los datos consolidados
+  reales de esas 2 entidades, en NINGÚN lugar de la app (tabla, Mapa, Resumen), no solo en esta gráfica
+  nueva. Se agregaron las 2 líneas que faltaban, mismo patrón que las otras 4.
+
 ## Presentación (deck)
 
 Genera una presentación imprimible a partir de los registros marcados con el círculo amarillo en la tabla

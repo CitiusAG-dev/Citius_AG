@@ -377,6 +377,13 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .office-cover-overlay-label{font-size:14px;letter-spacing:1px;color:#8a8f98;text-transform:uppercase;margin-bottom:8px}
   .office-cover-overlay-client{font-size:22px;font-weight:600;color:#3f4550;margin-bottom:6px}
   .office-cover-overlay-date{font-size:14px;color:#565b64}
+  /* Divisor de Submercado (v4.4.3) — el ícono blanco ya viene quemado en OFFICE_DIVIDER_IMAGE_SRC, esto
+     solo posiciona el nombre del submercado sobre el lado amarillo, mismo estilo línea+serif que ya usan
+     el Mapa/las páginas de Opción (`.deck-header h2`), aplicado a mano acá porque este overlay es
+     `position:absolute` sobre una foto, no un `.deck-header` normal en flujo. */
+  .office-divider-overlay{position:absolute;left:9.5%;top:28%;display:flex;align-items:center;gap:12px;
+                           font-family:'Dala Moa',Georgia,serif;font-size:32px;font-weight:400;color:#6b6f76}
+  .office-divider-overlay-rule{width:30px;height:1px;background:#6b6f76;flex-shrink:0}
   .cover-edit-panel{width:300px}
   .cover-edit-panel .field{margin-bottom:10px}
   .cover-edit-panel .field:last-of-type{margin-bottom:0}
@@ -470,7 +477,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      del edificio/interiores, que sí lo conservan. */
   .office-detail-plan{aspect-ratio:600/405;border:none}
   .office-detail-plan img{object-fit:contain}
-  .office-detail-section-title{font-size:13px;font-weight:700;color:var(--accent-ink);margin-bottom:8px}
+  /* v4.4.3, pedido explícito del usuario: título de tabla más grande (13px -> 15px) y en el amarillo real
+     de Citius (`--accent`, no `--accent-ink` — ese es el tono oscuro pensado para texto SOBRE el amarillo,
+     no el amarillo en sí). */
+  .office-detail-section-title{font-size:15px;font-weight:700;color:var(--accent);margin-bottom:8px}
   /* v4.4.2, pedido explícito del usuario ("no está alineado donde comienzan los datos... quiero que
      empiecen igual"): "Información del Espacio" y "Información del Edificio" son 2 <table> DISTINTAS —
      sin un ancho fijo, cada una autoajustaba su columna de etiqueta al texto MÁS LARGO de ESA tabla nada
@@ -484,7 +494,8 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .office-detail-table td:last-child{font-weight:600;white-space:nowrap}
   /* v4.4.2: 2do incremento de letra pedido explícito ("quiero que las notas sean un poco más grandes"),
      tras el primer incremento de v4.4.1 (9px -> 11px) resultar insuficiente. */
-  .office-detail-note{font-size:13px;color:var(--muted);text-align:left;margin-top:8px}
+  /* v4.4.3: reducida un poco, pedido explícito del usuario — 13px (v4.4.2) se sentía grande. */
+  .office-detail-note{font-size:12px;color:var(--muted);text-align:left;margin-top:8px}
   .office-photos-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   .office-photos-grid .office-detail-photo{aspect-ratio:4/3}
   .map-pin{background:#e03131;width:26px;height:26px;border-radius:50% 50% 50% 0;border:2px solid #fff;
@@ -8127,6 +8138,24 @@ function buildOfficeOptionPhotosPageHtml(opt, idx){
   html+=`</div></div>`;
   return html;
 }
+/* ==== Divisor de Submercado (v4.4.3, pedido explícito del usuario, diseño ya compartido) ====
+   Usa OFFICE_DIVIDER_IMAGE_SRC (embebida desde la Etapa 2, "OFICINA_SEPARADOR" — reservada para esto desde
+   entonces) — el ícono blanco circular YA viene quemado en la foto, así que la única pieza dinámica es el
+   nombre del submercado. Se inserta cada vez que el submercado de la Opción actual difiere del de la
+   Opción anterior, EN EL ORDEN ACTUAL en que estén las Opciones (el mismo orden que ya puede reordenar el
+   usuario arrastrando en el sidebar) — no se reagrupan/reordenan las Opciones por submercado, así que si el
+   usuario quiere los divisores agrupando edificios de un mismo submercado, debe dejarlas contiguas él mismo
+   (ya puede hacerlo con el drag&drop que ya existe). */
+function officeOptionSubmarket(opt){
+  const office=officeOptionOfficeRecord(opt);
+  return (office && office.SUBMARKET) || "";
+}
+function buildOfficeDividerPageHtml(submarket){
+  return `<div class="deck-page cover-page office-divider-page">
+    <img src="${OFFICE_DIVIDER_IMAGE_SRC}" alt="Divider">
+    <div class="office-divider-overlay"><span class="office-divider-overlay-rule"></span>${escapeHtml(submarket||"")}</div>
+  </div>`;
+}
 /* Carga real de las fotos de las 2 páginas de Opción de arriba — separada de build*Html() porque
    loadDeckPhotoInto() es async y necesita que el <div id> ya exista en el DOM (mismo patrón que
    loadDeckPhotoInto ya usa para Propiedades/Terrenos, llamado DESPUÉS de fijar pagesEl.innerHTML). */
@@ -8183,7 +8212,12 @@ async function renderOfficePresentationView(){
   if(officePresShowState.cover) html+=buildOfficeCoverPageHtml();
   if(officePresShowState.map) html+=buildOfficeMapPageHtml(officeMapGrouped, unresolvedCount);
   if(officePresShowState.options){
-    officePresOptions.forEach((opt,idx)=>{ html+=buildOfficeOptionDetailPageHtml(opt,idx)+buildOfficeOptionPhotosPageHtml(opt,idx); });
+    let lastSubmarket=null;
+    officePresOptions.forEach((opt,idx)=>{
+      const sm=officeOptionSubmarket(opt);
+      if(sm!==lastSubmarket){ html+=buildOfficeDividerPageHtml(sm); lastSubmarket=sm; }
+      html+=buildOfficeOptionDetailPageHtml(opt,idx)+buildOfficeOptionPhotosPageHtml(opt,idx);
+    });
   }
   if(officePresShowState.closing) html+=buildClosingPageHtml(OFFICE_CLOSING_IMAGE_SRC);
   pagesEl.innerHTML=html;

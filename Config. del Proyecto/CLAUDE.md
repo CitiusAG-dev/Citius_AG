@@ -2697,8 +2697,21 @@ detalle por Opción + selector de idioma EN/ES.**
 - **2do incremento de letra de la nota de pie** (11px → 13px), tras el primero (v4.4.1, 9px → 11px)
   resultar insuficiente.
 
-**Etapa 3, pendiente**: el "Resumen de Espacios Propuestos" final (tabla comparativa de todas las Opciones)
-y las páginas divisoras por submercado (usarían `OFFICE_DIVIDER_IMAGE_SRC`, ya embebida y lista).
+**Etapa 3, ajustes (v4.4.3, pedidos explícitos del usuario)**:
+- Título de tabla ("Space Information"/"Building Information") más grande (13px → 15px) y en el amarillo
+  REAL de Citius (`--accent`, no `--accent-ink` — ese es el tono oscuro para texto SOBRE el amarillo).
+- Nota de pie reducida un poco (13px → 12px) — el 2do incremento de arriba se sintió grande.
+- **Divisor de Submercado** (`buildOfficeDividerPageHtml()`) — usa `OFFICE_DIVIDER_IMAGE_SRC` (embebida
+  desde la Etapa 2, reservada para esto desde entonces; el ícono blanco ya viene quemado en la foto, lo
+  único dinámico es el nombre del submercado, mismo estilo línea+serif que el resto del deck). Se inserta
+  en `renderOfficePresentationView()` cada vez que el submercado de la Opción actual
+  (`officeOptionSubmarket()`, vía la Oficina ligada) difiere del de la anterior, **en el orden actual de
+  `officePresOptions`** — no se reagrupan/reordenan las Opciones por submercado; si el usuario quiere los
+  divisores agrupando un mismo submercado, debe dejar esas Opciones contiguas él mismo (ya puede
+  reordenarlas arrastrando en el sidebar). No tiene su propio toggle en Design — vive bajo "Options"
+  (dividers solo tienen sentido si las páginas de Opción están visibles).
+
+**Etapa 3, pendiente**: el "Resumen de Espacios Propuestos" final (tabla comparativa de todas las Opciones).
 
 ## Convención de versionado
 

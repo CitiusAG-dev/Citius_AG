@@ -1252,7 +1252,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v4.0.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v5.0.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -3310,6 +3310,15 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"5.0.0", date:"2026-08-28", items:[
+    "New module: Offices presentation deck (3rd option in the Presentation menu, alongside Buildings and Land). Build \"Options\" from the Spaces table by checking the floors to offer, then either grouping them into one combined Option (areas summed) or adding them individually — never combined automatically. The deck includes a Cover, a Location Map (pins are the actual Office buildings), a divider page whenever the submarket changes between consecutive Options, a 2-page Option Detail (building photo, floor plan, Space Information and Building Information tables, each floor's own area shown next to it) and a 4-photo interior page per Option, plus a Closing page.",
+    "Offices presentation: language toggle (English/Spanish) — only changes what's shown in this deck; captured data in the system always stays in English. Settings > Lists gained a 2nd \"Spanish\" column per list value to maintain those translations for presentations.",
+    "Offices presentation: its own Units selector (Imperial/Metric), independent from the rest of the app.",
+    "Fixed a serious bug: an ID-like field (Mapping Code, ID Park, ID Land, Space Code) whose captured value looked like a plain number could silently switch between text and number every time that record was saved — this could break the Office↔Space match on the Offices map/detail pages right after editing the linked Office (not the Space). Those 4 fields are now always kept as text.",
+    "Market Status moved from Offices to Spaces: each floor/space now has its own status (Available/Vacant/Occupied) captured directly, instead of inheriting one single value from the whole building.",
+    "Land presentation: \"Water Supply\" and \"Natural Gas\" now show \"TBC\" when empty (same behavior Sewer System/Telecommunications/Railroad already had).",
+    "Summary: new \"Tool Usage\" bar chart at the bottom, showing how many records were modified per day over the last 30/60/90 days, across all 6 entities — with a filter by which Excel document the data came from (most useful in Consolidated Mode). Also fixed: Consolidated Mode wasn't actually loading Offices/Spaces records anywhere in the app (table, Map, Summary), even when the loaded files had that data."
+  ]},
   {version:"4.0.0", date:"2026-08-27", items:[
     "New module: Offices — full capture (Identification, Location, Characteristics, Measures, General Facilities, Parking), same conventions as Buildings/Land. Photos (Facade, Lobby, Amenities (1)/(2)) saved at higher resolution/quality (900×608 @ 92%) than the rest of the system. Own layer on the Map (polygons and pins), alongside Properties/Parks/Land.",
     "New module: Spaces — individual leasable units (floors/suites) linked to an Office by Mapping Code, with its own \"Measurements\" tab (Available Area, Net Leasable Area, Net Useable Area, Terrace Area) and photos (Layout, Interior (1)-(4)). Property Name/Market Status/Region/State/Market/Submarket/Available Area stay in sync automatically whenever the linked Office is edited (including a Mapping Code change) — no need to re-select it by hand.",

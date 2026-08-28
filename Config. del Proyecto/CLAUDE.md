@@ -2664,6 +2664,21 @@ detalle por Opción + selector de idioma EN/ES.**
     de siempre, sin aspect-ratio forzado) — cae en el bucket "tablePage" por default de
     `preparePrintPageSize()`, igual que "Table"/"List" de Propiedades, sin necesitar ningún cambio ahí.
 
+**Etapa 3, ajustes (v4.4.1, pedidos explícitos del usuario tras la primera prueba)**:
+- **Título + ícono de la página de Opción, igualado al del Mapa** ("mismo tamaño de ícono y de letra") —
+  se dejó de usar el estilo propio (línea + serif 20px, calcado del building-detail de la referencia Arca)
+  y ahora reusa literal `.deck-header`/`.deck-logo`/`<h2>` (34px/32px, la misma especificación de
+  "Building Options" que ya usa el Mapa) — ya no existen las clases `.office-detail-header`/
+  `.office-detail-title-row`/`.office-detail-title-rule`/`.office-detail-title`/`.office-detail-logo`.
+- **Quitadas 2 etiquetas redundantes**: el título "Plano"/"Floor Plan" arriba de la foto del plano, y el
+  texto "Niveles X, Y" debajo de él (`.office-detail-plan-caption`, eliminada) — el nivel/piso ya se ve
+  como 1ra fila de "Información del Espacio" ("Nivel(es)"), pedido explícito: "no es necesario" repetirlo.
+- **Nota de pie de página**: alineada a la izquierda (antes centrada) y letra más grande (9px → 11px).
+- **El plano ya NO se recorta**: usaba `object-fit:cover` (igual que la foto del edificio/interiores, que sí
+  deben llenar el recuadro) — el plano necesita verse COMPLETO, así que tiene su propia regla
+  (`.office-detail-plan img{object-fit:contain}`) que lo deja con franjas del fondo gris si no calza exacto
+  al recuadro 4:3, en vez de recortar bordes.
+
 **Etapa 3, pendiente**: el "Resumen de Espacios Propuestos" final (tabla comparativa de todas las Opciones)
 y las páginas divisoras por submercado (usarían `OFFICE_DIVIDER_IMAGE_SRC`, ya embebida y lista).
 

@@ -452,15 +452,19 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      o 4 fotos (página 2), referencia visual del usuario. Usa la clase `.deck-page` de siempre (padding
      26px 30px normal, sin aspect-ratio forzado) — cae en el bucket "tablePage" por default de
      preparePrintPageSize(), igual que "Table"/"List" de Propiedades, sin necesitar ningún cambio ahí. */
-  .office-detail-header{margin-bottom:10px}
-  .office-detail-logo{width:26px;height:26px;object-fit:contain}
-  .office-detail-title-row{display:flex;align-items:center;gap:10px;margin-bottom:20px}
-  .office-detail-title-rule{width:26px;height:1px;background:#c9cbcf;flex-shrink:0}
-  .office-detail-title{font-family:'Dala Moa',Georgia,serif;font-size:20px;font-weight:400;color:#6b6f76}
+  /* v4.4.1, pedido explícito del usuario: título+ícono igual al del Mapa ("mismo tamaño de ícono y de
+     letra") — se dejó de usar el estilo propio con línea+serif chico y ahora reusa literal `.deck-header`/
+     `.deck-logo` (34px + 32px, la misma especificación de "Building Options" que ya usa el Mapa), sin
+     agregar ninguna clase nueva. */
   .office-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px 40px;margin-bottom:16px}
   .office-detail-photo{width:100%;aspect-ratio:4/3;background:#eee;border:1px solid var(--line);
                         overflow:hidden;display:flex;align-items:center;justify-content:center}
   .office-detail-photo img{width:100%;height:100%;object-fit:cover;display:block}
+  /* El plano NO debe recortarse (pedido explícito del usuario: "no lo amplíes porque recorta la imagen,
+     tiene que verse todo lo que quepa... sin hacer que cubra todos los bordes") — a diferencia de la foto
+     del edificio/interiores (que sí llenan el recuadro con `cover`), el plano usa `contain` (se ve completo,
+     con franjas del fondo gris si no calza exacto al recuadro 4:3). */
+  .office-detail-plan img{object-fit:contain}
   .office-detail-section-title{font-size:13px;font-weight:700;color:var(--accent-ink);margin-bottom:8px}
   .office-detail-table{width:100%;border-collapse:collapse;font-size:12px}
   .office-detail-table tr{border-bottom:1px solid var(--line)}
@@ -468,8 +472,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .office-detail-table td{padding:7px 0}
   .office-detail-table td:first-child{color:var(--muted);padding-right:12px}
   .office-detail-table td:last-child{font-weight:600;white-space:nowrap}
-  .office-detail-plan-caption{font-size:11px;color:var(--muted);margin-top:6px}
-  .office-detail-note{font-size:9px;color:var(--muted);text-align:center;margin-top:8px}
+  /* v4.4.1, pedido explícito del usuario: alineada a la izquierda (antes centrada) y letra un poco más
+     grande (9px -> 11px). */
+  .office-detail-note{font-size:11px;color:var(--muted);text-align:left;margin-top:8px}
   .office-photos-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   .office-photos-grid .office-detail-photo{aspect-ratio:4/3}
   .map-pin{background:#e03131;width:26px;height:26px;border-radius:50% 50% 50% 0;border:2px solid #fff;
@@ -8076,8 +8081,7 @@ function buildOfficeOptionDetailPageHtml(opt, idx){
   const t=(en,es)=>officePresLangPref==="es"?es:en;
   const noPhotoText=t("No photo","Sin foto");
   return `<div class="deck-page office-detail-page">
-    <div class="office-detail-header"><img class="office-detail-logo" src="${DECK_LOGO_SRC}" alt="Citius AG"></div>
-    <div class="office-detail-title-row"><span class="office-detail-title-rule"></span><span class="office-detail-title">${idx+1}. ${escapeHtml(info.buildings||"")}</span></div>
+    <div class="deck-header"><img class="deck-logo" src="${DECK_LOGO_SRC}"><h2>${idx+1}. ${escapeHtml(info.buildings||"")}</h2></div>
     <div class="office-detail-grid">
       <div class="office-detail-photo" id="officeDetailPhoto_${idx}"><div class="image-placeholder">${noPhotoText}</div></div>
       <div>
@@ -8085,9 +8089,7 @@ function buildOfficeOptionDetailPageHtml(opt, idx){
         ${officeDeckInfoTableHtml(officeDeckSpaceInfoRows(opt, officePresUnitPref))}
       </div>
       <div>
-        <div class="office-detail-section-title">${t("Floor Plan","Plano")}</div>
         <div class="office-detail-photo office-detail-plan" id="officeDetailPlan_${idx}"><div class="image-placeholder">${noPhotoText}</div></div>
-        <div class="office-detail-plan-caption">${info.floors?escapeHtml(`${t("Level(s)","Niveles")} ${info.floors}`):""}</div>
       </div>
       <div>
         <div class="office-detail-section-title">${t("Building Information","Información del Edificio")}</div>
@@ -8109,8 +8111,7 @@ function buildOfficeOptionPhotosPageHtml(opt, idx){
   const t=(en,es)=>officePresLangPref==="es"?es:en;
   const noPhotoText=t("No photo","Sin foto");
   let html=`<div class="deck-page office-detail-page">
-    <div class="office-detail-header"><img class="office-detail-logo" src="${DECK_LOGO_SRC}" alt="Citius AG"></div>
-    <div class="office-detail-title-row"><span class="office-detail-title-rule"></span><span class="office-detail-title">${idx+1}. ${escapeHtml(info.buildings||"")}</span></div>
+    <div class="deck-header"><img class="deck-logo" src="${DECK_LOGO_SRC}"><h2>${idx+1}. ${escapeHtml(info.buildings||"")}</h2></div>
     <div class="office-photos-grid">`;
   for(let s=0;s<4;s++) html+=`<div class="office-detail-photo" id="officePhotosSlot_${idx}_${s}"><div class="image-placeholder">${noPhotoText}</div></div>`;
   html+=`</div></div>`;

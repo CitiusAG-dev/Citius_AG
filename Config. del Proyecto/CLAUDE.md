@@ -2724,6 +2724,13 @@ detalle por Opción + selector de idioma EN/ES.**
   valor pasa a peso normal.
 - Letra de la tabla más grande (12px → 14px).
 
+**Etapa 3, ajustes (v4.4.5, pedidos explícitos del usuario)**:
+- **Columna de valor casi se sobreponía con la etiqueta** ("Additional Spot Cost ($/spot/month)" era la más
+  larga, y con la etiqueta en negrita de v4.4.4 ocupaba más ancho que antes) — `td:first-child` sube de
+  230px+12px a 270px+18px de aire.
+- **2do incremento del título de tabla** ("tienen que resaltar más"), 15px → 19px, tras el primero (v4.4.3,
+  13px → 15px) no ser suficiente.
+
 **Etapa 3, pendiente**: el "Resumen de Espacios Propuestos" final (tabla comparativa de todas las Opciones).
 
 ## Convención de versionado

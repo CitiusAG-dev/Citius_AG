@@ -480,7 +480,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   /* v4.4.3, pedido explícito del usuario: título de tabla más grande (13px -> 15px) y en el amarillo real
      de Citius (`--accent`, no `--accent-ink` — ese es el tono oscuro pensado para texto SOBRE el amarillo,
      no el amarillo en sí). */
-  .office-detail-section-title{font-size:15px;font-weight:700;color:var(--accent);margin-bottom:8px}
+  /* v4.4.5: 2do incremento, pedido explícito ("tienen que resaltar más"), tras el primero (v4.4.3,
+     13px -> 15px) no ser suficiente. */
+  .office-detail-section-title{font-size:19px;font-weight:700;color:var(--accent);margin-bottom:8px}
   /* v4.4.2, pedido explícito del usuario ("no está alineado donde comienzan los datos... quiero que
      empiecen igual"): "Información del Espacio" y "Información del Edificio" son 2 <table> DISTINTAS —
      sin un ancho fijo, cada una autoajustaba su columna de etiqueta al texto MÁS LARGO de ESA tabla nada
@@ -503,7 +505,11 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .office-detail-table tr{border-bottom:1px solid var(--line)}
   .office-detail-table tr:last-child{border-bottom:none}
   .office-detail-table td{padding:7px 0}
-  .office-detail-table td:first-child{color:var(--muted);font-weight:700;padding-right:12px;width:230px}
+  /* v4.4.5, pedido explícito del usuario ("los datos empiecen un poco más a la derecha, en algunos casos
+     casi se sobreponen") — la etiqueta más larga ("Additional Spot Cost ($/spot/month)") casi tocaba el
+     valor con 230px + 12px, sobre todo ahora que la etiqueta es negrita (v4.4.4, ocupa más ancho que el
+     mismo texto en peso normal). Sube a 270px + 18px de aire. */
+  .office-detail-table td:first-child{color:var(--muted);font-weight:700;padding-right:18px;width:270px}
   .office-detail-table td:last-child{font-weight:400;white-space:nowrap}
   /* v4.4.2: 2do incremento de letra pedido explícito ("quiero que las notas sean un poco más grandes"),
      tras el primer incremento de v4.4.1 (9px -> 11px) resultar insuficiente. */

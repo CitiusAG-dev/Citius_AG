@@ -2551,6 +2551,14 @@ reusa literalmente `renderOfficeOptionsPanel()` (parametrizada con `targetId`, v
   34px/32px, mucho más grande). Se igualó a esa especificación en su lugar. Además, un 2do incremento de
   letra del banner amarillo (13px/14px → 15px/17px), pedido explícito, tras el primer incremento de v4.2.2
   (11px/12px → 13px/14px) resultar insuficiente.
+- **v4.2.5, bug real reportado por el usuario ("empiece un poco más arriba, a la misma altura de como
+  empieza el mapa")**: aun con `padding-top:14%` (v4.2.2) el contenido del banner amarillo seguía arrancando
+  visiblemente más abajo que el mapa. Causa: `padding-top`/`padding-bottom` de CUALQUIER caja (posicionada o
+  no) se resuelve en CSS contra el ANCHO del contenedor, nunca el alto — con la página en horizontal (ancho
+  > alto), 14% del ancho daba más píxeles que 14% del alto real del banner. Fix: se movió ese offset de
+  `padding-top` (en `.office-map-legend`) a `top` (offset real, que sí se resuelve contra el alto) en un
+  nuevo wrapper interno, `.office-map-legend-inner` — el `overflow-y:auto` para scroll también se movió a
+  ese wrapper.
 
 **Etapa 2, ajustes (v4.2.2, pedidos explícitos del usuario tras probar el mapa nuevo)**:
 - **Bug real: "no está mostrando todos los pins"** — causa confirmada: `officePresBuildingList()` resolvía

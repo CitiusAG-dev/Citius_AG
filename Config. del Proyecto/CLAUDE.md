@@ -1584,6 +1584,47 @@ ocupando todo el ancho/alto disponible (`renderConfigSections`):
 No existe ya un botón "Listas" aparte en el sidebar ni el modal `#listsOverlay` — todo vive dentro de este
 menú de Configuración.
 
+### Traducción ES de las listas (v4.3.0, pedido explícito del usuario)
+
+Motivo: las presentaciones se generarán en inglés Y en español, pero el usuario fue explícito: **"en el
+sistema todos los datos siempre se llenarán y se mostrarán en inglés, solo las traducciones se usarán para
+las presentaciones"** — `lists`/`DEFAULT_LISTS` (captura de datos) NO se tocaron para nada; se agregó un
+mapa **nuevo y paralelo**, `listTranslationsEs`/`DEFAULT_LIST_TRANSLATIONS_ES`, shape
+`{LISTNAME: {"Valor en inglés": "Traducción"}}` — mismo patrón exacto de `localStorage`/merge-de-claves-
+faltantes que `lists`/`DEFAULT_LISTS` (`LIST_TRANSLATIONS_KEY = "citius_list_translations_es_v1"`,
+`loadListTranslationsEs()`/`saveListTranslationsEs()`), pero en un `localStorage` y una variable
+completamente separados — nunca se mezclan.
+
+- **Semilla inicial**: el usuario compartió `LISTAS_CAMPOS.xlsx` (su archivo de referencia, hoja
+  "(LD) Lista Desp", columnas `TABLA`/`EN`) y pidió llenarle una 3ra columna `ES` con la traducción de sus
+  ~740 valores (99 listas) — se hizo con un script de Python/openpyxl, tradujo todo lo que es terminología
+  real (`AVAILABILITY_DELIVERY.Immediate` → "Inmediata", `CONDITION."Grey Shell"` → "Obra Gris", reusando
+  el vocabulario ya visto en la referencia de la Presentación de Oficinas donde aplicaba) y **reflejó sin
+  traducir** (mismo valor en ES) los valores que son nombres propios/códigos: `BROKERS_CAG` (nombres de
+  personas), `ADMIN`/`DEVELOPER`/`OWNER`/`CLASSIFICATION` (A/B/C/D), `ESTATE` (estados de México, ya en
+  español), unidades/monedas (`CM_IN`/`FT_M`/`SF_M2`/`CURRENCY`/`CON_COMERCIAL`/etc.), y nombres de marca
+  (`NATURAL_GAS_LAND`/`TELECOMMUNICATIONS_LAND`). `ORIGIN_COUNTRY` (193 países) sí se tradujo completo a su
+  nombre en español. `DEFAULT_LIST_TRANSLATIONS_ES` (JS) se generó 1:1 desde esa misma columna ES ya
+  llenada — una sola fuente de verdad entre el Excel y el código.
+- **`loadListsFromSheet()`** ahora también lee una 3ra columna `ES` opcional de la hoja "(LD) Lista Desp"
+  vinculada. A diferencia de `lists` (que se REEMPLAZA completo con lo que traiga la hoja, ver arriba), las
+  traducciones se **mezclan valor por valor**: si la celda ES de una fila viene vacía, NO borra una
+  traducción que ya existiera en la app (editada a mano) — el Excel solo gana para los valores que sí trae
+  traducidos. `buildConfigWorkbook()` escribe esa 3ra columna de vuelta al guardar ("Guardar listas" con un
+  Archivo de Configuración vinculado).
+- **UI, `Configuración > Listas`** (`renderListValues()`): cada fila de valor ahora tiene **2 inputs** en
+  vez de 1 — el de siempre (inglés, sigue editando `lists[currentListName][i]`, usado para captura) y uno
+  nuevo con tinte azul (`.lists-value-es`, `editListValueTranslation(i, valor)`, guarda en
+  `listTranslationsEs[currentListName][valorEnIngles]`) — encabezado de columnas nuevo (`#listsValuesHeader`,
+  "English"/"Spanish (presentations only)") explica cuál es cuál. Renombrar un valor en inglés
+  (`editListValue`) migra su traducción existente a la nueva key en vez de perderla; borrar un valor
+  (`deleteListValue`) borra también su traducción; renombrar/borrar una LISTA completa
+  (`renameCurrentList`/`deleteCurrentList`) migra/borra `listTranslationsEs[nombre]` igual que ya hacía con
+  `lists[nombre]`.
+- **Todavía no se usa en ningún deck** — esto es solo la infraestructura de datos + su UI de mantenimiento;
+  conectar `listTranslationsEs` a la generación real de una presentación en español queda pendiente para
+  cuando esa función se construya.
+
 ## Resumen (dashboard de indicadores)
 
 Primera pestaña del menú lateral (`#resumenView`/`#resumenContent`, mostrada por `showResumenView()`/

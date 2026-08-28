@@ -535,8 +535,13 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      separa cada valor. Se quita esa excepción — ahora la última fila también lleva su `border-bottom`. */
   .office-detail-rows{width:100%}
   .office-detail-row{display:flex;align-items:baseline;gap:18px;padding:7px 0;border-bottom:1px solid var(--line)}
-  .office-detail-row-label{flex:0 0 270px;min-width:0;color:var(--muted);font-weight:700}
-  .office-detail-row-value{flex:1;min-width:0;font-weight:400;overflow-wrap:break-word}
+  /* v4.4.11, pedido explícito del usuario ("más grande la letra de etiquetas y datos") — hasta ahora
+     ninguna de las 2 declaraba su propio font-size, así que caían en los 14px heredados de `body` (el
+     `<table>` original SÍ tenía un font-size explícito, 14px desde v4.4.4 — se perdió al reemplazar la
+     tabla por estos 2 <div> en v4.4.8, sin que nadie lo notara porque 14px heredado de `body` coincidía por
+     casualidad con el valor que ya traía). Ahora ambas quedan explícitas en 16px. */
+  .office-detail-row-label{flex:0 0 270px;min-width:0;color:var(--muted);font-weight:700;font-size:16px}
+  .office-detail-row-value{flex:1;min-width:0;font-weight:400;overflow-wrap:break-word;font-size:16px}
   /* v4.4.2: 2do incremento de letra pedido explícito ("quiero que las notas sean un poco más grandes"),
      tras el primer incremento de v4.4.1 (9px -> 11px) resultar insuficiente. */
   /* v4.4.3: reducida un poco, pedido explícito del usuario — 13px (v4.4.2) se sentía grande. */
@@ -8106,15 +8111,28 @@ function officeDeckPlainFmt(v){
   if(typeof v==="number") return v.toLocaleString("en-US");
   return String(v);
 }
-function officeDeckAreaText(totalSF, unitPref){
+/* v4.4.11, pedido explícito del usuario: "quiero que se quite la unidad métrica en los datos ya que
+   aparece en los títulos de los datos en la tabla" — la etiqueta de varias filas YA incluye la unidad
+   entre paréntesis (ej. "Net Leasable Area (SF)"), así que repetirla también en el valor ("50,000 SF") es
+   redundante. Se agrega un 3er parámetro opcional `includeUnit` (default `true`, sin romper ningún
+   llamador existente) para poder omitir el sufijo de unidad SOLO donde el label ya la muestra —
+   `officeDeckFloorsWithArea()` (la única llamada que sigue necesitando la unidad, porque su label "Floor(s)"
+   no la incluye) sigue funcionando exactamente igual, sin tocarla. */
+function officeDeckAreaText(totalSF, unitPref, includeUnit){
+  if(includeUnit===undefined) includeUnit=true;
   const v=unitPref==="metric" ? totalSF*UNIT_CONVERSIONS.SF_M2.toMetric : totalSF;
-  return `${officeDeckPlainFmt(Math.round(v))} ${unitPref==="metric"?UNIT_CONVERSIONS.SF_M2.metric:UNIT_CONVERSIONS.SF_M2.imperial}`;
+  const numText=officeDeckPlainFmt(Math.round(v));
+  if(!includeUnit) return numText;
+  return `${numText} ${unitPref==="metric"?UNIT_CONVERSIONS.SF_M2.metric:UNIT_CONVERSIONS.SF_M2.imperial}`;
 }
-function officeDeckUnitConvertedText(ent, valueKey, unitKey, rec, unitPref){
+function officeDeckUnitConvertedText(ent, valueKey, unitKey, rec, unitPref, includeUnit){
+  if(includeUnit===undefined) includeUnit=true;
   if(!rec || rec[valueKey]==null || rec[valueKey]==="") return "—";
   const conv=convertCellForView(ent, valueKey, unitKey, rec[valueKey], rec[unitKey], unitPref);
   const val=typeof conv.value==="number"?Math.round(conv.value):conv.value;
-  return `${officeDeckPlainFmt(val)} ${conv.unit||""}`.trim();
+  const numText=officeDeckPlainFmt(val);
+  if(!includeUnit) return numText;
+  return `${numText} ${conv.unit||""}`.trim();
 }
 /* Tarifas (Precio de renta/Mantenimiento/Costo de cajón) — mismo criterio EXACTO que ya usa el deck de
    Propiedades para sus filas "RATE" (presValueFor): 2 decimales siempre, prefijo "MX $"/"US $" según la
@@ -8123,7 +8141,11 @@ function officeDeckUnitConvertedText(ent, valueKey, unitKey, rec, unitPref){
 function officeDeckRateText(ent, valueKey, unitKey, rec, unitPref){
   if(!rec || rec[valueKey]==null || rec[valueKey]==="") return "—";
   const conv=convertCellForView(ent, valueKey, unitKey, rec[valueKey], rec[unitKey], unitPref);
-  const prefix=presCurrencyPrefix(conv.unit||rec[unitKey]);
+  // v4.4.11, pedido explícito del usuario ("MX $ 4.18" -> "MX $4.18"): presCurrencyPrefix() regresa el
+  // prefijo con un espacio final ("MX $ "/"US $ ") — es una función AGNÓSTICA DE ENTIDAD, compartida con
+  // los decks de Propiedades/Terrenos, que sí quieren ese espacio (no se pidió cambiar ahí) — así que el
+  // espacio se recorta AQUÍ, solo para el deck de Oficinas, en vez de tocar presCurrencyPrefix().
+  const prefix=presCurrencyPrefix(conv.unit||rec[unitKey]).replace(/\s+$/,"");
   const num=Number(conv.value);
   const numText=isNaN(num)?String(conv.value):num.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
   return prefix+numText;
@@ -8137,9 +8159,9 @@ function officeDeckSpaceInfoRows(opt, unitPref){
   // "Delivery Condition"/"Condición de Entrega" — el resto del orden no cambia.
   return [
     {label:{en:`Net Leasable Area (${u})`,es:`Área Neta Rentable (${u})`},
-     value: officeDeckAreaText(sumSpacesAreaSF(recs,"NET_LEASABLE_AREA_VALUE"), unitPref)},
+     value: officeDeckAreaText(sumSpacesAreaSF(recs,"NET_LEASABLE_AREA_VALUE"), unitPref, false)},
     {label:{en:`Net Useable Area (${u})`,es:`Área Neta Útil (${u})`},
-     value: officeDeckAreaText(sumSpacesAreaSF(recs,"NET_USEABLE_AREA_VALUE"), unitPref)},
+     value: officeDeckAreaText(sumSpacesAreaSF(recs,"NET_USEABLE_AREA_VALUE"), unitPref, false)},
     {label:{en:"Delivery Condition",es:"Condición de Entrega"},
      value: officeDeckPlainFmt(officePresTranslateValue("CONDITION", primary&&primary.CONDITION))},
     // v4.4.10, pedido explícito del usuario: cada piso ahora muestra su propia área entre paréntesis
@@ -8169,9 +8191,9 @@ function officeDeckBuildingInfoRows(office, unitPref){
     {label:{en:"Total Levels",es:"Niveles Totales"}, value: officeDeckPlainFmt(office.TOTAL_BUILDING_LEVELS)},
     {label:{en:"Office Levels",es:"Niveles de Oficina"}, value: officeDeckPlainFmt(office.TOTAL_OFFICE_LEVELS)},
     {label:{en:`Total Rentable Area (${u})`,es:`Área Rentable Total (${u})`},
-     value: officeDeckUnitConvertedText("OFICINAS","LEASABLE_AREA_GLA_VALUE","LEASABLE_AREA_GLA_UNIT",office,unitPref)},
+     value: officeDeckUnitConvertedText("OFICINAS","LEASABLE_AREA_GLA_VALUE","LEASABLE_AREA_GLA_UNIT",office,unitPref,false)},
     {label:{en:`Typical Floor Plate (${u})`,es:`Planta Tipo (${u})`},
-     value: officeDeckUnitConvertedText("OFICINAS","FLOOR_PLATE_VALUE","FLOOR_PLATE_UNIT",office,unitPref)},
+     value: officeDeckUnitConvertedText("OFICINAS","FLOOR_PLATE_VALUE","FLOOR_PLATE_UNIT",office,unitPref,false)},
     {label:{en:"Amenities",es:"Amenidades"}, value: officeDeckPlainFmt(officePresTranslateMulti("OFFICE_AMENITIES", office.AMENITIES))},
     {label:{en:"Year Built",es:"Año de Construcción"}, value: officeDeckPlainFmt(office.YEAR_BUILT_DEVELOPED)},
   ];

@@ -2852,6 +2852,29 @@ su propio Market Status independiente.
   los demás (Resumen, `AVAILABLE_BUILDINGS` de Parques) ya operan sobre `state.PROPIEDADES`, nunca sobre
   `state.OFICINAS`.
 
+**Etapa 3, v4.4.11, 3 ajustes más, pedidos explícitos del usuario**:
+1. **Letra más grande (etiquetas y datos)** — `.office-detail-row-label`/`.office-detail-row-value` nunca
+   habían declarado su propio `font-size`: caían en los 14px heredados de `body`. Esto en realidad era una
+   regresión sin detectar de v4.4.8 — el `<table>` original SÍ tenía 14px explícito (desde v4.4.4), y se
+   perdió al reemplazar la tabla por estos 2 `<div>` (coincidió por casualidad con el 14px de `body`, así
+   que nadie lo notó visualmente en su momento). Ahora ambas quedan explícitas en 16px.
+2. **Unidad quitada de los VALORES cuando ya está en el título** — varias filas repetían la unidad 2 veces
+   (ej. label "Net Leasable Area (SF)" + valor "50,000 SF"). `officeDeckAreaText()`/
+   `officeDeckUnitConvertedText()` ganaron un 3er parámetro opcional `includeUnit` (default `true`, ningún
+   llamador existente se rompe) — se pasa `false` solo en las 4 filas cuyo LABEL ya trae la unidad entre
+   paréntesis: Net Leasable Area, Net Useable Area (Space Information) y Total Rentable Area/Typical Floor
+   Plate (Building Information). **`officeDeckFloorsWithArea()` (la fila "Floor(s)") NO se tocó** — su
+   label ("Floor(s)"/"Nivel(es)") no trae ninguna unidad, así que ahí la unidad por piso sigue siendo la
+   ÚNICA fuente de esa información, no es redundante. Las filas de Tarifa (Asking Rent/Maintenance/
+   Additional Spot Cost) ya no tenían este problema — `officeDeckRateText()` nunca agregó un sufijo de
+   unidad al valor (solo el prefijo de moneda), a diferencia de las otras 2 funciones.
+3. **Espacio quitado entre el signo de moneda y el número** ("MX $ 4.18" → "MX $4.18") —
+   `presCurrencyPrefix()` es una función AGNÓSTICA DE ENTIDAD, compartida con los decks de Propiedades
+   ("Asking Rate") y Terrenos ("Asking Price"), que sí quieren ese espacio final (no se pidió cambiar ahí,
+   y cambiarla ahí habría alterado esos 2 decks sin que se pidiera). Por eso el espacio se recorta
+   (`.replace(/\s+$/,"")`) DENTRO de `officeDeckRateText()`, solo para el deck de Oficinas, dejando
+   `presCurrencyPrefix()` intacta.
+
 **Etapa 3, pendiente**: el "Resumen de Espacios Propuestos" final (tabla comparativa de todas las Opciones).
 
 ## Convención de versionado

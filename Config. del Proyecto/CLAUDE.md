@@ -2884,6 +2884,10 @@ Plate. Mecánicamente, `officeDeckFloorsWithArea()` ahora llama `officeDeckAreaT
 llamada que todavía necesitaba la unidad en el valor porque su label no la incluía; con el label actualizado,
 pasa a comportarse igual que las demás.
 
+**Etapa 3, v4.4.13, ajuste fino, pedido explícito del usuario**: `.office-detail-row-label`/
+`.office-detail-row-value` bajaron de 16px (v4.4.11) a 15px — el usuario probó 16px y lo sintió un poco
+grande.
+
 **Etapa 3, pendiente**: el "Resumen de Espacios Propuestos" final (tabla comparativa de todas las Opciones).
 
 ## Convención de versionado

@@ -539,9 +539,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      ninguna de las 2 declaraba su propio font-size, así que caían en los 14px heredados de `body` (el
      `<table>` original SÍ tenía un font-size explícito, 14px desde v4.4.4 — se perdió al reemplazar la
      tabla por estos 2 <div> en v4.4.8, sin que nadie lo notara porque 14px heredado de `body` coincidía por
-     casualidad con el valor que ya traía). Ahora ambas quedan explícitas en 16px. */
-  .office-detail-row-label{flex:0 0 270px;min-width:0;color:var(--muted);font-weight:700;font-size:16px}
-  .office-detail-row-value{flex:1;min-width:0;font-weight:400;overflow-wrap:break-word;font-size:16px}
+     casualidad con el valor que ya traía). Subieron a 16px explícitos; v4.4.13, pedido explícito del
+     usuario ("pásala a 15px"), un ajuste fino hacia abajo — 16px quedó un poco grande. */
+  .office-detail-row-label{flex:0 0 270px;min-width:0;color:var(--muted);font-weight:700;font-size:15px}
+  .office-detail-row-value{flex:1;min-width:0;font-weight:400;overflow-wrap:break-word;font-size:15px}
   /* v4.4.2: 2do incremento de letra pedido explícito ("quiero que las notas sean un poco más grandes"),
      tras el primer incremento de v4.4.1 (9px -> 11px) resultar insuficiente. */
   /* v4.4.3: reducida un poco, pedido explícito del usuario — 13px (v4.4.2) se sentía grande. */

@@ -4584,6 +4584,14 @@ function resumenColgroupHtml(dataColCount){
   for(let i=0;i<dataColCount;i++) cols+=`<col style="width:${dataPct}%">`;
   return `<colgroup>${cols}</colgroup>`;
 }
+/* v3.5x.x, pedido explícito del usuario: el texto de ayuda de estos bloques (antes un <p> siempre visible
+   debajo del título) ahora se muestra igual que en las tarjetas KPI — ícono "i" junto al título, tooltip
+   con helpIconHtml() al pasar el mouse. El id se deriva del título (slug) — son todos títulos fijos y
+   distintos entre sí, así que no hace falta pasar un índice como hacen las tarjetas KPI. */
+function resumenBlockHelpIconHtml(title, subtitle){
+  if(!subtitle) return "";
+  return helpIconHtml("resumenBlockHelp_"+title.toLowerCase().replace(/[^a-z0-9]+/g,""), subtitle);
+}
 /* v3.5x.x, pedido explícito del usuario ("quiero ver los datos de las demás tablas de abajo que se
    transformen de unidad"): `isArea` (7mo/4to argumento, default false) — cuando la tabla suma ÁREA (no
    cuenta registros, no promedia %), convierte cada valor con resumenAreaVal() antes de mostrarlo y agrega
@@ -4593,7 +4601,8 @@ function resumenColgroupHtml(dataColCount){
 function resumenQuarterTableHtml(title, subtitle, computeFn, isArea){
   const subs=resumenSubmarkets();
   const displayTitle=isArea?`${title} (${resumenAreaUnitLabel()})`:title;
-  if(!subs.length) return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(displayTitle)}</h4><p class="muted">No data.</p></div>`;
+  const titleHtml=`${escapeHtml(displayTitle)}${resumenBlockHelpIconHtml(title,subtitle)}`;
+  if(!subs.length) return `<div class="resumen-block"><h4 class="resumen-subtitle">${titleHtml}</h4><p class="muted">No data.</p></div>`;
   const colTotals=[0,0,0,0,0];
   let rows="";
   subs.forEach(sm=>{
@@ -4604,12 +4613,13 @@ function resumenQuarterTableHtml(title, subtitle, computeFn, isArea){
     rows+=`<tr><td>${escapeHtml(sm)}</td>${vals.map(v=>`<td class="num-cell">${Math.round(v).toLocaleString("en-US")}</td>`).join("")}<td class="num-cell"><b>${Math.round(ytd).toLocaleString("en-US")}</b></td></tr>`;
   });
   rows+=`<tr class="resumen-total-row"><td>Total</td>${colTotals.map(v=>`<td class="num-cell">${Math.round(v).toLocaleString("en-US")}</td>`).join("")}</tr>`;
-  return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(displayTitle)}</h4>${subtitle?`<p class="resumen-block-note">${escapeHtml(subtitle)}</p>`:""}<div class="resumen-scroll"><table class="resumen-table">${resumenColgroupHtml(5)}<thead><tr><th>Submarket</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>YTD</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  return `<div class="resumen-block"><h4 class="resumen-subtitle">${titleHtml}</h4><div class="resumen-scroll"><table class="resumen-table">${resumenColgroupHtml(5)}<thead><tr><th>Submarket</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>YTD</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 function resumenBreakdownTableHtml(title, subtitle, categories, computeFn, isArea){
   const subs=resumenSubmarkets();
   const displayTitle=isArea?`${title} (${resumenAreaUnitLabel()})`:title;
-  if(!subs.length) return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(displayTitle)}</h4><p class="muted">No data.</p></div>`;
+  const titleHtml=`${escapeHtml(displayTitle)}${resumenBlockHelpIconHtml(title,subtitle)}`;
+  if(!subs.length) return `<div class="resumen-block"><h4 class="resumen-subtitle">${titleHtml}</h4><p class="muted">No data.</p></div>`;
   const colTotals=categories.map(()=>0);
   let rows="";
   subs.forEach(sm=>{
@@ -4621,7 +4631,7 @@ function resumenBreakdownTableHtml(title, subtitle, categories, computeFn, isAre
   const grandTotal=colTotals.reduce((a,b)=>a+b,0);
   rows+=`<tr class="resumen-total-row"><td>Total</td>${colTotals.map(v=>`<td class="num-cell">${Math.round(v).toLocaleString("en-US")}</td>`).join("")}<td class="num-cell">${Math.round(grandTotal).toLocaleString("en-US")}</td></tr>`;
   const colgroupHtml=resumenColgroupHtml(categories.length+1);
-  return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(displayTitle)}</h4>${subtitle?`<p class="resumen-block-note">${escapeHtml(subtitle)}</p>`:""}<div class="resumen-scroll"><table class="resumen-table">${colgroupHtml}<thead><tr><th>Submarket</th>${categories.map(c=>`<th>${escapeHtml(c.label)}</th>`).join("")}<th>Total</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  return `<div class="resumen-block"><h4 class="resumen-subtitle">${titleHtml}</h4><div class="resumen-scroll"><table class="resumen-table">${colgroupHtml}<thead><tr><th>Submarket</th>${categories.map(c=>`<th>${escapeHtml(c.label)}</th>`).join("")}<th>Total</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 /* Tabla de % de cumplimiento (mercado × MARKET_STATUS) para una entidad — a diferencia de las demás tablas
    del Resumen (que SUMAN un valor por submercado), esta PROMEDIA un porcentaje que ya se calculó por
@@ -4907,14 +4917,14 @@ function renderResumenView(){
      resumenSubmarkets()) el TOTAL de la fila mezclaba silenciosamente datos de otro mercado que por
      coincidencia usa el mismo nombre de submercado. Sin filtro de Mercado activo (resumenMarket==="")
      resumenMarketMatches() siempre da true, así que el comportamiento sin filtro no cambia. */
-  const grossHtml=resumenQuarterTableHtml("Gross Absorption (Lease)", `Sum of "Transaction Area" for Transactions with "Transaction Type" = "Lease" and "Absorption Type" = "Gross".`,
+  const grossHtml=resumenQuarterTableHtml("Gross", `Sum of "Transaction Area" for Transactions with "Transaction Type" = "Lease" and "Absorption Type" = "Gross".`,
     (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true);
-  const negativeHtml=resumenQuarterTableHtml("Negative Absorption", `Sum of "Transaction Area" for Transactions with "Absorption Type" = "Negative".`,
-    (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true);
-  const netHtml=resumenQuarterTableHtml("Net Absorption", `"Gross Absorption (Lease)" + "Negative Absorption".`,
+  const negativeHtml=resumenQuarterTableHtml("Negative", `Sum of "Transaction Area" for Transactions with "Transaction Type" = "Lease" and "Absorption Type" = "Negative".`,
+    (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true);
+  const netHtml=resumenQuarterTableHtml("Net", `"Gross" + "Negative".`,
     (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q);
       const gross=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
-      const neg=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
+      const neg=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
       return gross+neg; }, true);
 
   const txQuarterHtml=resumenQuarterTableHtml("Total Quarterly Absorption", "All operations with Gross absorption (Lease and Sale)",
@@ -4975,8 +4985,8 @@ function renderResumenView(){
         <div class="resumen-year-select">
           <label for="resumenUnitSelect">Units</label>
           <select id="resumenUnitSelect">
-            <option value="imperial" ${resumenUnit==="imperial"?"selected":""}>Imperial (SF)</option>
-            <option value="metric" ${resumenUnit==="metric"?"selected":""}>Metric (m²)</option>
+            <option value="imperial" ${resumenUnit==="imperial"?"selected":""}>Imperial</option>
+            <option value="metric" ${resumenUnit==="metric"?"selected":""}>Metric</option>
           </select>
         </div>
         <div class="resumen-year-select">

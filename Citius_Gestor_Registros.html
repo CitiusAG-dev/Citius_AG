@@ -4927,7 +4927,7 @@ function renderResumenView(){
       const neg=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
       return gross+neg; }, true);
 
-  const txQuarterHtml=resumenQuarterTableHtml("Total Quarterly Absorption", "All operations with Gross absorption (Lease and Sale)",
+  const txQuarterHtml=resumenQuarterTableHtml("All Transactions", `Sum of "Transaction Area" for ALL Transactions with "Absorption Type" = "Gross", regardless of "Transaction Type" (includes Lease, Sale, Sublease, and Sale & Leaseback).`,
     (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true);
   const txBucketHtml=resumenBreakdownTableHtml("Deals by Size", "Number of transactions this year, grouped by size range (SF)",
     RESUMEN_SIZE_BUCKETS.map(b=>({key:b,label:b[2]})),

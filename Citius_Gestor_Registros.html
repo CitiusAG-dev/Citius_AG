@@ -401,6 +401,11 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .map-select-panel-close{border:none;background:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:2px}
   .map-select-panel-close:hover{color:var(--txt)}
   .map-select-panel-body{overflow-y:auto;padding:6px 0}
+  /* v3.5x.x, pedido explícito del usuario: acción "Send to Presentation" al fondo del panel de selección
+     del mapa — solo se llena (ver mapSelectPanelActionsHtml()) cuando el layer de Buildings o el de Land
+     es el ÚNICO activo entre los 4 de MAP_LAYERS, así nunca hay ambigüedad de a cuál presentación va. */
+  .map-select-panel-actions{padding:10px 14px;border-top:1px solid var(--line);flex-shrink:0}
+  .map-select-panel-actions .btn{width:100%}
   .map-select-group-label{padding:8px 14px 4px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--muted)}
   .map-select-item{display:flex;align-items:center;gap:8px;padding:6px 14px;font-size:12.5px;color:var(--txt);cursor:pointer;border:none;background:none;width:100%;text-align:left}
   .map-select-item:hover{background:var(--panel-2)}
@@ -1329,7 +1334,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v5.1.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v5.2.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -1589,6 +1594,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
               <button type="button" class="map-select-panel-close" id="mapSelectPanelClose">✕</button>
             </div>
             <div class="map-select-panel-body" id="mapSelectPanelBody"></div>
+            <div class="map-select-panel-actions" id="mapSelectPanelActions"></div>
           </div>
         </div>
         <div class="filter-sidebar" id="mapFilterSidebar"></div>
@@ -3303,7 +3309,11 @@ async function showMapView(){
   await refreshLandFileIfLinked();
   await refreshComplementaryFileIfLinked();
   renderMapFilterSidebar();
-  setTimeout(renderAllPolygonsMap, 30);
+  // v3.5x.x, pedido explícito del usuario ("cuando regreso al mapa me regresa al zoom inicial, quiero que
+  // se quede en donde estaba"): keepView=true si `allPolyMap` YA existe (se volvió a esta vista, el mapa
+  // ya se había creado antes) — solo la PRIMERA vez (`allPolyMap` aún null, se está creando recién) se deja
+  // hacer el fitBounds automático a los datos, igual que antes.
+  setTimeout(()=>renderAllPolygonsMap(!!allPolyMap), 30);
 }
 async function showPresentationView(){
   mapViewActive=false; presentationViewActive=true; landPresentationViewActive=false; officePresentationViewActive=false; configViewActive=false; resumenViewActive=false;
@@ -3401,6 +3411,14 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"5.2.0", date:"2026-08-31", items:[
+    "Map: new \"Send to Presentation\" action after selecting Buildings or Land with the lasso/polygon/radius tools — only shown when that layer is the only one active (never ambiguous about which presentation it's for), replaces whatever was previously selected for that presentation (asks for confirmation first), and jumps straight to the corresponding deck.",
+    "Map: filtering, and navigating back to the Map from another view, no longer resets the zoom/position.",
+    "Summary: \"Absorption\" section renamed (Gross/Negative/Net Absorption cards renamed to just \"Gross\"/\"Negative\"/\"Net\"); \"Negative\" now also requires Transaction Type = Lease.",
+    "Summary: \"Completed Transactions\" section — \"Total Quarterly Absorption\" renamed to \"All Transactions\"; \"Deals by Size\"/\"By Building Type\"/\"By Deal Type\" renamed to \"Size\"/\"Building Type\"/\"Transaction Type\"; \"Transaction Type\" now lists every value from that field's list (not just Lease/Sale), showing only the ones with data; \"Size\" ranges now reclassify based on the value converted to the selected Units (a transaction can land in a different size bucket in Metric vs Imperial).",
+    "Summary: \"Available Inventory\" section — fixed a real bug where \"Availability\", \"Class\", \"Status\", and \"Generation\" didn't add up to the same total as the KPI cards (missing the Classification A/B filter, and in one case, a wrong field). All 4 renamed (\"By Class\"/\"By Status\"/\"By Generation\" → \"Class\"/\"Status\"/\"Generation\"); \"Status\" and \"Transaction Type\" categories are now resolved from each field's actual configured list (fixing a separate bug where a hardcoded list name didn't match the real one); \"Status\" gained a \"No Status\" column to flag Properties missing that field; \"Size\" (Available Buildings) also gained the Classification A/B filter.",
+    "Help text on every Summary card/table is now shown as a hover tooltip (same \"i\" icon style as the KPI cards) instead of always-visible text."
+  ]},
   {version:"5.1.0", date:"2026-08-31", items:[
     "Summary: new \"Units\" selector (Imperial/Metric, defaults to Imperial) next to Market/Year — converts every area-based KPI card and breakdown table (Absorption, Completed Transactions, Available Inventory) to SF or m² on the fly.",
     "Summary: KPI cards reworked — Available Inventory (Ready), Under Construction, and Sublease now also require Classification A or B; Total Availability is now simply the sum of those three cards instead of a separate calculation; Total Market (Class A and B / A, B and C) no longer filters by Market Status.",
@@ -4442,13 +4460,21 @@ function countByPredicate(rows, predicateFn){
   (rows||[]).forEach(r=>{ if(predicateFn(r)) total++; });
   return total;
 }
+/* v3.5x.x, corrección pedida por el usuario ("los rangos sean los mismos que tenía antes, pero que haga
+   el conteo sobre el valor convertido"): los CORTES (0/50000/100000/150000/250000) son solo números
+   redondos — YA NO representan siempre SF. Se interpretan en la unidad elegida cada vez (resumenUnit): en
+   Imperial son 0/50k/100k/.../250k SF, en Metric son esos MISMOS números pero en m². Por eso el valor de
+   cada registro se convierte con resumenAreaVal() ANTES de compararlo contra estos cortes (ver las
+   llamadas a inSizeBucket en txBucketHtml/availBucketHtml) — un registro puede caer en un bucket distinto
+   al cambiar de unidad, a propósito (pedido explícito). El label solo cambia el sufijo de unidad. */
 const RESUMEN_SIZE_BUCKETS=[
-  [0,50000,"0k - 50k SF"],
-  [50000,100000,"50k - 100k SF"],
-  [100000,150000,"100k - 150k SF"],
-  [150000,250000,"150k - 250k SF"],
-  [250000,Infinity,"Más de 250k SF"]
+  [0,50000,"0k - 50k"],
+  [50000,100000,"50k - 100k"],
+  [100000,150000,"100k - 150k"],
+  [150000,250000,"150k - 250k"],
+  [250000,Infinity,"More than 250k"]
 ];
+function resumenSizeBucketLabel(bucket){ return bucket[2]+" "+resumenAreaUnitLabel(); }
 function inSizeBucket(value, bucket){
   const v=Number(value);
   if(isNaN(v)) return false;
@@ -4482,23 +4508,43 @@ function resumenKpis(year){
   const landPriceMax=landPriceValsSF.length?Math.max(...landPriceValsSF):0;
   return {marketAB,marketABC,inventory,vacancyRate,underConstruction,sublease,availability,availabilityRate,leaseTx,avgAsking,landPriceMin,landPriceMax};
 }
-/* v3.5x.x, pedido explícito del usuario: dona "Total Availability" con quiebre por Submercado, en el
-   espacio que dejaron libre las tarjetas "Under Construction"/"Sublease" al salir de la cuadrícula KPI.
-   Misma fórmula que la tarjeta agregada (inventory + underConstruction + sublease, con MISMOS filtros:
-   Classification A/B, Market Status "Available"), pero por submercado en vez de a nivel Mercado completo —
-   por eso NO se reusa resumenKpis() (esa filtra por resumenMarketMatches sin SUBMARKET); se repite el
-   mismo patrón exacto que ya usan resumenQuarterTableHtml/resumenBreakdownTableHtml (sumByPredicate sobre
-   state.PROPIEDADES con SUBMARKET+resumenMarketMatches en cada predicado). Valores en base SF (sin
-   convertir) — la conversión a la unidad elegida pasa en resumenAvailabilityDonutHtml(), al mostrarlos. */
+/* v3.5x.x, bug real reportado por el usuario ("estoy comparando el KPI vs los datos y no da lo mismo"):
+   la tabla "Availability" (abajo, sección "Available Inventory") sumaba TODAS las Properties con Market
+   Status "Available" sin filtrar por Classification ni por Status/Sublease — una fórmula DISTINTA a la
+   tarjeta KPI "Total Availability" (inventory + underConstruction + sublease, con Classification A/B).
+   Se extrae esa fórmula UNA sola vez aquí (resumenAvailabilityForSubmarket) para que la tarjeta KPI
+   (resumenKpis, a nivel Mercado completo), la dona (resumenAvailabilityBySubmarket) y la tabla "Availability"
+   (availHtml) sumen EXACTAMENTE lo mismo, solo que a distintos niveles de desglose — sumar esta función
+   sobre todos los submercados siempre da igual que la tarjeta KPI. Valores en base SF (sin convertir) —
+   la conversión a la unidad elegida pasa en cada lugar que la usa, al mostrarla. */
+/* v3.5x.x, pedido explícito del usuario ("la gráfica de Class también debería mostrar los totales de
+   Availability, en una me da 27 millones vs 25 millones"): 2do argumento opcional `classPredicate` — sin
+   él, se comporta igual que antes (Classification A o B combinadas, lo que usan la tarjeta KPI/la dona/
+   "Availability"). "Class" (availClassHtml) le pasa un predicado de UNA sola clase (A o B) para que su
+   desglose sea consistente — Class A + Class B (mismos filtros de Status/Sublease/Market Status que
+   "Availability") suman exactamente el total de "Availability". */
+/* v3.5x.x, bug real reportado por el usuario ("veo la lista de STATUS y solo tiene 3 valores... el campo
+   STATUS se llama STATUS BLDG"): estaba usando `lists.STATUS`/`lists.TRANSACTION_TYPE` a mano (nombre de
+   lista fijo) en vez de resolver CUÁL lista está realmente asignada al campo — y esa asignación es
+   configurable desde Configuración > Campos (puede ser distinta del nombre por default del código, como
+   pasa aquí: el campo STATUS de Propiedades usa la lista "STATUS_BLDG", no una lista llamada "STATUS").
+   Esta función resuelve la lista REAL vía fields(ent) (misma fuente que ya usa el resto de la app para
+   pintar los <select> de captura) y cachea el resultado del || [] final. */
+function resumenFieldListValues(ent, fieldKey){
+  const f=fields(ent).find(f=>f.key===fieldKey);
+  return (f && lists[f.list]) || [];
+}
+function resumenAvailabilityForSubmarket(sm, classPredicate){
+  const isClass=classPredicate||(r=>ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B"));
+  const inv=sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isClass(r)&&ciEq(r.STATUS,"Ready")&&ciEq(r.MARKET_STATUS,"Available"));
+  const uc=sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isClass(r)&&ciEq(r.STATUS,"Under Construction")&&ciEq(r.MARKET_STATUS,"Available"));
+  const sub=sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isClass(r)&&ciEq(r.TRANSACTION_AVAILABLE,"Sublease")&&ciEq(r.MARKET_STATUS,"Available"));
+  return inv+uc+sub;
+}
 function resumenAvailabilityBySubmarket(){
-  const subs=resumenSubmarkets();
-  const isAB=r=>ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B");
-  return subs.map(sm=>{
-    const inv=sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.STATUS,"Ready")&&ciEq(r.MARKET_STATUS,"Available"));
-    const uc=sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.STATUS,"Under Construction")&&ciEq(r.MARKET_STATUS,"Available"));
-    const sub=sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.TRANSACTION_AVAILABLE,"Sublease")&&ciEq(r.MARKET_STATUS,"Available"));
-    return {submarket:sm, value:inv+uc+sub};
-  }).filter(d=>d.value>0).sort((a,b)=>b.value-a.value);
+  return resumenSubmarkets()
+    .map(sm=>({submarket:sm, value:resumenAvailabilityForSubmarket(sm)}))
+    .filter(d=>d.value>0).sort((a,b)=>b.value-a.value);
 }
 /* v3.5x.x, pedido explícito del usuario ("no quiero que se agrupen valores en Other, tengo 9 submercados
    y no me los muestra todos"): sin tope ni "Other" — TODOS los submercados con valor > 0 son su propio
@@ -4563,7 +4609,7 @@ function resumenAvailabilityDonutHtml(){
     </div>`;
   }).join("");
   return `<div class="resumen-donut-panel">
-    <div class="resumen-donut-title">Total Availability by Submarket${helpIconHtml("resumenDonutHelp", `Same as "Total Availability", broken down by Submarket instead of by Market.`)}</div>
+    <div class="resumen-donut-title">Total Availability by Submarket${helpIconHtml("resumenDonutHelp", `Same as "Total Availability", broken down by Submarket.`)}</div>
     <div class="resumen-donut-body">
       <div class="resumen-donut-chart-wrap">
         <svg class="resumen-donut-svg" viewBox="0 0 200 200" role="img" aria-label="Total Availability by Submarket">
@@ -4584,6 +4630,14 @@ function resumenColgroupHtml(dataColCount){
   for(let i=0;i<dataColCount;i++) cols+=`<col style="width:${dataPct}%">`;
   return `<colgroup>${cols}</colgroup>`;
 }
+/* v3.5x.x, pedido explícito del usuario: el texto de ayuda de estos bloques (antes un <p> siempre visible
+   debajo del título) ahora se muestra igual que en las tarjetas KPI — ícono "i" junto al título, tooltip
+   con helpIconHtml() al pasar el mouse. El id se deriva del título (slug) — son todos títulos fijos y
+   distintos entre sí, así que no hace falta pasar un índice como hacen las tarjetas KPI. */
+function resumenBlockHelpIconHtml(title, subtitle){
+  if(!subtitle) return "";
+  return helpIconHtml("resumenBlockHelp_"+title.toLowerCase().replace(/[^a-z0-9]+/g,""), subtitle);
+}
 /* v3.5x.x, pedido explícito del usuario ("quiero ver los datos de las demás tablas de abajo que se
    transformen de unidad"): `isArea` (7mo/4to argumento, default false) — cuando la tabla suma ÁREA (no
    cuenta registros, no promedia %), convierte cada valor con resumenAreaVal() antes de mostrarlo y agrega
@@ -4593,7 +4647,8 @@ function resumenColgroupHtml(dataColCount){
 function resumenQuarterTableHtml(title, subtitle, computeFn, isArea){
   const subs=resumenSubmarkets();
   const displayTitle=isArea?`${title} (${resumenAreaUnitLabel()})`:title;
-  if(!subs.length) return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(displayTitle)}</h4><p class="muted">No data.</p></div>`;
+  const titleHtml=`${escapeHtml(displayTitle)}${resumenBlockHelpIconHtml(title,subtitle)}`;
+  if(!subs.length) return `<div class="resumen-block"><h4 class="resumen-subtitle">${titleHtml}</h4><p class="muted">No data.</p></div>`;
   const colTotals=[0,0,0,0,0];
   let rows="";
   subs.forEach(sm=>{
@@ -4604,24 +4659,29 @@ function resumenQuarterTableHtml(title, subtitle, computeFn, isArea){
     rows+=`<tr><td>${escapeHtml(sm)}</td>${vals.map(v=>`<td class="num-cell">${Math.round(v).toLocaleString("en-US")}</td>`).join("")}<td class="num-cell"><b>${Math.round(ytd).toLocaleString("en-US")}</b></td></tr>`;
   });
   rows+=`<tr class="resumen-total-row"><td>Total</td>${colTotals.map(v=>`<td class="num-cell">${Math.round(v).toLocaleString("en-US")}</td>`).join("")}</tr>`;
-  return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(displayTitle)}</h4>${subtitle?`<p class="resumen-block-note">${escapeHtml(subtitle)}</p>`:""}<div class="resumen-scroll"><table class="resumen-table">${resumenColgroupHtml(5)}<thead><tr><th>Submarket</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>YTD</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  return `<div class="resumen-block"><h4 class="resumen-subtitle">${titleHtml}</h4><div class="resumen-scroll"><table class="resumen-table">${resumenColgroupHtml(5)}<thead><tr><th>Submarket</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>YTD</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
-function resumenBreakdownTableHtml(title, subtitle, categories, computeFn, isArea){
+/* v3.5x.x, pedido explícito del usuario: `showTotalCol` (6to argumento, default true) — cuando la tabla
+   tiene una SOLA categoría (ej. "Availability", solo "Available Area"), la columna "Total" siempre da el
+   mismo número que esa única columna — se pasa `false` en ese caso para no repetirla. */
+function resumenBreakdownTableHtml(title, subtitle, categories, computeFn, isArea, showTotalCol){
+  if(showTotalCol===undefined) showTotalCol=true;
   const subs=resumenSubmarkets();
   const displayTitle=isArea?`${title} (${resumenAreaUnitLabel()})`:title;
-  if(!subs.length) return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(displayTitle)}</h4><p class="muted">No data.</p></div>`;
+  const titleHtml=`${escapeHtml(displayTitle)}${resumenBlockHelpIconHtml(title,subtitle)}`;
+  if(!subs.length) return `<div class="resumen-block"><h4 class="resumen-subtitle">${titleHtml}</h4><p class="muted">No data.</p></div>`;
   const colTotals=categories.map(()=>0);
   let rows="";
   subs.forEach(sm=>{
     const vals=categories.map(c=>{ const raw=computeFn(sm,c.key); return isArea?resumenAreaVal(raw):raw; });
     const rowTotal=vals.reduce((a,b)=>a+b,0);
     vals.forEach((v,i)=>colTotals[i]+=v);
-    rows+=`<tr><td>${escapeHtml(sm)}</td>${vals.map(v=>`<td class="num-cell">${Math.round(v).toLocaleString("en-US")}</td>`).join("")}<td class="num-cell"><b>${Math.round(rowTotal).toLocaleString("en-US")}</b></td></tr>`;
+    rows+=`<tr><td>${escapeHtml(sm)}</td>${vals.map(v=>`<td class="num-cell">${Math.round(v).toLocaleString("en-US")}</td>`).join("")}${showTotalCol?`<td class="num-cell"><b>${Math.round(rowTotal).toLocaleString("en-US")}</b></td>`:""}</tr>`;
   });
   const grandTotal=colTotals.reduce((a,b)=>a+b,0);
-  rows+=`<tr class="resumen-total-row"><td>Total</td>${colTotals.map(v=>`<td class="num-cell">${Math.round(v).toLocaleString("en-US")}</td>`).join("")}<td class="num-cell">${Math.round(grandTotal).toLocaleString("en-US")}</td></tr>`;
-  const colgroupHtml=resumenColgroupHtml(categories.length+1);
-  return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(displayTitle)}</h4>${subtitle?`<p class="resumen-block-note">${escapeHtml(subtitle)}</p>`:""}<div class="resumen-scroll"><table class="resumen-table">${colgroupHtml}<thead><tr><th>Submarket</th>${categories.map(c=>`<th>${escapeHtml(c.label)}</th>`).join("")}<th>Total</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  rows+=`<tr class="resumen-total-row"><td>Total</td>${colTotals.map(v=>`<td class="num-cell">${Math.round(v).toLocaleString("en-US")}</td>`).join("")}${showTotalCol?`<td class="num-cell">${Math.round(grandTotal).toLocaleString("en-US")}</td>`:""}</tr>`;
+  const colgroupHtml=resumenColgroupHtml(categories.length+(showTotalCol?1:0));
+  return `<div class="resumen-block"><h4 class="resumen-subtitle">${titleHtml}</h4><div class="resumen-scroll"><table class="resumen-table">${colgroupHtml}<thead><tr><th>Submarket</th>${categories.map(c=>`<th>${escapeHtml(c.label)}</th>`).join("")}${showTotalCol?`<th>Total</th>`:""}</tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 /* Tabla de % de cumplimiento (mercado × MARKET_STATUS) para una entidad — a diferencia de las demás tablas
    del Resumen (que SUMAN un valor por submercado), esta PROMEDIA un porcentaje que ya se calculó por
@@ -4907,46 +4967,87 @@ function renderResumenView(){
      resumenSubmarkets()) el TOTAL de la fila mezclaba silenciosamente datos de otro mercado que por
      coincidencia usa el mismo nombre de submercado. Sin filtro de Mercado activo (resumenMarket==="")
      resumenMarketMatches() siempre da true, así que el comportamiento sin filtro no cambia. */
-  const grossHtml=resumenQuarterTableHtml("Gross Absorption (Lease)", "Lease transactions with Gross absorption only",
+  const grossHtml=resumenQuarterTableHtml("Gross", `Sum of "Transaction Area" for Transactions with "Transaction Type" = "Lease" and "Absorption Type" = "Gross".`,
     (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true);
-  const negativeHtml=resumenQuarterTableHtml("Negative Absorption", "Deliveries / move-outs (2nd Generation)",
-    (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true);
-  const netHtml=resumenQuarterTableHtml("Net Absorption", "Gross Absorption (Lease) + Negative absorption",
+  const negativeHtml=resumenQuarterTableHtml("Negative", `Sum of "Transaction Area" for Transactions with "Transaction Type" = "Lease" and "Absorption Type" = "Negative".`,
+    (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true);
+  const netHtml=resumenQuarterTableHtml("Net", `"Gross" + "Negative".`,
     (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q);
       const gross=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
-      const neg=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
+      const neg=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
       return gross+neg; }, true);
 
-  const txQuarterHtml=resumenQuarterTableHtml("Total Quarterly Absorption", "All operations with Gross absorption (Lease and Sale)",
+  const txQuarterHtml=resumenQuarterTableHtml("All Transactions", `Sum of "Transaction Area" for ALL Transactions with "Absorption Type" = "Gross", regardless of "Transaction Type".`,
     (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true);
-  const txBucketHtml=resumenBreakdownTableHtml("Deals by Size", "Number of transactions this year, grouped by size range (SF)",
-    RESUMEN_SIZE_BUCKETS.map(b=>({key:b,label:b[2]})),
-    (sm,bucket)=>countByPredicate(state.TRANSACCIONES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd&&inSizeBucket(areaValueInSF(r,"TRANSACTION_AREA"),bucket)));
-  const txBuildingTypeHtml=resumenBreakdownTableHtml("By Building Type", "Area with Gross absorption this year, by transaction building type",
+  const txBucketHtml=resumenBreakdownTableHtml(`Size (${resumenAreaUnitLabel()})`, `Count of Transactions dated within ${resumenYear}, grouped by "Transaction Area" range.`,
+    RESUMEN_SIZE_BUCKETS.map(b=>({key:b,label:resumenSizeBucketLabel(b)})),
+    (sm,bucket)=>countByPredicate(state.TRANSACCIONES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd&&inSizeBucket(resumenAreaVal(areaValueInSF(r,"TRANSACTION_AREA")),bucket)));
+  const txBuildingTypeHtml=resumenBreakdownTableHtml("Building Type", `Sum of "Transaction Area" for Transactions with "Absorption Type" = "Gross", dated within ${resumenYear}, by "Building Type".`,
     [{key:"Inventory",label:"Inventory"},{key:"Expansion",label:"Expansion"},{key:"STS",label:"Spec to Suit"},{key:"BTS",label:"Build to Suit"}],
     (sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.BUILDING_TYPE,type)&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd), true);
-  const txDealTypeHtml=resumenBreakdownTableHtml("By Deal Type", "Area with Gross absorption this year, by deal type: Lease or Sale",
-    [{key:"Lease",label:"Lease"},{key:"Sale",label:"Sale"}],
-    (sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,type)&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd), true);
+  // v3.5x.x, pedido explícito del usuario ("deben de aparecer todas las tipo de transacciones, todas
+  // todas"): antes solo mostraba 2 categorías fijas (Lease/Sale) — ahora saca TODAS las de la lista
+  // TRANSACTION_TYPE (misma que usa el campo "Transaction Type" al capturar), así que si se agrega/quita
+  // un valor desde Configuración > Listas, esta tabla se actualiza sola sin tocar código.
+  // v3.5x.x, pedido explícito del usuario ("que solo muestre los valores que tienen datos... muchas
+  // columnas vacías"): de esas categorías, solo se quedan las que tienen algo en AL MENOS un submercado —
+  // se calcula con la MISMA función (txDealTypeComputeFn) que después usa la tabla real, para no repetir
+  // el filtro en dos lugares distintos.
+  const txDealTypeComputeFn=(sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,type)&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd);
+  const txDealTypeCategories=resumenFieldListValues("TRANSACCIONES","TRANSACCION_TYPE")
+    .filter(t=>resumenSubmarkets().some(sm=>txDealTypeComputeFn(sm,t)>0))
+    .map(t=>({key:t,label:t}));
+  const txDealTypeHtml=resumenBreakdownTableHtml("Transaction Type", `Sum of "Transaction Area" for Transactions with "Absorption Type" = "Gross", dated within ${resumenYear}, by "Transaction Type" (only types with data are shown).`,
+    txDealTypeCategories, txDealTypeComputeFn, true);
 
-  const availHtml=resumenBreakdownTableHtml("Availability", "Total available area in the market, by submarket",
+  // v3.5x.x, corregido (ver comentario de resumenAvailabilityForSubmarket): antes sumaba TODAS las
+  // Properties con Market Status "Available" sin filtrar Classification/Status — ahora usa la MISMA
+  // fórmula que la tarjeta KPI "Total Availability" (inventory + underConstruction + sublease, A/B), así
+  // que sumando todos los submercados de esta tabla da exactamente ese mismo número.
+  const availHtml=resumenBreakdownTableHtml("Availability", `Same as "Total Availability" ("Available Inventory (Ready)" + "Under Construction" + "Sublease"), by Submarket.`,
     [{key:"__avail__",label:`Available Area (${resumenAreaUnitLabel()})`}],
-    (sm)=>sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.MARKET_STATUS,"Available")), true);
-  const availClassHtml=resumenBreakdownTableHtml("By Class", "Available area by building class (A/B)",
+    (sm)=>resumenAvailabilityForSubmarket(sm), true, false);
+  const availClassHtml=resumenBreakdownTableHtml("Class", `Same as "Availability", by "Classification" (Class A + Class B always add up to the "Availability" total).`,
     [{key:"A",label:"Class A"},{key:"B",label:"Class B"}],
-    (sm,cls)=>sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.CLASSIFICATION,cls)&&ciEq(r.MARKET_STATUS,"Available")), true);
-  const availBucketHtml=resumenBreakdownTableHtml("Available Buildings by Size", "Number of available buildings, grouped by size range (SF)",
-    RESUMEN_SIZE_BUCKETS.map(b=>({key:b,label:b[2]})),
-    (sm,bucket)=>countByPredicate(state.PROPIEDADES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.MARKET_STATUS,"Available")&&inSizeBucket(areaValueInSF(r,"AVAILABLE_AREA_VALUE"),bucket)));
-  const availStatusHtml=resumenBreakdownTableHtml("By Status", "\"Sublease\" is taken from Transaction Available, not Status, so the number reflects real data",
-    [{key:"Ready",label:"Ready"},{key:"Under Construction",label:"Under Construction"},{key:"Planned",label:"Planned"},{key:"Sublease",label:"Sublease"}],
-    (sm,status)=>{
-      if(status==="Sublease") return sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.TRANSACTION_AVAILABLE,"Sublease")&&ciEq(r.MARKET_STATUS,"Available"));
-      return sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.STATUS,status)&&ciEq(r.MARKET_STATUS,"Available"));
-    }, true);
-  const availGenHtml=resumenBreakdownTableHtml("By Generation", "Available area by building generation (New / 2nd Generation)",
-    [{key:"New",label:"New"},{key:"2nd",label:"2nd Generation"}],
-    (sm,gen)=>sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.BUILDING_GENERATION,gen)&&ciEq(r.MARKET_STATUS,"Available")), true);
+    (sm,cls)=>resumenAvailabilityForSubmarket(sm, r=>ciEq(r.CLASSIFICATION,cls)), true);
+  // v3.5x.x, pedido explícito del usuario ("asegurar que el mismo indicador de Availability esté
+  // usándose"): faltaba el filtro "Classification" = "A" or "B" — mismo indicador (Classification A/B +
+  // Market Status "Available") que ya usan "Availability"/"Class"/"Status"/"Generation" en esta misma
+  // sección. Sigue siendo un CONTEO de Properties (no una suma), así que no reusa
+  // resumenAvailabilityForSubmarket() (esa devuelve un área sumada, no una cuenta de registros).
+  const availBucketHtml=resumenBreakdownTableHtml("Size", `Count of Properties with "Classification" = "A" or "B" and "Market Status" = "Available", grouped by "Available Area" range.`,
+    RESUMEN_SIZE_BUCKETS.map(b=>({key:b,label:resumenSizeBucketLabel(b)})),
+    (sm,bucket)=>countByPredicate(state.PROPIEDADES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B"))&&ciEq(r.MARKET_STATUS,"Available")&&inSizeBucket(resumenAreaVal(areaValueInSF(r,"AVAILABLE_AREA_VALUE")),bucket)));
+  // v3.5x.x, rediseñado (pedido explícito del usuario, corrigiendo el diseño anterior): ya no incluye
+  // "Sublease" (no es un valor real de "Status", venía de "Transaction Available" — se quitó por
+  // completo). Categorías = SOLO los valores REALES de la lista asignada al campo "Status" de Propiedades
+  // (resumenFieldListValues, hoy "STATUS_BLDG": Ready/Under Construction/Planned), filtrados a los que
+  // tienen datos (mismo patrón que "Transaction Type"), más "No Status" (solo si hay algo) para identificar
+  // Properties sin ese campo capturado. NADA inventado fuera de esa lista — v3.5x.x, pedido explícito del
+  // usuario tras confusión con un intento anterior que agregaba una columna "Sublease" que no viene de esa
+  // lista ("no entiendo qué está pasando... me muestra otras categorías que no sé de dónde se están
+  // tomando"). Por diseño, el Total de esta tabla NO tiene por qué coincidir con "Availability" — Properties
+  // en Sublease (que sí suma "Availability") pueden tener cualquier "Status" real, así que esa parte no
+  // aparece desglosada aquí.
+  const availStatusComputeFn=(sm,status)=>{
+    const isAB=r=>ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B");
+    if(status==="__blank__") return sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&!r.STATUS&&ciEq(r.MARKET_STATUS,"Available"));
+    if(status==="Under Construction") return sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.STATUS,"Under Construction")&&ciEq(r.MARKET_STATUS,"Available"));
+    return sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.STATUS,status)&&ciEq(r.MARKET_STATUS,"Available"));
+  };
+  const availStatusCategories=resumenFieldListValues("PROPIEDADES","STATUS")
+    .filter(s=>resumenSubmarkets().some(sm=>availStatusComputeFn(sm,s)>0))
+    .map(s=>({key:s,label:s}));
+  if(resumenSubmarkets().some(sm=>availStatusComputeFn(sm,"__blank__")>0)) availStatusCategories.push({key:"__blank__",label:"No Status"});
+  const availStatusHtml=resumenBreakdownTableHtml("Status", `Sum of "Available Area" ("Leasable Area (GLA)" for "Under Construction") for Properties with "Classification" = "A" or "B" and "Market Status" = "Available", by "Status" (only the values from that field's list that have data; "No Status" flags Properties with that field left empty). Properties in "Sublease" can carry any "Status", so this Total doesn't match "Availability" — that part isn't broken down here.`,
+    availStatusCategories, availStatusComputeFn, true);
+  // v3.5x.x, corregido: faltaba el filtro A/B, y no había categoría para Properties sin generación
+  // capturada — pedido explícito del usuario: se agrega "NA" (mismo valor de la lista GENERATION_BUILDING)
+  // para que New + 2nd + NA sumen exacto el total de "Availability" (reusa resumenAvailabilityForSubmarket,
+  // igual que "Class", combinando el filtro A/B con la generación).
+  const availGenHtml=resumenBreakdownTableHtml("Generation", `Same as "Availability", by "Building Generation" (New + 2nd Generation + NA always add up to the "Availability" total).`,
+    [{key:"New",label:"New"},{key:"2nd",label:"2nd Generation"},{key:"NA",label:"NA"}],
+    (sm,gen)=>resumenAvailabilityForSubmarket(sm, r=>(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B"))&&ciEq(r.BUILDING_GENERATION,gen)), true);
 
   const complianceHtmlProp=resumenComplianceTableHtml("Properties", "Average % of required fields captured (same calculation as the table's \"% Complete\" column), by market and market status", "PROPIEDADES");
   const complianceHtmlParks=resumenComplianceFullTableHtml("Parks", "Average % of required fields captured (same calculation as the table's \"% Complete\" column), by market, over all the data", "PARKS");
@@ -4975,8 +5076,8 @@ function renderResumenView(){
         <div class="resumen-year-select">
           <label for="resumenUnitSelect">Units</label>
           <select id="resumenUnitSelect">
-            <option value="imperial" ${resumenUnit==="imperial"?"selected":""}>Imperial (SF)</option>
-            <option value="metric" ${resumenUnit==="metric"?"selected":""}>Metric (m²)</option>
+            <option value="imperial" ${resumenUnit==="imperial"?"selected":""}>Imperial</option>
+            <option value="metric" ${resumenUnit==="metric"?"selected":""}>Metric</option>
           </select>
         </div>
         <div class="resumen-year-select">
@@ -4996,7 +5097,7 @@ function renderResumenView(){
       <div class="resumen-kpi-grid">${kpiHtml}</div>
       ${donutHtml}
     </div>
-    <h3 class="resumen-section-title">Absorption by Submarket (${resumenYear})</h3>
+    <h3 class="resumen-section-title">Absorption (${resumenYear})</h3>
     ${resumenRowsOf3([grossHtml, negativeHtml, netHtml])}
     <h3 class="resumen-section-title">Completed Transactions (${resumenYear})</h3>
     ${resumenRowsOf3([txQuarterHtml, txBucketHtml, txBuildingTypeHtml, txDealTypeHtml])}
@@ -6634,7 +6735,14 @@ function hasValidLatLng(row){ const lat=Number(row.LATITUDE), lng=Number(row.LON
    usuario: "cuando quito una capa... me regresa el zoom como cuando se abre por primera vez") — mismo
    criterio que ya aplicaba a las capas complementarias (pozos/líneas), ahora también aquí vía el parámetro
    `keepView` de renderAllPolygonsMap. */
-function toggleMapLayer(ent, checked){ mapLayerFilter[ent]=checked; renderAllPolygonsMap(true); }
+function toggleMapLayer(ent, checked){
+  mapLayerFilter[ent]=checked;
+  renderAllPolygonsMap(true);
+  // v3.5x.x: si el panel de selección del mapa está abierto, el botón "Send to Presentation" depende de
+  // qué layer quedó como el único activo — se refresca solo (no vuelve a correr la selección/resaltado).
+  const actionsEl=document.getElementById("mapSelectPanelActions");
+  if(actionsEl) actionsEl.innerHTML=mapSelectPanelActionsHtml(currentMapSelectMatches);
+}
 function mapLayerFilterHtml(){
   return MAP_LAYERS.map(l=>{
     let count;
@@ -6816,7 +6924,7 @@ function setMapFilterListValues(scope,key,valuesSet){
     if(newFilter) mapFilters.perEntity[scope].push(newFilter);
   }
   saveMapFiltersLocal();
-  renderAllPolygonsMap();
+  renderAllPolygonsMap(true); // v3.5x.x: no reiniciar zoom al filtrar
   updateMapFilterCount();
 }
 function onMapFilterListSearch(scope,key,val){ mapFilterSearch[scope+"::"+key]=val; renderMapFilterFieldBody(scope,key); }
@@ -6834,7 +6942,7 @@ function onMapFilterListSelectAll(scope,key,checked){
 }
 function debouncedApplyMapFilter(){
   clearTimeout(mapFilterDebounce);
-  mapFilterDebounce=setTimeout(()=>{ renderAllPolygonsMap(); updateMapFilterCount(); }, 350);
+  mapFilterDebounce=setTimeout(()=>{ renderAllPolygonsMap(true); updateMapFilterCount(); }, 350);
 }
 function onMapFilterNumberChange(scope,key,which,val){
   const existing=mapFilterEntry(scope,key) || {key, type:"number", min:"", max:""};
@@ -6864,13 +6972,13 @@ function removeMapFilterField(scope,key){
   }
   saveMapFilterPanelFieldsLocal();
   saveMapFiltersLocal();
-  renderAllPolygonsMap();
+  renderAllPolygonsMap(true); // v3.5x.x: no reiniciar zoom al quitar un filtro
   renderMapFilterSidebar();
 }
 function clearAllMapFilters(){
   mapFilters={shared:{}, perEntity:{PROPIEDADES:[],PARKS:[],LAND:[],OFICINAS:[]}};
   saveMapFiltersLocal();
-  renderAllPolygonsMap();
+  renderAllPolygonsMap(true); // v3.5x.x: no reiniciar zoom al limpiar todos los filtros
   renderMapFilterSidebar();
 }
 function mapFilterActiveCount(){
@@ -7008,6 +7116,7 @@ function editFromMap(ent, id){
 let activeMapSelectTool=null; // null | "lasso" | "radius" | "polygon"
 let mapDrawHandler=null; // instancia de L.Draw.Polygon o L.Draw.Circle mientras esa herramienta está activa
 let selectionShapeLayer=null, selectionHighlightLayer=null; // grupos aparte de allPolyLayerGroup/complementario
+let currentMapSelectMatches=[]; // v3.5x.x: última selección mostrada en #mapSelectPanel — la lee sendMapSelectionToPresentation()
 let lassoPoints=[], lassoPreviewLine=null;
 /* Ray-casting estándar: ¿el punto cae dentro del anillo de lat/lng? Se usa igual para Polígono y para Lazo
    (ambos terminan siendo un anillo de puntos) — trata lat/lng como si fueran x/y planos, suficiente a la
@@ -7120,8 +7229,50 @@ function clearMapSelection(){
   if(selectionHighlightLayer){ allPolyMap && allPolyMap.removeLayer(selectionHighlightLayer); selectionHighlightLayer=null; }
   const panel=document.getElementById("mapSelectPanel");
   if(panel) panel.style.display="none";
+  currentMapSelectMatches=[];
+}
+/* v3.5x.x, pedido explícito del usuario: "Send to Presentation" desde la selección del mapa (lazo/polígono/
+   radio) — solo tiene sentido si el layer de Buildings (Propiedades) o el de Land (Terrenos) es el ÚNICO
+   activo entre los 4 de MAP_LAYERS (mapLayerFilter), así nunca hay ambigüedad de a cuál presentación
+   (Propiedades/Terrenos/Oficinas) corresponde la selección. null si hay 0 o 2+ layers activos. */
+function mapSelectExclusiveEnt(){
+  const on=MAP_LAYERS.filter(l=>mapLayerFilter[l.ent]).map(l=>l.ent);
+  return on.length===1 ? on[0] : null;
+}
+function mapSelectPanelActionsHtml(matches){
+  const ent=mapSelectExclusiveEnt();
+  if(ent!=="PROPIEDADES" && ent!=="LAND") return "";
+  const count=matches.filter(m=>m.ent===ent).length;
+  if(!count) return "";
+  const label=ent==="PROPIEDADES"?"Buildings":"Land";
+  return `<button type="button" class="btn" onclick="sendMapSelectionToPresentation('${ent}')">Send ${count} ${label} to Presentation</button>`;
+}
+/* REEMPLAZA la selección de presentación existente (no la fusiona) — pedido explícito del usuario ("si
+   hay algo previamente seleccionado... se borre y tome lo del mapa"). Mismo criterio destructivo que
+   clearAllPresentationSelection()/clearAllLandPresentationSelection(): pide confirm() antes si ya había
+   algo. Navega al deck correspondiente al terminar (pedido explícito del usuario). */
+function sendMapSelectionToPresentation(ent){
+  const ids=currentMapSelectMatches.filter(m=>m.ent===ent).map(m=>m.row.__id);
+  if(!ids.length) return;
+  if(ent==="PROPIEDADES"){
+    if(presentationOrder.length && !confirm(`This will replace the ${presentationOrder.length} propert(y/ies) currently in the presentation with these ${ids.length}. Continue?`)) return;
+    presentationOrder=ids.slice();
+    savePresentationOrder();
+    syncPresentationOrderToTableSort();
+    renderTable();
+    clearMapSelection();
+    showPresentationView();
+  } else {
+    if(landPresentationOrder.length && !confirm(`This will replace the ${landPresentationOrder.length} land parcel(s) currently in the presentation with these ${ids.length}. Continue?`)) return;
+    landPresentationOrder=ids.slice();
+    saveLandPresentationOrder();
+    renderTable();
+    clearMapSelection();
+    showLandPresentationView();
+  }
 }
 function showMapSelectPanel(matches, shape){
+  currentMapSelectMatches=matches;
   if(selectionHighlightLayer){ allPolyMap.removeLayer(selectionHighlightLayer); }
   selectionHighlightLayer=L.layerGroup().addTo(allPolyMap);
   matches.forEach(m=>{
@@ -7158,6 +7309,7 @@ function showMapSelectPanel(matches, shape){
     });
     bodyEl.innerHTML=html;
   }
+  document.getElementById("mapSelectPanelActions").innerHTML=mapSelectPanelActionsHtml(matches);
   panel.style.display="flex";
 }
 

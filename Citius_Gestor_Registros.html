@@ -109,17 +109,44 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .resumen-row-3 table.resumen-table th, .resumen-row-3 table.resumen-table td{padding:4px 3px}
   .resumen-subtitle{margin:0 0 4px;font-size:12.5px;color:var(--txt);text-transform:uppercase;letter-spacing:.4px}
   .resumen-block-note{margin:0 0 8px;font-size:11.5px;color:var(--muted)}
-  /* "Tool Usage" — gráfica de barras al fondo de Resumen (v4.5.0). `.resumen-usage-header` reemplaza el
+  /* "Tool Usage" — gráfica de barras al fondo de Resumen. `.resumen-usage-header` reemplaza el
      margin-top:48px de `.resumen-section-title` de siempre (aquí puesto en 0 desde el HTML) por el margen
      del contenedor, para poder alinear el título+nota a la izquierda con los 2 selectores (Documento/
-     Periodo) a la derecha en la misma fila, igual que ya hace `.resumen-header` arriba del todo. */
-  .resumen-usage-header{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-top:48px}
-  .resumen-usage-chart{display:flex;align-items:flex-end;gap:3px;height:200px;padding:16px 4px 0;
-                        border-bottom:1px solid var(--line);overflow-x:auto}
-  .resumen-usage-bar-col{flex:1 0 4px;min-width:4px;max-width:24px;height:100%;display:flex;flex-direction:column;
-                          justify-content:flex-end;align-items:center}
-  .resumen-usage-bar{width:100%;background:var(--accent);border-radius:2px 2px 0 0;min-height:2px}
-  .resumen-usage-bar-label{margin-top:6px;font-size:9px;color:var(--muted);white-space:nowrap}
+     Periodo) a la derecha en la misma fila, igual que ya hace `.resumen-header` arriba del todo.
+     v4.5.1, pedido explícito del usuario ("está rara... quiero algo más interactivo web") — la 1ra versión
+     (v4.5.0) era solo barras en flexbox sin eje Y, con el `title` nativo del navegador como único "hover"
+     (aparece con casi 1s de retraso, sin estilo, fácil de no notarlo). Rediseño completo: eje Y con
+     gridlines punteadas (máximo/mitad/cero), tooltip PROPIO por barra (mismo patrón CSS-only ya usado en
+     `fieldHelpIconHtml` — un `<div>` posicionado absoluto que se muestra con `:hover`, sin nada de JS,
+     instantáneo en vez del retraso del `title` nativo), y toda la COLUMNA del día (no solo el pixel visible
+     de la barra) es el área de hover — un día con 0 actividad casi no tiene barra visible, así que hacer
+     hoverable solo esos pocos px habría sido igual de "no se ve nada" que antes. */
+  .resumen-usage-chart{display:grid;grid-template-columns:34px 1fr;grid-template-rows:200px 22px;column-gap:8px}
+  .resumen-usage-yaxis{grid-column:1;grid-row:1;position:relative}
+  .resumen-usage-yaxis span{position:absolute;right:4px;transform:translateY(-50%);font-size:9.5px;
+                             color:var(--muted);font-variant-numeric:tabular-nums}
+  .resumen-usage-plot{grid-column:2;grid-row:1;position:relative;border-left:1px solid var(--line);
+                       border-bottom:1px solid var(--line)}
+  .resumen-usage-gridline{position:absolute;left:0;right:0;border-top:1px dashed var(--line)}
+  .resumen-usage-bars{position:absolute;inset:0;display:flex;align-items:flex-end;padding:0 2px}
+  .resumen-usage-bar-col{flex:1 1 0;min-width:2px;height:100%;display:flex;align-items:flex-end;
+                          position:relative;border-radius:3px 3px 0 0}
+  .resumen-usage-bar-col:hover{background:rgba(0,0,0,.035)}
+  .resumen-usage-bar{width:100%;background:var(--accent);border-radius:2px 2px 0 0;position:relative;
+                      transition:background .12s}
+  .resumen-usage-bar.empty{background:var(--line)}
+  .resumen-usage-bar-col:hover .resumen-usage-bar{background:var(--accent-2)}
+  .resumen-usage-bar-col:hover .resumen-usage-bar.empty{background:var(--muted)}
+  .resumen-usage-tip{position:absolute;bottom:calc(100% + 9px);left:50%;transform:translateX(-50%);
+                      background:var(--txt);color:#fff;font-size:11px;line-height:1.45;padding:6px 10px;
+                      border-radius:6px;white-space:nowrap;text-align:center;opacity:0;pointer-events:none;
+                      transition:opacity .1s;z-index:20}
+  .resumen-usage-tip::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);
+                             border:5px solid transparent;border-top-color:var(--txt)}
+  .resumen-usage-bar-col:hover .resumen-usage-tip{opacity:1}
+  .resumen-usage-xaxis{grid-column:2;grid-row:2;position:relative}
+  .resumen-usage-xaxis span{position:absolute;top:0;transform:translateX(-50%);font-size:9.5px;
+                             color:var(--muted);white-space:nowrap}
   .resumen-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel)}
   table.resumen-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:12.5px}
   table.resumen-table th, table.resumen-table td{padding:8px 14px;text-align:left;border-bottom:1px solid var(--line);
@@ -1252,7 +1279,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v5.0.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v5.0.1</div>
     </nav>
   </aside>
   <div class="main">
@@ -3310,6 +3337,9 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"5.0.1", date:"2026-08-31", items:[
+    "Summary: redesigned the \"Tool Usage\" chart — added a Y axis (max/mid/zero) with gridlines so bar height is readable at a glance, evenly-spaced date labels across the whole period instead of clustering to one side, and a proper hover tooltip (shows instantly, with the exact count and full date) over each day's full column instead of the slow, unstyled browser tooltip from before."
+  ]},
   {version:"5.0.0", date:"2026-08-28", items:[
     "New module: Offices presentation deck (3rd option in the Presentation menu, alongside Buildings and Land). Build \"Options\" from the Spaces table by checking the floors to offer, then either grouping them into one combined Option (areas summed) or adding them individually — never combined automatically. The deck includes a Cover, a Location Map (pins are the actual Office buildings), a divider page whenever the submarket changes between consecutive Options, a 2-page Option Detail (building photo, floor plan, Space Information and Building Information tables, each floor's own area shown next to it) and a 4-photo interior page per Option, plus a Closing page.",
     "Offices presentation: language toggle (English/Spanish) — only changes what's shown in this deck; captured data in the system always stays in English. Settings > Lists gained a 2nd \"Spanish\" column per list value to maintain those translations for presentations.",
@@ -4540,24 +4570,53 @@ function resumenUsageData(days, docFilter){
   });
   return dates.map(iso=>({iso, count:counts.get(iso)}));
 }
-/* Gráfica de barras CSS puro (sin librería — esta app nunca cargó ninguna de charting). Con hasta 90
-   barras, mostrar la fecha de TODAS se encimaría — `labelEvery` espacía las etiquetas según cuántas barras
-   haya (cada ~10 con 90 días, cada ~3 con 30). */
+/* Gráfica de barras CSS puro (sin librería — esta app nunca cargó ninguna de charting).
+   Índices de barra donde va una etiqueta del eje X, repartidos parejo (siempre incluye la 1ra y la
+   última) — evita que las etiquetas se encimen sin importar cuántos días haya (30/60/90). */
+function resumenUsageLabelIndices(n, maxLabels){
+  if(n<=maxLabels) return [...Array(n).keys()];
+  const idx=[];
+  for(let i=0;i<maxLabels;i++) idx.push(Math.round(i*(n-1)/(maxLabels-1)));
+  return [...new Set(idx)];
+}
+/* v4.5.1, reescrita por completo (ver el comentario largo en el CSS de `.resumen-usage-chart`, arriba en
+   este mismo archivo): eje Y (máximo/mitad/cero) + gridlines, y un tooltip propio por columna (CSS puro,
+   `:hover`, sin JS) en vez del `title` nativo del navegador — ahora aparece al instante y con el mismo
+   estilo del resto de la app, y el área de hover es la COLUMNA completa del día (no solo el pixel visible
+   de la barra), para que un día sin actividad también sea fácil de "encontrar" pasando el cursor. */
 function resumenUsageChartHtml(data){
   const max=Math.max(1, ...data.map(d=>d.count));
+  const mid=Math.round(max/2);
   const n=data.length;
-  const labelEvery = n<=31 ? 3 : (n<=61 ? 6 : 10);
-  const bars=data.map((d,i)=>{
-    const pct=d.count>0?Math.max(3,Math.round((d.count/max)*100)):0;
+  const maxLabels = n<=14 ? n : (n<=45 ? 8 : 10);
+  const labelIdx=new Set(resumenUsageLabelIndices(n, maxLabels));
+  const bars=data.map(d=>{
+    const hasData=d.count>0;
+    const pct=hasData?Math.max(4,Math.round((d.count/max)*100)):2;
     const dt=new Date(d.iso+"T00:00:00");
-    const labelText=dt.toLocaleDateString("en-US",{month:"short",day:"numeric"});
-    const showLabel=(i%labelEvery===0)||i===n-1;
-    return `<div class="resumen-usage-bar-col" title="${escapeAttr(labelText)}: ${d.count} record(s) modified">
-      <div class="resumen-usage-bar" style="height:${pct}%"></div>
-      <div class="resumen-usage-bar-label">${showLabel?escapeHtml(labelText):""}</div>
+    const fullLabel=dt.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric",year:"numeric"});
+    return `<div class="resumen-usage-bar-col">
+      <div class="resumen-usage-bar${hasData?"":" empty"}" style="height:${pct}%">
+        <div class="resumen-usage-tip"><strong>${d.count}</strong> record${d.count===1?"":"s"}<br>${escapeHtml(fullLabel)}</div>
+      </div>
     </div>`;
   }).join("");
-  return `<div class="resumen-usage-chart">${bars}</div>`;
+  const xLabels=data.map((d,i)=>{
+    if(!labelIdx.has(i)) return "";
+    const dt=new Date(d.iso+"T00:00:00");
+    const label=dt.toLocaleDateString("en-US",{month:"short",day:"numeric"});
+    const left=((i+0.5)/n*100).toFixed(3);
+    return `<span style="left:${left}%">${escapeHtml(label)}</span>`;
+  }).join("");
+  return `<div class="resumen-usage-chart">
+    <div class="resumen-usage-yaxis"><span style="top:0">${max}</span><span style="top:50%">${mid}</span><span style="top:100%">0</span></div>
+    <div class="resumen-usage-plot">
+      <div class="resumen-usage-gridline" style="top:0"></div>
+      <div class="resumen-usage-gridline" style="top:50%"></div>
+      <div class="resumen-usage-bars">${bars}</div>
+    </div>
+    <div class="resumen-usage-xaxis">${xLabels}</div>
+  </div>`;
 }
 let resumenYear=String(new Date().getFullYear());
 let resumenMarket="";

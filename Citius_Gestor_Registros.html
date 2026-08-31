@@ -4383,8 +4383,8 @@ function inSizeBucket(value, bucket){
 }
 function resumenKpis(year){
   const P=(state.PROPIEDADES||[]).filter(r=>resumenMarketMatches(r,"PROPIEDADES"));
-  const marketAB=sumByPredicate(P,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B"));
-  const marketABC=sumByPredicate(P,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B")||ciEq(r.CLASSIFICATION,"C"));
+  const marketAB=sumByPredicate(P,"LEASABLE_AREA_GLA_VALUE", r=>(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B"))&&ciEq(r.MARKET_STATUS,"Available"));
+  const marketABC=sumByPredicate(P,"LEASABLE_AREA_GLA_VALUE", r=>(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B")||ciEq(r.CLASSIFICATION,"C"))&&ciEq(r.MARKET_STATUS,"Available"));
   const inventory=sumByPredicate(P,"AVAILABLE_AREA_VALUE", r=>ciEq(r.STATUS,"Ready")&&ciEq(r.MARKET_STATUS,"Available"));
   const vacancyRate=marketAB>0?inventory/marketAB:0;
   const underConstruction=sumByPredicate(P,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.STATUS,"Under Construction")&&ciEq(r.MARKET_STATUS,"Available"));
@@ -4643,7 +4643,7 @@ function renderResumenView(){
   // del selector de arriba (resumenMarketMatches()), por eso esa aclaración se repite en cada una.
   const kpiCards=[
     ["Total Market (Class A and B)", num(k.marketAB)+" SF",
-      `Sum of "Leasable Area (GLA)" for Properties with Classification A or B (from the Market filtered above, or all of them if there's no filter).`],
+      `Sum of "Leasable Area (GLA)" for Properties with Classification A or B and Market Status "Available".`],
     ["Total Market (A, B and C)", num(k.marketABC)+" SF",
       `Same as "Total Market (Class A and B)", but also adds Properties with Classification C.`],
     ["Available Inventory (Ready)", num(k.inventory)+" SF",

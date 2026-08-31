@@ -4651,7 +4651,7 @@ function renderResumenView(){
   const yearStart=`${resumenYear}-01-01`, yearEnd=`${resumenYear}-12-31`;
   const k=resumenKpis(resumenYear);
   const pct=v=>(v*100).toFixed(1)+"%";
-  const money=v=>"$"+v.toFixed(2);
+  const money=v=>"$"+v.toFixed(3);
   const num=v=>Math.round(v).toLocaleString("en-US");
   // v3.5x.x: valores de área de las tarjetas ya vienen normalizados a SF desde resumenKpis() — area()
   // los convierte a la unidad elegida en el selector "Units" (resumenUnit) justo antes de mostrarlos.

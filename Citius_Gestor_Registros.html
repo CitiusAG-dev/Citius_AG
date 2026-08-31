@@ -4947,9 +4947,16 @@ function renderResumenView(){
   // todas"): antes solo mostraba 2 categorías fijas (Lease/Sale) — ahora saca TODAS las de la lista
   // TRANSACTION_TYPE (misma que usa el campo "Transaction Type" al capturar), así que si se agrega/quita
   // un valor desde Configuración > Listas, esta tabla se actualiza sola sin tocar código.
-  const txDealTypeHtml=resumenBreakdownTableHtml("Transaction Type", `Sum of "Transaction Area" for Transactions with "Absorption Type" = "Gross", dated within ${resumenYear}, by "Transaction Type".`,
-    (lists.TRANSACTION_TYPE||[]).map(t=>({key:t,label:t})),
-    (sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,type)&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd), true);
+  // v3.5x.x, pedido explícito del usuario ("que solo muestre los valores que tienen datos... muchas
+  // columnas vacías"): de esas categorías, solo se quedan las que tienen algo en AL MENOS un submercado —
+  // se calcula con la MISMA función (txDealTypeComputeFn) que después usa la tabla real, para no repetir
+  // el filtro en dos lugares distintos.
+  const txDealTypeComputeFn=(sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,type)&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd);
+  const txDealTypeCategories=(lists.TRANSACTION_TYPE||[])
+    .filter(t=>resumenSubmarkets().some(sm=>txDealTypeComputeFn(sm,t)>0))
+    .map(t=>({key:t,label:t}));
+  const txDealTypeHtml=resumenBreakdownTableHtml("Transaction Type", `Sum of "Transaction Area" for Transactions with "Absorption Type" = "Gross", dated within ${resumenYear}, by "Transaction Type" (only types with data are shown).`,
+    txDealTypeCategories, txDealTypeComputeFn, true);
 
   const availHtml=resumenBreakdownTableHtml("Availability", "Total available area in the market, by submarket",
     [{key:"__avail__",label:`Available Area (${resumenAreaUnitLabel()})`}],

@@ -4623,7 +4623,11 @@ function resumenQuarterTableHtml(title, subtitle, computeFn, isArea){
   rows+=`<tr class="resumen-total-row"><td>Total</td>${colTotals.map(v=>`<td class="num-cell">${Math.round(v).toLocaleString("en-US")}</td>`).join("")}</tr>`;
   return `<div class="resumen-block"><h4 class="resumen-subtitle">${titleHtml}</h4><div class="resumen-scroll"><table class="resumen-table">${resumenColgroupHtml(5)}<thead><tr><th>Submarket</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>YTD</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
-function resumenBreakdownTableHtml(title, subtitle, categories, computeFn, isArea){
+/* v3.5x.x, pedido explícito del usuario: `showTotalCol` (6to argumento, default true) — cuando la tabla
+   tiene una SOLA categoría (ej. "Availability", solo "Available Area"), la columna "Total" siempre da el
+   mismo número que esa única columna — se pasa `false` en ese caso para no repetirla. */
+function resumenBreakdownTableHtml(title, subtitle, categories, computeFn, isArea, showTotalCol){
+  if(showTotalCol===undefined) showTotalCol=true;
   const subs=resumenSubmarkets();
   const displayTitle=isArea?`${title} (${resumenAreaUnitLabel()})`:title;
   const titleHtml=`${escapeHtml(displayTitle)}${resumenBlockHelpIconHtml(title,subtitle)}`;
@@ -4634,12 +4638,12 @@ function resumenBreakdownTableHtml(title, subtitle, categories, computeFn, isAre
     const vals=categories.map(c=>{ const raw=computeFn(sm,c.key); return isArea?resumenAreaVal(raw):raw; });
     const rowTotal=vals.reduce((a,b)=>a+b,0);
     vals.forEach((v,i)=>colTotals[i]+=v);
-    rows+=`<tr><td>${escapeHtml(sm)}</td>${vals.map(v=>`<td class="num-cell">${Math.round(v).toLocaleString("en-US")}</td>`).join("")}<td class="num-cell"><b>${Math.round(rowTotal).toLocaleString("en-US")}</b></td></tr>`;
+    rows+=`<tr><td>${escapeHtml(sm)}</td>${vals.map(v=>`<td class="num-cell">${Math.round(v).toLocaleString("en-US")}</td>`).join("")}${showTotalCol?`<td class="num-cell"><b>${Math.round(rowTotal).toLocaleString("en-US")}</b></td>`:""}</tr>`;
   });
   const grandTotal=colTotals.reduce((a,b)=>a+b,0);
-  rows+=`<tr class="resumen-total-row"><td>Total</td>${colTotals.map(v=>`<td class="num-cell">${Math.round(v).toLocaleString("en-US")}</td>`).join("")}<td class="num-cell">${Math.round(grandTotal).toLocaleString("en-US")}</td></tr>`;
-  const colgroupHtml=resumenColgroupHtml(categories.length+1);
-  return `<div class="resumen-block"><h4 class="resumen-subtitle">${titleHtml}</h4><div class="resumen-scroll"><table class="resumen-table">${colgroupHtml}<thead><tr><th>Submarket</th>${categories.map(c=>`<th>${escapeHtml(c.label)}</th>`).join("")}<th>Total</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  rows+=`<tr class="resumen-total-row"><td>Total</td>${colTotals.map(v=>`<td class="num-cell">${Math.round(v).toLocaleString("en-US")}</td>`).join("")}${showTotalCol?`<td class="num-cell">${Math.round(grandTotal).toLocaleString("en-US")}</td>`:""}</tr>`;
+  const colgroupHtml=resumenColgroupHtml(categories.length+(showTotalCol?1:0));
+  return `<div class="resumen-block"><h4 class="resumen-subtitle">${titleHtml}</h4><div class="resumen-scroll"><table class="resumen-table">${colgroupHtml}<thead><tr><th>Submarket</th>${categories.map(c=>`<th>${escapeHtml(c.label)}</th>`).join("")}${showTotalCol?`<th>Total</th>`:""}</tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 /* Tabla de % de cumplimiento (mercado × MARKET_STATUS) para una entidad — a diferencia de las demás tablas
    del Resumen (que SUMAN un valor por submercado), esta PROMEDIA un porcentaje que ya se calculó por
@@ -4958,9 +4962,11 @@ function renderResumenView(){
   const txDealTypeHtml=resumenBreakdownTableHtml("Transaction Type", `Sum of "Transaction Area" for Transactions with "Absorption Type" = "Gross", dated within ${resumenYear}, by "Transaction Type" (only types with data are shown).`,
     txDealTypeCategories, txDealTypeComputeFn, true);
 
-  const availHtml=resumenBreakdownTableHtml("Availability", "Total available area in the market, by submarket",
+  // v3.5x.x, pedido explícito del usuario: quita la columna "Total" (con una sola categoría, siempre
+  // repetía el mismo número que "Available Area") — showTotalCol=false, 6to argumento.
+  const availHtml=resumenBreakdownTableHtml("Availability", `Sum of "Available Area" for Properties with "Market Status" = "Available".`,
     [{key:"__avail__",label:`Available Area (${resumenAreaUnitLabel()})`}],
-    (sm)=>sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.MARKET_STATUS,"Available")), true);
+    (sm)=>sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.MARKET_STATUS,"Available")), true, false);
   const availClassHtml=resumenBreakdownTableHtml("By Class", "Available area by building class (A/B)",
     [{key:"A",label:"Class A"},{key:"B",label:"Class B"}],
     (sm,cls)=>sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.CLASSIFICATION,cls)&&ciEq(r.MARKET_STATUS,"Available")), true);

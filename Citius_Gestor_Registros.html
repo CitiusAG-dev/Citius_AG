@@ -4389,7 +4389,7 @@ function resumenKpis(year){
   const vacancyRate=marketAB>0?inventory/marketAB:0;
   const underConstruction=sumByPredicate(P,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.STATUS,"Under Construction")&&ciEq(r.MARKET_STATUS,"Available")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B")));
   const sublease=sumByPredicate(P,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.TRANSACTION_AVAILABLE,"Sublease")&&ciEq(r.MARKET_STATUS,"Available")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B")));
-  const availability=sumByPredicate(P,"AVAILABLE_AREA_VALUE", r=>ciEq(r.MARKET_STATUS,"Available"));
+  const availability=inventory+underConstruction+sublease;
   const availabilityRate=marketAB>0?availability/marketAB:0;
   const yearStart=`${year}-01-01`, yearEnd=`${year}-12-31`;
   const T=(state.TRANSACCIONES||[]).filter(r=>resumenMarketMatches(r,"TRANSACCIONES"));
@@ -4661,7 +4661,7 @@ function renderResumenView(){
     ["Sublease", num(k.sublease)+" SF",
       `Sum of "Leasable Area (GLA)" for Properties with "Transaction Available" = "Sublease", "Market Status" = "Available", and "Classification" = "A" or "B".`],
     ["Total Availability", num(k.availability)+" SF",
-      `Sum of "Available Area" for Properties with "Market Status" = "Available", regardless of "Status" (includes Ready, Under Construction, and Planned).`],
+      `Sum of "Available Inventory (Ready)" + "Under Construction" + "Sublease".`],
     ["Availability Rate", pct(k.availabilityRate),
       `"Total Availability" ÷ "Total Market (Class A and B)".`],
     [`Lease Transactions (${resumenYear})`, num(k.leaseTx)+" SF",

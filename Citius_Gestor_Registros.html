@@ -4499,11 +4499,17 @@ function resumenKpis(year){
    (availHtml) sumen EXACTAMENTE lo mismo, solo que a distintos niveles de desglose — sumar esta función
    sobre todos los submercados siempre da igual que la tarjeta KPI. Valores en base SF (sin convertir) —
    la conversión a la unidad elegida pasa en cada lugar que la usa, al mostrarla. */
-function resumenAvailabilityForSubmarket(sm){
-  const isAB=r=>ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B");
-  const inv=sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.STATUS,"Ready")&&ciEq(r.MARKET_STATUS,"Available"));
-  const uc=sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.STATUS,"Under Construction")&&ciEq(r.MARKET_STATUS,"Available"));
-  const sub=sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.TRANSACTION_AVAILABLE,"Sublease")&&ciEq(r.MARKET_STATUS,"Available"));
+/* v3.5x.x, pedido explícito del usuario ("la gráfica de Class también debería mostrar los totales de
+   Availability, en una me da 27 millones vs 25 millones"): 2do argumento opcional `classPredicate` — sin
+   él, se comporta igual que antes (Classification A o B combinadas, lo que usan la tarjeta KPI/la dona/
+   "Availability"). "Class" (availClassHtml) le pasa un predicado de UNA sola clase (A o B) para que su
+   desglose sea consistente — Class A + Class B (mismos filtros de Status/Sublease/Market Status que
+   "Availability") suman exactamente el total de "Availability". */
+function resumenAvailabilityForSubmarket(sm, classPredicate){
+  const isClass=classPredicate||(r=>ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B"));
+  const inv=sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isClass(r)&&ciEq(r.STATUS,"Ready")&&ciEq(r.MARKET_STATUS,"Available"));
+  const uc=sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isClass(r)&&ciEq(r.STATUS,"Under Construction")&&ciEq(r.MARKET_STATUS,"Available"));
+  const sub=sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isClass(r)&&ciEq(r.TRANSACTION_AVAILABLE,"Sublease")&&ciEq(r.MARKET_STATUS,"Available"));
   return inv+uc+sub;
 }
 function resumenAvailabilityBySubmarket(){
@@ -4972,9 +4978,9 @@ function renderResumenView(){
   const availHtml=resumenBreakdownTableHtml("Availability", `Same as "Total Availability" ("Available Inventory (Ready)" + "Under Construction" + "Sublease"), by Submarket.`,
     [{key:"__avail__",label:`Available Area (${resumenAreaUnitLabel()})`}],
     (sm)=>resumenAvailabilityForSubmarket(sm), true, false);
-  const availClassHtml=resumenBreakdownTableHtml("Class", `Sum of "Available Area" for Properties with "Market Status" = "Available", by "Classification".`,
+  const availClassHtml=resumenBreakdownTableHtml("Class", `Same as "Availability", by "Classification" (Class A + Class B always add up to the "Availability" total).`,
     [{key:"A",label:"Class A"},{key:"B",label:"Class B"}],
-    (sm,cls)=>sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.CLASSIFICATION,cls)&&ciEq(r.MARKET_STATUS,"Available")), true);
+    (sm,cls)=>resumenAvailabilityForSubmarket(sm, r=>ciEq(r.CLASSIFICATION,cls)), true);
   const availBucketHtml=resumenBreakdownTableHtml("Size", `Count of Properties with "Market Status" = "Available", grouped by "Available Area" range.`,
     RESUMEN_SIZE_BUCKETS.map(b=>({key:b,label:resumenSizeBucketLabel(b)})),
     (sm,bucket)=>countByPredicate(state.PROPIEDADES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.MARKET_STATUS,"Available")&&inSizeBucket(resumenAreaVal(areaValueInSF(r,"AVAILABLE_AREA_VALUE")),bucket)));

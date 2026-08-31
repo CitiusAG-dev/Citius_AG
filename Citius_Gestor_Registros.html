@@ -4442,13 +4442,34 @@ function countByPredicate(rows, predicateFn){
   (rows||[]).forEach(r=>{ if(predicateFn(r)) total++; });
   return total;
 }
+/* Los límites (bucket[0]/bucket[1]) SIEMPRE están en SF — es la unidad en la que se compara internamente
+   (inSizeBucket recibe el valor ya normalizado a SF vía areaValueInSF), así que estos números nunca
+   cambian. El 3er elemento (string) es solo el label ORIGINAL en SF — ya no se usa directo, ver
+   resumenSizeBucketLabel() más abajo, que lo recalcula en la unidad elegida (resumenUnit) cada vez que se
+   pide un label — se deja aquí para que sea fácil ver de dónde salen los cortes redondos (50k/100k/150k/
+   250k SF) sin tener que hacer la cuenta al revés desde m². */
 const RESUMEN_SIZE_BUCKETS=[
   [0,50000,"0k - 50k SF"],
   [50000,100000,"50k - 100k SF"],
   [100000,150000,"100k - 150k SF"],
   [150000,250000,"150k - 250k SF"],
-  [250000,Infinity,"Más de 250k SF"]
+  [250000,Infinity,"More than 250k SF"]
 ];
+/* v3.5x.x, pedido explícito del usuario: los rangos de las tablas "Size"/"Available Buildings by Size"
+   ahora se ven en la unidad elegida en el selector de arriba (antes SIEMPRE en SF, sin importar
+   resumenUnit). Los CORTES que clasifican cada registro NO cambian (siguen siendo los mismos 50k/100k/
+   150k/250k SF de siempre, comparados en SF vía inSizeBucket/areaValueInSF) — solo el TEXTO del rango se
+   recalcula con resumenAreaVal() para mostrar el equivalente real en la unidad activa. */
+function resumenSizeBucketLabel(bucket){
+  const [min,max]=bucket;
+  const unit=resumenAreaUnitLabel();
+  const fmt=v=>{
+    const conv=resumenAreaVal(v);
+    if(conv>=1000) return (Math.round(conv/100)/10)+"k";
+    return Math.round(conv).toString();
+  };
+  return max===Infinity ? `More than ${fmt(min)} ${unit}` : `${fmt(min)} - ${fmt(max)} ${unit}`;
+}
 function inSizeBucket(value, bucket){
   const v=Number(value);
   if(isNaN(v)) return false;
@@ -4930,7 +4951,7 @@ function renderResumenView(){
   const txQuarterHtml=resumenQuarterTableHtml("All Transactions", `Sum of "Transaction Area" for ALL Transactions with "Absorption Type" = "Gross", regardless of "Transaction Type".`,
     (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true);
   const txBucketHtml=resumenBreakdownTableHtml(`Size (${resumenAreaUnitLabel()})`, `Count of Transactions dated within ${resumenYear}, grouped by "Transaction Area" range.`,
-    RESUMEN_SIZE_BUCKETS.map(b=>({key:b,label:b[2]})),
+    RESUMEN_SIZE_BUCKETS.map(b=>({key:b,label:resumenSizeBucketLabel(b)})),
     (sm,bucket)=>countByPredicate(state.TRANSACCIONES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd&&inSizeBucket(areaValueInSF(r,"TRANSACTION_AREA"),bucket)));
   const txBuildingTypeHtml=resumenBreakdownTableHtml("Building Type", `Sum of "Transaction Area" for Transactions with "Absorption Type" = "Gross", dated within ${resumenYear}, by "Building Type".`,
     [{key:"Inventory",label:"Inventory"},{key:"Expansion",label:"Expansion"},{key:"STS",label:"Spec to Suit"},{key:"BTS",label:"Build to Suit"}],
@@ -4946,7 +4967,7 @@ function renderResumenView(){
     [{key:"A",label:"Class A"},{key:"B",label:"Class B"}],
     (sm,cls)=>sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.CLASSIFICATION,cls)&&ciEq(r.MARKET_STATUS,"Available")), true);
   const availBucketHtml=resumenBreakdownTableHtml("Available Buildings by Size", "Number of available buildings, grouped by size range (SF)",
-    RESUMEN_SIZE_BUCKETS.map(b=>({key:b,label:b[2]})),
+    RESUMEN_SIZE_BUCKETS.map(b=>({key:b,label:resumenSizeBucketLabel(b)})),
     (sm,bucket)=>countByPredicate(state.PROPIEDADES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.MARKET_STATUS,"Available")&&inSizeBucket(areaValueInSF(r,"AVAILABLE_AREA_VALUE"),bucket)));
   const availStatusHtml=resumenBreakdownTableHtml("By Status", "\"Sublease\" is taken from Transaction Available, not Status, so the number reflects real data",
     [{key:"Ready",label:"Ready"},{key:"Under Construction",label:"Under Construction"},{key:"Planned",label:"Planned"},{key:"Sublease",label:"Sublease"}],

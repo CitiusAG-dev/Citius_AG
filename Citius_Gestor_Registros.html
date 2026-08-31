@@ -4505,6 +4505,17 @@ function resumenKpis(year){
    "Availability"). "Class" (availClassHtml) le pasa un predicado de UNA sola clase (A o B) para que su
    desglose sea consistente — Class A + Class B (mismos filtros de Status/Sublease/Market Status que
    "Availability") suman exactamente el total de "Availability". */
+/* v3.5x.x, bug real reportado por el usuario ("veo la lista de STATUS y solo tiene 3 valores... el campo
+   STATUS se llama STATUS BLDG"): estaba usando `lists.STATUS`/`lists.TRANSACTION_TYPE` a mano (nombre de
+   lista fijo) en vez de resolver CUÁL lista está realmente asignada al campo — y esa asignación es
+   configurable desde Configuración > Campos (puede ser distinta del nombre por default del código, como
+   pasa aquí: el campo STATUS de Propiedades usa la lista "STATUS_BLDG", no una lista llamada "STATUS").
+   Esta función resuelve la lista REAL vía fields(ent) (misma fuente que ya usa el resto de la app para
+   pintar los <select> de captura) y cachea el resultado del || [] final. */
+function resumenFieldListValues(ent, fieldKey){
+  const f=fields(ent).find(f=>f.key===fieldKey);
+  return (f && lists[f.list]) || [];
+}
 function resumenAvailabilityForSubmarket(sm, classPredicate){
   const isClass=classPredicate||(r=>ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B"));
   const inv=sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isClass(r)&&ciEq(r.STATUS,"Ready")&&ciEq(r.MARKET_STATUS,"Available"));
@@ -4965,7 +4976,7 @@ function renderResumenView(){
   // se calcula con la MISMA función (txDealTypeComputeFn) que después usa la tabla real, para no repetir
   // el filtro en dos lugares distintos.
   const txDealTypeComputeFn=(sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,type)&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd);
-  const txDealTypeCategories=(lists.TRANSACTION_TYPE||[])
+  const txDealTypeCategories=resumenFieldListValues("TRANSACCIONES","TRANSACCION_TYPE")
     .filter(t=>resumenSubmarkets().some(sm=>txDealTypeComputeFn(sm,t)>0))
     .map(t=>({key:t,label:t}));
   const txDealTypeHtml=resumenBreakdownTableHtml("Transaction Type", `Sum of "Transaction Area" for Transactions with "Absorption Type" = "Gross", dated within ${resumenYear}, by "Transaction Type" (only types with data are shown).`,
@@ -5012,7 +5023,7 @@ function renderResumenView(){
     if(status==="Under Construction") return sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.STATUS,"Under Construction")&&ciEq(r.MARKET_STATUS,"Available"));
     return sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.STATUS,status)&&ciEq(r.MARKET_STATUS,"Available"));
   };
-  const availStatusCategories=(lists.STATUS||[])
+  const availStatusCategories=resumenFieldListValues("PROPIEDADES","STATUS")
     .filter(s=>resumenSubmarkets().some(sm=>availStatusComputeFn(sm,s)>0))
     .map(s=>({key:s,label:s}));
   if(resumenSubmarkets().some(sm=>availStatusComputeFn(sm,"__sublease__")>0)) availStatusCategories.push({key:"__sublease__",label:"Sublease"});

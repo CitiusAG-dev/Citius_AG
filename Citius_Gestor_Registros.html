@@ -401,6 +401,11 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .map-select-panel-close{border:none;background:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:2px}
   .map-select-panel-close:hover{color:var(--txt)}
   .map-select-panel-body{overflow-y:auto;padding:6px 0}
+  /* v3.5x.x, pedido explícito del usuario: acción "Send to Presentation" al fondo del panel de selección
+     del mapa — solo se llena (ver mapSelectPanelActionsHtml()) cuando el layer de Buildings o el de Land
+     es el ÚNICO activo entre los 4 de MAP_LAYERS, así nunca hay ambigüedad de a cuál presentación va. */
+  .map-select-panel-actions{padding:10px 14px;border-top:1px solid var(--line);flex-shrink:0}
+  .map-select-panel-actions .btn{width:100%}
   .map-select-group-label{padding:8px 14px 4px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--muted)}
   .map-select-item{display:flex;align-items:center;gap:8px;padding:6px 14px;font-size:12.5px;color:var(--txt);cursor:pointer;border:none;background:none;width:100%;text-align:left}
   .map-select-item:hover{background:var(--panel-2)}
@@ -1589,6 +1594,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
               <button type="button" class="map-select-panel-close" id="mapSelectPanelClose">✕</button>
             </div>
             <div class="map-select-panel-body" id="mapSelectPanelBody"></div>
+            <div class="map-select-panel-actions" id="mapSelectPanelActions"></div>
           </div>
         </div>
         <div class="filter-sidebar" id="mapFilterSidebar"></div>
@@ -6717,7 +6723,14 @@ function hasValidLatLng(row){ const lat=Number(row.LATITUDE), lng=Number(row.LON
    usuario: "cuando quito una capa... me regresa el zoom como cuando se abre por primera vez") — mismo
    criterio que ya aplicaba a las capas complementarias (pozos/líneas), ahora también aquí vía el parámetro
    `keepView` de renderAllPolygonsMap. */
-function toggleMapLayer(ent, checked){ mapLayerFilter[ent]=checked; renderAllPolygonsMap(true); }
+function toggleMapLayer(ent, checked){
+  mapLayerFilter[ent]=checked;
+  renderAllPolygonsMap(true);
+  // v3.5x.x: si el panel de selección del mapa está abierto, el botón "Send to Presentation" depende de
+  // qué layer quedó como el único activo — se refresca solo (no vuelve a correr la selección/resaltado).
+  const actionsEl=document.getElementById("mapSelectPanelActions");
+  if(actionsEl) actionsEl.innerHTML=mapSelectPanelActionsHtml(currentMapSelectMatches);
+}
 function mapLayerFilterHtml(){
   return MAP_LAYERS.map(l=>{
     let count;
@@ -7091,6 +7104,7 @@ function editFromMap(ent, id){
 let activeMapSelectTool=null; // null | "lasso" | "radius" | "polygon"
 let mapDrawHandler=null; // instancia de L.Draw.Polygon o L.Draw.Circle mientras esa herramienta está activa
 let selectionShapeLayer=null, selectionHighlightLayer=null; // grupos aparte de allPolyLayerGroup/complementario
+let currentMapSelectMatches=[]; // v3.5x.x: última selección mostrada en #mapSelectPanel — la lee sendMapSelectionToPresentation()
 let lassoPoints=[], lassoPreviewLine=null;
 /* Ray-casting estándar: ¿el punto cae dentro del anillo de lat/lng? Se usa igual para Polígono y para Lazo
    (ambos terminan siendo un anillo de puntos) — trata lat/lng como si fueran x/y planos, suficiente a la
@@ -7203,8 +7217,50 @@ function clearMapSelection(){
   if(selectionHighlightLayer){ allPolyMap && allPolyMap.removeLayer(selectionHighlightLayer); selectionHighlightLayer=null; }
   const panel=document.getElementById("mapSelectPanel");
   if(panel) panel.style.display="none";
+  currentMapSelectMatches=[];
+}
+/* v3.5x.x, pedido explícito del usuario: "Send to Presentation" desde la selección del mapa (lazo/polígono/
+   radio) — solo tiene sentido si el layer de Buildings (Propiedades) o el de Land (Terrenos) es el ÚNICO
+   activo entre los 4 de MAP_LAYERS (mapLayerFilter), así nunca hay ambigüedad de a cuál presentación
+   (Propiedades/Terrenos/Oficinas) corresponde la selección. null si hay 0 o 2+ layers activos. */
+function mapSelectExclusiveEnt(){
+  const on=MAP_LAYERS.filter(l=>mapLayerFilter[l.ent]).map(l=>l.ent);
+  return on.length===1 ? on[0] : null;
+}
+function mapSelectPanelActionsHtml(matches){
+  const ent=mapSelectExclusiveEnt();
+  if(ent!=="PROPIEDADES" && ent!=="LAND") return "";
+  const count=matches.filter(m=>m.ent===ent).length;
+  if(!count) return "";
+  const label=ent==="PROPIEDADES"?"Buildings":"Land";
+  return `<button type="button" class="btn" onclick="sendMapSelectionToPresentation('${ent}')">Send ${count} ${label} to Presentation</button>`;
+}
+/* REEMPLAZA la selección de presentación existente (no la fusiona) — pedido explícito del usuario ("si
+   hay algo previamente seleccionado... se borre y tome lo del mapa"). Mismo criterio destructivo que
+   clearAllPresentationSelection()/clearAllLandPresentationSelection(): pide confirm() antes si ya había
+   algo. Navega al deck correspondiente al terminar (pedido explícito del usuario). */
+function sendMapSelectionToPresentation(ent){
+  const ids=currentMapSelectMatches.filter(m=>m.ent===ent).map(m=>m.row.__id);
+  if(!ids.length) return;
+  if(ent==="PROPIEDADES"){
+    if(presentationOrder.length && !confirm(`This will replace the ${presentationOrder.length} propert(y/ies) currently in the presentation with these ${ids.length}. Continue?`)) return;
+    presentationOrder=ids.slice();
+    savePresentationOrder();
+    syncPresentationOrderToTableSort();
+    renderTable();
+    clearMapSelection();
+    showPresentationView();
+  } else {
+    if(landPresentationOrder.length && !confirm(`This will replace the ${landPresentationOrder.length} land parcel(s) currently in the presentation with these ${ids.length}. Continue?`)) return;
+    landPresentationOrder=ids.slice();
+    saveLandPresentationOrder();
+    renderTable();
+    clearMapSelection();
+    showLandPresentationView();
+  }
 }
 function showMapSelectPanel(matches, shape){
+  currentMapSelectMatches=matches;
   if(selectionHighlightLayer){ allPolyMap.removeLayer(selectionHighlightLayer); }
   selectionHighlightLayer=L.layerGroup().addTo(allPolyMap);
   matches.forEach(m=>{
@@ -7241,6 +7297,7 @@ function showMapSelectPanel(matches, shape){
     });
     bodyEl.innerHTML=html;
   }
+  document.getElementById("mapSelectPanelActions").innerHTML=mapSelectPanelActionsHtml(matches);
   panel.style.display="flex";
 }
 

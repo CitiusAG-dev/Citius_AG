@@ -4927,15 +4927,15 @@ function renderResumenView(){
       const neg=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
       return gross+neg; }, true);
 
-  const txQuarterHtml=resumenQuarterTableHtml("All Transactions", `Sum of "Transaction Area" for ALL Transactions with "Absorption Type" = "Gross", regardless of "Transaction Type" (includes Lease, Sale, Sublease, and Sale & Leaseback).`,
+  const txQuarterHtml=resumenQuarterTableHtml("All Transactions", `Sum of "Transaction Area" for ALL Transactions with "Absorption Type" = "Gross", regardless of "Transaction Type".`,
     (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true);
-  const txBucketHtml=resumenBreakdownTableHtml("Deals by Size", "Number of transactions this year, grouped by size range (SF)",
+  const txBucketHtml=resumenBreakdownTableHtml(`Size (${resumenAreaUnitLabel()})`, `Count of Transactions dated within ${resumenYear}, grouped by "Transaction Area" range.`,
     RESUMEN_SIZE_BUCKETS.map(b=>({key:b,label:b[2]})),
     (sm,bucket)=>countByPredicate(state.TRANSACCIONES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd&&inSizeBucket(areaValueInSF(r,"TRANSACTION_AREA"),bucket)));
-  const txBuildingTypeHtml=resumenBreakdownTableHtml("By Building Type", "Area with Gross absorption this year, by transaction building type",
+  const txBuildingTypeHtml=resumenBreakdownTableHtml("Building Type", `Sum of "Transaction Area" for Transactions with "Absorption Type" = "Gross", dated within ${resumenYear}, by "Building Type".`,
     [{key:"Inventory",label:"Inventory"},{key:"Expansion",label:"Expansion"},{key:"STS",label:"Spec to Suit"},{key:"BTS",label:"Build to Suit"}],
     (sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.BUILDING_TYPE,type)&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd), true);
-  const txDealTypeHtml=resumenBreakdownTableHtml("By Deal Type", "Area with Gross absorption this year, by deal type: Lease or Sale",
+  const txDealTypeHtml=resumenBreakdownTableHtml("Transaction Type", `Sum of "Transaction Area" for Transactions with "Absorption Type" = "Gross", dated within ${resumenYear}, by "Transaction Type".`,
     [{key:"Lease",label:"Lease"},{key:"Sale",label:"Sale"}],
     (sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,type)&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd), true);
 

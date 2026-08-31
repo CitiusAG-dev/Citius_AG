@@ -96,32 +96,37 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .unit-view-select{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);margin-right:14px}
   .unit-view-select select{border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:13px;
                             color:var(--txt);background:var(--panel);cursor:pointer}
-  .resumen-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(140px,1fr));gap:16px;margin-bottom:32px}
+  /* v3.5x.x, maqueta del usuario: misma proporción de cuando la cuadrícula KPI era de 6 tarjetas por fila —
+     `.resumen-kpi-outer` reparte ese mismo ancho de 6 columnas en 4 (cuadrícula KPI, `.resumen-kpi-grid`,
+     ahora anidada: 4 columnas × 3 filas = 12 tarjetas) + 2 (panel de la dona, `.resumen-donut-panel`, altura
+     completa junto a esas 3 filas — ambos hijos de `.resumen-kpi-outer` quedan en la misma fila implícita
+     del grid exterior, así que se estiran parejo con la altura natural de la cuadrícula de 3 filas). */
+  .resumen-kpi-outer{display:grid;grid-template-columns:repeat(6,minmax(140px,1fr));gap:16px;margin-bottom:32px;align-items:stretch}
+  .resumen-kpi-grid{grid-column:1/5;display:grid;grid-template-columns:repeat(4,1fr);gap:16px;align-content:start}
   .resumen-kpi-card{border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:12px;
                      padding:14px 16px;background:var(--panel)}
   .resumen-kpi-value{font-size:17px;font-weight:700;color:var(--txt);font-variant-numeric:tabular-nums;white-space:nowrap}
   .resumen-kpi-label{margin-top:5px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
-  /* v3.5x.x — dona "Total Availability by Submarket", ocupa las 2 columnas que dejaron libres "Under
-     Construction"/"Sublease" al salir de la cuadrícula KPI. Segmentos vía <circle stroke-dasharray>
-     (mismo truco que un "progress ring") rotados desde las 12 en punto; paleta y reglas en
-     resumenAvailabilityDonutHtml() (skill dataviz: orden categórico fijo, nunca ciclado). */
-  .resumen-donut-card{grid-column:span 2;border:1px solid var(--line);border-radius:12px;padding:14px 16px;
-                       background:var(--panel);display:flex;flex-direction:column;gap:10px;min-width:0}
-  .resumen-donut-title{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;
-                        font-weight:600;display:flex;align-items:center;gap:4px}
-  .resumen-donut-body{display:flex;align-items:center;gap:14px;flex:1;min-height:0;min-width:0}
-  .resumen-donut-chart-wrap{flex:0 0 auto;width:96px;height:96px}
+  /* Dona "Total Availability by Submarket", panel aparte a la derecha (2 de las 6 columnas), altura
+     completa. Segmentos vía <circle stroke-dasharray> (mismo truco que un "progress ring") rotados desde
+     las 12 en punto; paleta y reglas en resumenAvailabilityDonutHtml() (skill dataviz: orden categórico
+     fijo, nunca ciclado). */
+  .resumen-donut-panel{grid-column:5/7;border:1px solid var(--line);border-radius:12px;padding:16px;
+                        background:var(--panel);display:flex;flex-direction:column;gap:14px;min-width:0}
+  .resumen-donut-title{font-size:11px;color:var(--txt);text-transform:uppercase;letter-spacing:.4px;
+                        font-weight:700;display:flex;align-items:center;gap:4px}
+  .resumen-donut-body{display:flex;align-items:center;justify-content:center;gap:20px;flex:1;min-height:0;min-width:0}
+  .resumen-donut-chart-wrap{flex:0 0 auto;width:150px;height:150px}
   .resumen-donut-svg{width:100%;height:100%;overflow:visible}
   .resumen-donut-arc{transition:stroke-width .12s;cursor:default}
   .resumen-donut-arc:hover,.resumen-donut-arc:focus{stroke-width:34;outline:none}
-  .resumen-donut-center-value{font-size:14px;font-weight:700;fill:var(--txt);font-variant-numeric:tabular-nums}
+  .resumen-donut-center-value{font-size:15px;font-weight:700;fill:var(--txt);font-variant-numeric:tabular-nums}
   .resumen-donut-center-label{font-size:6.5px;fill:var(--muted);text-transform:uppercase;letter-spacing:.3px}
   .resumen-donut-seg-label{font-size:9px;font-weight:700;text-anchor:middle;dominant-baseline:middle;pointer-events:none}
-  .resumen-donut-legend{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px;max-height:96px;overflow-y:auto}
-  .resumen-donut-legend-row{display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--txt);min-width:0}
-  .resumen-donut-swatch{width:8px;height:8px;border-radius:2px;flex-shrink:0}
-  .resumen-donut-legend-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
-  .resumen-donut-legend-val{flex-shrink:0;font-variant-numeric:tabular-nums;font-weight:600}
+  .resumen-donut-legend{flex:0 1 auto;min-width:0;display:flex;flex-direction:column;gap:9px}
+  .resumen-donut-legend-row{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--txt);min-width:0}
+  .resumen-donut-swatch{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+  .resumen-donut-legend-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .resumen-section-title{margin:48px 0 16px;font-size:20px;color:var(--txt);padding-bottom:8px;border-bottom:2px solid var(--accent)}
   .resumen-block{margin-bottom:28px}
   .resumen-row-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start;margin-bottom:28px}
@@ -4465,7 +4470,7 @@ function resumenAvailabilityDonutHtml(){
   const unitLbl=resumenAreaUnitLabel();
   const total=data.reduce((a,d)=>a+d.value,0);
   if(!data.length||total<=0){
-    return `<div class="resumen-donut-card"><div class="resumen-donut-title">Total Availability by Submarket</div><p class="muted" style="margin:0">No data.</p></div>`;
+    return `<div class="resumen-donut-panel"><div class="resumen-donut-title">Total Availability by Submarket</div><p class="muted" style="margin:0">No data.</p></div>`;
   }
   // Más de 7 submercados: los que sobran se doblan a "Other" (ver comentario de RESUMEN_DONUT_COLORS)
   const MAX_SLICES=7;
@@ -4491,15 +4496,16 @@ function resumenAvailabilityDonutHtml(){
     }
     offset+=len;
   });
-  const legendHtml=slices.map(s=>{
-    const pct=(s.value/total*100).toFixed(1);
-    return `<div class="resumen-donut-legend-row">
+  // Sin porcentaje en la leyenda (maqueta del usuario: solo color + nombre) — el % de cada submercado ya
+  // se ve como etiqueta directa en los segmentos grandes del anillo, y como tooltip nativo (<title>) en
+  // TODOS los segmentos (incluidos los chicos), así que el dato sigue siendo alcanzable sin adivinar.
+  const legendHtml=slices.map(s=>
+    `<div class="resumen-donut-legend-row">
       <span class="resumen-donut-swatch" style="background:${s.color}"></span>
       <span class="resumen-donut-legend-name">${escapeHtml(s.submarket)}</span>
-      <span class="resumen-donut-legend-val">${pct}%</span>
-    </div>`;
-  }).join("");
-  return `<div class="resumen-donut-card">
+    </div>`
+  ).join("");
+  return `<div class="resumen-donut-panel">
     <div class="resumen-donut-title">Total Availability by Submarket${helpIconHtml("resumenDonutHelp", `Same as "Total Availability", broken down by Submarket instead of by Market. Segments beyond the top ${MAX_SLICES} submarkets are grouped into "Other".`)}</div>
     <div class="resumen-donut-body">
       <div class="resumen-donut-chart-wrap">
@@ -4810,6 +4816,10 @@ function renderResumenView(){
       `Sum of "Available Area" for Properties with "Status" = "Ready", "Market Status" = "Available", and "Classification" = "A" or "B".`],
     ["Vacancy Rate", pct(k.vacancyRate),
       `"Available Inventory (Ready)" ÷ "Total Market (Class A and B)".`],
+    ["Under Construction", area(k.underConstruction),
+      `Sum of "Leasable Area (GLA)" for Properties with "Status" = "Under Construction", "Market Status" = "Available", and "Classification" = "A" or "B".`],
+    ["Sublease", area(k.sublease),
+      `Sum of "Leasable Area (GLA)" for Properties with "Transaction Available" = "Sublease", "Market Status" = "Available", and "Classification" = "A" or "B".`],
     ["Total Availability", area(k.availability),
       `Sum of "Available Inventory (Ready)" + "Under Construction" + "Sublease".`],
     ["Availability Rate", pct(k.availabilityRate),
@@ -4823,16 +4833,14 @@ function renderResumenView(){
     [`Land Price Max (${resumenAreaUnitLabel()})`, money(resumenRateVal(k.landPriceMax)),
       `Same as "Land Price Min", but using the maximum value instead.`]
   ];
-  // v3.5x.x, pedido explícito del usuario: "Under Construction"/"Sublease" salen de la cuadrícula (siguen
-  // calculándose arriba — "Total Availability" las sigue sumando —, solo dejan de mostrarse como tarjeta);
-  // en su lugar, tras las primeras 4 tarjetas, se inserta la dona "Total Availability by Submarket"
-  // (ocupa 2 columnas — ver .resumen-donut-card{grid-column:span 2}), dejando 3 filas completas de 4
-  // columnas (4 tarjetas + dona[2] + 6 tarjetas = 12 columnas).
-  const kpiCardHtmls=kpiCards.map(([label,value,help],i)=>
+  // v3.5x.x, pedido explícito del usuario (maqueta): misma proporción de cuando eran 6 tarjetas por fila,
+  // pero ahora 4/6 de ese ancho son la cuadrícula de 12 tarjetas KPI (3 filas × 4 columnas) y las 2/6
+  // restantes son un panel aparte con la dona "Total Availability by Submarket", altura completa junto a
+  // las 3 filas (ver .resumen-kpi-outer / .resumen-donut-panel en el CSS).
+  const kpiHtml=kpiCards.map(([label,value,help],i)=>
     `<div class="resumen-kpi-card"><div class="resumen-kpi-value">${value}</div><div class="resumen-kpi-label">${escapeHtml(label)}${helpIconHtml("resumenKpiHelp_"+i, help)}</div></div>`
-  );
-  kpiCardHtmls.splice(4, 0, resumenAvailabilityDonutHtml());
-  const kpiHtml=kpiCardHtmls.join("");
+  ).join("");
+  const donutHtml=resumenAvailabilityDonutHtml();
 
   const yearOptionsHtml=years.map(y=>`<option value="${y}" ${y===resumenYear?"selected":""}>${y}</option>`).join("");
   const marketOptionsHtml=`<option value="" ${resumenMarket===""?"selected":""}>All</option>`+markets.map(m=>`<option value="${escapeAttr(m)}" ${m===resumenMarket?"selected":""}>${escapeHtml(m)}</option>`).join("");
@@ -4919,7 +4927,10 @@ function renderResumenView(){
         </div>
       </div>
     </div>
-    <div class="resumen-kpi-grid">${kpiHtml}</div>
+    <div class="resumen-kpi-outer">
+      <div class="resumen-kpi-grid">${kpiHtml}</div>
+      ${donutHtml}
+    </div>
     <h3 class="resumen-section-title">Absorption by Submarket (${resumenYear})</h3>
     ${resumenRowsOf3([grossHtml, negativeHtml, netHtml])}
     <h3 class="resumen-section-title">Completed Transactions (${resumenYear})</h3>

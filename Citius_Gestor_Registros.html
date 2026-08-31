@@ -5002,33 +5002,26 @@ function renderResumenView(){
     (sm,bucket)=>countByPredicate(state.PROPIEDADES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B"))&&ciEq(r.MARKET_STATUS,"Available")&&inSizeBucket(resumenAreaVal(areaValueInSF(r,"AVAILABLE_AREA_VALUE")),bucket)));
   // v3.5x.x, rediseñado (pedido explícito del usuario, corrigiendo el diseño anterior): ya no incluye
   // "Sublease" (no es un valor real de "Status", venía de "Transaction Available" — se quitó por
-  // completo). Categorías ahora dinámicas: TODOS los valores de la lista STATUS que tengan datos (mismo
-  // patrón que "Transaction Type" — se adapta sola si se agrega/quita un valor desde Configuración), más
-  // una columna nueva "No Status" (solo si hay algo) para identificar Properties sin ese campo capturado.
-  // "Under Construction" sigue usando "Leasable Area (GLA)" (mismo campo que la tarjeta KPI); el resto
-  // (incluyendo "No Status") usa "Available Area". "Planned" no es parte de la fórmula de "Total
-  // Availability" (solo suma Ready + Under Construction + Sublease) — el Total de esta tabla no tiene por
-  // qué coincidir con "Availability".
-  // v3.5x.x, corregido de nuevo (el usuario notó que el Total ya no coincidía con "Availability"): al
-  // quitar "Sublease" en el ajuste anterior, se perdió ese componente — "Total Availability" SÍ lo suma
-  // (Ready + Under Construction + Sublease), y una Property en Sublease puede tener CUALQUIER "Status", así
-  // que no vive dentro de los valores reales de la lista STATUS. Se regresa como columna aparte (no viene
-  // de `lists.STATUS`, es la MISMA condición — "Transaction Available" = "Sublease" — que ya usan la
-  // tarjeta KPI/"Availability"/la dona), para que Ready + Under Construction + Sublease vuelvan a sumar
-  // exacto el total de "Availability" ("Planned"/"No Status" siguen aparte, no son parte de esa fórmula).
+  // completo). Categorías = SOLO los valores REALES de la lista asignada al campo "Status" de Propiedades
+  // (resumenFieldListValues, hoy "STATUS_BLDG": Ready/Under Construction/Planned), filtrados a los que
+  // tienen datos (mismo patrón que "Transaction Type"), más "No Status" (solo si hay algo) para identificar
+  // Properties sin ese campo capturado. NADA inventado fuera de esa lista — v3.5x.x, pedido explícito del
+  // usuario tras confusión con un intento anterior que agregaba una columna "Sublease" que no viene de esa
+  // lista ("no entiendo qué está pasando... me muestra otras categorías que no sé de dónde se están
+  // tomando"). Por diseño, el Total de esta tabla NO tiene por qué coincidir con "Availability" — Properties
+  // en Sublease (que sí suma "Availability") pueden tener cualquier "Status" real, así que esa parte no
+  // aparece desglosada aquí.
   const availStatusComputeFn=(sm,status)=>{
     const isAB=r=>ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B");
     if(status==="__blank__") return sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&!r.STATUS&&ciEq(r.MARKET_STATUS,"Available"));
-    if(status==="__sublease__") return sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.TRANSACTION_AVAILABLE,"Sublease")&&ciEq(r.MARKET_STATUS,"Available"));
     if(status==="Under Construction") return sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.STATUS,"Under Construction")&&ciEq(r.MARKET_STATUS,"Available"));
     return sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.STATUS,status)&&ciEq(r.MARKET_STATUS,"Available"));
   };
   const availStatusCategories=resumenFieldListValues("PROPIEDADES","STATUS")
     .filter(s=>resumenSubmarkets().some(sm=>availStatusComputeFn(sm,s)>0))
     .map(s=>({key:s,label:s}));
-  if(resumenSubmarkets().some(sm=>availStatusComputeFn(sm,"__sublease__")>0)) availStatusCategories.push({key:"__sublease__",label:"Sublease"});
   if(resumenSubmarkets().some(sm=>availStatusComputeFn(sm,"__blank__")>0)) availStatusCategories.push({key:"__blank__",label:"No Status"});
-  const availStatusHtml=resumenBreakdownTableHtml("Status", `Sum of "Available Area" ("Leasable Area (GLA)" for "Under Construction" and "Sublease") for Properties with "Classification" = "A" or "B" and "Market Status" = "Available", by "Status" — plus "Sublease" (from "Transaction Available" instead, can carry any "Status") and "No Status" (Properties with that field left empty). "Ready" + "Under Construction" + "Sublease" always add up to the "Availability" total ("Planned" and "No Status" are extra, on top).`,
+  const availStatusHtml=resumenBreakdownTableHtml("Status", `Sum of "Available Area" ("Leasable Area (GLA)" for "Under Construction") for Properties with "Classification" = "A" or "B" and "Market Status" = "Available", by "Status" (only the values from that field's list that have data; "No Status" flags Properties with that field left empty). Properties in "Sublease" can carry any "Status", so this Total doesn't match "Availability" — that part isn't broken down here.`,
     availStatusCategories, availStatusComputeFn, true);
   // v3.5x.x, corregido: faltaba el filtro A/B, y no había categoría para Properties sin generación
   // capturada — pedido explícito del usuario: se agrega "NA" (mismo valor de la lista GENERATION_BUILDING)

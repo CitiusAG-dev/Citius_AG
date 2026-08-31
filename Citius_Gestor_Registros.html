@@ -1279,7 +1279,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v5.0.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v5.0.1</div>
     </nav>
   </aside>
   <div class="main">
@@ -3337,6 +3337,9 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"5.0.1", date:"2026-08-31", items:[
+    "Summary: redesigned the \"Tool Usage\" chart — added a Y axis (max/mid/zero) with gridlines so bar height is readable at a glance, evenly-spaced date labels across the whole period instead of clustering to one side, and a proper hover tooltip (shows instantly, with the exact count and full date) over each day's full column instead of the slow, unstyled browser tooltip from before."
+  ]},
   {version:"5.0.0", date:"2026-08-28", items:[
     "New module: Offices presentation deck (3rd option in the Presentation menu, alongside Buildings and Land). Build \"Options\" from the Spaces table by checking the floors to offer, then either grouping them into one combined Option (areas summed) or adding them individually — never combined automatically. The deck includes a Cover, a Location Map (pins are the actual Office buildings), a divider page whenever the submarket changes between consecutive Options, a 2-page Option Detail (building photo, floor plan, Space Information and Building Information tables, each floor's own area shown next to it) and a 4-photo interior page per Option, plus a Closing page.",
     "Offices presentation: language toggle (English/Spanish) — only changes what's shown in this deck; captured data in the system always stays in English. Settings > Lists gained a 2nd \"Spanish\" column per list value to maintain those translations for presentations.",

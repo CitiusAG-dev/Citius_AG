@@ -96,11 +96,32 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .unit-view-select{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);margin-right:14px}
   .unit-view-select select{border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:13px;
                             color:var(--txt);background:var(--panel);cursor:pointer}
-  .resumen-kpi-grid{display:grid;grid-template-columns:repeat(6,minmax(140px,1fr));gap:16px;margin-bottom:32px}
+  .resumen-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(140px,1fr));gap:16px;margin-bottom:32px}
   .resumen-kpi-card{border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:12px;
                      padding:14px 16px;background:var(--panel)}
   .resumen-kpi-value{font-size:17px;font-weight:700;color:var(--txt);font-variant-numeric:tabular-nums;white-space:nowrap}
   .resumen-kpi-label{margin-top:5px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+  /* v3.5x.x — dona "Total Availability by Submarket", ocupa las 2 columnas que dejaron libres "Under
+     Construction"/"Sublease" al salir de la cuadrícula KPI. Segmentos vía <circle stroke-dasharray>
+     (mismo truco que un "progress ring") rotados desde las 12 en punto; paleta y reglas en
+     resumenAvailabilityDonutHtml() (skill dataviz: orden categórico fijo, nunca ciclado). */
+  .resumen-donut-card{grid-column:span 2;border:1px solid var(--line);border-radius:12px;padding:14px 16px;
+                       background:var(--panel);display:flex;flex-direction:column;gap:10px;min-width:0}
+  .resumen-donut-title{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;
+                        font-weight:600;display:flex;align-items:center;gap:4px}
+  .resumen-donut-body{display:flex;align-items:center;gap:14px;flex:1;min-height:0;min-width:0}
+  .resumen-donut-chart-wrap{flex:0 0 auto;width:96px;height:96px}
+  .resumen-donut-svg{width:100%;height:100%;overflow:visible}
+  .resumen-donut-arc{transition:stroke-width .12s;cursor:default}
+  .resumen-donut-arc:hover,.resumen-donut-arc:focus{stroke-width:34;outline:none}
+  .resumen-donut-center-value{font-size:14px;font-weight:700;fill:var(--txt);font-variant-numeric:tabular-nums}
+  .resumen-donut-center-label{font-size:6.5px;fill:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+  .resumen-donut-seg-label{font-size:9px;font-weight:700;text-anchor:middle;dominant-baseline:middle;pointer-events:none}
+  .resumen-donut-legend{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px;max-height:96px;overflow-y:auto}
+  .resumen-donut-legend-row{display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--txt);min-width:0}
+  .resumen-donut-swatch{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+  .resumen-donut-legend-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+  .resumen-donut-legend-val{flex-shrink:0;font-variant-numeric:tabular-nums;font-weight:600}
   .resumen-section-title{margin:48px 0 16px;font-size:20px;color:var(--txt);padding-bottom:8px;border-bottom:2px solid var(--accent)}
   .resumen-block{margin-bottom:28px}
   .resumen-row-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start;margin-bottom:28px}
@@ -2011,7 +2032,7 @@ function colResizeHandleHtml(key){
 
 /* ==== Dropdown lists: which field uses which list, and the lists themselves (editable from the Listas panel) ==== */
 const DEFAULT_LISTS = {"PROPERTY_TYPE": ["Industrial", "Land", "Offices", "Retail"], "MARKET_STATUS": ["Available", "Vacant", "Occupied"], "CATEGORY_INDUSTRIAL": ["Inventory", "BTS", "Last mile"], "CATEGORY_LAND": ["Park", "Reserve", "Land"], "SUBCATEGORY_LAND": ["Industrial Park", "Campus", "Industrial Zone", "Stand Alone", "Greenfield"], "CATEGORY_OFFICES": ["Corporate Tower", "Mixed-Use Tower", "Business Park", "Standalone", "Office Flex", "Co-Working", "Government"], "CATEGORY_RETAIL": ["Centers", "Standalone", "Food & Beverage", "Entertainment", "Service Retail", "Convenience"], "TRANS_AVAILABLE": ["Lease", "Sublease", "Sale", "Sale & Leaseback"], "LOCATION": ["Industrial Park", "Building", "Tower"], "DEVELOPER_TYPE": ["Institutional", "Non-Institutional (Regional)", "Non-Institutional (Local/Family)"], "REGION": ["Bajio", "Central", "North", "Northeast", "Northwest", "Other", "South", "Southeast", "West"], "ESTATE": ["Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chihuahua", "Chiapas", "Coahuila", "Colima", "Durango", "Guanajuato", "Guerrero", "Hidalgo", "Jalisco", "Estado Mexico", "Cd Mexico", "Michoacan", "Morelos", "Nayarit", "Nuevo Leon", "Oaxaca", "Puebla", "Queretaro", "Quintana Roo", "San Luis Potosi", "Sinaloa", "Sonora", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatan", "Zacatecas", "Other"], "CLASSIFICATION": ["A", "B", "C", "NC"], "STATUS": ["Ready", "Under Construction", "Under Development", "Planned"], "TENANCY_TYPE": ["Single", "Multi", "Owner"], "GENERATION_BUILDING": ["New", "2nd", "NA"], "BUILDING_CERTIFICATION": ["LEED", "EDGE", "BREEAM", "WELL", "TBD", "None"], "BUILDING_CERTIFICATION_LEVEL": ["LEED: Certified", "LEED: Silver", "LEED: Gold", "LEED: Platinum", "BREEAM: Pass", "BREEAM: Good", "BREEAM: Very Good", "BREEAM: Excellent", "BREEAM: Outstanding"], "ZONING_LAND_USE": ["Industrial", "Mix", "Commercial", "Residencial"], "EXTERIOR_WALL_TYPE": ["Precast", "Tilt-up", "Mampostería", "Lámina metálica", "Mixto"], "ROOF_TYPE": ["Metal Sheet KR-18", "TPO", "Concreto", "Membrana"], "INSULATION_TYPE": ["Polyisocyanurate", "EPS", "Mineral Wool"], "SKYLIGHTS_TYPE": ["Polycarbonate", "Fiberglass", "ETFE Foil", "NA"], "FLOOR_REINFORCEMENT": ["Rebar", "Steel Fiber", "Synthetic Fiber", "Welded Wire Mesh"], "LIGHTING_TYPE": ["LED", "Fluorescent", "Metal Halide", "Sodium Vapor", "NA"], "FIRE_PROTECTION_SYSTEM": ["Sprinklers", "Hoses", "Extinguishers", "Detection", "To Suit", "TBC", "NA"], "SPRINKLERS": ["FM Global", "ESFR", "NFPA 13"], "HVAC_SYSTEMS": ["Split System", "VRF", "Chiller", "Fan Coil", "Evaporative Cooling", "NA"], "SOLAR_PANELS": ["Not Available", "Installed (Own Use)", "Installed (Grid-Connected)", "Available for Installation"], "SUPPORT_ROOMS": ["Guard House", "Electrical Room", "Generator Room", "Compressor Room", "Boiler Room", "HVAC Room", "Fire Pump Room", "Server Room", "Control Room", "Clean Room", "HAZMAT Room", "Chemical Storage", "Tool Room", "Maintenance Room", "Battery Charging"], "INFRASTRUCUTRE_STATUS": ["Fully Serviced", "Partially Serviced", "Under Development", "Greenfield", "To Suit"], "SECURITY": ["Guard House", "Perimeter Fence", "Security Guards"], "TELECOMMUNICATIONS": ["Fiber Optic", "Cable", "Inalámbrico", "Múltiples proveedores", "NA"], "LOADING_CONFIGURATION": ["Cross-Dock", "L-Shap", "Front Load", "Rear Load"], "AVAILABILITY_DELIVERY": ["Immediate", "1 Month", "2 Months", "3 Months", "4 Months", "5 Months", "6 Months", "7 Months", "8 Months", "9 Months", "10 Months", "11 Months", "12 Months"], "CONSTRUCTION_WELCOME": ["Yes", "No", "Upon Request"], "BUILDING_TYPE": ["Inventory", "BTS", "STS", "Expansion"], "PERIOD": ["Month to Month", "Month", "Year"], "UNIT": ["SF", "m²"], "INVESTMENT": ["New", "Existing", "Confidential", "TBC"], "CURRENCY": ["MX", "US"], "ORIGIN_COUNTRY": ["Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso", "Burundi", "Cambodia", "Cameroon", "Canada", "Cape Verde", "Central African Republic", "Chad", "Chile", "China", "Colombia", "Comoros", "Costa Rica", "Croatia", "Cuba", "Cyprus", "Czech Republic", "Democratic Republic of the Congo", "Denmark", "Djibouti", "Dominica", "Dominican Republic", "East Timor", "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", "Ethiopia", "Fiji", "Finland", "France", "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Grenada", "Guatemala", "Guinea", "Guinea-Bissau", "Guyana", "Haiti", "Honduras", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy", "Ivory Coast", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kiribati", "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg", "Madagascar", "Malawi", "Malaysia", "Maldives", "Malta", "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar", "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Korea", "North Macedonia", "Norway", "Oman", "Pakistan", "Palau", "Panama", "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Qatar", "Republic of the Congo", "Romania", "Russia", "Rwanda", "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa", "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Korea", "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland", "Syria", "Tajikistan", "Tanzania", "Thailand", "Togo", "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu", "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "United States", "Uruguay", "Uzbekistan", "Vanuatu", "Vatican City", "Venezuela", "Vietnam", "Yemen", "Zambia", "Zimbabwe"], "PARK_AMENITIES": ["Cafetería", "Restaurant", "Medical Services", "Green Areas", "Truck Parking", "Convenience Store", "ATM", "Fuel Station", "Childcare"], "OFFICE_AMENITIES": ["Lobby Concierge", "Gym", "Auditorium", "Rooftop", "EV Charging", "Food Court", "Conference Rooms"], "ELECTRIC_VOLTAGE_SERVICE": ["Low Voltage (127V/220V/440V)", "Medium Voltage (4.16kV, 13.2kV, 23kV y 34.5kV)", "High Voltage (115kV, 138kV, 230kV y 400kV)"], "WATER_SOURCE": ["Municipal", "Well Water", "Private"], "WATER_TREATMENT": ["Municipal", "Private"], "SEWER_SYSTEM": ["Municipal", "Wastewater Treatment Plant"], "TOPOGRAPHY": ["Flat", "Slopes", "Irregular"], "YES_NO": ["Yes", "No"], "WASTEWATER_TREATMENT": ["Available", "In Progress", "Feasibility Only", "Not Available"], "GAS_NATURAL_INFRASTRUCTURE": ["Available", "In Progress", "Feasibility Only", "Not Available"], "RAIL_ACCESS": ["Available", "Not Available", "Spur on site"], "CONDITION": ["Plug & Play", "Fitted", "Grey Shell", "Cold Shell", "Open Space"], "TRANSACTION_TYPE": ["Lease", "Sublease", "Sale", "Sale & Leaseback", "Confidencial"], "TRANS_PROPERTY_TYPE": ["Inventory", "BTS", "STS", "Expansion", "Land / Office"], "BUILDING_USE": ["Logistics & Warehousing", "Manufacturing", "Flex Industrial", "Cold Storage", "Data Center", "Confidential", "TBC"], "SPACE_USE": ["Corporate", "Government", "Legal", "Financial", "Medical", "Educational", "Technology", "Co-Working", "Call Center", "Showroom", "Mixed-General", "Confidential", "TBC"], "INDUSTRIAL_TYPE": ["Automotive", "Aerospace", "Electronics & Appliances", "Medical Devices", "Food & Beverage", "Pharmaceutical", "Chemical & Petrochemical", "Logistics", "E-Commerce", "Furniture & Wood", "Textile & Footwear", "Metal & Machinery", "Energy & Clean Tech", "Paper & Packaging", "Plastics & Rubber", "Retail & Consumer Goods", "Steel & Primary Metals", "Other", "Confidential", "TBC"], "OFFICE_TYPE": ["Financial Services & Banking", "Technology & IT", "Professional Services", "Oil & Gas", "Energy", "Manufacturing (HQ)", "Real Estate", "Healthcare & Pharma", "Consumer Goods & Retail", "Government", "Media & Communications", "Automotive (HQ / Regional)", "Logistics (Corporate)"], "ACQUIRE_BY": ["Tenant", "Developer", "End User"], "PROJECT_TYPE": ["Developer", "Greenfield"], "OWNER": ["A", "B", "C", "D"], "DEVELOPER": ["A", "B", "C", "D"], "ADMIN": ["A", "B", "C", "D"], "LAND_BUILDING": ["Land", "Building", "Both"], "HAS_M2": ["has", "m²"], "SF_M2": ["SF", "m²"], "FT_M": ["ft", "m"], "FC_LX": ["fc", "lx"], "KG_LB": ["kg", "lb"], "MXN_USD": ["MXN", "USD"], "CON_COMERCIAL": ["MXN/m2", "MXN/SF", "USD/m2", "USD/SF"], "CM_IN": ["cm", "in"], "ABSORPTION_TYPE": ["Gross", "Negative"], "PARK_ASKING_UNIT": ["MXN/m2", "USD/m2"], "LAND_SECURITY": ["Fence & Security Guards", "Guardhouse", "Guards", "In Process", "N/A", "Security Guards"], "LAND_INFRAESTRUCTURE_STATUS": ["Already Set", "Alredy Set", "Greenfield", "In Process", "Ready", "Under Development"], "LAND_ELECTRIC_SERVICE": ["115 Kv - 34.5 Kv", "Available", "Feasible", "Feasible (2026)", "In Process", "To Suit"], "LAND_WATER_SUPPLY": ["Feasible", "In Process", "Municipal", "Water Well", "Water well"], "LAND_SEWER_SYSTEM": ["Feasible", "In Process", "Municipal", "Water Treatment Plant"], "LAND_NATURAL_GAS": ["10* Line", "4\" Line", "Available", "Feasible", "In Process", "TBC"], "LAND_TELECOMUNICATIONS": ["Available", "Feasible", "In Process", "Telmex"], "LAND_RAILROAD": ["Near", "No", "Yes"], "LAND_LEASE_PURCHASE": ["Both", "Contribution Land", "Lease", "Purchase", "Purchase (Includes Construction)"], "LAND_CONSTRUCTION_WELCOME": ["No", "TBC", "Yes"], "TRANSACTION_PROPERTY_TYPE": ["Buildings", "Parks", "Land", "Offices"]};
-const FIELD_LIST_MAP = {"PROPIEDADES": {"MARKET_STATUS": "MARKET_STATUS", "ASKING_SALE_PRICE_UNIDAD": "MXN_USD", "TRANSACTION_AVAILABLE": "TRANS_AVAILABLE", "PROPERTY_TPYE": "PROPERTY_TYPE", "DEVELOPER_TYPE": "DEVELOPER_TYPE", "BUILDING_GENERATION": "GENERATION_BUILDING", "STATUS": "STATUS", "CLASSIFICATION": "CLASSIFICATION", "TENANCY_TYPE": "TENANCY_TYPE", "BUILDING_CERTIFICATION": "BUILDING_CERTIFICATION", "CERTIFICATION_LEVEL": "BUILDING_CERTIFICATION_LEVEL", "LOT_SIZE_UNIT": "HAS_M2", "LEASABLE_AREA_GLA_UNIT": "SF_M2", "OCUPIED_AREA_UNIT": "SF_M2", "AVAILABLE_AREA_UNIT": "SF_M2", "MINIMUM_DIVISIVLE_UNIT": "SF_M2", "EXPANSION_POTENTIAL_UNIT": "SF_M2", "OFFICE_AREA_UNIT": "SF_M2", "PRODUCTION_AREA_UNIT": "SF_M2", "ZONING_LAND_USE": "ZONING_LAND_USE", "BAY_WIDTH_UNIT": "FT_M", "BAY_DEPTH_UNIT": "FT_M", "BUILDING_WIDTH_UNIT": "FT_M", "BUILDING_DEPTH_UNIT": "FT_M", "MIN_CLEAR_HEIGHT_UNIT": "FT_M", "MAX_CLEAR_HEIGHT_UNIT": "FT_M", "EXTERIOR_WALL_TYPE": "EXTERIOR_WALL_TYPE", "FLOOR_THICKNESS_UNIT": "CM_IN", "INSULATION_UNIT": "CM_IN", "FLOOR_REINFORCEMENT": "FLOOR_REINFORCEMENT", "ROOF_TYPE": "ROOF_TYPE", "INSULATION_TYPE": "INSULATION_TYPE", "SKYLIGHTS_TYPE": "SKYLIGHTS_TYPE", "LIGHTING_TYPE": "LIGHTING_TYPE", "LIGHTING_LEVEL_UNIT": "FC_LX", "FIRE_PROTECTION_SYSTEM": "FIRE_PROTECTION_SYSTEM", "SPRINKLERS": "SPRINKLERS", "HVAC_SYSTEM": "HVAC_SYSTEMS", "SOLAR_PANELS": "SOLAR_PANELS", "LOADING_CONFIGURATION": "LOADING_CONFIGURATION", "DOCK_LEVELERS_UNIT": "KG_LB", "SUPPORT_ROOMS": "SUPPORT_ROOMS", "ELECTRIC_VOLTAGE_SERVICE": "ELECTRIC_VOLTAGE_SERVICE", "WATER_SOURCE": "WATER_SOURCE", "TREATMENT_WATER": "WATER_TREATMENT", "SEWER_SOURCE": "WATER_TREATMENT", "SEWER_SYSTEM": "SEWER_SYSTEM", "WASTEWATER_TREATMENT": "WASTEWATER_TREATMENT", "NATURAL_GAS_INFRASTRUCTURE": "GAS_NATURAL_INFRASTRUCTURE", "TELECOM": "TELECOMMUNICATIONS", "RAIL_ACCESS": "RAIL_ACCESS", "ASKING_RATE_UNIT": "CON_COMERCIAL", "COMMON_AREA_MAINTENANCE_CAM_UNIT": "CON_COMERCIAL", "LAND_OR_BUILDING": "LAND_BUILDING", "TRIPLE_NET_NNN": "YES_NO", "PURCHASE_OPTION": "YES_NO", "AVAILABILITY_DELIVERY": "AVAILABILITY_DELIVERY"}, "PARKS": {"MARKET_STATUS": "MARKET_STATUS", "PROPERTY_TYPE": "PROPERTY_TYPE", "CATEGORY": "CATEGORY_LAND", "SUBCATEGORY": "SUBCATEGORY_LAND", "DEVELOPER_TYPE": "DEVELOPER_TYPE", "STATUS": "STATUS", "CLASS": "CLASSIFICATION", "TOTAL_LAND_SIZE_UNIT": "HAS_M2", "OCCUPIED_LAND_UNIT": "HAS_M2", "AVAILABLE_LAND_UNIT": "HAS_M2", "MINUMUM_DIVISIBLE_UNIT": "SF_M2", "ZONING_LAND_USE": "ZONING_LAND_USE", "TOPOGRAPHY": "TOPOGRAPHY", "INFRAESTRUCTURE_STATUS": "INFRASTRUCUTRE_STATUS", "SECURITY": "SECURITY", "CONTROLLED_ACCESS": "YES_NO", "CCTV": "YES_NO", "PURCHASE_OPTION": "YES_NO", "PARK_AMENITIES": "PARK_AMENITIES", "POWER_RIGHTS_ACQ_UNIT": "MXN_USD", "ELECTRIC_VOLTAGE_SERVICE": "ELECTRIC_VOLTAGE_SERVICE", "WATER_SOURCE": "WATER_SOURCE", "TREATMENT_WATER": "WATER_TREATMENT", "SEWER_SOURCE": "WATER_TREATMENT", "SEWER_SYSTEM": "SEWER_SYSTEM", "WASTEWATER_TREATMENT": "WASTEWATER_TREATMENT", "PARK_FIRE_PROTECTION_SYSTEM": "FIRE_PROTECTION_SYSTEM", "NATURAL_GAS_INFRASTRUCTURE": "GAS_NATURAL_INFRASTRUCTURE", "TELECOM": "TELECOMMUNICATIONS", "RAIL_ACCESS": "RAIL_ACCESS", "COMMON_AREA_MAINTENANCE_CAM_UNIT": "CON_COMERCIAL", "CONSTRUCTION_COMPANIES_WELCOME": "CONSTRUCTION_WELCOME", "LAND_OR_BUILDING": "LAND_BUILDING", "TRANSACTION_AVAILABLE": "TRANS_AVAILABLE"}, "TRANSACCIONES": {"COMPS_UNIT": "CON_COMERCIAL", "COMPS_SALE_PRICE_UNIT": "MXN_USD", "TI_ALLOWANCE_UNIT": "MXN_USD", "PROPERTY_TYPE": "TRANSACTION_PROPERTY_TYPE", "TRANSACCION_TYPE": "TRANSACTION_TYPE", "BUILDING_TYPE": "BUILDING_TYPE", "BUILDING_USE": "BUILDING_USE", "INDUSTRIAL_TYPE": "INDUSTRIAL_TYPE", "OFFICE_SPACE_USE": "SPACE_USE", "OFFICE_TYPE": "OFFICE_TYPE", "PROJECT_TYPE": "PROJECT_TYPE", "INVESTMENT": "INVESTMENT", "TRANSACTION_UNIT": "SF_M2", "ABSORPTION_TYPE": "ABSORPTION_TYPE", "ORIGIN": "ORIGIN_COUNTRY", "ACQUIRE_BY": "ACQUIRE_BY"}, "LAND": {"TOTAL_LAND_SIZE_UNIT": "HAS_M2", "TOTAL_AVAILABLE_AREA_UNIT": "HAS_M2", "INFRAESTRUCTURE_STATUS": "LAND_INFRAESTRUCTURE_STATUS", "ELECTRIC_SERVICE_(kv)": "LAND_ELECTRIC_SERVICE", "WATER_SUPPLY": "LAND_WATER_SUPPLY", "SEWER_SYSTEM": "LAND_SEWER_SYSTEM", "NATURAL_GAS": "LAND_NATURAL_GAS", "TELECOMUNICATIONS": "LAND_TELECOMUNICATIONS", "RAILROAD": "LAND_RAILROAD", "ASKING_PRICE_UNIT": "CON_COMERCIAL", "TRANSACTION_TYPE": "TRANSACTION_TYPE_LAND", "MINIMUM_TRANSACTION_AREA_UNIT": "HAS_M2", "LAND_USE": "LAND_USE"},
+const FIELD_LIST_MAP = {"PROPIEDADES": {"MARKET_STATUS": "MARKET_STATUS", "ASKING_SALE_PRICE_UNIDAD": "MXN_USD", "TRANSACTION_AVAILABLE": "TRANS_AVAILABLE", "PROPERTY_TPYE": "PROPERTY_TYPE", "DEVELOPER_TYPE": "DEVELOPER_TYPE", "BUILDING_GENERATION": "GENERATION_BUILDING", "STATUS": "STATUS", "CLASSIFICATION": "CLASSIFICATION", "TENANCY_TYPE": "TENANCY_TYPE", "BUILDING_CERTIFICATION": "BUILDING_CERTIFICATION", "CERTIFICATION_LEVEL": "BUILDING_CERTIFICATION_LEVEL", "LOT_SIZE_UNIT": "HAS_M2", "LEASABLE_AREA_GLA_UNIT": "SF_M2", "OCUPIED_AREA_UNIT": "SF_M2", "AVAILABLE_AREA_UNIT": "SF_M2", "MINIMUM_DIVISIVLE_UNIT": "SF_M2", "EXPANSION_POTENTIAL_UNIT": "SF_M2", "OFFICE_AREA_UNIT": "SF_M2", "PRODUCTION_AREA_UNIT": "SF_M2", "ZONING_LAND_USE": "ZONING_LAND_USE", "BAY_WIDTH_UNIT": "FT_M", "BAY_DEPTH_UNIT": "FT_M", "BUILDING_WIDTH_UNIT": "FT_M", "BUILDING_DEPTH_UNIT": "FT_M", "MIN_CLEAR_HEIGHT_UNIT": "FT_M", "MAX_CLEAR_HEIGHT_UNIT": "FT_M", "EXTERIOR_WALL_TYPE": "EXTERIOR_WALL_TYPE", "FLOOR_THICKNESS_UNIT": "CM_IN", "INSULATION_UNIT": "CM_IN", "FLOOR_REINFORCEMENT": "FLOOR_REINFORCEMENT", "ROOF_TYPE": "ROOF_TYPE", "INSULATION_TYPE": "INSULATION_TYPE", "SKYLIGHTS_TYPE": "SKYLIGHTS_TYPE", "LIGHTING_TYPE": "LIGHTING_TYPE", "LIGHTING_LEVEL_UNIT": "FC_LX", "FIRE_PROTECTION_SYSTEM": "FIRE_PROTECTION_SYSTEM", "SPRINKLERS": "SPRINKLERS", "HVAC_SYSTEM": "HVAC_SYSTEMS", "SOLAR_PANELS": "SOLAR_PANELS", "LOADING_CONFIGURATION": "LOADING_CONFIGURATION", "DOCK_LEVELERS_UNIT": "KG_LB", "SUPPORT_ROOMS": "SUPPORT_ROOMS", "ELECTRIC_VOLTAGE_SERVICE": "ELECTRIC_VOLTAGE_SERVICE", "WATER_SOURCE": "WATER_SOURCE", "TREATMENT_WATER": "WATER_TREATMENT", "SEWER_SOURCE": "WATER_TREATMENT", "SEWER_SYSTEM": "SEWER_SYSTEM", "WASTEWATER_TREATMENT": "WASTEWATER_TREATMENT", "NATURAL_GAS_INFRASTRUCTURE": "GAS_NATURAL_INFRASTRUCTURE", "TELECOM": "TELECOMMUNICATIONS", "RAIL_ACCESS": "RAIL_ACCESS", "ASKING_RATE_UNIT": "CON_COMERCIAL", "COMMON_AREA_MAINTENANCE_CAM_UNIT": "CON_COMERCIAL", "LAND_OR_BUILDING": "LAND_BUILDING", "TRIPLE_NET_NNN": "YES_NO", "PURCHASE_OPTION": "YES_NO", "AVAILABILITY_DELIVERY": "AVAILABILITY_DELIVERY"}, "PARKS": {"MARKET_STATUS": "MARKET_STATUS", "PROPERTY_TYPE": "PROPERTY_TYPE", "CATEGORY": "CATEGORY_LAND", "SUBCATEGORY": "SUBCATEGORY_LAND", "DEVELOPER_TYPE": "DEVELOPER_TYPE", "STATUS": "STATUS", "CLASS": "CLASSIFICATION", "TOTAL_LAND_SIZE_UNIT": "HAS_M2", "OCCUPIED_LAND_UNIT": "HAS_M2", "AVAILABLE_LAND_UNIT": "HAS_M2", "MINUMUM_DIVISIBLE_UNIT": "SF_M2", "ZONING_LAND_USE": "ZONING_LAND_USE", "TOPOGRAPHY": "TOPOGRAPHY", "INFRAESTRUCTURE_STATUS": "INFRASTRUCUTRE_STATUS", "ASKING_SALE_PRICE_UNIDAD": "CON_COMERCIAL", "SECURITY": "SECURITY", "CONTROLLED_ACCESS": "YES_NO", "CCTV": "YES_NO", "PURCHASE_OPTION": "YES_NO", "PARK_AMENITIES": "PARK_AMENITIES", "POWER_RIGHTS_ACQ_UNIT": "MXN_USD", "ELECTRIC_VOLTAGE_SERVICE": "ELECTRIC_VOLTAGE_SERVICE", "WATER_SOURCE": "WATER_SOURCE", "TREATMENT_WATER": "WATER_TREATMENT", "SEWER_SOURCE": "WATER_TREATMENT", "SEWER_SYSTEM": "SEWER_SYSTEM", "WASTEWATER_TREATMENT": "WASTEWATER_TREATMENT", "PARK_FIRE_PROTECTION_SYSTEM": "FIRE_PROTECTION_SYSTEM", "NATURAL_GAS_INFRASTRUCTURE": "GAS_NATURAL_INFRASTRUCTURE", "TELECOM": "TELECOMMUNICATIONS", "RAIL_ACCESS": "RAIL_ACCESS", "COMMON_AREA_MAINTENANCE_CAM_UNIT": "CON_COMERCIAL", "CONSTRUCTION_COMPANIES_WELCOME": "CONSTRUCTION_WELCOME", "LAND_OR_BUILDING": "LAND_BUILDING", "TRANSACTION_AVAILABLE": "TRANS_AVAILABLE"}, "TRANSACCIONES": {"COMPS_UNIT": "CON_COMERCIAL", "COMPS_SALE_PRICE_UNIT": "MXN_USD", "TI_ALLOWANCE_UNIT": "MXN_USD", "PROPERTY_TYPE": "TRANSACTION_PROPERTY_TYPE", "TRANSACCION_TYPE": "TRANSACTION_TYPE", "BUILDING_TYPE": "BUILDING_TYPE", "BUILDING_USE": "BUILDING_USE", "INDUSTRIAL_TYPE": "INDUSTRIAL_TYPE", "OFFICE_SPACE_USE": "SPACE_USE", "OFFICE_TYPE": "OFFICE_TYPE", "PROJECT_TYPE": "PROJECT_TYPE", "INVESTMENT": "INVESTMENT", "TRANSACTION_UNIT": "SF_M2", "ABSORPTION_TYPE": "ABSORPTION_TYPE", "ORIGIN": "ORIGIN_COUNTRY", "ACQUIRE_BY": "ACQUIRE_BY"}, "LAND": {"TOTAL_LAND_SIZE_UNIT": "HAS_M2", "TOTAL_AVAILABLE_AREA_UNIT": "HAS_M2", "INFRAESTRUCTURE_STATUS": "LAND_INFRAESTRUCTURE_STATUS", "ELECTRIC_SERVICE_(kv)": "LAND_ELECTRIC_SERVICE", "WATER_SUPPLY": "LAND_WATER_SUPPLY", "SEWER_SYSTEM": "LAND_SEWER_SYSTEM", "NATURAL_GAS": "LAND_NATURAL_GAS", "TELECOMUNICATIONS": "LAND_TELECOMUNICATIONS", "RAILROAD": "LAND_RAILROAD", "ASKING_PRICE_UNIT": "CON_COMERCIAL", "TRANSACTION_TYPE": "TRANSACTION_TYPE_LAND", "MINIMUM_TRANSACTION_AREA_UNIT": "HAS_M2", "LAND_USE": "LAND_USE"},
 "OFICINAS": {"TRANSACTION_AVAILABLE": "TRANS_AVAILABLE", "PROPERTY_TYPE": "PROPERTY_TYPE", "CATEGORY_OFFICES": "CATEGORY_OFFICES", "OWNER": "OWNER", "DEVELOPER": "DEVELOPER", "ADMIN": "ADMIN", "DEVELOPER_TYPE": "DEVELOPER_TYPE", "STATUS": "STATUS", "CLASSIFICATION": "CLASSIFICATION", "BUILDING_CERTIFICATION": "BUILDING_CERTIFICATION", "CERTIFICATION_LEVEL": "BUILDING_CERTIFICATION_LEVEL", "LEASABLE_AREA_GLA_UNIT": "SF_M2", "OCCUPIED_AREA_UNIT": "SF_M2", "AVAILABLE_AREA_UNIT": "SF_M2", "ZONING_LAND_USE": "ZONING_LAND_USE", "CLEAR_HEIGHT_UNIT": "FT_M", "TOTAL_OFFICE_AREA_UNIT": "SF_M2", "FLOOR_PLATE_UNIT": "SF_M2", "TOTAL_RETAIL_AREA_UNIT": "SF_M2", "INFRASTRUCTURE_STATUS": "INFRASTRUCUTRE_STATUS", "SECURITY": "SECURITY", "CONTROLLED_ACCESS": "YES_NO", "CCTV": "YES_NO", "AMENITIES": "OFFICE_AMENITIES", "ELECTRIC_VOLTAGE_SERVICE": "ELECTRIC_VOLTAGE_SERVICE", "WATER_SOURCE": "WATER_SOURCE", "TREATMENT_WATER": "WATER_TREATMENT", "SEWER_SYSTEM": "SEWER_SYSTEM", "WASTEWATER_TREATMENT": "WASTEWATER_TREATMENT", "FIRE_PROTECTION_SYSTEM": "FIRE_PROTECTION_SYSTEM", "NATURAL_GAS_INFRASTRUCTURE": "GAS_NATURAL_INFRASTRUCTURE", "TELECOM": "TELECOMMUNICATIONS", "EXTRA_SPOT": "YES_NO"},
 "SPACES": {"MARKET_STATUS": "MARKET_STATUS", "AVAILABLE_AREA_UNIT": "SF_M2", "NET_LEASABLE_AREA_UNIT": "SF_M2", "NET_USEABLE_AREA_UNIT": "SF_M2", "CONDITION": "CONDITION", "TERRACE_AREA_UNIT": "SF_M2", "LIGHTING_TYPE": "LIGHTING_TYPE", "FIRE_PROTECTION_SYSTEM": "FIRE_PROTECTION_SYSTEM", "SPRINKLERS": "SPRINKLERS", "HVAC_SYSTEM": "HVAC_SYSTEMS", "INFRASTRUCTURE_STATUS": "INFRASTRUCUTRE_STATUS", "SECURITY": "SECURITY", "CONTROLLED_ACCESS": "YES_NO", "CCTV": "YES_NO", "AMENITIES": "OFFICE_AMENITIES", "ELECTRIC_VOLTAGE_SERVICE": "ELECTRIC_VOLTAGE_SERVICE", "WATER_SOURCE": "WATER_SOURCE", "TREATMENT_WATER": "WATER_TREATMENT", "SEWER_SYSTEM": "SEWER_SYSTEM", "WASTEWATER_TREATMENT": "WASTEWATER_TREATMENT", "FIRE_PROTECTION_SYSTEM_BUILDING": "FIRE_PROTECTION_SYSTEM", "NATURAL_GAS_INFRASTRUCTURE": "GAS_NATURAL_INFRASTRUCTURE", "TELECOM": "TELECOMMUNICATIONS", "MAINTENANCE_SPOTS_PRICE_UNIT": "CON_COMERCIAL", "ADDITIONAL_SPOT_PRICE_UNIT": "MXN_USD", "ASKING_RATE_UNIT": "CON_COMERCIAL", "COMMON_AREA_MAINTENANCE_CAM_UNIT": "CON_COMERCIAL", "AVAILABILITY_DELIVERY": "AVAILABILITY_DELIVERY", "PURCHASE_OPTION": "YES_NO", "ASKING_SALE_PRICE_UNIT": "MXN_USD", "TERRACE_ASKING_PRICE_UNIT": "CON_COMERCIAL"}};
 /* v4.3.0, pedido explicito del usuario: traduccion al espanol de los valores de listas desplegables, para
@@ -4396,7 +4417,101 @@ function resumenKpis(year){
   const leaseTx=sumByPredicate(T,"TRANSACTION_AREA", r=>ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd);
   const askingRows=P.filter(r=>/^USD\/(SF|m2|m²)$/i.test(String(r.ASKING_RATE_UNIT||"").trim())&&ciEq(r.MARKET_STATUS,"Available")&&Number(r.ASKING_RATE_VALUE)>0);
   const avgAsking=askingRows.length?askingRows.reduce((a,r)=>a+askingRateValueInSF(r),0)/askingRows.length:0;
-  return {marketAB,marketABC,inventory,vacancyRate,underConstruction,sublease,availability,availabilityRate,leaseTx,avgAsking};
+  // v3.5x.x, pedido explícito del usuario: "Land Price Min/Max" — de PARKS (no Propiedades), "Asking Sale
+  // Price" con "Infrastructure Status" en Fully Serviced/Partially Serviced/Under Development y
+  // "Classification" (campo CLASS en Parks) A o B. Normalizado a base SF con askingSalePriceValueInSF
+  // (mismo criterio que avgAsking) para poder tomar min/max entre filas capturadas en distinta unidad.
+  const PK=(state.PARKS||[]).filter(r=>resumenMarketMatches(r,"PARKS"));
+  const landPriceRows=PK.filter(r=>LAND_PRICE_INFRA_STATUSES.some(s=>ciEq(r.INFRAESTRUCTURE_STATUS,s))&&(ciEq(r.CLASS,"A")||ciEq(r.CLASS,"B"))&&Number(r.ASKING_SALE_PRICE_VALOR)>0);
+  const landPriceValsSF=landPriceRows.map(r=>askingSalePriceValueInSF(r));
+  const landPriceMin=landPriceValsSF.length?Math.min(...landPriceValsSF):0;
+  const landPriceMax=landPriceValsSF.length?Math.max(...landPriceValsSF):0;
+  return {marketAB,marketABC,inventory,vacancyRate,underConstruction,sublease,availability,availabilityRate,leaseTx,avgAsking,landPriceMin,landPriceMax};
+}
+/* v3.5x.x, pedido explícito del usuario: dona "Total Availability" con quiebre por Submercado, en el
+   espacio que dejaron libre las tarjetas "Under Construction"/"Sublease" al salir de la cuadrícula KPI.
+   Misma fórmula que la tarjeta agregada (inventory + underConstruction + sublease, con MISMOS filtros:
+   Classification A/B, Market Status "Available"), pero por submercado en vez de a nivel Mercado completo —
+   por eso NO se reusa resumenKpis() (esa filtra por resumenMarketMatches sin SUBMARKET); se repite el
+   mismo patrón exacto que ya usan resumenQuarterTableHtml/resumenBreakdownTableHtml (sumByPredicate sobre
+   state.PROPIEDADES con SUBMARKET+resumenMarketMatches en cada predicado). Valores en base SF (sin
+   convertir) — la conversión a la unidad elegida pasa en resumenAvailabilityDonutHtml(), al mostrarlos. */
+function resumenAvailabilityBySubmarket(){
+  const subs=resumenSubmarkets();
+  const isAB=r=>ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B");
+  return subs.map(sm=>{
+    const inv=sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.STATUS,"Ready")&&ciEq(r.MARKET_STATUS,"Available"));
+    const uc=sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.STATUS,"Under Construction")&&ciEq(r.MARKET_STATUS,"Available"));
+    const sub=sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.TRANSACTION_AVAILABLE,"Sublease")&&ciEq(r.MARKET_STATUS,"Available"));
+    return {submarket:sm, value:inv+uc+sub};
+  }).filter(d=>d.value>0).sort((a,b)=>b.value-a.value);
+}
+/* Paleta categórica (dataviz skill, orden fijo validado CVD-safe — nunca se ciclan/reordenan): 7 slots
+   reales + gris neutro para "Other" (v. "Series-count ladder": 7-8 = token ceiling, más de eso se dobla a
+   "Other" en vez de generar un 9no hue). */
+const RESUMEN_DONUT_COLORS=["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#008300","#4a3aa7"];
+const RESUMEN_DONUT_OTHER_COLOR="#898781";
+/* Blanco o tinta oscura de la app según la luminancia del relleno, para que la etiqueta directa sobre un
+   segmento siempre tenga contraste suficiente (regla del skill: "pick white or ink by the fill's
+   luminance"). */
+function resumenDonutLabelInk(hex){
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  const lum=(0.299*r+0.587*g+0.114*b)/255;
+  return lum>0.6 ? "#1f2733" : "#ffffff";
+}
+function resumenAvailabilityDonutHtml(){
+  const data=resumenAvailabilityBySubmarket();
+  const fmt=v=>Math.round(v).toLocaleString("en-US");
+  const unitLbl=resumenAreaUnitLabel();
+  const total=data.reduce((a,d)=>a+d.value,0);
+  if(!data.length||total<=0){
+    return `<div class="resumen-donut-card"><div class="resumen-donut-title">Total Availability by Submarket</div><p class="muted" style="margin:0">No data.</p></div>`;
+  }
+  // Más de 7 submercados: los que sobran se doblan a "Other" (ver comentario de RESUMEN_DONUT_COLORS)
+  const MAX_SLICES=7;
+  const slices=data.slice(0,MAX_SLICES).map((d,i)=>({...d, color:RESUMEN_DONUT_COLORS[i]}));
+  if(data.length>MAX_SLICES){
+    const otherValue=data.slice(MAX_SLICES).reduce((a,d)=>a+d.value,0);
+    slices.push({submarket:"Other", value:otherValue, color:RESUMEN_DONUT_OTHER_COLOR});
+  }
+  const R=70, CX=100, CY=100, SW=30, CIRC=2*Math.PI*R;
+  let offset=0;
+  const DIRECT_LABEL_MIN_PCT=8; // etiqueta directa solo en segmentos grandes — "label selectively", nunca todos
+  let arcsHtml="", labelsHtml="";
+  slices.forEach(s=>{
+    const frac=s.value/total, len=frac*CIRC, pct=frac*100;
+    const rotate=(offset/CIRC)*360-90;
+    arcsHtml+=`<circle class="resumen-donut-arc" cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="${s.color}"
+      stroke-width="${SW}" stroke-dasharray="${len.toFixed(3)} ${(CIRC-len).toFixed(3)}"
+      transform="rotate(${rotate} ${CX} ${CY})" tabindex="0"><title>${escapeHtml(s.submarket)}: ${fmt(resumenAreaVal(s.value))} ${unitLbl} (${pct.toFixed(1)}%)</title></circle>`;
+    if(pct>=DIRECT_LABEL_MIN_PCT){
+      const midAngle=((offset+len/2)/CIRC)*2*Math.PI-Math.PI/2;
+      const lx=CX+R*Math.cos(midAngle), ly=CY+R*Math.sin(midAngle);
+      labelsHtml+=`<text class="resumen-donut-seg-label" x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" fill="${resumenDonutLabelInk(s.color)}">${pct.toFixed(0)}%</text>`;
+    }
+    offset+=len;
+  });
+  const legendHtml=slices.map(s=>{
+    const pct=(s.value/total*100).toFixed(1);
+    return `<div class="resumen-donut-legend-row">
+      <span class="resumen-donut-swatch" style="background:${s.color}"></span>
+      <span class="resumen-donut-legend-name">${escapeHtml(s.submarket)}</span>
+      <span class="resumen-donut-legend-val">${pct}%</span>
+    </div>`;
+  }).join("");
+  return `<div class="resumen-donut-card">
+    <div class="resumen-donut-title">Total Availability by Submarket${helpIconHtml("resumenDonutHelp", `Same as "Total Availability", broken down by Submarket instead of by Market. Segments beyond the top ${MAX_SLICES} submarkets are grouped into "Other".`)}</div>
+    <div class="resumen-donut-body">
+      <div class="resumen-donut-chart-wrap">
+        <svg class="resumen-donut-svg" viewBox="0 0 200 200" role="img" aria-label="Total Availability by Submarket">
+          ${arcsHtml}${labelsHtml}
+          <text x="100" y="96" text-anchor="middle" class="resumen-donut-center-value">${fmt(resumenAreaVal(total))}</text>
+          <text x="100" y="112" text-anchor="middle" class="resumen-donut-center-label">${unitLbl}</text>
+        </svg>
+      </div>
+      <div class="resumen-donut-legend">${legendHtml}</div>
+    </div>
+  </div>`;
 }
 function resumenColgroupHtml(dataColCount){
   const totalUnits=1.5+dataColCount;
@@ -4406,28 +4521,36 @@ function resumenColgroupHtml(dataColCount){
   for(let i=0;i<dataColCount;i++) cols+=`<col style="width:${dataPct}%">`;
   return `<colgroup>${cols}</colgroup>`;
 }
-function resumenQuarterTableHtml(title, subtitle, computeFn){
+/* v3.5x.x, pedido explícito del usuario ("quiero ver los datos de las demás tablas de abajo que se
+   transformen de unidad"): `isArea` (7mo/4to argumento, default false) — cuando la tabla suma ÁREA (no
+   cuenta registros, no promedia %), convierte cada valor con resumenAreaVal() antes de mostrarlo y agrega
+   la unidad elegida al título (mismo criterio que ya usan las tarjetas KPI vía area()). Las tablas de
+   CONTEO (Deals by Size, Available Buildings by Size) NO pasan isArea=true — siguen siendo cantidad de
+   registros, no área, así que no hay nada que convertir. */
+function resumenQuarterTableHtml(title, subtitle, computeFn, isArea){
   const subs=resumenSubmarkets();
-  if(!subs.length) return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(title)}</h4><p class="muted">No data.</p></div>`;
+  const displayTitle=isArea?`${title} (${resumenAreaUnitLabel()})`:title;
+  if(!subs.length) return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(displayTitle)}</h4><p class="muted">No data.</p></div>`;
   const colTotals=[0,0,0,0,0];
   let rows="";
   subs.forEach(sm=>{
-    const vals=[1,2,3,4].map(q=>computeFn(sm,q));
+    const vals=[1,2,3,4].map(q=>{ const raw=computeFn(sm,q); return isArea?resumenAreaVal(raw):raw; });
     const ytd=vals.reduce((a,b)=>a+b,0);
     vals.forEach((v,i)=>colTotals[i]+=v);
     colTotals[4]+=ytd;
     rows+=`<tr><td>${escapeHtml(sm)}</td>${vals.map(v=>`<td class="num-cell">${Math.round(v).toLocaleString("en-US")}</td>`).join("")}<td class="num-cell"><b>${Math.round(ytd).toLocaleString("en-US")}</b></td></tr>`;
   });
   rows+=`<tr class="resumen-total-row"><td>Total</td>${colTotals.map(v=>`<td class="num-cell">${Math.round(v).toLocaleString("en-US")}</td>`).join("")}</tr>`;
-  return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(title)}</h4>${subtitle?`<p class="resumen-block-note">${escapeHtml(subtitle)}</p>`:""}<div class="resumen-scroll"><table class="resumen-table">${resumenColgroupHtml(5)}<thead><tr><th>Submarket</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>YTD</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(displayTitle)}</h4>${subtitle?`<p class="resumen-block-note">${escapeHtml(subtitle)}</p>`:""}<div class="resumen-scroll"><table class="resumen-table">${resumenColgroupHtml(5)}<thead><tr><th>Submarket</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>YTD</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
-function resumenBreakdownTableHtml(title, subtitle, categories, computeFn){
+function resumenBreakdownTableHtml(title, subtitle, categories, computeFn, isArea){
   const subs=resumenSubmarkets();
-  if(!subs.length) return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(title)}</h4><p class="muted">No data.</p></div>`;
+  const displayTitle=isArea?`${title} (${resumenAreaUnitLabel()})`:title;
+  if(!subs.length) return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(displayTitle)}</h4><p class="muted">No data.</p></div>`;
   const colTotals=categories.map(()=>0);
   let rows="";
   subs.forEach(sm=>{
-    const vals=categories.map(c=>computeFn(sm,c.key));
+    const vals=categories.map(c=>{ const raw=computeFn(sm,c.key); return isArea?resumenAreaVal(raw):raw; });
     const rowTotal=vals.reduce((a,b)=>a+b,0);
     vals.forEach((v,i)=>colTotals[i]+=v);
     rows+=`<tr><td>${escapeHtml(sm)}</td>${vals.map(v=>`<td class="num-cell">${Math.round(v).toLocaleString("en-US")}</td>`).join("")}<td class="num-cell"><b>${Math.round(rowTotal).toLocaleString("en-US")}</b></td></tr>`;
@@ -4435,7 +4558,7 @@ function resumenBreakdownTableHtml(title, subtitle, categories, computeFn){
   const grandTotal=colTotals.reduce((a,b)=>a+b,0);
   rows+=`<tr class="resumen-total-row"><td>Total</td>${colTotals.map(v=>`<td class="num-cell">${Math.round(v).toLocaleString("en-US")}</td>`).join("")}<td class="num-cell">${Math.round(grandTotal).toLocaleString("en-US")}</td></tr>`;
   const colgroupHtml=resumenColgroupHtml(categories.length+1);
-  return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(title)}</h4>${subtitle?`<p class="resumen-block-note">${escapeHtml(subtitle)}</p>`:""}<div class="resumen-scroll"><table class="resumen-table">${colgroupHtml}<thead><tr><th>Submarket</th>${categories.map(c=>`<th>${escapeHtml(c.label)}</th>`).join("")}<th>Total</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(displayTitle)}</h4>${subtitle?`<p class="resumen-block-note">${escapeHtml(subtitle)}</p>`:""}<div class="resumen-scroll"><table class="resumen-table">${colgroupHtml}<thead><tr><th>Submarket</th>${categories.map(c=>`<th>${escapeHtml(c.label)}</th>`).join("")}<th>Total</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 /* Tabla de % de cumplimiento (mercado × MARKET_STATUS) para una entidad — a diferencia de las demás tablas
    del Resumen (que SUMAN un valor por submercado), esta PROMEDIA un porcentaje que ya se calculó por
@@ -4639,6 +4762,15 @@ function askingRateValueInSF(row){
   const conv=convertRateUnit(row.ASKING_RATE_UNIT,"imperial");
   return conv ? raw*conv.factor : raw;
 }
+/* Mismo criterio que askingRateValueInSF, para "Asking Sale Price" de Parks (campo con sufijo _VALOR/
+   _UNIDAD en vez de _VALUE/_UNIT — no afecta a convertRateUnit, que solo lee la UNIDAD cruda). Usado por
+   las tarjetas "Land Price Min"/"Land Price Max". */
+function askingSalePriceValueInSF(row){
+  const raw=Number(row.ASKING_SALE_PRICE_VALOR)||0;
+  const conv=convertRateUnit(row.ASKING_SALE_PRICE_UNIDAD,"imperial");
+  return conv ? raw*conv.factor : raw;
+}
+const LAND_PRICE_INFRA_STATUSES=["Fully Serviced","Partially Serviced","Under Development"];
 /* En memoria, no persistidas — mismo criterio que resumenYear/resumenMarket (se resetean a su default en
    cada carga de la página). */
 let resumenUsageDays=30;
@@ -4678,10 +4810,6 @@ function renderResumenView(){
       `Sum of "Available Area" for Properties with "Status" = "Ready", "Market Status" = "Available", and "Classification" = "A" or "B".`],
     ["Vacancy Rate", pct(k.vacancyRate),
       `"Available Inventory (Ready)" ÷ "Total Market (Class A and B)".`],
-    ["Under Construction", area(k.underConstruction),
-      `Sum of "Leasable Area (GLA)" for Properties with "Status" = "Under Construction", "Market Status" = "Available", and "Classification" = "A" or "B".`],
-    ["Sublease", area(k.sublease),
-      `Sum of "Leasable Area (GLA)" for Properties with "Transaction Available" = "Sublease", "Market Status" = "Available", and "Classification" = "A" or "B".`],
     ["Total Availability", area(k.availability),
       `Sum of "Available Inventory (Ready)" + "Under Construction" + "Sublease".`],
     ["Availability Rate", pct(k.availabilityRate),
@@ -4689,11 +4817,22 @@ function renderResumenView(){
     [`Lease Transactions (${resumenYear})`, area(k.leaseTx),
       `Sum of "Transaction Area" for Transactions with "Transaction Type" = "Lease" and "Absorption Type" = "Gross", dated within ${resumenYear}.`],
     [`Average Asking Rate (${resumenAreaUnitLabel()}/Month)`, money(resumenRateVal(k.avgAsking)),
-      `Average of "Asking Rate" for Properties with "Asking Rate Unit" = "USD/SF" or "USD/m²", "Market Status" = "Available", and a captured rate greater than "0".`]
+      `Average of "Asking Rate" for Properties with "Asking Rate Unit" = "USD/SF" or "USD/m²", "Market Status" = "Available", and a captured rate greater than "0".`],
+    [`Land Price Min (${resumenAreaUnitLabel()})`, money(resumenRateVal(k.landPriceMin)),
+      `Minimum of "Asking Sale Price" for Parks with "Infrastructure Status" = "Fully Serviced", "Partially Serviced", or "Under Development", and "Classification" = "A" or "B".`],
+    [`Land Price Max (${resumenAreaUnitLabel()})`, money(resumenRateVal(k.landPriceMax)),
+      `Same as "Land Price Min", but using the maximum value instead.`]
   ];
-  const kpiHtml=kpiCards.map(([label,value,help],i)=>
+  // v3.5x.x, pedido explícito del usuario: "Under Construction"/"Sublease" salen de la cuadrícula (siguen
+  // calculándose arriba — "Total Availability" las sigue sumando —, solo dejan de mostrarse como tarjeta);
+  // en su lugar, tras las primeras 4 tarjetas, se inserta la dona "Total Availability by Submarket"
+  // (ocupa 2 columnas — ver .resumen-donut-card{grid-column:span 2}), dejando 3 filas completas de 4
+  // columnas (4 tarjetas + dona[2] + 6 tarjetas = 12 columnas).
+  const kpiCardHtmls=kpiCards.map(([label,value,help],i)=>
     `<div class="resumen-kpi-card"><div class="resumen-kpi-value">${value}</div><div class="resumen-kpi-label">${escapeHtml(label)}${helpIconHtml("resumenKpiHelp_"+i, help)}</div></div>`
-  ).join("");
+  );
+  kpiCardHtmls.splice(4, 0, resumenAvailabilityDonutHtml());
+  const kpiHtml=kpiCardHtmls.join("");
 
   const yearOptionsHtml=years.map(y=>`<option value="${y}" ${y===resumenYear?"selected":""}>${y}</option>`).join("");
   const marketOptionsHtml=`<option value="" ${resumenMarket===""?"selected":""}>All</option>`+markets.map(m=>`<option value="${escapeAttr(m)}" ${m===resumenMarket?"selected":""}>${escapeHtml(m)}</option>`).join("");
@@ -4704,33 +4843,33 @@ function renderResumenView(){
      coincidencia usa el mismo nombre de submercado. Sin filtro de Mercado activo (resumenMarket==="")
      resumenMarketMatches() siempre da true, así que el comportamiento sin filtro no cambia. */
   const grossHtml=resumenQuarterTableHtml("Gross Absorption (Lease)", "Lease transactions with Gross absorption only",
-    (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); });
+    (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true);
   const negativeHtml=resumenQuarterTableHtml("Negative Absorption", "Deliveries / move-outs (2nd Generation)",
-    (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); });
+    (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true);
   const netHtml=resumenQuarterTableHtml("Net Absorption", "Gross Absorption (Lease) + Negative absorption",
     (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q);
       const gross=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
       const neg=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
-      return gross+neg; });
+      return gross+neg; }, true);
 
   const txQuarterHtml=resumenQuarterTableHtml("Total Quarterly Absorption", "All operations with Gross absorption (Lease and Sale)",
-    (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); });
+    (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true);
   const txBucketHtml=resumenBreakdownTableHtml("Deals by Size", "Number of transactions this year, grouped by size range (SF)",
     RESUMEN_SIZE_BUCKETS.map(b=>({key:b,label:b[2]})),
     (sm,bucket)=>countByPredicate(state.TRANSACCIONES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd&&inSizeBucket(areaValueInSF(r,"TRANSACTION_AREA"),bucket)));
   const txBuildingTypeHtml=resumenBreakdownTableHtml("By Building Type", "Area with Gross absorption this year, by transaction building type",
     [{key:"Inventory",label:"Inventory"},{key:"Expansion",label:"Expansion"},{key:"STS",label:"Spec to Suit"},{key:"BTS",label:"Build to Suit"}],
-    (sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.BUILDING_TYPE,type)&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd));
+    (sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.BUILDING_TYPE,type)&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd), true);
   const txDealTypeHtml=resumenBreakdownTableHtml("By Deal Type", "Area with Gross absorption this year, by deal type: Lease or Sale",
     [{key:"Lease",label:"Lease"},{key:"Sale",label:"Sale"}],
-    (sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,type)&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd));
+    (sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,type)&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd), true);
 
   const availHtml=resumenBreakdownTableHtml("Availability", "Total available area in the market, by submarket",
-    [{key:"__avail__",label:"Available Area (SF)"}],
-    (sm)=>sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.MARKET_STATUS,"Available")));
+    [{key:"__avail__",label:`Available Area (${resumenAreaUnitLabel()})`}],
+    (sm)=>sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.MARKET_STATUS,"Available")), true);
   const availClassHtml=resumenBreakdownTableHtml("By Class", "Available area by building class (A/B)",
     [{key:"A",label:"Class A"},{key:"B",label:"Class B"}],
-    (sm,cls)=>sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.CLASSIFICATION,cls)&&ciEq(r.MARKET_STATUS,"Available")));
+    (sm,cls)=>sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.CLASSIFICATION,cls)&&ciEq(r.MARKET_STATUS,"Available")), true);
   const availBucketHtml=resumenBreakdownTableHtml("Available Buildings by Size", "Number of available buildings, grouped by size range (SF)",
     RESUMEN_SIZE_BUCKETS.map(b=>({key:b,label:b[2]})),
     (sm,bucket)=>countByPredicate(state.PROPIEDADES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.MARKET_STATUS,"Available")&&inSizeBucket(areaValueInSF(r,"AVAILABLE_AREA_VALUE"),bucket)));
@@ -4739,10 +4878,10 @@ function renderResumenView(){
     (sm,status)=>{
       if(status==="Sublease") return sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.TRANSACTION_AVAILABLE,"Sublease")&&ciEq(r.MARKET_STATUS,"Available"));
       return sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.STATUS,status)&&ciEq(r.MARKET_STATUS,"Available"));
-    });
+    }, true);
   const availGenHtml=resumenBreakdownTableHtml("By Generation", "Available area by building generation (New / 2nd Generation)",
     [{key:"New",label:"New"},{key:"2nd",label:"2nd Generation"}],
-    (sm,gen)=>sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.BUILDING_GENERATION,gen)&&ciEq(r.MARKET_STATUS,"Available")));
+    (sm,gen)=>sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.BUILDING_GENERATION,gen)&&ciEq(r.MARKET_STATUS,"Available")), true);
 
   const complianceHtmlProp=resumenComplianceTableHtml("Properties", "Average % of required fields captured (same calculation as the table's \"% Complete\" column), by market and market status", "PROPIEDADES");
   const complianceHtmlParks=resumenComplianceFullTableHtml("Parks", "Average % of required fields captured (same calculation as the table's \"% Complete\" column), by market, over all the data", "PARKS");

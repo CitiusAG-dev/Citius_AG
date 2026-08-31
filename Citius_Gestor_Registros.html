@@ -4385,7 +4385,7 @@ function resumenKpis(year){
   const P=(state.PROPIEDADES||[]).filter(r=>resumenMarketMatches(r,"PROPIEDADES"));
   const marketAB=sumByPredicate(P,"LEASABLE_AREA_GLA_VALUE", r=>(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B"))&&ciEq(r.MARKET_STATUS,"Available"));
   const marketABC=sumByPredicate(P,"LEASABLE_AREA_GLA_VALUE", r=>(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B")||ciEq(r.CLASSIFICATION,"C"))&&ciEq(r.MARKET_STATUS,"Available"));
-  const inventory=sumByPredicate(P,"AVAILABLE_AREA_VALUE", r=>ciEq(r.STATUS,"Ready")&&ciEq(r.MARKET_STATUS,"Available"));
+  const inventory=sumByPredicate(P,"AVAILABLE_AREA_VALUE", r=>ciEq(r.STATUS,"Ready")&&ciEq(r.MARKET_STATUS,"Available")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B")));
   const vacancyRate=marketAB>0?inventory/marketAB:0;
   const underConstruction=sumByPredicate(P,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.STATUS,"Under Construction")&&ciEq(r.MARKET_STATUS,"Available"));
   const sublease=sumByPredicate(P,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.TRANSACTION_AVAILABLE,"Sublease")&&ciEq(r.MARKET_STATUS,"Available"));
@@ -4647,7 +4647,7 @@ function renderResumenView(){
     ["Total Market (A, B and C)", num(k.marketABC)+" SF",
       `Same as "Total Market (Class A and B)", but also adds Properties with Classification C.`],
     ["Available Inventory (Ready)", num(k.inventory)+" SF",
-      `Sum of "Available Area" for Properties with Status "Ready" and Market Status "Available".`],
+      `Sum of "Available Area" for Properties with Status "Ready", Market Status "Available", and Classification A or B.`],
     ["Vacancy Rate", pct(k.vacancyRate),
       `"Available Inventory (Ready)" ÷ "Total Market (Class A and B)".`],
     ["Under Construction", num(k.underConstruction)+" SF",

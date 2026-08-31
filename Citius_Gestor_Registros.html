@@ -4907,11 +4907,11 @@ function renderResumenView(){
      resumenSubmarkets()) el TOTAL de la fila mezclaba silenciosamente datos de otro mercado que por
      coincidencia usa el mismo nombre de submercado. Sin filtro de Mercado activo (resumenMarket==="")
      resumenMarketMatches() siempre da true, así que el comportamiento sin filtro no cambia. */
-  const grossHtml=resumenQuarterTableHtml("Gross Absorption (Lease)", "Lease transactions with Gross absorption only",
+  const grossHtml=resumenQuarterTableHtml("Gross Absorption (Lease)", `Sum of "Transaction Area" for Transactions with "Transaction Type" = "Lease" and "Absorption Type" = "Gross".`,
     (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true);
-  const negativeHtml=resumenQuarterTableHtml("Negative Absorption", "Deliveries / move-outs (2nd Generation)",
+  const negativeHtml=resumenQuarterTableHtml("Negative Absorption", `Sum of "Transaction Area" for Transactions with "Absorption Type" = "Negative".`,
     (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true);
-  const netHtml=resumenQuarterTableHtml("Net Absorption", "Gross Absorption (Lease) + Negative absorption",
+  const netHtml=resumenQuarterTableHtml("Net Absorption", `"Gross Absorption (Lease)" + "Negative Absorption".`,
     (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q);
       const gross=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
       const neg=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
@@ -4996,7 +4996,7 @@ function renderResumenView(){
       <div class="resumen-kpi-grid">${kpiHtml}</div>
       ${donutHtml}
     </div>
-    <h3 class="resumen-section-title">Absorption by Submarket (${resumenYear})</h3>
+    <h3 class="resumen-section-title">Absorption (${resumenYear})</h3>
     ${resumenRowsOf3([grossHtml, negativeHtml, netHtml])}
     <h3 class="resumen-section-title">Completed Transactions (${resumenYear})</h3>
     ${resumenRowsOf3([txQuarterHtml, txBucketHtml, txBuildingTypeHtml, txDealTypeHtml])}

@@ -4641,27 +4641,33 @@ function renderResumenView(){
   // directo desde resumenKpis() (arriba en este archivo), así que si esa fórmula cambia, este texto queda
   // desactualizado — recordar tocarlo junto con cualquier cambio ahí. Todas respetan el filtro de "Mercado"
   // del selector de arriba (resumenMarketMatches()), por eso esa aclaración se repite en cada una.
+  // v3.45.x: formato consistente para las reglas de cada tarjeta — nombres de campo y valores de filtro
+  // SIEMPRE entre comillas ("Campo" = "Valor"), condiciones múltiples separadas por comas con "and" antes
+  // de la última, alternativas dentro del mismo campo con "or" (ej. "Classification" = "A" or "B"). Las dos
+  // excepciones deliberadas: las tarjetas de Rate (Vacancy/Availability) citan NOMBRES DE OTRAS TARJETAS
+  // entre comillas (no son campos de un registro, son fórmulas sobre otros KPIs), y "Total Market (A, B
+  // and C)" se redacta como diferencia contra la tarjeta anterior en vez de repetir toda la regla.
   const kpiCards=[
     ["Total Market (Class A and B)", num(k.marketAB)+" SF",
-      `Sum of "Leasable Area (GLA)" for Properties with Classification A or B and Market Status "Available".`],
+      `Sum of "Leasable Area (GLA)" for Properties with "Classification" = "A" or "B" and "Market Status" = "Available".`],
     ["Total Market (A, B and C)", num(k.marketABC)+" SF",
-      `Same as "Total Market (Class A and B)", but also adds Properties with Classification C.`],
+      `Same as "Total Market (Class A and B)", but also includes Properties with "Classification" = "C".`],
     ["Available Inventory (Ready)", num(k.inventory)+" SF",
-      `Sum of "Available Area" for Properties with Status "Ready", Market Status "Available", and Classification A or B.`],
+      `Sum of "Available Area" for Properties with "Status" = "Ready", "Market Status" = "Available", and "Classification" = "A" or "B".`],
     ["Vacancy Rate", pct(k.vacancyRate),
       `"Available Inventory (Ready)" ÷ "Total Market (Class A and B)".`],
     ["Under Construction", num(k.underConstruction)+" SF",
-      `Sum of "Leasable Area (GLA)" for Properties with Status "Under Construction", Market Status "Available", and Classification A or B.`],
+      `Sum of "Leasable Area (GLA)" for Properties with "Status" = "Under Construction", "Market Status" = "Available", and "Classification" = "A" or "B".`],
     ["Sublease", num(k.sublease)+" SF",
-      `Sum of "Leasable Area (GLA)" for Properties with Transaction Available = "Sublease", Market Status "Available", and Classification A or B.`],
+      `Sum of "Leasable Area (GLA)" for Properties with "Transaction Available" = "Sublease", "Market Status" = "Available", and "Classification" = "A" or "B".`],
     ["Total Availability", num(k.availability)+" SF",
-      `Sum of "Available Area" for ALL Properties with Market Status "Available", without filtering by Status (includes Ready, Under Construction, and Planned).`],
+      `Sum of "Available Area" for Properties with "Market Status" = "Available", regardless of "Status" (includes Ready, Under Construction, and Planned).`],
     ["Availability Rate", pct(k.availabilityRate),
       `"Total Availability" ÷ "Total Market (Class A and B)".`],
     [`Lease Transactions (${resumenYear})`, num(k.leaseTx)+" SF",
-      `Sum of "Transaction Area" for Transactions of type "Lease" with "Gross" Absorption, dated within ${resumenYear}.`],
+      `Sum of "Transaction Area" for Transactions with "Transaction Type" = "Lease" and "Absorption Type" = "Gross", dated within ${resumenYear}.`],
     ["Average Asking Rate (SF/Month)", money(k.avgAsking),
-      `Average of "Asking Rate" for Properties with unit "USD/SF", Market Status "Available", and a captured rate (greater than 0).`]
+      `Average of "Asking Rate" for Properties with "Asking Rate Unit" = "USD/SF", "Market Status" = "Available", and a captured rate greater than "0".`]
   ];
   const kpiHtml=kpiCards.map(([label,value,help],i)=>
     `<div class="resumen-kpi-card"><div class="resumen-kpi-value">${value}</div><div class="resumen-kpi-label">${escapeHtml(label)}${helpIconHtml("resumenKpiHelp_"+i, help)}</div></div>`

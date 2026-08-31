@@ -126,8 +126,13 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .resumen-donut-center-value{font-size:15px;font-weight:700;fill:var(--txt);font-variant-numeric:tabular-nums}
   .resumen-donut-center-label{font-size:6.5px;fill:var(--muted);text-transform:uppercase;letter-spacing:.3px}
   .resumen-donut-seg-label{font-size:9px;font-weight:700;text-anchor:middle;dominant-baseline:middle;pointer-events:none}
-  .resumen-donut-legend{flex:0 1 auto;min-width:0;display:flex;flex-direction:column;gap:9px}
-  .resumen-donut-legend-row{display:flex;align-items:baseline;gap:7px;font-size:12px;color:var(--txt);min-width:0}
+  /* v3.5x.x, pedido explícito del usuario: sin tope de submercados (ver resumenDonutColorForIndex) la
+     leyenda puede tener más filas de las que caben en el panel — scroll propio, topada a la misma altura
+     que la dona (180px) para que no empuje el panel hacia abajo. */
+  .resumen-donut-legend{flex:0 1 auto;min-width:0;display:flex;flex-direction:column;gap:9px;
+                         max-height:180px;overflow-y:auto;padding-right:6px}
+  .resumen-donut-legend-row{display:flex;align-items:baseline;gap:7px;font-size:12px;color:var(--txt);
+                             min-width:0;flex-shrink:0}
   .resumen-donut-swatch{width:9px;height:9px;border-radius:2px;flex-shrink:0;align-self:center}
   .resumen-donut-legend-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   /* v3.5x.x, pedido explícito del usuario: % y valor al lado del nombre en cada fila de la leyenda */
@@ -4457,11 +4462,23 @@ function resumenAvailabilityBySubmarket(){
     return {submarket:sm, value:inv+uc+sub};
   }).filter(d=>d.value>0).sort((a,b)=>b.value-a.value);
 }
-/* Paleta categórica (dataviz skill, orden fijo validado CVD-safe — nunca se ciclan/reordenan): 7 slots
-   reales + gris neutro para "Other" (v. "Series-count ladder": 7-8 = token ceiling, más de eso se dobla a
-   "Other" en vez de generar un 9no hue). */
-const RESUMEN_DONUT_COLORS=["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#008300","#4a3aa7"];
-const RESUMEN_DONUT_OTHER_COLOR="#898781";
+/* v3.5x.x, pedido explícito del usuario ("no quiero que se agrupen valores en Other, tengo 9 submercados
+   y no me los muestra todos"): sin tope ni "Other" — TODOS los submercados con valor > 0 son su propio
+   segmento. Los primeros 8 usan la paleta categórica validada del skill dataviz (orden fijo, CVD-safe);
+   de ahí en adelante (más raro — la mayoría de mercados no llegan a 9+ submercados) se generan variantes
+   más claras de esas mismas 8 (resumenLightenHex), ciclando por "tandas" — ya no está validado CVD para
+   ese excedente, pero es preferible a ocultar datos reales, que es justo lo que se pidió evitar. */
+const RESUMEN_DONUT_BASE_COLORS=["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#008300","#4a3aa7","#e34948"];
+function resumenLightenHex(hex, amt){
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  const mix=c=>Math.round(c+(255-c)*amt);
+  return "#"+[mix(r),mix(g),mix(b)].map(v=>v.toString(16).padStart(2,"0")).join("");
+}
+function resumenDonutColorForIndex(i){
+  const n=RESUMEN_DONUT_BASE_COLORS.length;
+  const tier=Math.floor(i/n), base=RESUMEN_DONUT_BASE_COLORS[i%n];
+  return tier===0 ? base : resumenLightenHex(base, Math.min(0.6, tier*0.28));
+}
 /* Blanco o tinta oscura de la app según la luminancia del relleno, para que la etiqueta directa sobre un
    segmento siempre tenga contraste suficiente (regla del skill: "pick white or ink by the fill's
    luminance"). */
@@ -4478,13 +4495,8 @@ function resumenAvailabilityDonutHtml(){
   if(!data.length||total<=0){
     return `<div class="resumen-donut-panel"><div class="resumen-donut-title">Total Availability by Submarket</div><p class="muted" style="margin:0">No data.</p></div>`;
   }
-  // Más de 7 submercados: los que sobran se doblan a "Other" (ver comentario de RESUMEN_DONUT_COLORS)
-  const MAX_SLICES=7;
-  const slices=data.slice(0,MAX_SLICES).map((d,i)=>({...d, color:RESUMEN_DONUT_COLORS[i]}));
-  if(data.length>MAX_SLICES){
-    const otherValue=data.slice(MAX_SLICES).reduce((a,d)=>a+d.value,0);
-    slices.push({submarket:"Other", value:otherValue, color:RESUMEN_DONUT_OTHER_COLOR});
-  }
+  // Sin tope: cada submercado con valor > 0 es su propio segmento (ver comentario de RESUMEN_DONUT_BASE_COLORS)
+  const slices=data.map((d,i)=>({...d, color:resumenDonutColorForIndex(i)}));
   const R=70, CX=100, CY=100, SW=30, CIRC=2*Math.PI*R;
   let offset=0;
   const DIRECT_LABEL_MIN_PCT=8; // etiqueta directa solo en segmentos grandes — "label selectively", nunca todos
@@ -4513,7 +4525,7 @@ function resumenAvailabilityDonutHtml(){
     </div>`;
   }).join("");
   return `<div class="resumen-donut-panel">
-    <div class="resumen-donut-title">Total Availability by Submarket${helpIconHtml("resumenDonutHelp", `Same as "Total Availability", broken down by Submarket instead of by Market. Segments beyond the top ${MAX_SLICES} submarkets are grouped into "Other".`)}</div>
+    <div class="resumen-donut-title">Total Availability by Submarket${helpIconHtml("resumenDonutHelp", `Same as "Total Availability", broken down by Submarket instead of by Market.`)}</div>
     <div class="resumen-donut-body">
       <div class="resumen-donut-chart-wrap">
         <svg class="resumen-donut-svg" viewBox="0 0 200 200" role="img" aria-label="Total Availability by Submarket">

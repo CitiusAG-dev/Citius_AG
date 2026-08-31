@@ -4465,7 +4465,7 @@ function resumenKpis(year){
   // "Classification" (campo CLASS en Parks) A o B. Normalizado a base SF con askingSalePriceValueInSF
   // (mismo criterio que avgAsking) para poder tomar min/max entre filas capturadas en distinta unidad.
   const PK=(state.PARKS||[]).filter(r=>resumenMarketMatches(r,"PARKS"));
-  const landPriceRows=PK.filter(r=>LAND_PRICE_INFRA_STATUSES.some(s=>ciEq(r.INFRAESTRUCTURE_STATUS,s))&&(ciEq(r.CLASS,"A")||ciEq(r.CLASS,"B"))&&Number(r.ASKING_SALE_PRICE_VALOR)>0);
+  const landPriceRows=PK.filter(r=>LAND_PRICE_INFRA_STATUSES.some(s=>ciEq(r.INFRAESTRUCTURE_STATUS,s))&&(ciEq(r.CLASS,"A")||ciEq(r.CLASS,"B"))&&/^USD\/(SF|m2|m²)$/i.test(String(r.ASKING_SALE_PRICE_UNIDAD||"").trim())&&Number(r.ASKING_SALE_PRICE_VALOR)>0);
   const landPriceValsSF=landPriceRows.map(r=>askingSalePriceValueInSF(r));
   const landPriceMin=landPriceValsSF.length?Math.min(...landPriceValsSF):0;
   const landPriceMax=landPriceValsSF.length?Math.max(...landPriceValsSF):0;
@@ -4875,7 +4875,7 @@ function renderResumenView(){
     [`Average Asking Rate (${resumenAreaUnitLabel()}/Month)`, money(resumenRateVal(k.avgAsking)),
       `Average of "Asking Rate" for Properties with "Asking Rate Unit" = "USD/SF" or "USD/m²", "Market Status" = "Available", and a captured rate greater than "0".`],
     [`Land Price Min (${resumenAreaUnitLabel()})`, money(resumenRateVal(k.landPriceMin)),
-      `Minimum of "Asking Sale Price" for Parks with "Infrastructure Status" = "Fully Serviced", "Partially Serviced", or "Under Development", and "Classification" = "A" or "B".`],
+      `Minimum of "Asking Sale Price" for Parks with "Infrastructure Status" = "Fully Serviced", "Partially Serviced", or "Under Development", "Classification" = "A" or "B", and "Asking Sale Price Unit" = "USD/SF" or "USD/m²".`],
     [`Land Price Max (${resumenAreaUnitLabel()})`, money(resumenRateVal(k.landPriceMax)),
       `Same as "Land Price Min", but using the maximum value instead.`]
   ];

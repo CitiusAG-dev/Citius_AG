@@ -4490,23 +4490,26 @@ function resumenKpis(year){
   const landPriceMax=landPriceValsSF.length?Math.max(...landPriceValsSF):0;
   return {marketAB,marketABC,inventory,vacancyRate,underConstruction,sublease,availability,availabilityRate,leaseTx,avgAsking,landPriceMin,landPriceMax};
 }
-/* v3.5x.x, pedido explícito del usuario: dona "Total Availability" con quiebre por Submercado, en el
-   espacio que dejaron libre las tarjetas "Under Construction"/"Sublease" al salir de la cuadrícula KPI.
-   Misma fórmula que la tarjeta agregada (inventory + underConstruction + sublease, con MISMOS filtros:
-   Classification A/B, Market Status "Available"), pero por submercado en vez de a nivel Mercado completo —
-   por eso NO se reusa resumenKpis() (esa filtra por resumenMarketMatches sin SUBMARKET); se repite el
-   mismo patrón exacto que ya usan resumenQuarterTableHtml/resumenBreakdownTableHtml (sumByPredicate sobre
-   state.PROPIEDADES con SUBMARKET+resumenMarketMatches en cada predicado). Valores en base SF (sin
-   convertir) — la conversión a la unidad elegida pasa en resumenAvailabilityDonutHtml(), al mostrarlos. */
-function resumenAvailabilityBySubmarket(){
-  const subs=resumenSubmarkets();
+/* v3.5x.x, bug real reportado por el usuario ("estoy comparando el KPI vs los datos y no da lo mismo"):
+   la tabla "Availability" (abajo, sección "Available Inventory") sumaba TODAS las Properties con Market
+   Status "Available" sin filtrar por Classification ni por Status/Sublease — una fórmula DISTINTA a la
+   tarjeta KPI "Total Availability" (inventory + underConstruction + sublease, con Classification A/B).
+   Se extrae esa fórmula UNA sola vez aquí (resumenAvailabilityForSubmarket) para que la tarjeta KPI
+   (resumenKpis, a nivel Mercado completo), la dona (resumenAvailabilityBySubmarket) y la tabla "Availability"
+   (availHtml) sumen EXACTAMENTE lo mismo, solo que a distintos niveles de desglose — sumar esta función
+   sobre todos los submercados siempre da igual que la tarjeta KPI. Valores en base SF (sin convertir) —
+   la conversión a la unidad elegida pasa en cada lugar que la usa, al mostrarla. */
+function resumenAvailabilityForSubmarket(sm){
   const isAB=r=>ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B");
-  return subs.map(sm=>{
-    const inv=sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.STATUS,"Ready")&&ciEq(r.MARKET_STATUS,"Available"));
-    const uc=sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.STATUS,"Under Construction")&&ciEq(r.MARKET_STATUS,"Available"));
-    const sub=sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.TRANSACTION_AVAILABLE,"Sublease")&&ciEq(r.MARKET_STATUS,"Available"));
-    return {submarket:sm, value:inv+uc+sub};
-  }).filter(d=>d.value>0).sort((a,b)=>b.value-a.value);
+  const inv=sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.STATUS,"Ready")&&ciEq(r.MARKET_STATUS,"Available"));
+  const uc=sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.STATUS,"Under Construction")&&ciEq(r.MARKET_STATUS,"Available"));
+  const sub=sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.TRANSACTION_AVAILABLE,"Sublease")&&ciEq(r.MARKET_STATUS,"Available"));
+  return inv+uc+sub;
+}
+function resumenAvailabilityBySubmarket(){
+  return resumenSubmarkets()
+    .map(sm=>({submarket:sm, value:resumenAvailabilityForSubmarket(sm)}))
+    .filter(d=>d.value>0).sort((a,b)=>b.value-a.value);
 }
 /* v3.5x.x, pedido explícito del usuario ("no quiero que se agrupen valores en Other, tengo 9 submercados
    y no me los muestra todos"): sin tope ni "Other" — TODOS los submercados con valor > 0 son su propio
@@ -4962,24 +4965,26 @@ function renderResumenView(){
   const txDealTypeHtml=resumenBreakdownTableHtml("Transaction Type", `Sum of "Transaction Area" for Transactions with "Absorption Type" = "Gross", dated within ${resumenYear}, by "Transaction Type" (only types with data are shown).`,
     txDealTypeCategories, txDealTypeComputeFn, true);
 
-  // v3.5x.x, pedido explícito del usuario: quita la columna "Total" (con una sola categoría, siempre
-  // repetía el mismo número que "Available Area") — showTotalCol=false, 6to argumento.
-  const availHtml=resumenBreakdownTableHtml("Availability", `Sum of "Available Area" for Properties with "Market Status" = "Available".`,
+  // v3.5x.x, corregido (ver comentario de resumenAvailabilityForSubmarket): antes sumaba TODAS las
+  // Properties con Market Status "Available" sin filtrar Classification/Status — ahora usa la MISMA
+  // fórmula que la tarjeta KPI "Total Availability" (inventory + underConstruction + sublease, A/B), así
+  // que sumando todos los submercados de esta tabla da exactamente ese mismo número.
+  const availHtml=resumenBreakdownTableHtml("Availability", `Same as "Total Availability" ("Available Inventory (Ready)" + "Under Construction" + "Sublease"), by Submarket.`,
     [{key:"__avail__",label:`Available Area (${resumenAreaUnitLabel()})`}],
-    (sm)=>sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.MARKET_STATUS,"Available")), true, false);
-  const availClassHtml=resumenBreakdownTableHtml("By Class", "Available area by building class (A/B)",
+    (sm)=>resumenAvailabilityForSubmarket(sm), true, false);
+  const availClassHtml=resumenBreakdownTableHtml("Class", `Sum of "Available Area" for Properties with "Market Status" = "Available", by "Classification".`,
     [{key:"A",label:"Class A"},{key:"B",label:"Class B"}],
     (sm,cls)=>sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.CLASSIFICATION,cls)&&ciEq(r.MARKET_STATUS,"Available")), true);
-  const availBucketHtml=resumenBreakdownTableHtml("Available Buildings by Size", "Number of available buildings, grouped by size range (SF)",
+  const availBucketHtml=resumenBreakdownTableHtml("Size", `Count of Properties with "Market Status" = "Available", grouped by "Available Area" range.`,
     RESUMEN_SIZE_BUCKETS.map(b=>({key:b,label:resumenSizeBucketLabel(b)})),
     (sm,bucket)=>countByPredicate(state.PROPIEDADES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.MARKET_STATUS,"Available")&&inSizeBucket(resumenAreaVal(areaValueInSF(r,"AVAILABLE_AREA_VALUE")),bucket)));
-  const availStatusHtml=resumenBreakdownTableHtml("By Status", "\"Sublease\" is taken from Transaction Available, not Status, so the number reflects real data",
+  const availStatusHtml=resumenBreakdownTableHtml("Status", `Sum of "Available Area" for Properties with "Market Status" = "Available", by "Status" ("Sublease" comes from "Transaction Available" instead, not "Status").`,
     [{key:"Ready",label:"Ready"},{key:"Under Construction",label:"Under Construction"},{key:"Planned",label:"Planned"},{key:"Sublease",label:"Sublease"}],
     (sm,status)=>{
       if(status==="Sublease") return sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.TRANSACTION_AVAILABLE,"Sublease")&&ciEq(r.MARKET_STATUS,"Available"));
       return sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.STATUS,status)&&ciEq(r.MARKET_STATUS,"Available"));
     }, true);
-  const availGenHtml=resumenBreakdownTableHtml("By Generation", "Available area by building generation (New / 2nd Generation)",
+  const availGenHtml=resumenBreakdownTableHtml("Generation", `Sum of "Available Area" for Properties with "Market Status" = "Available", by "Building Generation".`,
     [{key:"New",label:"New"},{key:"2nd",label:"2nd Generation"}],
     (sm,gen)=>sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.BUILDING_GENERATION,gen)&&ciEq(r.MARKET_STATUS,"Available")), true);
 

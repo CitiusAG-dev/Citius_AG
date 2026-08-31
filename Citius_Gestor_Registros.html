@@ -96,11 +96,13 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      tenía `.resumenview`. */
   #resumenView.resumenview{display:flex;flex-direction:column;overflow:hidden;padding:0}
   .resumen-scroll-area{flex:1;min-height:0;overflow-y:auto;padding:24px 28px 60px}
-  .resumen-header{display:flex;align-items:center;justify-content:space-between;
+  /* justify-content:flex-end (antes space-between) — pedido explícito del usuario: sin el título "Summary"
+     (quitado del HTML), .resumen-header-controls queda como único hijo, así que se ancla a la derecha en
+     vez de irse al borde izquierdo (comportamiento normal de space-between con un solo hijo). */
+  .resumen-header{display:flex;align-items:center;justify-content:flex-end;
                    flex-shrink:0;background:var(--panel);border-bottom:1px solid var(--line);
                    padding:16px 28px}
   .resumen-header-controls{display:flex;align-items:center;gap:20px}
-  .resumen-title{margin:0;font-size:20px;color:var(--txt)}
   .resumen-year-select{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
   .resumen-year-select select{border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:13px;
                                color:var(--txt);background:var(--panel);cursor:pointer}
@@ -1331,7 +1333,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     </nav>
   </aside>
   <div class="main">
-    <header class="topbar">
+    <header class="topbar" id="appTopbar">
       <div class="topbar-controls" id="tableTopbarControls" style="display:none">
         <div class="topbar-controls-left">
           <!-- Presentación de Oficinas, Etapa 1 (v4.1.0 en construcción, pedido explícito del usuario): a
@@ -3216,6 +3218,13 @@ function renderTabs(){
   document.getElementById("configBtn").classList.toggle("active", configViewActive);
 }
 function hideAllViews(){
+  // v3.5x.x, pedido explícito del usuario: header.topbar (el bloque global con Sort/Columns/Units de la
+  // tabla) quedaba visible pero VACÍO (nada de #tableTopbarControls/presTopbarControls/etc. se muestra en
+  // Map/Config/Resumen) — se veía como un panel en blanco de más, sobre todo ahora que Resumen tiene su
+  // propio header (#resumenHeaderBar) justo debajo. Mismo patrón que el resto de esta función: se oculta
+  // aquí por default, y cada showXView() que SÍ lo necesita (Table/Presentation/Land/Office) lo vuelve a
+  // mostrar explícitamente.
+  document.getElementById("appTopbar").style.display="none";
   document.getElementById("wrap").style.display="none";
   document.getElementById("resumenView").style.display="none";
   document.getElementById("mapView").style.display="none";
@@ -3274,6 +3283,7 @@ async function showTableView(){
   mapViewActive=false; presentationViewActive=false; landPresentationViewActive=false; officePresentationViewActive=false; configViewActive=false; resumenViewActive=false;
   saveLastView("table", current);
   hideAllViews();
+  document.getElementById("appTopbar").style.display="";
   document.getElementById("wrap").style.display="";
   document.getElementById("tableTopbarControls").style.display="flex";
   renderTabs();
@@ -3299,6 +3309,7 @@ async function showPresentationView(){
   mapViewActive=false; presentationViewActive=true; landPresentationViewActive=false; officePresentationViewActive=false; configViewActive=false; resumenViewActive=false;
   saveLastView("presentation");
   hideAllViews();
+  document.getElementById("appTopbar").style.display="";
   document.getElementById("presentationView").style.display="flex";
   document.getElementById("presTopbarControls").style.display="flex";
   renderTabs();
@@ -3320,6 +3331,7 @@ async function showLandPresentationView(){
   mapViewActive=false; presentationViewActive=false; landPresentationViewActive=true; officePresentationViewActive=false; configViewActive=false; resumenViewActive=false;
   saveLastView("landpresentation");
   hideAllViews();
+  document.getElementById("appTopbar").style.display="";
   document.getElementById("landPresentationView").style.display="flex";
   document.getElementById("landPresTopbarControls").style.display="flex";
   renderTabs();
@@ -3337,6 +3349,7 @@ async function showOfficePresentationView(){
   mapViewActive=false; presentationViewActive=false; landPresentationViewActive=false; officePresentationViewActive=true; configViewActive=false; resumenViewActive=false;
   saveLastView("officepresentation");
   hideAllViews();
+  document.getElementById("appTopbar").style.display="";
   document.getElementById("officePresentationView").style.display="flex";
   document.getElementById("officePresTopbarControls").style.display="flex";
   renderTabs();
@@ -4947,7 +4960,6 @@ function renderResumenView(){
   // header.topbar (fijo, fuera de esa área).
   document.getElementById("resumenHeaderBar").innerHTML=`
     <div class="resumen-header">
-      <h2 class="resumen-title">Summary</h2>
       <div class="resumen-header-controls">
         <div class="resumen-year-select">
           <label for="resumenUnitSelect">Units</label>

@@ -1329,7 +1329,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v5.0.1</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v5.1.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -3401,6 +3401,17 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"5.1.0", date:"2026-08-31", items:[
+    "Summary: new \"Units\" selector (Imperial/Metric, defaults to Imperial) next to Market/Year — converts every area-based KPI card and breakdown table (Absorption, Completed Transactions, Available Inventory) to SF or m² on the fly.",
+    "Summary: KPI cards reworked — Available Inventory (Ready), Under Construction, and Sublease now also require Classification A or B; Total Availability is now simply the sum of those three cards instead of a separate calculation; Total Market (Class A and B / A, B and C) no longer filters by Market Status.",
+    "Summary: 2 new KPI cards, Land Price Min / Land Price Max — minimum and maximum \"Asking Sale Price\" among Parks with Infrastructure Status Fully Serviced/Partially Serviced/Under Development and Classification A or B, USD only (MXN excluded).",
+    "Summary: Average Asking Rate now also includes rates captured in USD/m² (not just USD/SF), and shows 3 decimals.",
+    "Parks: \"Asking Sale Price\" now has a proper unit dropdown (MXN/SF, MXN/m², USD/SF, USD/m²) instead of free text.",
+    "Summary: new donut chart, \"Total Availability by Submarket\" — every submarket gets its own segment (no grouping into \"Other\"), with a scrollable legend showing each one's % and value.",
+    "Summary: KPI cards reflowed into a 4-per-row grid (was 6) so the donut chart fits alongside them at the same proportions; the help text on every KPI card was also rewritten for a consistent format (\"Field\" = \"Value\").",
+    "Summary: the Units/Market/Year controls are now a fixed bar at the top (same behavior as the Buildings table's toolbar) instead of scrolling away with the page content.",
+    "Fixed: a blank, empty toolbar strip was showing above Map, Config, and Summary — it belonged to the Buildings table's own toolbar, which was never actually hidden on those views."
+  ]},
   {version:"5.0.1", date:"2026-08-31", items:[
     "Summary: redesigned the \"Tool Usage\" chart — added a Y axis (max/mid/zero) with gridlines so bar height is readable at a glance, evenly-spaced date labels across the whole period instead of clustering to one side, and a proper hover tooltip (shows instantly, with the exact count and full date) over each day's full column instead of the slow, unstyled browser tooltip from before."
   ]},

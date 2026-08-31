@@ -3309,7 +3309,11 @@ async function showMapView(){
   await refreshLandFileIfLinked();
   await refreshComplementaryFileIfLinked();
   renderMapFilterSidebar();
-  setTimeout(renderAllPolygonsMap, 30);
+  // v3.5x.x, pedido explícito del usuario ("cuando regreso al mapa me regresa al zoom inicial, quiero que
+  // se quede en donde estaba"): keepView=true si `allPolyMap` YA existe (se volvió a esta vista, el mapa
+  // ya se había creado antes) — solo la PRIMERA vez (`allPolyMap` aún null, se está creando recién) se deja
+  // hacer el fitBounds automático a los datos, igual que antes.
+  setTimeout(()=>renderAllPolygonsMap(!!allPolyMap), 30);
 }
 async function showPresentationView(){
   mapViewActive=false; presentationViewActive=true; landPresentationViewActive=false; officePresentationViewActive=false; configViewActive=false; resumenViewActive=false;
@@ -6912,7 +6916,7 @@ function setMapFilterListValues(scope,key,valuesSet){
     if(newFilter) mapFilters.perEntity[scope].push(newFilter);
   }
   saveMapFiltersLocal();
-  renderAllPolygonsMap();
+  renderAllPolygonsMap(true); // v3.5x.x: no reiniciar zoom al filtrar
   updateMapFilterCount();
 }
 function onMapFilterListSearch(scope,key,val){ mapFilterSearch[scope+"::"+key]=val; renderMapFilterFieldBody(scope,key); }
@@ -6930,7 +6934,7 @@ function onMapFilterListSelectAll(scope,key,checked){
 }
 function debouncedApplyMapFilter(){
   clearTimeout(mapFilterDebounce);
-  mapFilterDebounce=setTimeout(()=>{ renderAllPolygonsMap(); updateMapFilterCount(); }, 350);
+  mapFilterDebounce=setTimeout(()=>{ renderAllPolygonsMap(true); updateMapFilterCount(); }, 350);
 }
 function onMapFilterNumberChange(scope,key,which,val){
   const existing=mapFilterEntry(scope,key) || {key, type:"number", min:"", max:""};
@@ -6960,13 +6964,13 @@ function removeMapFilterField(scope,key){
   }
   saveMapFilterPanelFieldsLocal();
   saveMapFiltersLocal();
-  renderAllPolygonsMap();
+  renderAllPolygonsMap(true); // v3.5x.x: no reiniciar zoom al quitar un filtro
   renderMapFilterSidebar();
 }
 function clearAllMapFilters(){
   mapFilters={shared:{}, perEntity:{PROPIEDADES:[],PARKS:[],LAND:[],OFICINAS:[]}};
   saveMapFiltersLocal();
-  renderAllPolygonsMap();
+  renderAllPolygonsMap(true); // v3.5x.x: no reiniciar zoom al limpiar todos los filtros
   renderMapFilterSidebar();
 }
 function mapFilterActiveCount(){

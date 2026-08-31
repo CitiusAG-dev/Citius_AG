@@ -4394,8 +4394,8 @@ function resumenKpis(year){
   const yearStart=`${year}-01-01`, yearEnd=`${year}-12-31`;
   const T=(state.TRANSACCIONES||[]).filter(r=>resumenMarketMatches(r,"TRANSACCIONES"));
   const leaseTx=sumByPredicate(T,"TRANSACTION_AREA", r=>ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd);
-  const askingRows=P.filter(r=>ciEq(r.ASKING_RATE_UNIT,"USD/SF")&&ciEq(r.MARKET_STATUS,"Available")&&Number(r.ASKING_RATE_VALUE)>0);
-  const avgAsking=askingRows.length?askingRows.reduce((a,r)=>a+(Number(r.ASKING_RATE_VALUE)||0),0)/askingRows.length:0;
+  const askingRows=P.filter(r=>/^USD\/(SF|m2|m²)$/i.test(String(r.ASKING_RATE_UNIT||"").trim())&&ciEq(r.MARKET_STATUS,"Available")&&Number(r.ASKING_RATE_VALUE)>0);
+  const avgAsking=askingRows.length?askingRows.reduce((a,r)=>a+askingRateValueInSF(r),0)/askingRows.length:0;
   return {marketAB,marketABC,inventory,vacancyRate,underConstruction,sublease,availability,availabilityRate,leaseTx,avgAsking};
 }
 function resumenColgroupHtml(dataColCount){
@@ -4620,6 +4620,25 @@ function resumenUsageChartHtml(data){
 }
 let resumenYear=String(new Date().getFullYear());
 let resumenMarket="";
+/* v3.5x.x, pedido explícito del usuario: selector de Unidades (Imperial/Metric) para las tarjetas KPI del
+   Resumen — en memoria, no persistido, default "imperial" (mismo criterio que resumenYear/resumenMarket:
+   se resetea a su default en cada carga de la página). El cálculo interno de Resumen sigue TODO normalizado
+   a SF (areaValueInSF/sumByPredicate no se tocan); resumenAreaVal()/resumenRateVal() solo convierten el
+   número ya sumado al momento de mostrarlo, con el mismo factor que ya usa unitViewPref en la tabla
+   principal (UNIT_CONVERSIONS.SF_M2). resumenRateVal() usa el factor inverso (mismo criterio que
+   convertRateUnit()) porque un $/área SUBE al convertir a una unidad de área más grande (SF→m²). */
+let resumenUnit="imperial";
+function resumenAreaUnitLabel(){ return resumenUnit==="metric" ? UNIT_CONVERSIONS.SF_M2.metric : UNIT_CONVERSIONS.SF_M2.imperial; }
+function resumenAreaVal(sf){ return resumenUnit==="metric" ? sf*UNIT_CONVERSIONS.SF_M2.toMetric : sf; }
+function resumenRateVal(vPerSF){ return resumenUnit==="metric" ? vPerSF/UNIT_CONVERSIONS.SF_M2.toMetric : vPerSF; }
+/* Normaliza "Asking Rate" a base SF sin importar si se capturó en USD/SF o USD/m² — mismo criterio que
+   areaValueInSF (todo Resumen normaliza a SF internamente), reusando convertRateUnit() (misma conversión
+   que ya usa la vista Métrico/Imperial de la tabla principal para este mismo tipo de campo). */
+function askingRateValueInSF(row){
+  const raw=Number(row.ASKING_RATE_VALUE)||0;
+  const conv=convertRateUnit(row.ASKING_RATE_UNIT,"imperial");
+  return conv ? raw*conv.factor : raw;
+}
 /* En memoria, no persistidas — mismo criterio que resumenYear/resumenMarket (se resetean a su default en
    cada carga de la página). */
 let resumenUsageDays=30;
@@ -4634,6 +4653,9 @@ function renderResumenView(){
   const pct=v=>(v*100).toFixed(1)+"%";
   const money=v=>"$"+v.toFixed(2);
   const num=v=>Math.round(v).toLocaleString("en-US");
+  // v3.5x.x: valores de área de las tarjetas ya vienen normalizados a SF desde resumenKpis() — area()
+  // los convierte a la unidad elegida en el selector "Units" (resumenUnit) justo antes de mostrarlos.
+  const area=v=>num(resumenAreaVal(v))+" "+resumenAreaUnitLabel();
 
   // v3.44.3, pedido explícito del usuario: 3er elemento de cada tarjeta = explicación en lenguaje natural
   // de cómo se calcula, con el mismo ícono "i" que ya usan los campos del formulario (helpIconHtml(), ver
@@ -4648,26 +4670,26 @@ function renderResumenView(){
   // entre comillas (no son campos de un registro, son fórmulas sobre otros KPIs), y "Total Market (A, B
   // and C)" se redacta como diferencia contra la tarjeta anterior en vez de repetir toda la regla.
   const kpiCards=[
-    ["Total Market (Class A and B)", num(k.marketAB)+" SF",
+    ["Total Market (Class A and B)", area(k.marketAB),
       `Sum of "Leasable Area (GLA)" for Properties with "Classification" = "A" or "B", regardless of "Market Status".`],
-    ["Total Market (A, B and C)", num(k.marketABC)+" SF",
+    ["Total Market (A, B and C)", area(k.marketABC),
       `Same as "Total Market (Class A and B)", but also includes Properties with "Classification" = "C".`],
-    ["Available Inventory (Ready)", num(k.inventory)+" SF",
+    ["Available Inventory (Ready)", area(k.inventory),
       `Sum of "Available Area" for Properties with "Status" = "Ready", "Market Status" = "Available", and "Classification" = "A" or "B".`],
     ["Vacancy Rate", pct(k.vacancyRate),
       `"Available Inventory (Ready)" ÷ "Total Market (Class A and B)".`],
-    ["Under Construction", num(k.underConstruction)+" SF",
+    ["Under Construction", area(k.underConstruction),
       `Sum of "Leasable Area (GLA)" for Properties with "Status" = "Under Construction", "Market Status" = "Available", and "Classification" = "A" or "B".`],
-    ["Sublease", num(k.sublease)+" SF",
+    ["Sublease", area(k.sublease),
       `Sum of "Leasable Area (GLA)" for Properties with "Transaction Available" = "Sublease", "Market Status" = "Available", and "Classification" = "A" or "B".`],
-    ["Total Availability", num(k.availability)+" SF",
+    ["Total Availability", area(k.availability),
       `Sum of "Available Inventory (Ready)" + "Under Construction" + "Sublease".`],
     ["Availability Rate", pct(k.availabilityRate),
       `"Total Availability" ÷ "Total Market (Class A and B)".`],
-    [`Lease Transactions (${resumenYear})`, num(k.leaseTx)+" SF",
+    [`Lease Transactions (${resumenYear})`, area(k.leaseTx),
       `Sum of "Transaction Area" for Transactions with "Transaction Type" = "Lease" and "Absorption Type" = "Gross", dated within ${resumenYear}.`],
-    ["Average Asking Rate (SF/Month)", money(k.avgAsking),
-      `Average of "Asking Rate" for Properties with "Asking Rate Unit" = "USD/SF", "Market Status" = "Available", and a captured rate greater than "0".`]
+    [`Average Asking Rate (${resumenAreaUnitLabel()}/Month)`, money(resumenRateVal(k.avgAsking)),
+      `Average of "Asking Rate" for Properties with "Asking Rate Unit" = "USD/SF" or "USD/m²", "Market Status" = "Available", and a captured rate greater than "0".`]
   ];
   const kpiHtml=kpiCards.map(([label,value,help],i)=>
     `<div class="resumen-kpi-card"><div class="resumen-kpi-value">${value}</div><div class="resumen-kpi-label">${escapeHtml(label)}${helpIconHtml("resumenKpiHelp_"+i, help)}</div></div>`
@@ -4742,6 +4764,13 @@ function renderResumenView(){
       <h2 class="resumen-title">Summary</h2>
       <div class="resumen-header-controls">
         <div class="resumen-year-select">
+          <label for="resumenUnitSelect">Units</label>
+          <select id="resumenUnitSelect">
+            <option value="imperial" ${resumenUnit==="imperial"?"selected":""}>Imperial (SF)</option>
+            <option value="metric" ${resumenUnit==="metric"?"selected":""}>Metric (m²)</option>
+          </select>
+        </div>
+        <div class="resumen-year-select">
           <label for="resumenMarketSelect">Market</label>
           <select id="resumenMarketSelect">${marketOptionsHtml}</select>
         </div>
@@ -4778,6 +4807,7 @@ function renderResumenView(){
     </div>
     ${resumenUsageChartHtml(usageData)}
   `;
+  document.getElementById("resumenUnitSelect").onchange=function(){ resumenUnit=this.value; renderResumenView(); };
   document.getElementById("resumenYearSelect").onchange=function(){ resumenYear=this.value; renderResumenView(); };
   document.getElementById("resumenMarketSelect").onchange=function(){ resumenMarket=this.value; renderResumenView(); };
   document.getElementById("resumenUsageDocSelect").onchange=function(){ resumenUsageDoc=this.value; renderResumenView(); };

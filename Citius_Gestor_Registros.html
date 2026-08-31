@@ -87,7 +87,14 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .path-note-add:hover{color:var(--accent-ink)}
 
   #resumenView.resumenview{overflow-y:auto;display:block;padding:24px 28px 60px}
-  .resumen-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+  /* v3.5x.x, pedido explícito del usuario: Units/Market/Year fijos al bajar por el Resumen, mismo criterio
+     que ya usa `header.topbar` (arriba, position:sticky) para los controles de las tablas de Propiedades/
+     etc. `top:0` es relativo al scroll de `#resumenView` (el que trae overflow-y:auto, no el de la página),
+     así que el header queda pegado justo debajo del padding-top del contenedor mientras se hace scroll por
+     las tarjetas KPI, la dona y las tablas de abajo. */
+  .resumen-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;
+                   position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0 14px;
+                   margin-top:-10px;border-bottom:1px solid var(--line)}
   .resumen-header-controls{display:flex;align-items:center;gap:20px}
   .resumen-title{margin:0;font-size:20px;color:var(--txt)}
   .resumen-year-select{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}

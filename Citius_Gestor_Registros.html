@@ -86,15 +86,19 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
                   text-decoration:underline;text-underline-offset:2px}
   .path-note-add:hover{color:var(--accent-ink)}
 
-  #resumenView.resumenview{overflow-y:auto;display:block;padding:24px 28px 60px}
-  /* v3.5x.x, pedido explícito del usuario: Units/Market/Year fijos al bajar por el Resumen, mismo criterio
-     que ya usa `header.topbar` (arriba, position:sticky) para los controles de las tablas de Propiedades/
-     etc. `top:0` es relativo al scroll de `#resumenView` (el que trae overflow-y:auto, no el de la página),
-     así que el header queda pegado justo debajo del padding-top del contenedor mientras se hace scroll por
-     las tarjetas KPI, la dona y las tablas de abajo. */
-  .resumen-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;
-                   position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0 14px;
-                   margin-top:-10px;border-bottom:1px solid var(--line)}
+  /* v3.5x.x, pedido explícito del usuario ("quiero que sea consistente lo que tengo en Buildings") — el
+     primer intento (position:sticky DENTRO del contenido que hace scroll) se veía raro, flotando sobre las
+     tarjetas. Se cambia al mismo patrón que ya usa #wrap/header.topbar: `.resumenview` deja de ser el
+     propio contenedor con scroll (era `overflow-y:auto;display:block`, pisando el `display:flex` de
+     `.wrap`) y vuelve a ser flex column como `.wrap` base — el header (`.resumen-header`, ver HTML estático
+     `#resumenHeaderBar`) queda FUERA del área con scroll, altura fija y consistente, y `.resumen-scroll-area`
+     (`#resumenScrollArea`, hermano del header) es quien hace scroll de verdad, con el padding que antes
+     tenía `.resumenview`. */
+  #resumenView.resumenview{display:flex;flex-direction:column;overflow:hidden;padding:0}
+  .resumen-scroll-area{flex:1;min-height:0;overflow-y:auto;padding:24px 28px 60px}
+  .resumen-header{display:flex;align-items:center;justify-content:space-between;
+                   flex-shrink:0;background:var(--panel);border-bottom:1px solid var(--line);
+                   padding:16px 28px}
   .resumen-header-controls{display:flex;align-items:center;gap:20px}
   .resumen-title{margin:0;font-size:20px;color:var(--txt)}
   .resumen-year-select{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
@@ -1524,7 +1528,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       </div>
     </div>
     <div class="wrap resumenview" id="resumenView" style="display:none">
-      <div id="resumenContent"></div>
+      <div id="resumenHeaderBar"></div>
+      <div class="resumen-scroll-area" id="resumenScrollArea">
+        <div id="resumenContent"></div>
+      </div>
     </div>
     <div class="mapview" id="mapView">
       <div class="map-toolbar">
@@ -4931,8 +4938,14 @@ function renderResumenView(){
     +usageDocs.map(d=>`<option value="${escapeAttr(d)}" ${d===resumenUsageDoc?"selected":""}>${escapeHtml(d)}</option>`).join("");
   const usageDaysOptionsHtml=[30,60,90].map(n=>`<option value="${n}" ${n===resumenUsageDays?"selected":""}>${n} days</option>`).join("");
 
-  const el=document.getElementById("resumenContent");
-  el.innerHTML=`
+  // v3.5x.x, pedido explícito del usuario ("quiero que sea consistente lo que tengo en Buildings"): el
+  // header (título + Units/Market/Year) deja de ir DENTRO del contenido que hace scroll (ahí el
+  // position:sticky quedaba raro, flotando sobre las tarjetas) y pasa a ser un bloque aparte, fuera del
+  // área con scroll — mismo patrón que header.topbar (altura fija y consistente, siempre visible) en vez
+  // de sticky-dentro-del-contenido. #resumenHeaderBar/#resumenScrollArea son hermanos dentro de
+  // #resumenView (ver el HTML estático) — igual que #wrap separa su tabla (con scroll propio) de
+  // header.topbar (fijo, fuera de esa área).
+  document.getElementById("resumenHeaderBar").innerHTML=`
     <div class="resumen-header">
       <h2 class="resumen-title">Summary</h2>
       <div class="resumen-header-controls">
@@ -4953,6 +4966,9 @@ function renderResumenView(){
         </div>
       </div>
     </div>
+  `;
+  const el=document.getElementById("resumenContent");
+  el.innerHTML=`
     <div class="resumen-kpi-outer">
       <div class="resumen-kpi-grid">${kpiHtml}</div>
       ${donutHtml}

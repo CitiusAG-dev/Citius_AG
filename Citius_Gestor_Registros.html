@@ -1334,7 +1334,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v5.1.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v5.2.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -3411,6 +3411,14 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"5.2.0", date:"2026-08-31", items:[
+    "Map: new \"Send to Presentation\" action after selecting Buildings or Land with the lasso/polygon/radius tools — only shown when that layer is the only one active (never ambiguous about which presentation it's for), replaces whatever was previously selected for that presentation (asks for confirmation first), and jumps straight to the corresponding deck.",
+    "Map: filtering, and navigating back to the Map from another view, no longer resets the zoom/position.",
+    "Summary: \"Absorption\" section renamed (Gross/Negative/Net Absorption cards renamed to just \"Gross\"/\"Negative\"/\"Net\"); \"Negative\" now also requires Transaction Type = Lease.",
+    "Summary: \"Completed Transactions\" section — \"Total Quarterly Absorption\" renamed to \"All Transactions\"; \"Deals by Size\"/\"By Building Type\"/\"By Deal Type\" renamed to \"Size\"/\"Building Type\"/\"Transaction Type\"; \"Transaction Type\" now lists every value from that field's list (not just Lease/Sale), showing only the ones with data; \"Size\" ranges now reclassify based on the value converted to the selected Units (a transaction can land in a different size bucket in Metric vs Imperial).",
+    "Summary: \"Available Inventory\" section — fixed a real bug where \"Availability\", \"Class\", \"Status\", and \"Generation\" didn't add up to the same total as the KPI cards (missing the Classification A/B filter, and in one case, a wrong field). All 4 renamed (\"By Class\"/\"By Status\"/\"By Generation\" → \"Class\"/\"Status\"/\"Generation\"); \"Status\" and \"Transaction Type\" categories are now resolved from each field's actual configured list (fixing a separate bug where a hardcoded list name didn't match the real one); \"Status\" gained a \"No Status\" column to flag Properties missing that field; \"Size\" (Available Buildings) also gained the Classification A/B filter.",
+    "Help text on every Summary card/table is now shown as a hover tooltip (same \"i\" icon style as the KPI cards) instead of always-visible text."
+  ]},
   {version:"5.1.0", date:"2026-08-31", items:[
     "Summary: new \"Units\" selector (Imperial/Metric, defaults to Imperial) next to Market/Year — converts every area-based KPI card and breakdown table (Absorption, Completed Transactions, Available Inventory) to SF or m² on the fly.",
     "Summary: KPI cards reworked — Available Inventory (Ready), Under Construction, and Sublease now also require Classification A or B; Total Availability is now simply the sum of those three cards instead of a separate calculation; Total Market (Class A and B / A, B and C) no longer filters by Market Status.",

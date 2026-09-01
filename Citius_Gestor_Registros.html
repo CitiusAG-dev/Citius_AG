@@ -9244,6 +9244,22 @@ let presMapInstance=null;
 let presMapGLInstance=null; // mapa Mapbox GL subyacente del mapa de Presentación (para liberar el contexto WebGL al re-renderizar, ver renderPresMap)
 let presMapGLLayerRef=null; // capa Leaflet (mapbox-gl-leaflet) del mapa de Presentación, para poder reajustar su tamaño (ver ResizeObserver en renderPresMap)
 let presMapResizeObserver=null; // detecta cuando #presMapCanvas por fin llega a su tamaño final (el plugin de Mapbox+Leaflet no se reajusta solo, ver renderPresMap)
+/* La vista previa en pantalla del deck usa CSS `zoom:.75` (para que quepan varias páginas), pero
+   mapbox-gl-leaflet mide su contenedor con getBoundingClientRect() mientras que Leaflet lo mide con
+   clientWidth — bajo `zoom` esas 2 medidas NO coinciden, y por eso el mapa queda recortado y los pines
+   desalineados en la vista previa (confirmado con diagnóstico en pantalla). Al imprimir, el CSS ya
+   resetea a `zoom:1` (ver body.printing-deck #presPages), así que esta función se llama justo antes de
+   imprimir para reajustar el mapa a su tamaño real en ese momento — usada también por el ResizeObserver
+   de renderPresMap para la vista previa en pantalla. */
+function resizePresMapGLNow(){
+  if(!presMapInstance || !presMapGLLayerRef) return;
+  const canvasEl=document.getElementById("presMapCanvas");
+  if(!canvasEl) return;
+  presMapInstance.invalidateSize();
+  const el=presMapGLLayerRef.getContainer && presMapGLLayerRef.getContainer();
+  if(el){ el.style.width=canvasEl.clientWidth+"px"; el.style.height=canvasEl.clientHeight+"px"; el.style.left="0px"; el.style.top="0px"; }
+  if(presMapGLInstance) try{ presMapGLInstance.resize(); }catch(e){}
+}
 function buildCoverPageHtml(){
   const monthYear=(presCoverInfo.monthYear||"").trim();
   const m2=(presCoverInfo.m2||"").trim();
@@ -9271,7 +9287,6 @@ function buildMapPageHtml(list, logoSrc){
     <div class="map-page-badge"><img src="${logoSrc}"><h2>Location Map</h2></div>
     <div class="map-page-attribution">&copy; Mapbox &copy; OpenStreetMap</div>
     ${missing?`<p class="deck-note">*${missing} propiedad(es) sin latitud/longitud capturada no se muestran en el mapa.</p>`:""}
-    <div id="presMapDebug" style="position:absolute;top:4px;right:4px;z-index:99999;background:#fff;border:2px solid red;padding:4px 8px;font-size:11px;white-space:pre;font-family:monospace;max-width:340px"></div>
   </div>`;
 }
 function declutterMapPins(map, markerData){
@@ -9308,23 +9323,6 @@ function renderPresMap(list){
   }
   const canvas=document.getElementById("presMapCanvas");
   if(!canvas) return;
-  const presMapDebugLog=function(tag){ // TEMPORAL — quitar cuando se resuelva el bug de tamaño
-    try{
-      const dbg=document.getElementById("presMapDebug");
-      if(!dbg) return;
-      const rect=canvas.getBoundingClientRect();
-      let glLine="glContainer: (ninguno aún)";
-      if(presMapGLLayerRef){
-        const el=presMapGLLayerRef.getContainer && presMapGLLayerRef.getContainer();
-        if(el){
-          const r2=el.getBoundingClientRect();
-          glLine=`glContainer style: ${el.style.width}x${el.style.height} | rect: ${Math.round(r2.width)}x${Math.round(r2.height)} @(${Math.round(r2.left-rect.left)},${Math.round(r2.top-rect.top)})`;
-        }
-      }
-      const line=`[${tag}] canvas.client: ${canvas.clientWidth}x${canvas.clientHeight} | canvas.rect: ${Math.round(rect.width)}x${Math.round(rect.height)} | leaflet.getSize: ${presMapInstance?JSON.stringify(presMapInstance.getSize()):"?"}\n${glLine}`;
-      dbg.innerText = (dbg.innerText? dbg.innerText+"\n---\n":"") + line;
-    }catch(e){ }
-  };
   const pts=[];
   list.forEach((rec,i)=>{
     const lat=Number(rec.LATITUDE), lng=Number(rec.LONGITUDE);
@@ -9332,7 +9330,6 @@ function renderPresMap(list){
     pts.push({lat,lng,num:i+1,rec});
   });
   presMapInstance=L.map(canvas,{zoomControl:false,attributionControl:false,zoomSnap:0.25,zoomDelta:0.25,wheelPxPerZoomLevel:200});
-  presMapDebugLog("map creado");
   const markerData=[];
   pts.forEach(p=>{
     const mapsUrl=`https://www.google.com/maps?q=${encodeURIComponent(p.lat)},${encodeURIComponent(p.lng)}`;
@@ -9370,25 +9367,15 @@ function renderPresMap(list){
     presMapGLInstance=presMapGLLayerRef.getMapboxMap();
     wireMapboxStandardConfig(presMapGLInstance);
     declutterMapPins(presMapInstance, markerData);
-    presMapDebugLog("tras invalidateSize+fitBounds+GL");
   },50);
-  // El fix de arriba (crear la capa tras invalidateSize) no bastó en la práctica — el contenedor de la
-  // página de Presentación puede seguir asentando su tamaño real después de esos 50ms (reportado por el
-  // usuario: el mapa seguía recortado). mapbox-gl-leaflet calcula el tamaño de su canvas UNA sola vez y no
-  // se reajusta solo ante cambios posteriores, así que en vez de adivinar un tiempo de espera mayor, se
-  // observa el tamaño real de #presMapCanvas con ResizeObserver y se corrige cada vez que cambia (cubre
-  // también un eventual reajuste de layout al imprimir).
+  // El fix de arriba (crear la capa tras invalidateSize) no basta por sí solo: la vista previa en
+  // pantalla usa `zoom:.75` (ver .pres-pages), y bajo `zoom` el tamaño que ve Leaflet (clientWidth) no
+  // coincide con el tamaño realmente visible (getBoundingClientRect) — mapbox-gl-leaflet no se reajusta
+  // solo ante eso. Se observa #presMapCanvas con ResizeObserver para corregirlo apenas cambie (útil en
+  // pantalla); al imprimir, resizePresMapGLNow() se llama explícitamente en "beforeprint" porque ahí no
+  // hay tiempo de esperar al ResizeObserver (window.print() captura la página casi de inmediato).
   if(typeof ResizeObserver!=="undefined"){
-    presMapResizeObserver=new ResizeObserver(()=>{
-      if(!presMapInstance) return;
-      presMapInstance.invalidateSize();
-      if(presMapGLLayerRef){
-        const el=presMapGLLayerRef.getContainer && presMapGLLayerRef.getContainer();
-        if(el){ el.style.width=canvas.clientWidth+"px"; el.style.height=canvas.clientHeight+"px"; el.style.left="0px"; el.style.top="0px"; }
-        if(presMapGLInstance) try{ presMapGLInstance.resize(); }catch(e){}
-      }
-      presMapDebugLog("resizeObserver");
-    });
+    presMapResizeObserver=new ResizeObserver(resizePresMapGLNow);
     presMapResizeObserver.observe(canvas);
   }
 }
@@ -9727,6 +9714,7 @@ document.getElementById("presPrintBtn").onclick=()=>{
   document.body.classList.add("printing-deck"); // misma condición de layout para medir e imprimir (ver CSS)
   pagesEl.style.zoom="1"; // measure/print at true size, regardless of the on-screen preview zoom
   preparePrintPageSize();
+  resizePresMapGLNow(); // el mapa de Mapbox necesita reajustarse ya con zoom:1 (ver comentario en su definición)
   // Chrome usa document.title como nombre sugerido en su diálogo "Guardar como PDF" — se cambia justo
   // antes de imprimir y se restaura justo después (window.print() es síncrono/bloqueante en Chrome
   // mientras el diálogo de impresión del sistema está abierto, así que esto nunca queda visible en la
@@ -9739,7 +9727,7 @@ document.getElementById("presPrintBtn").onclick=()=>{
   document.querySelectorAll(".deck-page.cover-page,.deck-page.map-page,.deck-page.layout-page,.deck-page.list-page").forEach(p=>{ p.style.height=""; p.style.width=""; }); // deshace el tamaño fijo puesto por preparePrintPageSize(), solo era para imprimir
   document.body.classList.remove("printing-deck");
 };
-window.addEventListener("beforeprint", ()=>{ if(presMapInstance) presMapInstance.invalidateSize(); if(landPresMapInstance) landPresMapInstance.invalidateSize(); if(officePresMapInstance) officePresMapInstance.invalidateSize(); presLayoutMapInstances.forEach(m=>{ try{ m.invalidateSize(); }catch(e){} }); landDeckMapInstances.forEach(m=>{ try{ m.invalidateSize(); }catch(e){} }); });
+window.addEventListener("beforeprint", ()=>{ if(presMapInstance) presMapInstance.invalidateSize(); resizePresMapGLNow(); if(landPresMapInstance) landPresMapInstance.invalidateSize(); if(officePresMapInstance) officePresMapInstance.invalidateSize(); presLayoutMapInstances.forEach(m=>{ try{ m.invalidateSize(); }catch(e){} }); landDeckMapInstances.forEach(m=>{ try{ m.invalidateSize(); }catch(e){} }); });
 /* Nombre sugerido del PDF de Terrenos (v3.39.0) — misma lógica EXACTA que buildPresPdfFilename() de
    Propiedades (pedido explícito del usuario), leyendo landPresCoverInfo en vez de presCoverInfo.
    brokerInitials()/sanitizeFilenamePart() se reutilizan tal cual — son agnósticas de entidad. */

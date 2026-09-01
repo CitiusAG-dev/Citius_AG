@@ -1552,6 +1552,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
             <option value="topo">Topographic</option>
             <option value="gray">Grayscale</option>
             <option value="dark">Dark</option>
+            <option value="citiusMapbox">Citius (Mapbox)</option>
           </select>
         </div>
         <div class="map-basemap-select unit-view-select" title="Show the captured polygons or a pin per location (Properties/Parks/Land)">
@@ -6822,6 +6823,11 @@ const MAP_BASEMAPS=[
   {key:"dark", label:"Dark", layers:[
     {url:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', attribution:'Tiles &copy; Esri'},
     {url:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', attribution:'Labels &copy; Esri'}
+  ]},
+  /* Estilo personalizado de Mapbox diseñado por el usuario para Citius (v_pendiente). Token público de la
+     cuenta citiusag — si algún día se rota, solo hay que actualizar MAPBOX_ACCESS_TOKEN aquí. */
+  {key:"citiusMapbox", label:"Citius (Mapbox)", layers:[
+    {url:`https://api.mapbox.com/styles/v1/citiusag/cmnp9hetd008s01sga4jxhlfo/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoiY2l0aXVzYWciLCJhIjoiY21ucDh6OTF6MTRibjJzb25qd2ltcjhlYyJ9.LvtTn6DeoONC0MNlU1ACVw`, attribution:'&copy; Mapbox &copy; OpenStreetMap contributors'}
   ]}
 ];
 /* ==== Modo de visualización del Mapa: Polígonos (default, forma real capturada) o Pines (un punto en

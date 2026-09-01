@@ -9242,6 +9242,8 @@ function toggleCoverEditBroker(v, checked){
 document.getElementById("presCoverEditBtn").onclick=toggleCoverEditPanel;
 let presMapInstance=null;
 let presMapGLInstance=null; // mapa Mapbox GL subyacente del mapa de Presentación (para liberar el contexto WebGL al re-renderizar, ver renderPresMap)
+let presMapGLLayerRef=null; // capa Leaflet (mapbox-gl-leaflet) del mapa de Presentación, para poder reajustar su tamaño (ver ResizeObserver en renderPresMap)
+let presMapResizeObserver=null; // detecta cuando #presMapCanvas por fin llega a su tamaño final (el plugin de Mapbox+Leaflet no se reajusta solo, ver renderPresMap)
 function buildCoverPageHtml(){
   const monthYear=(presCoverInfo.monthYear||"").trim();
   const m2=(presCoverInfo.m2||"").trim();
@@ -9297,9 +9299,10 @@ function declutterMapPins(map, markerData){
   }
 }
 function renderPresMap(list){
+  if(presMapResizeObserver){ try{ presMapResizeObserver.disconnect(); }catch(e){} presMapResizeObserver=null; }
   if(presMapInstance){
     if(presMapGLInstance) try{ presMapGLInstance.remove(); }catch(e){}
-    presMapGLInstance=null;
+    presMapGLInstance=null; presMapGLLayerRef=null;
     presMapInstance.remove(); presMapInstance=null;
   }
   const canvas=document.getElementById("presMapCanvas");
@@ -9342,13 +9345,31 @@ function renderPresMap(list){
     // mapa puede salir en blanco en la impresión). La capa se crea AQUÍ (tras invalidateSize/fitBounds, no
     // justo al crear el mapa) porque mapbox-gl-leaflet calcula el tamaño de su canvas una sola vez, en el
     // instante en que se agrega — si el contenedor todavía no tenía su tamaño/vista final, el mapa queda
-    // recortado y los pines se desalinean (bug real detectado por el usuario).
+    // recortado y los pines se desalinean.
     const presMapMbCfg=MAP_BASEMAPS.find(b=>b.key==="citiusMapbox").gl;
-    const presMapGLLayer=L.mapboxGL({style:presMapMbCfg.style, accessToken:presMapMbCfg.accessToken, attribution:presMapMbCfg.attribution, preserveDrawingBuffer:true}).addTo(presMapInstance);
-    presMapGLInstance=presMapGLLayer.getMapboxMap();
+    presMapGLLayerRef=L.mapboxGL({style:presMapMbCfg.style, accessToken:presMapMbCfg.accessToken, attribution:presMapMbCfg.attribution, preserveDrawingBuffer:true}).addTo(presMapInstance);
+    presMapGLInstance=presMapGLLayerRef.getMapboxMap();
     wireMapboxStandardConfig(presMapGLInstance);
     declutterMapPins(presMapInstance, markerData);
   },50);
+  // El fix de arriba (crear la capa tras invalidateSize) no bastó en la práctica — el contenedor de la
+  // página de Presentación puede seguir asentando su tamaño real después de esos 50ms (reportado por el
+  // usuario: el mapa seguía recortado). mapbox-gl-leaflet calcula el tamaño de su canvas UNA sola vez y no
+  // se reajusta solo ante cambios posteriores, así que en vez de adivinar un tiempo de espera mayor, se
+  // observa el tamaño real de #presMapCanvas con ResizeObserver y se corrige cada vez que cambia (cubre
+  // también un eventual reajuste de layout al imprimir).
+  if(typeof ResizeObserver!=="undefined"){
+    presMapResizeObserver=new ResizeObserver(()=>{
+      if(!presMapInstance) return;
+      presMapInstance.invalidateSize();
+      if(presMapGLLayerRef){
+        const el=presMapGLLayerRef.getContainer && presMapGLLayerRef.getContainer();
+        if(el){ el.style.width=canvas.clientWidth+"px"; el.style.height=canvas.clientHeight+"px"; el.style.left="0px"; el.style.top="0px"; }
+        if(presMapGLInstance) try{ presMapGLInstance.resize(); }catch(e){}
+      }
+    });
+    presMapResizeObserver.observe(canvas);
+  }
 }
 /* ==== Layout (spec sheet 1 página por propiedad) — v3.41.0 ====
    Nueva opción del deck de Propiedades, entre "Tabla" y "Cierre": a diferencia de "Tabla" (hasta 6
@@ -9512,9 +9533,10 @@ function renderPresentationView(){
   // contenedor, buscan .deck-page globalmente).
   document.getElementById("landPresPages").innerHTML="";
   document.getElementById("officePresPages").innerHTML="";
+  if(presMapResizeObserver){ try{ presMapResizeObserver.disconnect(); }catch(e){} presMapResizeObserver=null; }
   if(presMapInstance){
     if(presMapGLInstance) try{ presMapGLInstance.remove(); }catch(e){}
-    presMapGLInstance=null;
+    presMapGLInstance=null; presMapGLLayerRef=null;
     presMapInstance.remove(); presMapInstance=null;
   }
   presLayoutMapInstances.forEach(m=>{ try{ m.remove(); }catch(e){} }); presLayoutMapInstances=[];

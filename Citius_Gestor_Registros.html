@@ -1334,7 +1334,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v5.2.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v5.3.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -3512,6 +3512,12 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"5.3.0", date:"2026-09-01", items:[
+    "New: Buildings, Parks, Land, and Offices now carry a hidden Region/State/Market/Submarket ID (matched against the Location catalog) so records can be reliably related in the BI — names alone weren't unique. Filled in automatically when those fields are selected; a new \"Fill in Location IDs…\" button in Configuration > Files backfills existing records in one pass (doesn't affect Last Modified).",
+    "Fixed: an ID typed in a different case (e.g. \"A001\" vs \"a001\") was treated as a different Mapping Code/ID Park/ID Land/Space Code, letting real duplicates slip through.",
+    "Transactions: \"Transaction Area\" is now always saved as a negative number when \"Absorption Type\" = \"Negative\", regardless of how it was typed — so \"Net Absorption\" in Summary actually subtracts instead of accidentally adding.",
+    "Fixed: the new hidden Location ID fields were showing up in the read-only record view for Buildings/Parks/Land/Offices (they were already correctly hidden in edit mode)."
+  ]},
   {version:"5.2.0", date:"2026-08-31", items:[
     "Map: new \"Send to Presentation\" action after selecting Buildings or Land with the lasso/polygon/radius tools — only shown when that layer is the only one active (never ambiguous about which presentation it's for), replaces whatever was previously selected for that presentation (asks for confirmation first), and jumps straight to the corresponding deck.",
     "Map: filtering, and navigating back to the Map from another view, no longer resets the zoom/position.",

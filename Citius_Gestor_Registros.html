@@ -9271,6 +9271,7 @@ function buildMapPageHtml(list, logoSrc){
     <div class="map-page-badge"><img src="${logoSrc}"><h2>Location Map</h2></div>
     <div class="map-page-attribution">&copy; Mapbox &copy; OpenStreetMap</div>
     ${missing?`<p class="deck-note">*${missing} propiedad(es) sin latitud/longitud capturada no se muestran en el mapa.</p>`:""}
+    <div id="presMapDebug" style="position:absolute;top:4px;right:4px;z-index:99999;background:#fff;border:2px solid red;padding:4px 8px;font-size:11px;white-space:pre;font-family:monospace;max-width:340px"></div>
   </div>`;
 }
 function declutterMapPins(map, markerData){
@@ -9307,6 +9308,23 @@ function renderPresMap(list){
   }
   const canvas=document.getElementById("presMapCanvas");
   if(!canvas) return;
+  const presMapDebugLog=function(tag){ // TEMPORAL — quitar cuando se resuelva el bug de tamaño
+    try{
+      const dbg=document.getElementById("presMapDebug");
+      if(!dbg) return;
+      const rect=canvas.getBoundingClientRect();
+      let glLine="glContainer: (ninguno aún)";
+      if(presMapGLLayerRef){
+        const el=presMapGLLayerRef.getContainer && presMapGLLayerRef.getContainer();
+        if(el){
+          const r2=el.getBoundingClientRect();
+          glLine=`glContainer style: ${el.style.width}x${el.style.height} | rect: ${Math.round(r2.width)}x${Math.round(r2.height)} @(${Math.round(r2.left-rect.left)},${Math.round(r2.top-rect.top)})`;
+        }
+      }
+      const line=`[${tag}] canvas.client: ${canvas.clientWidth}x${canvas.clientHeight} | canvas.rect: ${Math.round(rect.width)}x${Math.round(rect.height)} | leaflet.getSize: ${presMapInstance?JSON.stringify(presMapInstance.getSize()):"?"}\n${glLine}`;
+      dbg.innerText = (dbg.innerText? dbg.innerText+"\n---\n":"") + line;
+    }catch(e){ }
+  };
   const pts=[];
   list.forEach((rec,i)=>{
     const lat=Number(rec.LATITUDE), lng=Number(rec.LONGITUDE);
@@ -9314,6 +9332,7 @@ function renderPresMap(list){
     pts.push({lat,lng,num:i+1,rec});
   });
   presMapInstance=L.map(canvas,{zoomControl:false,attributionControl:false,zoomSnap:0.25,zoomDelta:0.25,wheelPxPerZoomLevel:200});
+  presMapDebugLog("map creado");
   const markerData=[];
   pts.forEach(p=>{
     const mapsUrl=`https://www.google.com/maps?q=${encodeURIComponent(p.lat)},${encodeURIComponent(p.lng)}`;
@@ -9351,6 +9370,7 @@ function renderPresMap(list){
     presMapGLInstance=presMapGLLayerRef.getMapboxMap();
     wireMapboxStandardConfig(presMapGLInstance);
     declutterMapPins(presMapInstance, markerData);
+    presMapDebugLog("tras invalidateSize+fitBounds+GL");
   },50);
   // El fix de arriba (crear la capa tras invalidateSize) no bastó en la práctica — el contenedor de la
   // página de Presentación puede seguir asentando su tamaño real después de esos 50ms (reportado por el
@@ -9367,6 +9387,7 @@ function renderPresMap(list){
         if(el){ el.style.width=canvas.clientWidth+"px"; el.style.height=canvas.clientHeight+"px"; el.style.left="0px"; el.style.top="0px"; }
         if(presMapGLInstance) try{ presMapGLInstance.resize(); }catch(e){}
       }
+      presMapDebugLog("resizeObserver");
     });
     presMapResizeObserver.observe(canvas);
   }

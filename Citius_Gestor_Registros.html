@@ -9944,6 +9944,14 @@ document.getElementById("saveBtn").onclick=()=>{
   // depende de que ya esté al día. Recalcularlo solo al abrir la ficha (enterEditMode/openView) no bastaría:
   // el usuario pudo cambiar Level/Floor o la Oficina enlazada DESPUÉS de abrir el formulario.
   if(current==="SPACES") recomputeSpaceCode(rec);
+  // v3.5x.x, pedido explícito del usuario: Transacciones con "Absorption Type" = "Negative" siempre guardan
+  // "Transaction Area" en negativo — sin importar si se tecleó positivo o negativo (Math.abs primero, para
+  // no terminar con doble negativo si ya venía negativo). Así "Net Absorption" (Gross + Negative, ver
+  // Resumen) resta de verdad en vez de sumar por error si alguien tecleó el valor en positivo.
+  if(current==="TRANSACCIONES" && ciEq(rec.ABSORPTION_TYPE,"Negative") && rec.TRANSACTION_AREA!==undefined && rec.TRANSACTION_AREA!==""){
+    const n=Number(rec.TRANSACTION_AREA);
+    if(!isNaN(n)) rec.TRANSACTION_AREA=-Math.abs(n);
+  }
   // IDs duplicados (MAPPING_CODE/ID_PARK/ID__LAND/SPACE_CODE) bloquean el guardado — cada registro necesita un ID
   // único, tanto entre los que ya existían como al agregar uno nuevo. `r.__id!==editingId` excluye al
   // propio registro cuando se edita sin cambiar su ID (para uno nuevo, editingId es null, así que se

@@ -9965,7 +9965,10 @@ document.getElementById("saveBtn").onclick=()=>{
       toast(`${fieldLabel(uniqueKey)} is required — can't save without it`,"err");
       return;
     }
-    if((state[current]||[]).some(r=>r.__id!==editingId && String(r[uniqueKey]||"").trim()===uniqueVal)){
+    // v3.5x.x, bug real reportado por el usuario: la comparación era sensible a mayúsculas ("A001" y "a001"
+    // se guardaban como si fueran IDs distintos) — se cambia a ciEq (mismo helper case-insensitive que usa
+    // el resto de la app, ej. resumenMarketMatches) para que el sistema los trate como el mismo ID.
+    if((state[current]||[]).some(r=>r.__id!==editingId && ciEq(r[uniqueKey],uniqueVal))){
       const el=document.querySelector(`#mBody [data-key="${uniqueKey}"]`);
       if(el){ el.classList.add("field-error"); const panel=el.closest(".form-panel"); if(panel) switchFormPanel(Number(panel.dataset.panel)); }
       toast(`Another record already has ${fieldLabel(uniqueKey)} = "${uniqueVal}" — can't save`,"err");

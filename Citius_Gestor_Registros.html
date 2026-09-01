@@ -6290,7 +6290,11 @@ function buildImageViewBlock(ent){
   return `<div class="image-blocks-grid${showTitles?" multi":""}">${blocks}</div>`;
 }
 function buildViewForm(ent, record){
-  const flds=transactionVisibleFields(ent, record, fields(ent));
+  // v3.5x.x, bug real reportado por el usuario (screenshot: aparecían REGION ID/STATE ID/MARKET ID/
+  // SUBMARKET ID en la vista de solo lectura de Location, en Oficinas/Parques/Terrenos) — el filtro de
+  // GEO_ID_FIELD_KEYS solo se había puesto en buildForm() (modo edición); buildViewForm() es una función
+  // APARTE para la vista de solo lectura (abierta con openView(), antes de tocar "Edit") y nunca la tocó.
+  const flds=transactionVisibleFields(ent, record, fields(ent)).filter(f=>!GEO_ID_FIELD_KEYS.has(f.key));
   const groups={};
   flds.forEach(f=>{ (groups[f.group]=groups[f.group]||[]).push(f); });
   const panels=[];

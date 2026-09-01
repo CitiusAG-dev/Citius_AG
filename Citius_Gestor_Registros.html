@@ -9267,7 +9267,7 @@ function buildMapPageHtml(list, logoSrc){
   return `<div class="deck-page map-page">
     <div class="map-page-canvas" id="presMapCanvas"></div>
     <div class="map-page-badge"><img src="${logoSrc}"><h2>Location Map</h2></div>
-    <div class="map-page-attribution">&copy; OpenStreetMap &copy; CARTO</div>
+    <div class="map-page-attribution">&copy; Mapbox &copy; OpenStreetMap</div>
     ${missing?`<p class="deck-note">*${missing} propiedad(es) sin latitud/longitud capturada no se muestran en el mapa.</p>`:""}
   </div>`;
 }
@@ -9311,14 +9311,6 @@ function renderPresMap(list){
     pts.push({lat,lng,num:i+1,rec});
   });
   presMapInstance=L.map(canvas,{zoomControl:false,attributionControl:false,zoomSnap:0.25,zoomDelta:0.25,wheelPxPerZoomLevel:200});
-  // v_pendiente, pedido explícito del usuario: el mapa de la Presentación de propiedades industriales usa
-  // el basemap personalizado de Mapbox en vez de CARTO voyager. preserveDrawingBuffer:true es necesario
-  // para que el canvas WebGL conserve su contenido al imprimir/exportar a PDF (sin esto, el mapa puede
-  // salir en blanco en la impresión).
-  const presMapMbCfg=MAP_BASEMAPS.find(b=>b.key==="citiusMapbox").gl;
-  const presMapGLLayer=L.mapboxGL({style:presMapMbCfg.style, accessToken:presMapMbCfg.accessToken, attribution:presMapMbCfg.attribution, preserveDrawingBuffer:true}).addTo(presMapInstance);
-  presMapGLInstance=presMapGLLayer.getMapboxMap();
-  wireMapboxStandardConfig(presMapGLInstance);
   const markerData=[];
   pts.forEach(p=>{
     const mapsUrl=`https://www.google.com/maps?q=${encodeURIComponent(p.lat)},${encodeURIComponent(p.lng)}`;
@@ -9344,6 +9336,17 @@ function renderPresMap(list){
     } else {
       presMapInstance.setView([25.5,-100.9], 11, {animate:false});
     }
+    // v_pendiente, pedido explícito del usuario: el mapa de la Presentación de propiedades industriales
+    // usa el basemap personalizado de Mapbox en vez de CARTO voyager. preserveDrawingBuffer:true es
+    // necesario para que el canvas WebGL conserve su contenido al imprimir/exportar a PDF (sin esto, el
+    // mapa puede salir en blanco en la impresión). La capa se crea AQUÍ (tras invalidateSize/fitBounds, no
+    // justo al crear el mapa) porque mapbox-gl-leaflet calcula el tamaño de su canvas una sola vez, en el
+    // instante en que se agrega — si el contenedor todavía no tenía su tamaño/vista final, el mapa queda
+    // recortado y los pines se desalinean (bug real detectado por el usuario).
+    const presMapMbCfg=MAP_BASEMAPS.find(b=>b.key==="citiusMapbox").gl;
+    const presMapGLLayer=L.mapboxGL({style:presMapMbCfg.style, accessToken:presMapMbCfg.accessToken, attribution:presMapMbCfg.attribution, preserveDrawingBuffer:true}).addTo(presMapInstance);
+    presMapGLInstance=presMapGLLayer.getMapboxMap();
+    wireMapboxStandardConfig(presMapGLInstance);
     declutterMapPins(presMapInstance, markerData);
   },50);
 }

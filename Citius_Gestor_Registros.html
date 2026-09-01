@@ -6865,10 +6865,28 @@ let currentBasemapGL=null; // capa mapbox-gl-leaflet activa (basemap tipo `gl`),
 function setMapBasemap(key){
   currentBasemapLayers.forEach(l=>allPolyMap.removeLayer(l));
   currentBasemapLayers=[];
-  if(currentBasemapGL){ allPolyMap.removeLayer(currentBasemapGL); currentBasemapGL=null; }
+  if(currentBasemapGL){
+    const oldGL=currentBasemapGL.getMapboxMap && currentBasemapGL.getMapboxMap();
+    allPolyMap.removeLayer(currentBasemapGL);
+    if(oldGL) try{ oldGL.remove(); }catch(e){} // liberar el contexto WebGL anterior (evita acumular contextos al alternar basemaps)
+    currentBasemapGL=null;
+  }
   const cfg=MAP_BASEMAPS.find(b=>b.key===key) || MAP_BASEMAPS[0];
   if(cfg.gl){
     currentBasemapGL=L.mapboxGL({style:cfg.gl.style, accessToken:cfg.gl.accessToken, attribution:cfg.gl.attribution}).addTo(allPolyMap);
+    /* Mapbox GL JS NO aplica automáticamente el "config" guardado de un estilo Standard (colores/tema
+       personalizados en Studio, dentro de imports[].config) al cargar el estilo por URL — solo lo trae
+       como dato disponible; hay que reinyectarlo explícitamente vía setConfigProperty tras el load
+       (confirmado con pruebas manuales — sin esto se ve el Standard genérico, no el diseño del usuario).
+       Se lee dinámicamente del propio estilo (no hardcodeado) para que futuros ajustes en Mapbox Studio
+       se reflejen solos, sin tocar código. */
+    const glMap=currentBasemapGL.getMapboxMap();
+    if(glMap) glMap.once("style.load", function(){
+      (glMap.getStyle().imports||[]).forEach(function(imp){
+        if(!imp.config) return;
+        Object.keys(imp.config).forEach(function(k){ try{ glMap.setConfigProperty(imp.id, k, imp.config[k]); }catch(e){} });
+      });
+    });
   }else{
     currentBasemapLayers=cfg.layers.map(l=>L.tileLayer(l.url,{maxZoom:19, attribution:l.attribution, subdomains:l.subdomains||"abc"}).addTo(allPolyMap));
   }

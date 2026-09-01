@@ -6862,6 +6862,24 @@ function loadMapBasemapPref(){
 }
 function saveMapBasemapPrefLocal(){ try{ localStorage.setItem(MAP_BASEMAP_PREF_KEY, JSON.stringify(mapBasemapPref)); }catch(e){} }
 let mapBasemapPref=loadMapBasemapPref();
+/* Mapbox GL JS no aplica automáticamente el "config" guardado de un estilo Standard (colores/tema
+   personalizados en Studio, dentro de imports[].config) al cargar el estilo por URL — solo lo trae como
+   dato disponible; hay que reinyectarlo explícitamente vía setConfigProperty. Se reintenta en varios
+   eventos del ciclo de carga (confirmado necesario en pruebas manuales) y se lee dinámicamente del propio
+   estilo (no hardcodeado) para que futuros ajustes en Mapbox Studio se reflejen solos. Usada tanto por el
+   basemap del Mapa (setMapBasemap) como por el mapa de la Presentación (renderPresMap). */
+function wireMapboxStandardConfig(glMap){
+  if(!glMap) return;
+  const apply=function(){
+    (glMap.getStyle().imports||[]).forEach(function(imp){
+      if(!imp.config) return;
+      Object.keys(imp.config).forEach(function(k){ try{ glMap.setConfigProperty(imp.id, k, imp.config[k]); }catch(e){} });
+    });
+  };
+  glMap.on("style.load", apply);
+  glMap.once("load", apply);
+  glMap.once("idle", apply);
+}
 let currentBasemapLayers=[];
 let currentBasemapGL=null; // capa mapbox-gl-leaflet activa (basemap tipo `gl`), separada de currentBasemapLayers
 function setMapBasemap(key){
@@ -6876,23 +6894,7 @@ function setMapBasemap(key){
   const cfg=MAP_BASEMAPS.find(b=>b.key===key) || MAP_BASEMAPS[0];
   if(cfg.gl){
     currentBasemapGL=L.mapboxGL({style:cfg.gl.style, accessToken:cfg.gl.accessToken, attribution:cfg.gl.attribution}).addTo(allPolyMap);
-    /* Mapbox GL JS no aplica automáticamente el "config" guardado de un estilo Standard (colores/tema
-       personalizados en Studio, dentro de imports[].config) al cargar el estilo por URL — solo lo trae
-       como dato disponible; hay que reinyectarlo explícitamente vía setConfigProperty. Se reintenta en
-       varios eventos del ciclo de carga (confirmado necesario en pruebas manuales) y se lee dinámicamente
-       del propio estilo (no hardcodeado) para que futuros ajustes en Mapbox Studio se reflejen solos. */
-    const glMap=currentBasemapGL.getMapboxMap();
-    if(glMap){
-      const applyStandardConfig=function(){
-        (glMap.getStyle().imports||[]).forEach(function(imp){
-          if(!imp.config) return;
-          Object.keys(imp.config).forEach(function(k){ try{ glMap.setConfigProperty(imp.id, k, imp.config[k]); }catch(e){} });
-        });
-      };
-      glMap.on("style.load", applyStandardConfig);
-      glMap.once("load", applyStandardConfig);
-      glMap.once("idle", applyStandardConfig);
-    }
+    wireMapboxStandardConfig(currentBasemapGL.getMapboxMap());
   }else{
     currentBasemapLayers=cfg.layers.map(l=>L.tileLayer(l.url,{maxZoom:19, attribution:l.attribution, subdomains:l.subdomains||"abc"}).addTo(allPolyMap));
   }
@@ -9239,6 +9241,7 @@ function toggleCoverEditBroker(v, checked){
 }
 document.getElementById("presCoverEditBtn").onclick=toggleCoverEditPanel;
 let presMapInstance=null;
+let presMapGLInstance=null; // mapa Mapbox GL subyacente del mapa de Presentación (para liberar el contexto WebGL al re-renderizar, ver renderPresMap)
 function buildCoverPageHtml(){
   const monthYear=(presCoverInfo.monthYear||"").trim();
   const m2=(presCoverInfo.m2||"").trim();
@@ -9294,7 +9297,11 @@ function declutterMapPins(map, markerData){
   }
 }
 function renderPresMap(list){
-  if(presMapInstance){ presMapInstance.remove(); presMapInstance=null; }
+  if(presMapInstance){
+    if(presMapGLInstance) try{ presMapGLInstance.remove(); }catch(e){}
+    presMapGLInstance=null;
+    presMapInstance.remove(); presMapInstance=null;
+  }
   const canvas=document.getElementById("presMapCanvas");
   if(!canvas) return;
   const pts=[];
@@ -9304,9 +9311,14 @@ function renderPresMap(list){
     pts.push({lat,lng,num:i+1,rec});
   });
   presMapInstance=L.map(canvas,{zoomControl:false,attributionControl:false,zoomSnap:0.25,zoomDelta:0.25,wheelPxPerZoomLevel:200});
-  L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=${CARTO_API_KEY}`,{
-    maxZoom:16, subdomains:'abcd'
-  }).addTo(presMapInstance);
+  // v_pendiente, pedido explícito del usuario: el mapa de la Presentación de propiedades industriales usa
+  // el basemap personalizado de Mapbox en vez de CARTO voyager. preserveDrawingBuffer:true es necesario
+  // para que el canvas WebGL conserve su contenido al imprimir/exportar a PDF (sin esto, el mapa puede
+  // salir en blanco en la impresión).
+  const presMapMbCfg=MAP_BASEMAPS.find(b=>b.key==="citiusMapbox").gl;
+  const presMapGLLayer=L.mapboxGL({style:presMapMbCfg.style, accessToken:presMapMbCfg.accessToken, attribution:presMapMbCfg.attribution, preserveDrawingBuffer:true}).addTo(presMapInstance);
+  presMapGLInstance=presMapGLLayer.getMapboxMap();
+  wireMapboxStandardConfig(presMapGLInstance);
   const markerData=[];
   pts.forEach(p=>{
     const mapsUrl=`https://www.google.com/maps?q=${encodeURIComponent(p.lat)},${encodeURIComponent(p.lng)}`;
@@ -9497,7 +9509,11 @@ function renderPresentationView(){
   // contenedor, buscan .deck-page globalmente).
   document.getElementById("landPresPages").innerHTML="";
   document.getElementById("officePresPages").innerHTML="";
-  if(presMapInstance){ presMapInstance.remove(); presMapInstance=null; }
+  if(presMapInstance){
+    if(presMapGLInstance) try{ presMapGLInstance.remove(); }catch(e){}
+    presMapGLInstance=null;
+    presMapInstance.remove(); presMapInstance=null;
+  }
   presLayoutMapInstances.forEach(m=>{ try{ m.remove(); }catch(e){} }); presLayoutMapInstances=[];
   if(!list.length){
     pagesEl.innerHTML=`<div class="filters-empty">You haven't marked any properties for the presentation yet.<br>Open a Buildings record and turn on "Use in presentation".</div>`;

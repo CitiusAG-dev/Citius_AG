@@ -1341,7 +1341,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v5.3.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v5.4.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -3522,6 +3522,9 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"5.4.0", date:"2026-09-02", items:[
+    "Map: new \"Citius (Mapbox)\" option in the View selector — the company's custom Mapbox Studio style (colors, theme, municipal boundaries), rendered live via Mapbox GL JS alongside the existing Esri/CARTO basemaps."
+  ]},
   {version:"5.3.0", date:"2026-09-01", items:[
     "New: Buildings, Parks, Land, and Offices now carry a hidden Region/State/Market/Submarket ID (matched against the Location catalog) so records can be reliably related in the BI — names alone weren't unique. Filled in automatically when those fields are selected; a new \"Fill in Location IDs…\" button in Configuration > Files backfills existing records in one pass (doesn't affect Last Modified).",
     "Fixed: an ID typed in a different case (e.g. \"A001\" vs \"a001\") was treated as a different Mapping Code/ID Park/ID Land/Space Code, letting real duplicates slip through.",

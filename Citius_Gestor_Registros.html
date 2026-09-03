@@ -1341,7 +1341,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v5.5.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v6.0.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -3577,6 +3577,10 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"6.0.0", date:"2026-09-04", items:[
+    "New module: \"Pres. Log\" (last item in the menu, after Presentation) — every time you print/export a Properties, Land, or Offices presentation, a confirmation dialog asks you to accept before opening the print/PDF window; on accept, a new read-only entry is logged with date & time, Company/Project, Presentation Type, Properties Count, Size, Markets, and Brokers. Entries can be deleted (e.g. printed by mistake) but not created/edited by hand. Has its own sheet in the Excel file.",
+    "Offices presentation: \"Cover data\" gained Size, Markets, and Brokers (it only had Client/Date before) — needed so Pres. Log has that information for Offices too."
+  ]},
   {version:"5.5.0", date:"2026-09-03", items:[
     "Offices: \"Gen. Facilities\" trimmed down to Access Control, CCTV, Amenities, Fire Protection, and Telecom; added Installed Capacity Transformer KVA (required), No. Elevators, No. VIP Elevators, Elevator Type, Service Elevator, No. Emergency Stairs, Warehouses, Emergency Generator, and HVAC Systems (free text for now).",
     "Offices: \"Parking\" gained % Assigned Spots, No. Underground Levels, No. Above-Grade Levels, Maintenance Spot Price, Additional Spot Price, and a new Additional Spot Price (Covered) for a separate covered-spot rate — the last 2 moved over from Spaces.",

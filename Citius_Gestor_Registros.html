@@ -214,6 +214,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   table.resumen-table tbody tr:last-child td{border-bottom:none}
   table.resumen-table td.num-cell{text-align:right;font-variant-numeric:tabular-nums}
   table.resumen-table tr.resumen-total-row{font-weight:700;background:rgba(240,179,35,.08)}
+  /* Tabla "Proposed in Presentations" (pestaña Listing) — mismo shell que .resumen-table, pero header gris
+     (no el amarillo/acento de Resumen) y más chico, pedido explícito del usuario. */
+  table.listing-history-table thead th{background:var(--panel-2);color:var(--muted);font-weight:600;
+    text-transform:none;font-size:10.5px;letter-spacing:0;border-right-color:var(--line)}
   .fieldconfig-panel{padding:28px;overflow-y:auto;flex:1;min-height:0;display:flex;flex-direction:column}
   .fieldconfig-panel h4{margin:0 0 6px;font-size:15px;color:var(--txt)}
   .fieldconfig-panel > .map-hint{margin-bottom:0}
@@ -1896,7 +1900,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   <div class="modal" style="max-width:440px">
     <div class="modal-head"><h3>Print presentation</h3><button class="x" onclick="closePrintConfirmModal()">&times;</button></div>
     <div class="modal-body">
-      <p>Clicking "Accept" will log this presentation in the Pres. Log and then open the print/PDF window.</p>
+      <p>Clicking "Accept" will log this presentation in the Pres. Log (also counting any Citius AG Listing properties included) and then open the print/PDF window.</p>
     </div>
     <div class="modal-foot">
       <button class="btn ghost" onclick="closePrintConfirmModal()">Cancel</button>
@@ -6094,10 +6098,10 @@ function listingPresentationHistoryHtml(ent, record){
     return arr.some(x=>x.ent===ent && x.id===record.__id);
   });
   const rowsHtml = matches.length
-    ? matches.map(b=>`<tr><td>${dateTimeOrDashHtml(b.GENERATED_AT)}</td><td>${escapeHtml(b.COMPANY_PROJECT||"")}</td><td>${escapeHtml(b.PRESENTATION_TYPE||"")}</td></tr>`).join("")
-    : `<tr><td colspan="3" class="col-add-empty">Not proposed in any presentation yet.</td></tr>`;
+    ? matches.map(b=>`<tr><td>${dateTimeOrDashHtml(b.GENERATED_AT)}</td><td>${escapeHtml(b.COMPANY_PROJECT||"")}</td><td>${escapeHtml(b.PRESENTATION_TYPE||"")}</td><td>${escapeHtml(b.BROKERS||"")}</td><td>${escapeHtml(b.SIZE||"")}</td></tr>`).join("")
+    : `<tr><td colspan="5" class="col-add-empty">Not proposed in any presentation yet.</td></tr>`;
   return `<h5 style="margin:20px 0 8px">Proposed in Presentations (${matches.length})</h5>
-    <div class="resumen-scroll"><table class="resumen-table"><thead><tr><th>Date</th><th>Company/Project</th><th>Type</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
+    <div class="resumen-scroll"><table class="resumen-table listing-history-table"><thead><tr><th>Date</th><th>Company/Project</th><th>Type</th><th>Broker</th><th>Size</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
 }
 function buildForm(ent, record){
   const flds=transactionVisibleFields(ent, record, fields(ent)), sugg=suggestions(ent);

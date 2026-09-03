@@ -1896,7 +1896,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   <div class="modal" style="max-width:440px">
     <div class="modal-head"><h3>Print presentation</h3><button class="x" onclick="closePrintConfirmModal()">&times;</button></div>
     <div class="modal-body">
-      <p>Clicking "Accept" will log this presentation in the Presentation Log (date & time, company/project, size, markets, brokers, and how many properties were proposed) and then open the print/PDF window.</p>
+      <p>Clicking "Accept" will log this presentation in the Pres. Log and then open the print/PDF window.</p>
     </div>
     <div class="modal-foot">
       <button class="btn ghost" onclick="closePrintConfirmModal()">Cancel</button>
@@ -1990,7 +1990,7 @@ const ENTITIES = {
      al final de ENTITIES a propósito: el orden de ENTITIES es el orden real del sidebar (ver comentario de
      TRANSACCIONES arriba), y Map/Presentation se agregan APARTE después del loop de ENTITIES — así queda
      Transactions → Bitácora → Map → Presentation. */
-  BITACORA:    { label:"Presentation Log", listCols:["GENERATED_AT","COMPANY_PROJECT","PRESENTATION_TYPE","PROPERTIES_COUNT","SIZE","MARKETS","BROKERS"], titleField:"COMPANY_PROJECT", statusField:null }
+  BITACORA:    { label:"Pres. Log", listCols:["GENERATED_AT","COMPANY_PROJECT","PRESENTATION_TYPE","PROPERTIES_COUNT","SIZE","MARKETS","BROKERS"], titleField:"COMPANY_PROJECT", statusField:null }
 };
 const STORE_KEY = "citius_mi_records_v1";
 
@@ -3368,6 +3368,12 @@ presTabBtn.dataset.k="__PRES__";
    usaba el botón de Configuración (toggleConfigMenu) para sus 3 secciones. Ver togglePresentationMenu. */
 presTabBtn.onclick=togglePresentationMenu;
 tabsEl.appendChild(presTabBtn);
+/* Presentation Log (Bitácora): pedido explícito del usuario, va AL FINAL del menú, después de Presentation
+   — no solo "arriba" de ella. Como es una entidad más de ENTITIES (para heredar la tabla genérica), su
+   botón ya se creó dentro del loop de arriba (antes de Map/Presentation); se reubica aquí moviéndolo al
+   final de `tabsEl` (appendChild sobre un nodo ya existente en el DOM lo MUEVE, no lo duplica). */
+const bitacoraTabBtn=tabsEl.querySelector('[data-k="BITACORA"]');
+if(bitacoraTabBtn) tabsEl.appendChild(bitacoraTabBtn);
 let mapViewActive=false;
 let presentationViewActive=false;
 let landPresentationViewActive=false; // Presentación de Terrenos (v3.36.0) — deck separado, ver showLandPresentationView
@@ -8796,7 +8802,7 @@ function toggleOfficeCoverEditPanel(evt){
     <div class="field"><label>Markets</label><input type="text" id="officeCoverEditMarkets" placeholder="Monterrey, Saltillo" value="${escapeAttr(officePresCoverInfo.markets||"")}"></div>
     <p class="map-hint" style="margin:2px 0 10px">Markets are shown as a list, separated by commas.</p>
     <div class="columns-panel-divider"></div>
-    <p class="map-hint" style="margin:0 0 8px">Size/Markets/Brokers are not shown on the cover — captured for the Presentation Log.</p>
+    <p class="map-hint" style="margin:0 0 8px">Size/Markets/Brokers are not shown on the cover — captured for the Pres. Log.</p>
     <div class="field"><label>Brokers ("BROKERS_CAG" list)</label></div>
     <div class="cover-edit-checklist" id="officeCoverEditBrokersList"></div>`;
   document.body.appendChild(el);
@@ -10038,7 +10044,7 @@ function enterEditMode(rec){
 }
 function openAdd(){
   if(blockIfConsolidated()) return;
-  if(current==="BITACORA"){ toast("Presentation Log entries are created automatically when you print a presentation.","err"); return; }
+  if(current==="BITACORA"){ toast("Pres. Log entries are created automatically when you print a presentation.","err"); return; }
   editingId=null;
   enterEditMode(null);
   document.getElementById("overlay").classList.add("show");

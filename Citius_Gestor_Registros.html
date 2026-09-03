@@ -1345,7 +1345,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v6.1.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v6.2.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -3579,6 +3579,10 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"6.2.0", date:"2026-09-04", items:[
+    "Buildings, Parks, and Land: the \"Listing\" tab now shows a \"Proposed in Presentations\" table — every time a Properties or Land presentation is printed, any included record with Citius AG Listing = Yes is logged automatically (Date, Company/Project, Type, Broker, Size). Read-only, builds itself from Pres. Log.",
+    "The print confirmation dialog now also mentions that Citius AG Listing properties get counted."
+  ]},
   {version:"6.1.0", date:"2026-09-04", items:[
     "Buildings, Parks, and Land: new \"Listing\" section (right before Photos) — Listing Broker moved there where it already existed (Buildings/Parks); added Citius AG Listing (Yes/No), Listing Start Date, and Listing End Date to all 3."
   ]},

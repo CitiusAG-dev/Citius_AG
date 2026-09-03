@@ -1341,7 +1341,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v5.4.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v5.5.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -3542,6 +3542,14 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"5.5.0", date:"2026-09-03", items:[
+    "Offices: \"Gen. Facilities\" trimmed down to Access Control, CCTV, Amenities, Fire Protection, and Telecom; added Installed Capacity Transformer KVA (required), No. Elevators, No. VIP Elevators, Elevator Type, Service Elevator, No. Emergency Stairs, Warehouses, Emergency Generator, and HVAC Systems (free text for now).",
+    "Offices: \"Parking\" gained % Assigned Spots, No. Underground Levels, No. Above-Grade Levels, Maintenance Spot Price, Additional Spot Price, and a new Additional Spot Price (Covered) for a separate covered-spot rate — the last 2 moved over from Spaces.",
+    "Offices: new \"Comm. Conditions\" section with Common Area Maintenance (CAM).",
+    "Map: opening \"Place on map\" or \"Draw polygon\" now shows a Satellite/Light streets selector next to the title (always starts on Satellite) — applies to Properties, Parks, Land, and Offices.",
+    "Spaces: added a Notes field; removed the entire \"Gen. Facilities\" section and \"Available Area\" (not needed); Maintenance Spot Price and Additional Spot Price moved to Offices > Parking.",
+    "Spaces: CAM and Parking Ratio now prefill from the linked Office the moment you pick it (\"Select Office…\"), but stay independently editable afterward — unlike Property Name/Market Status/Region/State/Market/Submarket, they no longer update if the Office's own value changes later."
+  ]},
   {version:"5.4.0", date:"2026-09-02", items:[
     "Map: new \"Citius (Mapbox)\" option in the View selector — the company's custom Mapbox Studio style (colors, theme, municipal boundaries), rendered live via Mapbox GL JS alongside the existing Esri/CARTO basemaps."
   ]},

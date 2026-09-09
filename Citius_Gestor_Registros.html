@@ -848,6 +848,21 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      layout") — antes tenía `border:1px solid #e3e6eb`. */
   .layout-plan{width:100%;aspect-ratio:1050/430;background:#fff;overflow:hidden;display:flex;align-items:center;justify-content:center}
   .layout-plan img{width:100%;height:100%;object-fit:contain;display:block}
+  /* ==== Galería (grid de 4 fotos, 1 página/propiedad) ====
+     Pedido explícito del usuario: página intercalada justo después de cada página de Layout (misma
+     propiedad), reusando el header/número de opción de Layout (.layout-header/.layout-num, sin duplicar
+     esas clases) — solo el cuerpo cambia: 4 fotos en cuadrícula 2x2 en vez de tabla+mapa+plano.
+     Cuadrante confirmado con el usuario vía AskUserQuestion: arriba-izq Fachada, arriba-der Exterior,
+     abajo-izq Interior, abajo-der Docks. aspect-ratio:600/405 en cada celda iguala el recorte real con el
+     que se guardan estas 4 fotos (PHOTO_TARGET_W/H, ver processImageToCoverCrop) — object-fit:cover llena
+     el recuadro exacto sin distorsión. z-index:0 explícito por el mismo motivo que .layout-photo/
+     .layout-aerial (aunque aquí no haya ningún mapa Leaflet, se deja el mismo patrón por consistencia). */
+  .deck-page.galeria-page{position:relative}
+  .galeria-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px}
+  .galeria-photo{aspect-ratio:600/405;background:#eee;overflow:hidden;position:relative;z-index:0}
+  .galeria-photo img{width:100%;height:100%;object-fit:cover;display:block}
+  .galeria-photo .image-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;
+    font-size:11px;color:#6b7480;text-align:center;padding:6px;box-sizing:border-box}
   @media print{
     body{background:#fff}
     body *{visibility:hidden}
@@ -1405,6 +1420,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
             <label><input type="checkbox" id="presShowTable"> Table</label>
             <label><input type="checkbox" id="presShowList"> List</label>
             <label><input type="checkbox" id="presShowLayout"> Layout</label>
+            <label><input type="checkbox" id="presShowGaleria"> Gallery</label>
             <label><input type="checkbox" id="presShowClosing"> Closing</label>
           </div>
         </div>
@@ -8359,7 +8375,7 @@ function revokeAllDeckPhotoUrls(){
   deckPhotoUrls.clear();
 }
 const PRES_SHOW_KEY="citius_pres_show_v1";
-function loadPresShowState(){ try{ const s=localStorage.getItem(PRES_SHOW_KEY); if(s) return JSON.parse(s); }catch(e){} return {cover:true, map:false, table:true, list:false, layout:false, closing:true}; }
+function loadPresShowState(){ try{ const s=localStorage.getItem(PRES_SHOW_KEY); if(s) return JSON.parse(s); }catch(e){} return {cover:true, map:false, table:true, list:false, layout:false, galeria:false, closing:true}; }
 function savePresShowState(){ try{ localStorage.setItem(PRES_SHOW_KEY, JSON.stringify(presShowState)); }catch(e){} }
 let presShowState=loadPresShowState();
 
@@ -9337,7 +9353,7 @@ function doOfficePresPrint(){
   window.print();
   document.title=originalTitle;
   pagesEl.style.zoom="";
-  document.querySelectorAll(".deck-page.cover-page,.deck-page.map-page,.deck-page.layout-page,.deck-page.list-page").forEach(p=>{ p.style.height=""; p.style.width=""; });
+  document.querySelectorAll(".deck-page.cover-page,.deck-page.map-page,.deck-page.layout-page,.deck-page.list-page,.deck-page.galeria-page").forEach(p=>{ p.style.height=""; p.style.width=""; });
   document.body.classList.remove("printing-deck");
 }
 document.getElementById("officePresPrintBtn").onclick=()=>{
@@ -9650,6 +9666,32 @@ function buildLayoutPageHtml(rec,idx,logoSrc){
     <div class="layout-plan" id="layoutPlan_${idx}"><div class="image-placeholder">No photo</div></div>
   </div>`;
 }
+/* ==== Galería: 1 página/propiedad, 4 fotos en cuadrícula 2x2 (pedido explícito del usuario) ====
+   Se intercala justo después de la página de Layout de la MISMA propiedad (ver renderPresentationView()) —
+   reusa el header/número de opción de Layout tal cual (.layout-header/.layout-title/.layout-subtitle/
+   .layout-num, sin duplicar esas clases ni su CSS). Cuadrante confirmado con el usuario: arriba-izq
+   Fachada, arriba-der Exterior, abajo-izq Interior, abajo-der Docks — las 4 casillas se dejan vacías
+   (placeholder "No photo") si esa propiedad no tiene esa foto en particular, nunca bloquea la página
+   entera. Mismo tratamiento de modo Confidencial que Layout (Developer -> "Private"). */
+function buildGaleriaPageHtml(rec,idx,logoSrc){
+  const developerText=presConfidential?"Private":(rec.DEVELOPER||"");
+  return `<div class="deck-page galeria-page">
+    <div class="layout-header">
+      <img class="deck-logo" src="${logoSrc}">
+      <div class="layout-header-text">
+        <div class="layout-title">${escapeHtml(rec.PROPERTY_NAME||"")}</div>
+        <div class="layout-subtitle">${escapeHtml(developerText)}</div>
+      </div>
+    </div>
+    <div class="layout-num">${idx+1}</div>
+    <div class="galeria-grid">
+      <div class="galeria-photo" id="galeriaPhoto_${idx}_FACHADA"><div class="image-placeholder">No photo</div></div>
+      <div class="galeria-photo" id="galeriaPhoto_${idx}_EXT"><div class="image-placeholder">No photo</div></div>
+      <div class="galeria-photo" id="galeriaPhoto_${idx}_INT"><div class="image-placeholder">No photo</div></div>
+      <div class="galeria-photo" id="galeriaPhoto_${idx}_DOCKS"><div class="image-placeholder">No photo</div></div>
+    </div>
+  </div>`;
+}
 /* 1 instancia de Leaflet POR propiedad con Layout activo (a diferencia de presMapInstance/
    landPresMapInstance, una sola instancia compartida entre todas) — cada página necesita su propio
    zoom/centro alrededor de esa única propiedad, ningún canvas se comparte. Se destruyen todas y se
@@ -9727,8 +9769,8 @@ function renderPresentationView(){
     pagesEl.innerHTML=`<div class="filters-empty">You haven't marked any properties for the presentation yet.<br>Open a Buildings record and turn on "Use in presentation".</div>`;
     return;
   }
-  if(!presShowState.cover && !presShowState.map && !presShowState.table && !presShowState.list && !presShowState.layout && !presShowState.closing){
-    pagesEl.innerHTML=`<div class="filters-empty">Check "Cover", "Map", "Table", "List", "Layout", and/or "Closing" above to see the presentation.</div>`;
+  if(!presShowState.cover && !presShowState.map && !presShowState.table && !presShowState.list && !presShowState.layout && !presShowState.galeria && !presShowState.closing){
+    pagesEl.innerHTML=`<div class="filters-empty">Check "Cover", "Map", "Table", "List", "Layout", "Gallery", and/or "Closing" above to see the presentation.</div>`;
     return;
   }
   const logoSrc=DECK_LOGO_SRC;
@@ -9741,7 +9783,18 @@ function renderPresentationView(){
     html+=chunks.map((chunk,pi)=>buildDeckPageHtml(chunk,pi,logoSrc)).join("");
   }
   if(presShowState.list) html+=buildListPagesHtml(list, logoSrc);
-  if(presShowState.layout) html+=list.map((rec,i)=>buildLayoutPageHtml(rec,i,logoSrc)).join("");
+  // Layout y Galería se generan en el MISMO recorrido de list.map, por propiedad — así, cuando ambas están
+  // activas, la página de Galería de una propiedad queda intercalada justo después de su propia página de
+  // Layout (decisión confirmada con el usuario vía AskUserQuestion), en vez de todas las Layout juntas y
+  // luego todas las Galería. Cualquiera de las 2 puede estar activa sin la otra sin problema.
+  if(presShowState.layout || presShowState.galeria){
+    html+=list.map((rec,i)=>{
+      let h="";
+      if(presShowState.layout) h+=buildLayoutPageHtml(rec,i,logoSrc);
+      if(presShowState.galeria) h+=buildGaleriaPageHtml(rec,i,logoSrc);
+      return h;
+    }).join("");
+  }
   if(presShowState.closing) html+=buildClosingPageHtml();
   pagesEl.innerHTML=html;
   if(presShowState.table){
@@ -9754,6 +9807,15 @@ function renderPresentationView(){
       loadDeckPhotoInto(`layoutPlan_${i}`, rec.MAPPING_CODE?photoFileBase(rec.MAPPING_CODE,"LAYOUT"):null);
     });
     renderPresLayoutMaps(list);
+  }
+  if(presShowState.galeria){
+    list.forEach((rec,i)=>{
+      if(!rec.MAPPING_CODE) return; // sin código, ninguna de las 4 casillas tiene de dónde buscar su foto — se quedan en "No photo"
+      loadDeckPhotoInto(`galeriaPhoto_${i}_FACHADA`, photoFileBase(rec.MAPPING_CODE,"FACHADA"));
+      loadDeckPhotoInto(`galeriaPhoto_${i}_EXT`, photoFileBase(rec.MAPPING_CODE,"EXT"));
+      loadDeckPhotoInto(`galeriaPhoto_${i}_INT`, photoFileBase(rec.MAPPING_CODE,"INT"));
+      loadDeckPhotoInto(`galeriaPhoto_${i}_DOCKS`, photoFileBase(rec.MAPPING_CODE,"DOCKS"));
+    });
   }
   if(presShowState.map) renderPresMap(list);
 }
@@ -9790,16 +9852,20 @@ function preparePrintPageSize(){
   // alto que esas 2 (9.44in), sin importar cuántas filas tenga la última hoja paginada — el margen en
   // blanco que eso deja abajo es exactamente lo que se pidió (el disclaimer ya está anclado a esa zona con
   // margin-top:auto, ver .deck-page.list-page en el CSS).
-  const groupOf=p=>(p.classList.contains("cover-page")||p.classList.contains("list-page")) ? "coverPage" : p.classList.contains("map-page") ? "mapPage" : p.classList.contains("layout-page") ? "layoutPage" : "tablePage";
+  // "galeriaPage" (Galería, pedido explícito del usuario) se agregó como grupo PROPIO, mismo criterio que
+  // "layoutPage": una página de 4 fotos mide un alto muy distinto al de Layout (foto+tabla+mapa+plano), así
+  // que compartir grupo dejaría a la más chica de las 2 con margen en blanco de sobra al imprimir.
+  const groupOf=p=>(p.classList.contains("cover-page")||p.classList.contains("list-page")) ? "coverPage" : p.classList.contains("map-page") ? "mapPage" : p.classList.contains("layout-page") ? "layoutPage" : p.classList.contains("galeria-page") ? "galeriaPage" : "tablePage";
   const coverPages=pages.filter(p=>groupOf(p)==="coverPage"); // incluye .cover-page (Portada/Cierre) y .list-page
   const mapPages=pages.filter(p=>groupOf(p)==="mapPage");
   const layoutPages=pages.filter(p=>groupOf(p)==="layoutPage");
+  const galeriaPages=pages.filter(p=>groupOf(p)==="galeriaPage");
   const tablePages=pages.filter(p=>groupOf(p)==="tablePage");
-  const groupsPresent=[coverPages,mapPages,layoutPages,tablePages].filter(g=>g.length>0).length;
+  const groupsPresent=[coverPages,mapPages,layoutPages,galeriaPages,tablePages].filter(g=>g.length>0).length;
   let css="";
   let styleEl=document.getElementById("dynamicPrintPageSize");
   if(!styleEl){ styleEl=document.createElement("style"); styleEl.id="dynamicPrintPageSize"; document.head.appendChild(styleEl); }
-  document.querySelectorAll(".deck-page.cover-page,.deck-page.map-page,.deck-page.layout-page,.deck-page.list-page").forEach(p=>{ p.style.height=""; p.style.width=""; }); // por si quedó algo de una preparación anterior
+  document.querySelectorAll(".deck-page.cover-page,.deck-page.map-page,.deck-page.layout-page,.deck-page.list-page,.deck-page.galeria-page").forEach(p=>{ p.style.height=""; p.style.width=""; }); // por si quedó algo de una preparación anterior
   // Probado con TODAS las combinaciones posibles de Portada/Mapa/Tabla/Cierre activas: cuando conviven 2+
   // tipos de hoja distintos, el mecanismo de "un @page con nombre por tipo" (de aquí para abajo) funciona
   // perfecto. Pero cuando el documento tiene UN SOLO tipo de hoja de principio a fin (ej. solo Mapa activo),
@@ -9842,9 +9908,14 @@ function preparePrintPageSize(){
     css+=`@page layoutPage{size:${s.wIn}in ${s.hIn}in;margin:0} .deck-page.layout-page{page:layoutPage}\n`;
     lockSize(layoutPages, parseFloat(s.wIn)*96, parseFloat(s.hIn)*96);
   }
+  if(galeriaPages.length){
+    const s=measure(galeriaPages);
+    css+=`@page galeriaPage{size:${s.wIn}in ${s.hIn}in;margin:0} .deck-page.galeria-page{page:galeriaPage}\n`;
+    lockSize(galeriaPages, parseFloat(s.wIn)*96, parseFloat(s.hIn)*96);
+  }
   if(tablePages.length){
     const s=measure(tablePages);
-    css+=`@page tablePage{size:${s.wIn}in ${s.hIn}in;margin:0} .deck-page:not(.cover-page):not(.map-page):not(.layout-page):not(.list-page){page:tablePage}\n`;
+    css+=`@page tablePage{size:${s.wIn}in ${s.hIn}in;margin:0} .deck-page:not(.cover-page):not(.map-page):not(.layout-page):not(.list-page):not(.galeria-page){page:tablePage}\n`;
   }
   // Chrome mete una hoja en blanco de más cuando el PRIMER elemento del documento fuerza una transición de
   // página (confirmado: es un comportamiento documentado de Chrome con "page-break-before" al inicio, no de
@@ -9898,7 +9969,7 @@ function doPresPrint(){
   window.print();
   document.title=originalTitle;
   pagesEl.style.zoom="";
-  document.querySelectorAll(".deck-page.cover-page,.deck-page.map-page,.deck-page.layout-page,.deck-page.list-page").forEach(p=>{ p.style.height=""; p.style.width=""; }); // deshace el tamaño fijo puesto por preparePrintPageSize(), solo era para imprimir
+  document.querySelectorAll(".deck-page.cover-page,.deck-page.map-page,.deck-page.layout-page,.deck-page.list-page,.deck-page.galeria-page").forEach(p=>{ p.style.height=""; p.style.width=""; }); // deshace el tamaño fijo puesto por preparePrintPageSize(), solo era para imprimir
   document.body.classList.remove("printing-deck");
 }
 document.getElementById("presPrintBtn").onclick=()=>{
@@ -9947,7 +10018,7 @@ function doLandPresPrint(){
   window.print();
   document.title=originalTitle;
   pagesEl.style.zoom="";
-  document.querySelectorAll(".deck-page.cover-page,.deck-page.map-page,.deck-page.layout-page").forEach(p=>{ p.style.height=""; p.style.width=""; });
+  document.querySelectorAll(".deck-page.cover-page,.deck-page.map-page,.deck-page.layout-page,.deck-page.galeria-page").forEach(p=>{ p.style.height=""; p.style.width=""; });
   document.body.classList.remove("printing-deck");
 }
 document.getElementById("landPresPrintBtn").onclick=()=>{
@@ -9995,18 +10066,21 @@ const presShowMapEl=document.getElementById("presShowMap");
 const presShowTableEl=document.getElementById("presShowTable");
 const presShowListEl=document.getElementById("presShowList");
 const presShowLayoutEl=document.getElementById("presShowLayout");
+const presShowGaleriaEl=document.getElementById("presShowGaleria");
 const presShowClosingEl=document.getElementById("presShowClosing");
 presShowCoverEl.checked=presShowState.cover;
 presShowMapEl.checked=presShowState.map;
 presShowTableEl.checked=presShowState.table;
 presShowListEl.checked=presShowState.list;
 presShowLayoutEl.checked=presShowState.layout;
+presShowGaleriaEl.checked=presShowState.galeria;
 presShowClosingEl.checked=presShowState.closing;
 presShowCoverEl.onchange=()=>{ presShowState.cover=presShowCoverEl.checked; savePresShowState(); renderPresentationView(); };
 presShowMapEl.onchange=()=>{ presShowState.map=presShowMapEl.checked; savePresShowState(); renderPresentationView(); };
 presShowTableEl.onchange=()=>{ presShowState.table=presShowTableEl.checked; savePresShowState(); renderPresentationView(); };
 presShowListEl.onchange=()=>{ presShowState.list=presShowListEl.checked; savePresShowState(); renderPresentationView(); };
 presShowLayoutEl.onchange=()=>{ presShowState.layout=presShowLayoutEl.checked; savePresShowState(); renderPresentationView(); };
+presShowGaleriaEl.onchange=()=>{ presShowState.galeria=presShowGaleriaEl.checked; savePresShowState(); renderPresentationView(); };
 presShowClosingEl.onchange=()=>{ presShowState.closing=presShowClosingEl.checked; savePresShowState(); renderPresentationView(); };
 const landPresShowCoverEl=document.getElementById("landPresShowCover");
 const landPresShowMapEl=document.getElementById("landPresShowMap");

@@ -2210,7 +2210,29 @@ function loadLists(){
 }
 function saveLists(){ try{ localStorage.setItem(LISTS_KEY, JSON.stringify(lists)); }catch(e){} }
 let lists = loadLists();
-for(const k in DEFAULT_LISTS){ if(!(k in lists)) lists[k]=DEFAULT_LISTS[k].slice(); } // trae listas nuevas (ej. LAND_*) a quien ya tenía listas guardadas
+/* Bug real reportado por el usuario (v6.5.2): borrar una lista completa desde Configuración > Listas
+   parecía no funcionar — el "pop-up de no se puede revertir" salía, aceptaba, le daba "Save lists", pero
+   al recargar la página la lista volvía a aparecer con sus valores de siempre. Causa raíz: el guard de
+   abajo (`if(!(k in lists)) lists[k]=DEFAULT_LISTS[k].slice()`) — pensado para traer a `lists` cualquier
+   lista NUEVA del código que un usuario con datos viejos guardados todavía no tuviera (ej. las `LAND_*`
+   agregadas en v3.24.0) — no puede distinguir "esta lista falta porque es nueva" de "esta lista falta
+   porque el usuario la borró a propósito": ambos casos se ven IGUAL (`!(k in lists)`). Como casi todas las
+   ~99 listas reales de la app vienen de `DEFAULT_LISTS`, borrar cualquiera de ellas quedaba bien localmente
+   (`lists`/localStorage sí perdían la key), pero en la SIGUIENTE carga este mismo guard —que corre tanto
+   aquí (arranque) como dentro de `loadListsFromSheet()` cada vez que se lee/refresca el Excel/Config
+   vinculado, ver ahí— la resucitaba sola desde el default, con sus valores originales de siempre.
+   `deletedDefaultLists` es un set persistido de nombres de lista que el usuario borró explícitamente
+   sabiendo que existían en `DEFAULT_LISTS` (ver `deleteCurrentList()`/`renameCurrentList()`) — ambos guards
+   ahora también revisan este set antes de resucitar una key, y solo dejan de excluirla si el usuario vuelve
+   a crear una lista con ese mismo nombre a mano (ver `addNewList()`). */
+const DELETED_DEFAULT_LISTS_KEY = "citius_deleted_default_lists_v1";
+function loadDeletedDefaultLists(){
+  try{ const s=localStorage.getItem(DELETED_DEFAULT_LISTS_KEY); if(s) return new Set(JSON.parse(s)); }catch(e){}
+  return new Set();
+}
+function saveDeletedDefaultLists(){ try{ localStorage.setItem(DELETED_DEFAULT_LISTS_KEY, JSON.stringify([...deletedDefaultLists])); }catch(e){} }
+let deletedDefaultLists = loadDeletedDefaultLists();
+for(const k in DEFAULT_LISTS){ if(!(k in lists) && !deletedDefaultLists.has(k)) lists[k]=DEFAULT_LISTS[k].slice(); } // trae listas nuevas (ej. LAND_*) a quien ya tenía listas guardadas — nunca una que el usuario borró a propósito
 /* Traducciones ES (v4.3.0) — mismo patrón exacto que lists/DEFAULT_LISTS de arriba, pero separado: nunca se
    mezcla con `lists` (que sigue siendo 100% inglés, para captura). Shape: {LISTNAME: {"EN value":"Traducción"}}. */
 const LIST_TRANSLATIONS_KEY = "citius_list_translations_es_v1";
@@ -2738,7 +2760,11 @@ function loadListsFromSheet(wb){
   // desaparecía sin más. El merge de DEFAULT_LISTS que ya corre una vez al arrancar la app (ver más abajo)
   // no alcanza a cubrir ESTE momento, porque pasa DESPUÉS, cada vez que se lee/refresca el archivo — se
   // repite aquí mismo, por la misma razón.
-  for(const k in DEFAULT_LISTS){ if(!(k in newLists)) newLists[k]=DEFAULT_LISTS[k].slice(); }
+  // v6.5.2: mismo guard `!deletedDefaultLists.has(k)` que el de arriba (ver su comentario, línea ~2213) —
+  // sin esto, borrar una lista y darle "Save lists" la escribía bien al Excel (correctamente ausente), pero
+  // la SIGUIENTE vez que se leía/refrescaba ese mismo archivo (ej. recargar la página, que vuelve a leer el
+  // archivo vinculado) esta función la resucitaba sola desde el default, deshaciendo el borrado en silencio.
+  for(const k in DEFAULT_LISTS){ if(!(k in newLists) && !deletedDefaultLists.has(k)) newLists[k]=DEFAULT_LISTS[k].slice(); }
   // v4.3.0: las traducciones SÍ se mezclan valor-por-valor (a diferencia de `lists`, que se reemplaza
   // completo) — una traducción ya editada a mano en la app no se pierde solo porque la celda ES de esa
   // fila viniera vacía en el Excel; el Excel gana únicamente para los valores que SÍ trae traducidos.
@@ -11644,6 +11670,11 @@ function addNewList(){
   }
   lists[name]=[];
   saveLists();
+  // v6.5.2: si el usuario está recreando a mano una lista que antes había borrado (y esa lista existía en
+  // DEFAULT_LISTS), se quita del tombstone — de otra forma quedaría marcada como "borrada a propósito" para
+  // siempre, y aunque eso no le hace nada mientras la key SÍ existe en `lists` (los guards de arriba solo
+  // miran listas AUSENTES), es basura acumulada sin sentido una vez que el usuario decidió que sí la quiere.
+  if(deletedDefaultLists.has(name)){ deletedDefaultLists.delete(name); saveDeletedDefaultLists(); }
   currentListName=name;
   document.getElementById("listsSearch").value="";
   renderListsNav();
@@ -11743,6 +11774,14 @@ function renameCurrentList(){
   if(existing){ toast("A list with that name already exists","err"); return; }
   lists[newName]=lists[oldName];
   delete lists[oldName];
+  // v6.5.2: mismo tombstone que deleteCurrentList() — si oldName venía de DEFAULT_LISTS, renombrarla la
+  // deja tan "ausente de `lists`" como borrarla (misma condición `!(k in lists)` que revisan los 2 guards
+  // de arriba), así que sin este registro el nombre viejo volvería a resucitar solo en la siguiente
+  // carga/refresh del Excel — un duplicado fantasma con los valores originales del default, aparte de la
+  // lista ya renombrada. Si newName coincide con una lista default que el usuario había borrado antes, se
+  // quita del tombstone (mismo criterio que addNewList()) — ya existe de nuevo, bajo este nombre.
+  if(oldName in DEFAULT_LISTS){ deletedDefaultLists.add(oldName); saveDeletedDefaultLists(); }
+  if(deletedDefaultLists.has(newName)){ deletedDefaultLists.delete(newName); saveDeletedDefaultLists(); }
   if(oldName in listTranslationsEs){ listTranslationsEs[newName]=listTranslationsEs[oldName]; delete listTranslationsEs[oldName]; saveListTranslationsEs(); }
   for(const ent in fieldConfig){
     (fieldConfig[ent]||[]).forEach(f=>{ if(f.list===oldName) f.list=newName; });
@@ -11767,6 +11806,14 @@ function deleteCurrentList(){
   }
   if(!confirm(`Delete the list "${name.replace(/_/g," ")}" and its ${lists[name].length} value(s)? This action cannot be undone.`)) return;
   delete lists[name];
+  // v6.5.2, bug real corregido: sin este tombstone, el guard "trae listas nuevas a quien ya tenía guardado"
+  // (línea ~2213, y su gemelo dentro de loadListsFromSheet()) no podía distinguir esta lista de una
+  // GENUINAMENTE nueva del código que el usuario aún no tuviera — la resucitaba sola en la siguiente carga
+  // de la página (o cada vez que se releía/refrescaba el Excel/Config vinculado), con sus valores originales
+  // del default, deshaciendo el borrado en silencio. Solo hace falta registrar esto para listas que SÍ
+  // existen en DEFAULT_LISTS — una lista creada a mano por el usuario (+ New list) nunca está ahí, así que
+  // nunca puede "resucitar" de ese guard para empezar.
+  if(name in DEFAULT_LISTS){ deletedDefaultLists.add(name); saveDeletedDefaultLists(); }
   if(name in listTranslationsEs){ delete listTranslationsEs[name]; saveListTranslationsEs(); }
   saveLists();
   currentListName=null;

@@ -506,6 +506,23 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      lista "BROKERS_CAG" (potencialmente larga) no estire el popover sin límite. */
   .cover-edit-checklist{display:flex;flex-direction:column;gap:2px;max-height:160px;overflow-y:auto;
     border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--panel-2)}
+  /* Buscador + chips de "Brokers" seleccionados (v6.4.0, pedido explícito del usuario) — la lista
+     "BROKERS_CAG" tiene ~60 valores, difícil de recorrer a ciegas, y el usuario reportó haber marcado por
+     error un broker que quedaba fuera de la vista sin darse cuenta hasta después de generar el PDF. Los
+     chips (arriba del buscador) muestran de un vistazo qué queda seleccionado, sin importar dónde esté esa
+     opción dentro de la lista larga; cada uno se puede quitar con su "×" sin tener que ubicar el checkbox
+     correspondiente. Mismo `.col-filter-search` que ya usa el resto de la app para "buscar dentro de una
+     lista de checkboxes" (dropdown de filtro de columna, picker de columna a ordenar). */
+  .cover-edit-brokers-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+  .cover-edit-chip{display:inline-flex;align-items:center;gap:5px;background:rgba(240,179,35,.16);
+    color:var(--accent-ink);border:1px solid rgba(240,179,35,.4);border-radius:999px;
+    padding:3px 6px 3px 10px;font-size:11.5px;line-height:1.3;white-space:nowrap}
+  .cover-edit-chip-x{background:none;border:none;cursor:pointer;color:inherit;font-size:14px;line-height:1;
+    padding:0 2px;display:flex;align-items:center;opacity:.65}
+  .cover-edit-chip-x:hover{opacity:1}
+  /* Mismo borde/sombra rojos que `.field-error` (ficha de registros) — aquí sobre el contenedor completo del
+     checklist en vez de un <input>, porque "Brokers" no es un campo de texto sino "al menos 1 marcado". */
+  .cover-edit-checklist.field-error{border-color:var(--red)!important;box-shadow:0 0 0 1px var(--red)}
   /* v3.43.8: franja blanca a la izquierda del Mapa reportada por el usuario en el PDF impreso — el intento
      de invalidateSize()+delay antes de imprimir no la quitó (no era timing de impresión), así que en vez de
      seguir cazando la causa real se optó por un margen blanco a propósito (mismo criterio: "que no se vea
@@ -8614,8 +8631,9 @@ function onDocMouseDownForLandCoverEditPanel(e){
   const el=document.getElementById("landCoverEditPanel");
   if(el && !el.contains(e.target) && !e.target.closest("#landPresCoverEditBtn")) closeLandCoverEditPanel();
 }
+const LAND_COVER_IDS_MAP={monthYear:"landCoverEditMonthYear", m2:"landCoverEditM2", markets:"landCoverEditMarkets", company:"landCoverEditCompany", brokers:"landCoverEditBrokersList"};
 function toggleLandCoverEditPanel(evt){
-  evt.stopPropagation();
+  if(evt) evt.stopPropagation(); // sin evt cuando se abre programáticamente (ver landPresPrintBtn.onclick)
   const alreadyOpen=!!document.getElementById("landCoverEditPanel");
   closeLandCoverEditPanel();
   if(alreadyOpen) return;
@@ -8636,6 +8654,8 @@ function toggleLandCoverEditPanel(evt){
     <p class="map-hint" style="margin:0 0 8px">These 2 fields are NOT shown on the cover:</p>
     <div class="field"><label>Company / Project</label><input type="text" id="landCoverEditCompany" placeholder="Company or project name" value="${escapeAttr(landPresCoverInfo.company||"")}"></div>
     <div class="field"><label>Brokers ("BROKERS_CAG" list)</label></div>
+    <div class="cover-edit-brokers-chips" id="landCoverEditBrokersChips"></div>
+    <input type="text" class="col-filter-search" id="landCoverEditBrokersSearch" placeholder="Search brokers…" oninput="renderLandCoverEditBrokersList()">
     <div class="cover-edit-checklist" id="landCoverEditBrokersList"></div>`;
   document.body.appendChild(el);
   const r=btn.getBoundingClientRect();
@@ -8647,29 +8667,45 @@ function toggleLandCoverEditPanel(evt){
       landPresCoverInfo[fieldMap[id]]=e.target.value;
       saveLandPresCoverInfo();
       renderLandPresentationView();
+      refreshCoverDataErrors(landPresCoverInfo, PRES_COVER_REQUIRED_FIELDS, LAND_COVER_IDS_MAP);
     };
   });
   document.getElementById("landCoverEditCompany").oninput=(e)=>{
     landPresCoverInfo.company=e.target.value;
     saveLandPresCoverInfo();
+    refreshCoverDataErrors(landPresCoverInfo, PRES_COVER_REQUIRED_FIELDS, LAND_COVER_IDS_MAP);
   };
   renderLandCoverEditBrokersList();
+  refreshCoverDataErrors(landPresCoverInfo, PRES_COVER_REQUIRED_FIELDS, LAND_COVER_IDS_MAP);
   setTimeout(()=>document.addEventListener("mousedown", onDocMouseDownForLandCoverEditPanel, true), 0);
 }
+/* Mismo mecanismo de chips+buscador que `renderCoverEditBrokersList()` de Propiedades (v6.4.0) — ver los
+   comentarios ahí, aplica igual aquí. */
 function renderLandCoverEditBrokersList(){
-  const el=document.getElementById("landCoverEditBrokersList");
-  if(!el) return;
+  const chipsEl=document.getElementById("landCoverEditBrokersChips");
+  const searchEl=document.getElementById("landCoverEditBrokersSearch");
+  const listEl=document.getElementById("landCoverEditBrokersList");
+  if(!listEl) return;
   const options=lists["BROKERS_CAG"]||[];
   const selected=new Set(landPresCoverInfo.brokers||[]);
-  el.innerHTML = options.length
-    ? options.map(v=>`<label class="col-filter-item"><input type="checkbox" data-broker="${escapeAttr(v)}" ${selected.has(v)?"checked":""} onchange="toggleLandCoverEditBroker(this.dataset.broker,this.checked)">${escapeHtml(v)}</label>`).join("")
-    : `<div class="col-add-empty">No values in the "BROKERS_CAG" list (Settings &gt; Lists)</div>`;
+  if(chipsEl){
+    chipsEl.innerHTML=[...selected].map(v=>`<span class="cover-edit-chip">${escapeHtml(v)}<button type="button" class="cover-edit-chip-x" data-broker="${escapeAttr(v)}" onclick="toggleLandCoverEditBroker(this.dataset.broker,false)" title="Remove ${escapeAttr(v)}">&times;</button></span>`).join("");
+  }
+  const q=(searchEl?searchEl.value:"").trim().toLowerCase();
+  const filtered=q?options.filter(v=>v.toLowerCase().includes(q)):options;
+  listEl.innerHTML = !options.length
+    ? `<div class="col-add-empty">No values in the "BROKERS_CAG" list (Settings &gt; Lists)</div>`
+    : filtered.length
+      ? filtered.map(v=>`<label class="col-filter-item"><input type="checkbox" data-broker="${escapeAttr(v)}" ${selected.has(v)?"checked":""} onchange="toggleLandCoverEditBroker(this.dataset.broker,this.checked)">${escapeHtml(v)}</label>`).join("")
+      : `<div class="col-add-empty">No matches</div>`;
 }
 function toggleLandCoverEditBroker(v, checked){
   const set=new Set(landPresCoverInfo.brokers||[]);
   checked?set.add(v):set.delete(v);
   landPresCoverInfo.brokers=[...set];
   saveLandPresCoverInfo();
+  renderLandCoverEditBrokersList();
+  refreshCoverDataErrors(landPresCoverInfo, PRES_COVER_REQUIRED_FIELDS, LAND_COVER_IDS_MAP);
 }
 function buildLandCoverPageHtml(){
   const monthYear=(landPresCoverInfo.monthYear||"").trim();
@@ -8840,8 +8876,9 @@ function onDocMouseDownForOfficeCoverEditPanel(e){
 /* Solo 2 campos (Client/Date) — a diferencia del panel de Propiedades/Terrenos (mes/año, m², mercados,
    brokers, empresa), la imagen base de Oficinas ya trae "Análisis de Mercado" quemado en la foto; lo único
    que la referencia del usuario muestra como dinámico en la portada es "Para: / [Cliente] / [Fecha]". */
+const OFFICE_COVER_IDS_MAP={client:"officeCoverEditClient", date:"officeCoverEditDate", m2:"officeCoverEditM2", markets:"officeCoverEditMarkets", brokers:"officeCoverEditBrokersList"};
 function toggleOfficeCoverEditPanel(evt){
-  evt.stopPropagation();
+  if(evt) evt.stopPropagation(); // sin evt cuando se abre programáticamente (ver officePresPrintBtn.onclick)
   const alreadyOpen=!!document.getElementById("officeCoverEditPanel");
   closeOfficeCoverEditPanel();
   if(alreadyOpen) return;
@@ -8862,36 +8899,50 @@ function toggleOfficeCoverEditPanel(evt){
     <div class="columns-panel-divider"></div>
     <p class="map-hint" style="margin:0 0 8px">Size/Markets/Brokers are not shown on the cover — captured for the Pres. Log.</p>
     <div class="field"><label>Brokers ("BROKERS_CAG" list)</label></div>
+    <div class="cover-edit-brokers-chips" id="officeCoverEditBrokersChips"></div>
+    <input type="text" class="col-filter-search" id="officeCoverEditBrokersSearch" placeholder="Search brokers…" oninput="renderOfficeCoverEditBrokersList()">
     <div class="cover-edit-checklist" id="officeCoverEditBrokersList"></div>`;
   document.body.appendChild(el);
   const r=btn.getBoundingClientRect();
   el.style.left=Math.max(8, Math.min(r.left, window.innerWidth-8-300))+"px";
   el.style.top=(r.bottom+8)+"px";
-  document.getElementById("officeCoverEditClient").oninput=(e)=>{ officePresCoverInfo.client=e.target.value; saveOfficePresCoverInfo(); renderOfficePresentationView(); };
-  document.getElementById("officeCoverEditDate").oninput=(e)=>{ officePresCoverInfo.date=e.target.value; saveOfficePresCoverInfo(); renderOfficePresentationView(); };
+  document.getElementById("officeCoverEditClient").oninput=(e)=>{ officePresCoverInfo.client=e.target.value; saveOfficePresCoverInfo(); renderOfficePresentationView(); refreshCoverDataErrors(officePresCoverInfo, OFFICE_COVER_REQUIRED_FIELDS, OFFICE_COVER_IDS_MAP); };
+  document.getElementById("officeCoverEditDate").oninput=(e)=>{ officePresCoverInfo.date=e.target.value; saveOfficePresCoverInfo(); renderOfficePresentationView(); refreshCoverDataErrors(officePresCoverInfo, OFFICE_COVER_REQUIRED_FIELDS, OFFICE_COVER_IDS_MAP); };
   // Size/Markets/Brokers no se dibujan en la portada (mismo criterio que Company/Brokers de Propiedades) —
   // no hace falta renderOfficePresentationView() en estos 2, solo guardar.
-  document.getElementById("officeCoverEditM2").oninput=(e)=>{ officePresCoverInfo.m2=e.target.value; saveOfficePresCoverInfo(); };
-  document.getElementById("officeCoverEditMarkets").oninput=(e)=>{ officePresCoverInfo.markets=e.target.value; saveOfficePresCoverInfo(); };
+  document.getElementById("officeCoverEditM2").oninput=(e)=>{ officePresCoverInfo.m2=e.target.value; saveOfficePresCoverInfo(); refreshCoverDataErrors(officePresCoverInfo, OFFICE_COVER_REQUIRED_FIELDS, OFFICE_COVER_IDS_MAP); };
+  document.getElementById("officeCoverEditMarkets").oninput=(e)=>{ officePresCoverInfo.markets=e.target.value; saveOfficePresCoverInfo(); refreshCoverDataErrors(officePresCoverInfo, OFFICE_COVER_REQUIRED_FIELDS, OFFICE_COVER_IDS_MAP); };
   renderOfficeCoverEditBrokersList();
+  refreshCoverDataErrors(officePresCoverInfo, OFFICE_COVER_REQUIRED_FIELDS, OFFICE_COVER_IDS_MAP);
   setTimeout(()=>document.addEventListener("mousedown", onDocMouseDownForOfficeCoverEditPanel, true), 0);
 }
-/* Mismo patrón EXACTO que renderCoverEditBrokersList()/toggleCoverEditBroker() de Propiedades, aplicado a
-   officePresCoverInfo. */
+/* Mismo mecanismo de chips+buscador que `renderCoverEditBrokersList()` de Propiedades (v6.4.0) — ver los
+   comentarios ahí, aplica igual aquí. */
 function renderOfficeCoverEditBrokersList(){
-  const el=document.getElementById("officeCoverEditBrokersList");
-  if(!el) return;
+  const chipsEl=document.getElementById("officeCoverEditBrokersChips");
+  const searchEl=document.getElementById("officeCoverEditBrokersSearch");
+  const listEl=document.getElementById("officeCoverEditBrokersList");
+  if(!listEl) return;
   const options=lists["BROKERS_CAG"]||[];
   const selected=new Set(officePresCoverInfo.brokers||[]);
-  el.innerHTML = options.length
-    ? options.map(v=>`<label class="col-filter-item"><input type="checkbox" data-broker="${escapeAttr(v)}" ${selected.has(v)?"checked":""} onchange="toggleOfficeCoverEditBroker(this.dataset.broker,this.checked)">${escapeHtml(v)}</label>`).join("")
-    : `<div class="col-add-empty">No values in the "BROKERS_CAG" list (Settings &gt; Lists)</div>`;
+  if(chipsEl){
+    chipsEl.innerHTML=[...selected].map(v=>`<span class="cover-edit-chip">${escapeHtml(v)}<button type="button" class="cover-edit-chip-x" data-broker="${escapeAttr(v)}" onclick="toggleOfficeCoverEditBroker(this.dataset.broker,false)" title="Remove ${escapeAttr(v)}">&times;</button></span>`).join("");
+  }
+  const q=(searchEl?searchEl.value:"").trim().toLowerCase();
+  const filtered=q?options.filter(v=>v.toLowerCase().includes(q)):options;
+  listEl.innerHTML = !options.length
+    ? `<div class="col-add-empty">No values in the "BROKERS_CAG" list (Settings &gt; Lists)</div>`
+    : filtered.length
+      ? filtered.map(v=>`<label class="col-filter-item"><input type="checkbox" data-broker="${escapeAttr(v)}" ${selected.has(v)?"checked":""} onchange="toggleOfficeCoverEditBroker(this.dataset.broker,this.checked)">${escapeHtml(v)}</label>`).join("")
+      : `<div class="col-add-empty">No matches</div>`;
 }
 function toggleOfficeCoverEditBroker(v, checked){
   const set=new Set(officePresCoverInfo.brokers||[]);
   checked?set.add(v):set.delete(v);
   officePresCoverInfo.brokers=[...set];
   saveOfficePresCoverInfo();
+  renderOfficeCoverEditBrokersList();
+  refreshCoverDataErrors(officePresCoverInfo, OFFICE_COVER_REQUIRED_FIELDS, OFFICE_COVER_IDS_MAP);
 }
 function buildOfficeCoverPageHtml(){
   const client=(officePresCoverInfo.client||"").trim();
@@ -9359,6 +9410,13 @@ function doOfficePresPrint(){
   document.body.classList.remove("printing-deck");
 }
 document.getElementById("officePresPrintBtn").onclick=()=>{
+  // v6.4.0, pedido explícito del usuario: no generar si falta algún dato de "Cover Data" — abre el panel
+  // (con los campos faltantes ya marcados en rojo, ver refreshCoverDataErrors) en vez de solo avisar.
+  if(missingCoverDataFields(officePresCoverInfo, OFFICE_COVER_REQUIRED_FIELDS).length){
+    toast("Complete Cover Data before printing/exporting","err");
+    closeOfficeCoverEditPanel(); toggleOfficeCoverEditPanel();
+    return;
+  }
   const {buildings}=officePresBuildingList();
   openPrintConfirmModal(()=>{
     logBitacoraEntry({
@@ -9412,8 +9470,9 @@ function onDocMouseDownForCoverEditPanel(e){
   const el=document.getElementById("coverEditPanel");
   if(el && !el.contains(e.target) && !e.target.closest("#presCoverEditBtn")) closeCoverEditPanel();
 }
+const PRES_COVER_IDS_MAP={monthYear:"coverEditMonthYear", m2:"coverEditM2", markets:"coverEditMarkets", company:"coverEditCompany", brokers:"coverEditBrokersList"};
 function toggleCoverEditPanel(evt){
-  evt.stopPropagation();
+  if(evt) evt.stopPropagation(); // sin evt cuando se abre programáticamente (ver presPrintBtn.onclick)
   const alreadyOpen=!!document.getElementById("coverEditPanel");
   closeCoverEditPanel();
   if(alreadyOpen) return;
@@ -9434,6 +9493,8 @@ function toggleCoverEditPanel(evt){
     <p class="map-hint" style="margin:0 0 8px">These 2 fields are NOT shown on the cover:</p>
     <div class="field"><label>Company / Project</label><input type="text" id="coverEditCompany" placeholder="Company or project name" value="${escapeAttr(presCoverInfo.company||"")}"></div>
     <div class="field"><label>Brokers ("BROKERS_CAG" list)</label></div>
+    <div class="cover-edit-brokers-chips" id="coverEditBrokersChips"></div>
+    <input type="text" class="col-filter-search" id="coverEditBrokersSearch" placeholder="Search brokers…" oninput="renderCoverEditBrokersList()">
     <div class="cover-edit-checklist" id="coverEditBrokersList"></div>`;
   document.body.appendChild(el);
   const r=btn.getBoundingClientRect();
@@ -9445,6 +9506,7 @@ function toggleCoverEditPanel(evt){
       presCoverInfo[fieldMap[id]]=e.target.value;
       savePresCoverInfo();
       renderPresentationView();
+      refreshCoverDataErrors(presCoverInfo, PRES_COVER_REQUIRED_FIELDS, PRES_COVER_IDS_MAP);
     };
   });
   // Empresa/Proyecto y Brokers no se dibujan en la portada — a diferencia de los 3 campos de arriba, no
@@ -9452,32 +9514,55 @@ function toggleCoverEditPanel(evt){
   document.getElementById("coverEditCompany").oninput=(e)=>{
     presCoverInfo.company=e.target.value;
     savePresCoverInfo();
+    refreshCoverDataErrors(presCoverInfo, PRES_COVER_REQUIRED_FIELDS, PRES_COVER_IDS_MAP);
   };
   renderCoverEditBrokersList();
+  // Borde rojo de "obligatorio vacío" desde que se abre, no solo tras un intento fallido de imprimir —
+  // mismo criterio que `markEmptyRequiredFields()` en la ficha de registros.
+  refreshCoverDataErrors(presCoverInfo, PRES_COVER_REQUIRED_FIELDS, PRES_COVER_IDS_MAP);
   setTimeout(()=>document.addEventListener("mousedown", onDocMouseDownForCoverEditPanel, true), 0);
 }
 /* Lista de checkboxes de "Brokers" (v3.32.0) — valores de la lista `lists["BROKERS_CAG"]` (administrada
    desde Configuración > Listas, igual que cualquier otra lista de la app; si el usuario aún no la ha
    creado/poblado, se muestra un aviso en vez de una lista vacía). Reutiliza `.col-filter-item` (mismo
-   checkbox que el dropdown de filtro de columna) dentro de `.cover-edit-checklist` (scroll propio). */
+   checkbox que el dropdown de filtro de columna) dentro de `.cover-edit-checklist` (scroll propio).
+   v6.4.0, pedido explícito del usuario — la lista tiene ~60 valores, difícil de recorrer a ciegas:
+   - Chips (`#coverEditBrokersChips`) con los brokers YA seleccionados, cada uno con su "×" para quitarlo
+     sin tener que ubicarlo en la lista larga — resuelve el caso real que reportó el usuario (marcar sin
+     querer un broker que queda fuera de la vista y no darse cuenta hasta después de generar el PDF).
+   - Buscador (`#coverEditBrokersSearch`, reusa `.col-filter-search`) que filtra las opciones visibles en
+     vivo — se lee su valor actual en cada render (en vez de guardar el texto en una variable aparte) para
+     no perder lo escrito al togglear un checkbox, que también re-renderiza esta función. */
 function renderCoverEditBrokersList(){
-  const el=document.getElementById("coverEditBrokersList");
-  if(!el) return;
+  const chipsEl=document.getElementById("coverEditBrokersChips");
+  const searchEl=document.getElementById("coverEditBrokersSearch");
+  const listEl=document.getElementById("coverEditBrokersList");
+  if(!listEl) return;
   const options=lists["BROKERS_CAG"]||[];
   const selected=new Set(presCoverInfo.brokers||[]);
+  if(chipsEl){
+    chipsEl.innerHTML=[...selected].map(v=>`<span class="cover-edit-chip">${escapeHtml(v)}<button type="button" class="cover-edit-chip-x" data-broker="${escapeAttr(v)}" onclick="toggleCoverEditBroker(this.dataset.broker,false)" title="Remove ${escapeAttr(v)}">&times;</button></span>`).join("");
+  }
+  const q=(searchEl?searchEl.value:"").trim().toLowerCase();
+  const filtered=q?options.filter(v=>v.toLowerCase().includes(q)):options;
   // data-broker + this.dataset (no un valor embebido en el onclick como '${v}') a propósito: un nombre de
   // broker con apóstrofe (ej. "O'Farril") rompería ese string de JS armado a mano; un atributo data- no
   // tiene ese problema, el navegador ya lo entrega decodificado tal cual.
-  el.innerHTML = options.length
-    ? options.map(v=>`<label class="col-filter-item"><input type="checkbox" data-broker="${escapeAttr(v)}" ${selected.has(v)?"checked":""} onchange="toggleCoverEditBroker(this.dataset.broker,this.checked)">${escapeHtml(v)}</label>`).join("")
-    : `<div class="col-add-empty">No values in the "BROKERS_CAG" list (Settings &gt; Lists)</div>`;
+  listEl.innerHTML = !options.length
+    ? `<div class="col-add-empty">No values in the "BROKERS_CAG" list (Settings &gt; Lists)</div>`
+    : filtered.length
+      ? filtered.map(v=>`<label class="col-filter-item"><input type="checkbox" data-broker="${escapeAttr(v)}" ${selected.has(v)?"checked":""} onchange="toggleCoverEditBroker(this.dataset.broker,this.checked)">${escapeHtml(v)}</label>`).join("")
+      : `<div class="col-add-empty">No matches</div>`;
 }
 function toggleCoverEditBroker(v, checked){
   const set=new Set(presCoverInfo.brokers||[]);
   checked?set.add(v):set.delete(v);
   presCoverInfo.brokers=[...set];
   savePresCoverInfo();
-  // no se re-renderiza el deck: los brokers no se muestran en la portada (pedido explícito del usuario)
+  // no se re-renderiza el deck: los brokers no se muestran en la portada (pedido explícito del usuario) —
+  // pero sí se refresca la lista (chips + checkbox state, conserva el texto de búsqueda) y el estado de error
+  renderCoverEditBrokersList();
+  refreshCoverDataErrors(presCoverInfo, PRES_COVER_REQUIRED_FIELDS, PRES_COVER_IDS_MAP);
 }
 document.getElementById("presCoverEditBtn").onclick=toggleCoverEditPanel;
 let presMapInstance=null;
@@ -9943,6 +10028,49 @@ function preparePrintPageSize(){
   css+=`body{page:${groupOf(pages[0])}}\n`;
   styleEl.textContent=css;
 }
+/* ==== Validación de "Cover Data" antes de generar (v6.4.0, pedido explícito del usuario) ====
+   Antes de esto era posible imprimir/exportar cualquiera de los 3 decks sin haber llenado nada de "Datos
+   de portada" — el usuario reportó que en más de una ocasión seleccionó sin querer un broker que quedaba
+   fuera de la vista (la lista "BROKERS_CAG" tiene ~60 opciones) y no se daba cuenta hasta después de
+   generar el PDF con el broker equivocado. Decisión confirmada con el usuario vía AskUserQuestion: TODOS
+   los campos de Cover Data son obligatorios para poder generar, incluyendo Company/Project y Brokers
+   aunque esos 2 no se dibujen en la portada (sí alimentan el nombre sugerido del PDF y el Pres. Log).
+   `missingCoverDataFields()`/`refreshCoverDataErrors()` son agnósticas de entidad (mismo criterio que
+   `brokerInitials`/`sanitizeFilenamePart`, justo abajo) — cada deck les pasa su propio objeto de estado
+   (`presCoverInfo`/`landPresCoverInfo`/`officePresCoverInfo`) y su propio arreglo de campos requeridos:
+   Propiedades y Terrenos comparten el mismo shape (`PRES_COVER_REQUIRED_FIELDS`); Oficinas tiene
+   Client/Date en vez de Month-Year/Company (`OFFICE_COVER_REQUIRED_FIELDS`). */
+const PRES_COVER_REQUIRED_FIELDS=[
+  {key:"monthYear", label:"Month / Year"},
+  {key:"m2", label:"Size"},
+  {key:"markets", label:"Markets"},
+  {key:"company", label:"Company / Project"},
+  {key:"brokers", label:"Brokers", isBrokers:true}
+];
+const OFFICE_COVER_REQUIRED_FIELDS=[
+  {key:"client", label:"Client"},
+  {key:"date", label:"Date"},
+  {key:"m2", label:"Size"},
+  {key:"markets", label:"Markets"},
+  {key:"brokers", label:"Brokers", isBrokers:true}
+];
+function missingCoverDataFields(info, fieldDefs){
+  return fieldDefs.filter(f=> f.isBrokers ? !(info.brokers && info.brokers.length) : !String(info[f.key]||"").trim());
+}
+/* Pinta en rojo (mismo `.field-error` que ya usa la ficha de registros para un campo obligatorio vacío,
+   `.cover-edit-checklist.field-error` para Brokers ya que no es un `<input>`) cada campo faltante de
+   `fieldDefs`. `idsMap` es `{key: idDelElementoEnElDOM}`. Se llama tanto al ABRIR el panel (mismo criterio
+   ya establecido en esta app: el borde rojo de obligatorio vacío no espera a un intento de guardado/
+   generación, ver `markEmptyRequiredFields()` de la ficha) como en vivo con cada `input`/toggle de broker,
+   así el usuario ve el error desaparecer apenas completa ese campo, sin tener que reintentar imprimir. */
+function refreshCoverDataErrors(info, fieldDefs, idsMap){
+  const missing=new Set(missingCoverDataFields(info, fieldDefs).map(f=>f.key));
+  fieldDefs.forEach(f=>{
+    const el=document.getElementById(idsMap[f.key]);
+    if(el) el.classList.toggle("field-error", missing.has(f.key));
+  });
+  return missing;
+}
 /* Iniciales de un nombre de broker (v3.32.4): "Adrian Garza" -> "AG". Solo toma la primera letra de cada
    palabra separada por espacio(s), sin importar mayúsculas/minúsculas de origen. */
 function brokerInitials(name){
@@ -9991,6 +10119,13 @@ function doPresPrint(){
   document.body.classList.remove("printing-deck");
 }
 document.getElementById("presPrintBtn").onclick=()=>{
+  // v6.4.0, pedido explícito del usuario: no generar si falta algún dato de "Cover Data" — abre el panel
+  // (con los campos faltantes ya marcados en rojo, ver refreshCoverDataErrors) en vez de solo avisar.
+  if(missingCoverDataFields(presCoverInfo, PRES_COVER_REQUIRED_FIELDS).length){
+    toast("Complete Cover Data before printing/exporting","err");
+    closeCoverEditPanel(); toggleCoverEditPanel();
+    return;
+  }
   const list=getOrderedPresentationList();
   openPrintConfirmModal(()=>{
     logBitacoraEntry({
@@ -10040,6 +10175,13 @@ function doLandPresPrint(){
   document.body.classList.remove("printing-deck");
 }
 document.getElementById("landPresPrintBtn").onclick=()=>{
+  // v6.4.0, pedido explícito del usuario: no generar si falta algún dato de "Cover Data" — abre el panel
+  // (con los campos faltantes ya marcados en rojo, ver refreshCoverDataErrors) en vez de solo avisar.
+  if(missingCoverDataFields(landPresCoverInfo, PRES_COVER_REQUIRED_FIELDS).length){
+    toast("Complete Cover Data before printing/exporting","err");
+    closeLandCoverEditPanel(); toggleLandCoverEditPanel();
+    return;
+  }
   const list=getOrderedLandPresentationList();
   openPrintConfirmModal(()=>{
     logBitacoraEntry({

@@ -859,10 +859,12 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      .layout-aerial (aunque aquí no haya ningún mapa Leaflet, se deja el mismo patrón por consistencia). */
   .deck-page.galeria-page{position:relative}
   .galeria-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px}
-  .galeria-photo{aspect-ratio:600/405;background:#eee;overflow:hidden;position:relative;z-index:0}
+  /* Sin foto: cuadro en BLANCO, sin texto "No photo" (v6.3.1, pedido explícito del usuario) — a diferencia
+     de .layout-photo/.layout-aerial/.layout-plan (que sí muestran un placeholder de texto), aquí la casilla
+     vacía simplemente queda con fondo blanco y nada dentro; buildGaleriaPageHtml() ya no emite ningún
+     .image-placeholder para estas 4 casillas. */
+  .galeria-photo{aspect-ratio:600/405;background:#fff;overflow:hidden;position:relative;z-index:0}
   .galeria-photo img{width:100%;height:100%;object-fit:cover;display:block}
-  .galeria-photo .image-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;
-    font-size:11px;color:#6b7480;text-align:center;padding:6px;box-sizing:border-box}
   @media print{
     body{background:#fff}
     body *{visibility:hidden}
@@ -9670,9 +9672,12 @@ function buildLayoutPageHtml(rec,idx,logoSrc){
    Se intercala justo después de la página de Layout de la MISMA propiedad (ver renderPresentationView()) —
    reusa el header/número de opción de Layout tal cual (.layout-header/.layout-title/.layout-subtitle/
    .layout-num, sin duplicar esas clases ni su CSS). Cuadrante confirmado con el usuario: arriba-izq
-   Fachada, arriba-der Exterior, abajo-izq Interior, abajo-der Docks — las 4 casillas se dejan vacías
-   (placeholder "No photo") si esa propiedad no tiene esa foto en particular, nunca bloquea la página
-   entera. Mismo tratamiento de modo Confidencial que Layout (Developer -> "Private"). */
+   Fachada, arriba-der Exterior, abajo-izq Interior, abajo-der Docks — las 4 casillas se dejan
+   COMPLETAMENTE VACÍAS (sin ningún <div> hijo, fondo blanco por CSS, ver .galeria-photo) si esa propiedad
+   no tiene esa foto en particular, nunca bloquea la página entera (v6.3.1: se quitó el placeholder de
+   texto "No photo" que traía la 1ra versión, pedido explícito del usuario — a diferencia de
+   .layout-photo/.layout-aerial/.layout-plan, que sí siguen mostrando su propio placeholder de texto).
+   Mismo tratamiento de modo Confidencial que Layout (Developer -> "Private"). */
 function buildGaleriaPageHtml(rec,idx,logoSrc){
   const developerText=presConfidential?"Private":(rec.DEVELOPER||"");
   return `<div class="deck-page galeria-page">
@@ -9685,10 +9690,10 @@ function buildGaleriaPageHtml(rec,idx,logoSrc){
     </div>
     <div class="layout-num">${idx+1}</div>
     <div class="galeria-grid">
-      <div class="galeria-photo" id="galeriaPhoto_${idx}_FACHADA"><div class="image-placeholder">No photo</div></div>
-      <div class="galeria-photo" id="galeriaPhoto_${idx}_EXT"><div class="image-placeholder">No photo</div></div>
-      <div class="galeria-photo" id="galeriaPhoto_${idx}_INT"><div class="image-placeholder">No photo</div></div>
-      <div class="galeria-photo" id="galeriaPhoto_${idx}_DOCKS"><div class="image-placeholder">No photo</div></div>
+      <div class="galeria-photo" id="galeriaPhoto_${idx}_FACHADA"></div>
+      <div class="galeria-photo" id="galeriaPhoto_${idx}_EXT"></div>
+      <div class="galeria-photo" id="galeriaPhoto_${idx}_INT"></div>
+      <div class="galeria-photo" id="galeriaPhoto_${idx}_DOCKS"></div>
     </div>
   </div>`;
 }

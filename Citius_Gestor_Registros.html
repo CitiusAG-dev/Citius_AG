@@ -1379,7 +1379,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v6.2.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v6.3.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -3614,6 +3614,12 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"6.3.0", date:"2026-09-09", items:[
+    "Buildings presentation: new \"Gallery\" page (Design panel, right below \"Layout\") — 1 page per property with a 2x2 photo grid (Facade / Exterior top row, Interior / Docks bottom row). Missing photos just leave that spot a blank white box. When both \"Layout\" and \"Gallery\" are checked, each property's Gallery page prints right after its own Layout page.",
+    "Fixed: Layout and Gallery pages printed/exported with a noticeably narrower right margin than the Table page — now matches.",
+    "All 3 presentations (Properties, Land, Offices): \"Print / PDF\" is now blocked until every \"Cover Data\" field is filled in (including Company/Project and Brokers, which don't show on the cover itself but do feed the PDF filename and the Pres. Log). A blocked attempt shows an error message and opens Cover Data with the missing fields outlined in red, live-updating as you fill them in.",
+    "Cover Data's Brokers list (all 3 presentations) gained a search box to filter the ~60 options, and selected brokers now show as removable chips above it — makes it easy to see (and fix) what's actually selected without hunting through the full list."
+  ]},
   {version:"6.2.0", date:"2026-09-04", items:[
     "Buildings, Parks, and Land: the \"Listing\" tab now shows a \"Proposed in Presentations\" table — every time a Properties or Land presentation is printed, any included record with Citius AG Listing = Yes is logged automatically (Date, Company/Project, Type, Broker, Size). Read-only, builds itself from Pres. Log.",
     "The print confirmation dialog now also mentions that Citius AG Listing properties get counted."

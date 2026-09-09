@@ -311,6 +311,19 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .lists-values-header-drag{width:11px;flex-shrink:0}
   .lists-values-header span:not([class]){flex:1}
   .lists-values-header-del{width:30px;flex-shrink:0}
+  /* "Used in" — dónde se usa la lista actual (v6.5.0, pedido explícito del usuario): qué tabla(s) y
+     qué campo la tiene asignada en Configuración > Campos ahora mismo (fieldConfig, la fuente de verdad en
+     runtime — no FIELD_LIST_MAP, que solo es el default con el que arranca un campo nuevo). Reusa
+     `listUsageFor()`, la misma consulta que ya bloqueaba el borrado de una lista en uso (deleteCurrentList),
+     ahora expuesta también como información, no solo como bloqueo. Mismo estilo de "chip" que ya usa el
+     panel "Cover Data" para los brokers seleccionados (.cover-edit-chip) — aquí sin botón "×" porque no es
+     editable desde aquí, es solo informativo (se corrige desde Configuración > Campos). */
+  .lists-used-in{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:-4px 0 14px;font-size:12px}
+  .lists-used-in-label{color:var(--muted);flex-shrink:0}
+  .lists-used-in-chip{display:inline-flex;align-items:center;background:var(--panel-2);color:var(--txt);
+    border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:11.5px;white-space:nowrap}
+  .lists-used-in-chip b{font-weight:600;margin-right:4px}
+  .lists-nav button .lists-count b{color:var(--txt);font-weight:600}
   .lists-values-rows{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
   .lists-value-row{display:flex;align-items:center;gap:8px;cursor:grab}
   .lists-value-row.dragover{outline:2px dashed var(--accent);outline-offset:-2px}
@@ -1819,6 +1832,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
                 </button>
               </div>
             </div>
+            <div class="lists-used-in" id="listsUsedIn" style="display:none"></div>
             <div class="lists-values-header" id="listsValuesHeader" style="display:none">
               <span class="lists-values-header-drag"></span>
               <span>English</span>
@@ -11623,14 +11637,30 @@ function addNewList(){
   renderListsNav();
   document.getElementById("listsNewValue").focus();
 }
+/* "¿Dónde se usa esta lista?" (v6.5.0, pedido explícito del usuario) — consulta `fieldConfig` (la fuente de
+   verdad EN RUNTIME de qué lista tiene asignada cada campo, editable desde Configuración > Campos), no
+   `FIELD_LIST_MAP` (que solo es el default con el que arranca un campo NUEVO — un campo ya existente puede
+   apuntar a otra lista distinta si el usuario la cambió ahí). Se usa en 3 lugares: el contador "N fields"
+   junto a cada lista en la barra lateral (renderListsNav), los chips "Used in" del panel de detalle
+   (renderListValues), y el bloqueo de borrado que YA existía (deleteCurrentList) — antes cada uno hubiera
+   necesitado su propia copia de este mismo loop; ahora es una sola fuente de verdad. */
+function listUsageFor(name){
+  const usedBy=[];
+  for(const ent in fieldConfig){
+    if(!ENTITIES[ent]) continue; // por si alguna key vieja quedó huérfana en fieldConfig
+    (fieldConfig[ent]||[]).forEach(f=>{ if(f.list===name) usedBy.push({ent, entLabel:ENTITIES[ent].label, key:f.key, fieldLabelText:fieldLabel(f.key)}); });
+  }
+  return usedBy;
+}
 function renderListsNav(){
   const q=document.getElementById("listsSearch").value.trim().toLowerCase();
   const nav=document.getElementById("listsNav");
   const names=Object.keys(lists).sort((a,b)=>a.localeCompare(b)).filter(n=>!q||n.replace(/_/g," ").toLowerCase().includes(q));
   if(currentListName===null && names.length) currentListName=names[0];
-  nav.innerHTML=names.map(n=>
-    `<button class="${n===currentListName?'active':''}" onclick="selectList('${n}')">${escapeHtml(n.replace(/_/g," "))}<span class="lists-count">${(lists[n]||[]).length}</span></button>`
-  ).join("") || `<div class="muted" style="padding:10px;font-size:13px">No results</div>`;
+  nav.innerHTML=names.map(n=>{
+    const usage=listUsageFor(n).length;
+    return `<button class="${n===currentListName?'active':''}" onclick="selectList('${n}')">${escapeHtml(n.replace(/_/g," "))}<span class="lists-count"><b>${(lists[n]||[]).length}</b> · ${usage} field${usage===1?"":"s"}</span></button>`;
+  }).join("") || `<div class="muted" style="padding:10px;font-size:13px">No results</div>`;
   renderListValues();
 }
 function selectList(name){ currentListName=name; renderListsNav(); }
@@ -11639,14 +11669,23 @@ function renderListValues(){
   const valuesEl=document.getElementById("listsValues");
   const actionsEl=document.getElementById("listsCurrentActions");
   const headerEl=document.getElementById("listsValuesHeader");
+  const usedInEl=document.getElementById("listsUsedIn");
   if(!currentListName || !lists[currentListName]){
     nameEl.textContent="Selecciona una lista"; valuesEl.innerHTML=""; actionsEl.style.display="none";
     if(headerEl) headerEl.style.display="none";
+    if(usedInEl) usedInEl.style.display="none";
     return;
   }
   actionsEl.style.display="";
   if(headerEl) headerEl.style.display="flex";
   nameEl.textContent=currentListName.replace(/_/g," ")+` (${lists[currentListName].length})`;
+  if(usedInEl){
+    const usage=listUsageFor(currentListName);
+    usedInEl.style.display="flex";
+    usedInEl.innerHTML=`<span class="lists-used-in-label">Used in:</span>`+(usage.length
+      ? usage.map(u=>`<span class="lists-used-in-chip"><b>${escapeHtml(u.entLabel)}</b>${escapeHtml(u.fieldLabelText)}</span>`).join("")
+      : `<span class="lists-used-in-chip" style="color:var(--muted)">No field uses this list yet</span>`);
+  }
   const arr=lists[currentListName];
   const esMap=listTranslationsEs[currentListName]||{};
   valuesEl.innerHTML=arr.map((v,i)=>
@@ -11709,10 +11748,7 @@ function renameCurrentList(){
 function deleteCurrentList(){
   if(!currentListName) return;
   const name=currentListName;
-  const usedBy=[];
-  for(const ent in fieldConfig){
-    (fieldConfig[ent]||[]).forEach(f=>{ if(f.list===name) usedBy.push(`${ENTITIES[ent].label}: ${fieldLabel(f.key)}`); });
-  }
+  const usedBy=listUsageFor(name).map(u=>`${u.entLabel}: ${u.fieldLabelText}`); // ver listUsageFor() — antes era un loop propio, duplicado con lo que ahora también arma el contador/chips "Used in"
   if(usedBy.length){
     alert(`No se puede borrar "${name.replace(/_/g," ")}" — todavía la usan ${usedBy.length} campo(s):\n\n${usedBy.join("\n")}\n\nQuítale o cámbiale la lista a esos campos desde Configuración > Campos antes de borrarla.`);
     return;

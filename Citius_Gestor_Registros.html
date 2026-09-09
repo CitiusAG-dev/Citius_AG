@@ -290,15 +290,27 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .modal.lists-modal{max-width:820px}
   .lists-body{display:flex;gap:0;padding:0!important;flex:1;min-height:0;overflow:hidden!important;
               border:1px solid var(--line);border-radius:12px;background:var(--panel)}
-  .lists-nav-col{width:260px;flex-shrink:0;border-right:1px solid var(--line);display:flex;flex-direction:column;padding:16px}
+  /* 320px (v6.5.1, antes 260px, pedido explícito del usuario: "se ve muy amontonado") — con el contador
+     "N · N fields" agregado en v6.5.0 junto al nombre de cada lista, 260px dejaba muy poco ancho. Pero el
+     ancho por sí solo no bastaba: el nombre (antes un nodo de texto suelto, sin envoltura propia) y
+     `.lists-count` competían por espacio bajo `justify-content:space-between` con `flex-shrink` default
+     (1) en ambos — al no caber los dos en una sola línea, el navegador encogía TAMBIÉN al contador (texto
+     corto, ej. "9 · 2 fields") partiéndolo a 2 líneas igual que el nombre, aunque le sobrara espacio de
+     sobra si se le hubiera dejado su ancho natural. Fix real: el nombre ahora vive en su propio
+     `<span class="lists-name">` (antes imposible de aislar con CSS al ser texto suelto) con
+     `flex:1;min-width:0` (absorbe TODO el encogido, se envuelve libremente si el nombre es largo) y
+     `.lists-count` gana `flex-shrink:0;white-space:nowrap` (nunca se encoge, nunca se parte — siempre en
+     una sola línea, sin importar qué tan largo sea el nombre de al lado). */
+  .lists-nav-col{width:320px;flex-shrink:0;border-right:1px solid var(--line);display:flex;flex-direction:column;padding:16px}
   .lists-nav-col input{width:100%;padding:8px 10px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:13px;margin-bottom:10px}
   .lists-nav-col #listsAddBtn{width:100%;justify-content:center;margin-bottom:10px}
   .lists-nav{overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:2px}
   .lists-nav button{background:none;border:none;color:var(--txt);padding:9px 10px;cursor:pointer;font-size:13px;
                      border-radius:8px;text-align:left;display:flex;justify-content:space-between;gap:8px}
+  .lists-nav button .lists-name{flex:1;min-width:0}
   .lists-nav button:hover{background:var(--panel-2)}
   .lists-nav button.active{color:var(--accent-ink);background:rgba(240,179,35,.14);font-weight:600}
-  .lists-nav button .lists-count{color:var(--muted);font-size:11px}
+  .lists-nav button .lists-count{color:var(--muted);font-size:11px;flex-shrink:0;white-space:nowrap;align-self:center}
   .lists-values-col{flex:1;min-width:0;display:flex;flex-direction:column;padding:20px 24px;overflow-y:auto}
   .lists-values-col h4{margin:0 0 14px;font-size:14px}
   .lists-current-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -11659,7 +11671,7 @@ function renderListsNav(){
   if(currentListName===null && names.length) currentListName=names[0];
   nav.innerHTML=names.map(n=>{
     const usage=listUsageFor(n).length;
-    return `<button class="${n===currentListName?'active':''}" onclick="selectList('${n}')">${escapeHtml(n.replace(/_/g," "))}<span class="lists-count"><b>${(lists[n]||[]).length}</b> · ${usage} field${usage===1?"":"s"}</span></button>`;
+    return `<button class="${n===currentListName?'active':''}" onclick="selectList('${n}')"><span class="lists-name">${escapeHtml(n.replace(/_/g," "))}</span><span class="lists-count"><b>${(lists[n]||[]).length}</b> · ${usage} field${usage===1?"":"s"}</span></button>`;
   }).join("") || `<div class="muted" style="padding:10px;font-size:13px">No results</div>`;
   renderListValues();
 }

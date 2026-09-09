@@ -290,15 +290,27 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .modal.lists-modal{max-width:820px}
   .lists-body{display:flex;gap:0;padding:0!important;flex:1;min-height:0;overflow:hidden!important;
               border:1px solid var(--line);border-radius:12px;background:var(--panel)}
-  .lists-nav-col{width:260px;flex-shrink:0;border-right:1px solid var(--line);display:flex;flex-direction:column;padding:16px}
+  /* 320px (v6.5.1, antes 260px, pedido explícito del usuario: "se ve muy amontonado") — con el contador
+     "N · N fields" agregado en v6.5.0 junto al nombre de cada lista, 260px dejaba muy poco ancho. Pero el
+     ancho por sí solo no bastaba: el nombre (antes un nodo de texto suelto, sin envoltura propia) y
+     `.lists-count` competían por espacio bajo `justify-content:space-between` con `flex-shrink` default
+     (1) en ambos — al no caber los dos en una sola línea, el navegador encogía TAMBIÉN al contador (texto
+     corto, ej. "9 · 2 fields") partiéndolo a 2 líneas igual que el nombre, aunque le sobrara espacio de
+     sobra si se le hubiera dejado su ancho natural. Fix real: el nombre ahora vive en su propio
+     `<span class="lists-name">` (antes imposible de aislar con CSS al ser texto suelto) con
+     `flex:1;min-width:0` (absorbe TODO el encogido, se envuelve libremente si el nombre es largo) y
+     `.lists-count` gana `flex-shrink:0;white-space:nowrap` (nunca se encoge, nunca se parte — siempre en
+     una sola línea, sin importar qué tan largo sea el nombre de al lado). */
+  .lists-nav-col{width:320px;flex-shrink:0;border-right:1px solid var(--line);display:flex;flex-direction:column;padding:16px}
   .lists-nav-col input{width:100%;padding:8px 10px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:13px;margin-bottom:10px}
   .lists-nav-col #listsAddBtn{width:100%;justify-content:center;margin-bottom:10px}
   .lists-nav{overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:2px}
   .lists-nav button{background:none;border:none;color:var(--txt);padding:9px 10px;cursor:pointer;font-size:13px;
                      border-radius:8px;text-align:left;display:flex;justify-content:space-between;gap:8px}
+  .lists-nav button .lists-name{flex:1;min-width:0}
   .lists-nav button:hover{background:var(--panel-2)}
   .lists-nav button.active{color:var(--accent-ink);background:rgba(240,179,35,.14);font-weight:600}
-  .lists-nav button .lists-count{color:var(--muted);font-size:11px}
+  .lists-nav button .lists-count{color:var(--muted);font-size:11px;flex-shrink:0;white-space:nowrap;align-self:center}
   .lists-values-col{flex:1;min-width:0;display:flex;flex-direction:column;padding:20px 24px;overflow-y:auto}
   .lists-values-col h4{margin:0 0 14px;font-size:14px}
   .lists-current-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -311,6 +323,19 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .lists-values-header-drag{width:11px;flex-shrink:0}
   .lists-values-header span:not([class]){flex:1}
   .lists-values-header-del{width:30px;flex-shrink:0}
+  /* "Used in" — dónde se usa la lista actual (v6.5.0, pedido explícito del usuario): qué tabla(s) y
+     qué campo la tiene asignada en Configuración > Campos ahora mismo (fieldConfig, la fuente de verdad en
+     runtime — no FIELD_LIST_MAP, que solo es el default con el que arranca un campo nuevo). Reusa
+     `listUsageFor()`, la misma consulta que ya bloqueaba el borrado de una lista en uso (deleteCurrentList),
+     ahora expuesta también como información, no solo como bloqueo. Mismo estilo de "chip" que ya usa el
+     panel "Cover Data" para los brokers seleccionados (.cover-edit-chip) — aquí sin botón "×" porque no es
+     editable desde aquí, es solo informativo (se corrige desde Configuración > Campos). */
+  .lists-used-in{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:-4px 0 14px;font-size:12px}
+  .lists-used-in-label{color:var(--muted);flex-shrink:0}
+  .lists-used-in-chip{display:inline-flex;align-items:center;background:var(--panel-2);color:var(--txt);
+    border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:11.5px;white-space:nowrap}
+  .lists-used-in-chip b{font-weight:600;margin-right:4px}
+  .lists-nav button .lists-count b{color:var(--txt);font-weight:600}
   .lists-values-rows{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
   .lists-value-row{display:flex;align-items:center;gap:8px;cursor:grab}
   .lists-value-row.dragover{outline:2px dashed var(--accent);outline-offset:-2px}
@@ -1379,7 +1404,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v6.3.2</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v6.4.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -1819,6 +1844,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
                 </button>
               </div>
             </div>
+            <div class="lists-used-in" id="listsUsedIn" style="display:none"></div>
             <div class="lists-values-header" id="listsValuesHeader" style="display:none">
               <span class="lists-values-header-drag"></span>
               <span>English</span>
@@ -2184,7 +2210,29 @@ function loadLists(){
 }
 function saveLists(){ try{ localStorage.setItem(LISTS_KEY, JSON.stringify(lists)); }catch(e){} }
 let lists = loadLists();
-for(const k in DEFAULT_LISTS){ if(!(k in lists)) lists[k]=DEFAULT_LISTS[k].slice(); } // trae listas nuevas (ej. LAND_*) a quien ya tenía listas guardadas
+/* Bug real reportado por el usuario (v6.5.2): borrar una lista completa desde Configuración > Listas
+   parecía no funcionar — el "pop-up de no se puede revertir" salía, aceptaba, le daba "Save lists", pero
+   al recargar la página la lista volvía a aparecer con sus valores de siempre. Causa raíz: el guard de
+   abajo (`if(!(k in lists)) lists[k]=DEFAULT_LISTS[k].slice()`) — pensado para traer a `lists` cualquier
+   lista NUEVA del código que un usuario con datos viejos guardados todavía no tuviera (ej. las `LAND_*`
+   agregadas en v3.24.0) — no puede distinguir "esta lista falta porque es nueva" de "esta lista falta
+   porque el usuario la borró a propósito": ambos casos se ven IGUAL (`!(k in lists)`). Como casi todas las
+   ~99 listas reales de la app vienen de `DEFAULT_LISTS`, borrar cualquiera de ellas quedaba bien localmente
+   (`lists`/localStorage sí perdían la key), pero en la SIGUIENTE carga este mismo guard —que corre tanto
+   aquí (arranque) como dentro de `loadListsFromSheet()` cada vez que se lee/refresca el Excel/Config
+   vinculado, ver ahí— la resucitaba sola desde el default, con sus valores originales de siempre.
+   `deletedDefaultLists` es un set persistido de nombres de lista que el usuario borró explícitamente
+   sabiendo que existían en `DEFAULT_LISTS` (ver `deleteCurrentList()`/`renameCurrentList()`) — ambos guards
+   ahora también revisan este set antes de resucitar una key, y solo dejan de excluirla si el usuario vuelve
+   a crear una lista con ese mismo nombre a mano (ver `addNewList()`). */
+const DELETED_DEFAULT_LISTS_KEY = "citius_deleted_default_lists_v1";
+function loadDeletedDefaultLists(){
+  try{ const s=localStorage.getItem(DELETED_DEFAULT_LISTS_KEY); if(s) return new Set(JSON.parse(s)); }catch(e){}
+  return new Set();
+}
+function saveDeletedDefaultLists(){ try{ localStorage.setItem(DELETED_DEFAULT_LISTS_KEY, JSON.stringify([...deletedDefaultLists])); }catch(e){} }
+let deletedDefaultLists = loadDeletedDefaultLists();
+for(const k in DEFAULT_LISTS){ if(!(k in lists) && !deletedDefaultLists.has(k)) lists[k]=DEFAULT_LISTS[k].slice(); } // trae listas nuevas (ej. LAND_*) a quien ya tenía listas guardadas — nunca una que el usuario borró a propósito
 /* Traducciones ES (v4.3.0) — mismo patrón exacto que lists/DEFAULT_LISTS de arriba, pero separado: nunca se
    mezcla con `lists` (que sigue siendo 100% inglés, para captura). Shape: {LISTNAME: {"EN value":"Traducción"}}. */
 const LIST_TRANSLATIONS_KEY = "citius_list_translations_es_v1";
@@ -2712,7 +2760,11 @@ function loadListsFromSheet(wb){
   // desaparecía sin más. El merge de DEFAULT_LISTS que ya corre una vez al arrancar la app (ver más abajo)
   // no alcanza a cubrir ESTE momento, porque pasa DESPUÉS, cada vez que se lee/refresca el archivo — se
   // repite aquí mismo, por la misma razón.
-  for(const k in DEFAULT_LISTS){ if(!(k in newLists)) newLists[k]=DEFAULT_LISTS[k].slice(); }
+  // v6.5.2: mismo guard `!deletedDefaultLists.has(k)` que el de arriba (ver su comentario, línea ~2213) —
+  // sin esto, borrar una lista y darle "Save lists" la escribía bien al Excel (correctamente ausente), pero
+  // la SIGUIENTE vez que se leía/refrescaba ese mismo archivo (ej. recargar la página, que vuelve a leer el
+  // archivo vinculado) esta función la resucitaba sola desde el default, deshaciendo el borrado en silencio.
+  for(const k in DEFAULT_LISTS){ if(!(k in newLists) && !deletedDefaultLists.has(k)) newLists[k]=DEFAULT_LISTS[k].slice(); }
   // v4.3.0: las traducciones SÍ se mezclan valor-por-valor (a diferencia de `lists`, que se reemplaza
   // completo) — una traducción ya editada a mano en la app no se pierde solo porque la celda ES de esa
   // fila viniera vacía en el Excel; el Excel gana únicamente para los valores que SÍ trae traducidos.
@@ -3618,6 +3670,11 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"6.4.0", date:"2026-09-09", items:[
+    "Settings > Lists: selecting a list now shows \"Used in: [Table · Field]…\" chips so you can see at a glance which tables/fields depend on it, and the sidebar shows how many fields use each list next to its value count.",
+    "Settings > Lists: widened the list sidebar and fixed the field-count badge wrapping awkwardly next to long list names.",
+    "Fixed: deleting a whole dropdown list didn't actually stick — it would silently come back (with its original values) the next time the page loaded or the linked Excel/Config file was refreshed."
+  ]},
   {version:"6.3.2", date:"2026-09-09", items:[
     "Fixed: Transactions' \"Property Type\" field stopped correctly showing/hiding the Trans. Details fields (and the \"Select…\" linked-record picker stopped working) after its list values changed to Industrial/Land/Offices/Retail — \"Industrial\" now behaves exactly like \"Buildings\" did before."
   ]},
@@ -11618,19 +11675,40 @@ function addNewList(){
   }
   lists[name]=[];
   saveLists();
+  // v6.5.2: si el usuario está recreando a mano una lista que antes había borrado (y esa lista existía en
+  // DEFAULT_LISTS), se quita del tombstone — de otra forma quedaría marcada como "borrada a propósito" para
+  // siempre, y aunque eso no le hace nada mientras la key SÍ existe en `lists` (los guards de arriba solo
+  // miran listas AUSENTES), es basura acumulada sin sentido una vez que el usuario decidió que sí la quiere.
+  if(deletedDefaultLists.has(name)){ deletedDefaultLists.delete(name); saveDeletedDefaultLists(); }
   currentListName=name;
   document.getElementById("listsSearch").value="";
   renderListsNav();
   document.getElementById("listsNewValue").focus();
+}
+/* "¿Dónde se usa esta lista?" (v6.5.0, pedido explícito del usuario) — consulta `fieldConfig` (la fuente de
+   verdad EN RUNTIME de qué lista tiene asignada cada campo, editable desde Configuración > Campos), no
+   `FIELD_LIST_MAP` (que solo es el default con el que arranca un campo NUEVO — un campo ya existente puede
+   apuntar a otra lista distinta si el usuario la cambió ahí). Se usa en 3 lugares: el contador "N fields"
+   junto a cada lista en la barra lateral (renderListsNav), los chips "Used in" del panel de detalle
+   (renderListValues), y el bloqueo de borrado que YA existía (deleteCurrentList) — antes cada uno hubiera
+   necesitado su propia copia de este mismo loop; ahora es una sola fuente de verdad. */
+function listUsageFor(name){
+  const usedBy=[];
+  for(const ent in fieldConfig){
+    if(!ENTITIES[ent]) continue; // por si alguna key vieja quedó huérfana en fieldConfig
+    (fieldConfig[ent]||[]).forEach(f=>{ if(f.list===name) usedBy.push({ent, entLabel:ENTITIES[ent].label, key:f.key, fieldLabelText:fieldLabel(f.key)}); });
+  }
+  return usedBy;
 }
 function renderListsNav(){
   const q=document.getElementById("listsSearch").value.trim().toLowerCase();
   const nav=document.getElementById("listsNav");
   const names=Object.keys(lists).sort((a,b)=>a.localeCompare(b)).filter(n=>!q||n.replace(/_/g," ").toLowerCase().includes(q));
   if(currentListName===null && names.length) currentListName=names[0];
-  nav.innerHTML=names.map(n=>
-    `<button class="${n===currentListName?'active':''}" onclick="selectList('${n}')">${escapeHtml(n.replace(/_/g," "))}<span class="lists-count">${(lists[n]||[]).length}</span></button>`
-  ).join("") || `<div class="muted" style="padding:10px;font-size:13px">No results</div>`;
+  nav.innerHTML=names.map(n=>{
+    const usage=listUsageFor(n).length;
+    return `<button class="${n===currentListName?'active':''}" onclick="selectList('${n}')"><span class="lists-name">${escapeHtml(n.replace(/_/g," "))}</span><span class="lists-count"><b>${(lists[n]||[]).length}</b> · ${usage} field${usage===1?"":"s"}</span></button>`;
+  }).join("") || `<div class="muted" style="padding:10px;font-size:13px">No results</div>`;
   renderListValues();
 }
 function selectList(name){ currentListName=name; renderListsNav(); }
@@ -11639,14 +11717,23 @@ function renderListValues(){
   const valuesEl=document.getElementById("listsValues");
   const actionsEl=document.getElementById("listsCurrentActions");
   const headerEl=document.getElementById("listsValuesHeader");
+  const usedInEl=document.getElementById("listsUsedIn");
   if(!currentListName || !lists[currentListName]){
     nameEl.textContent="Selecciona una lista"; valuesEl.innerHTML=""; actionsEl.style.display="none";
     if(headerEl) headerEl.style.display="none";
+    if(usedInEl) usedInEl.style.display="none";
     return;
   }
   actionsEl.style.display="";
   if(headerEl) headerEl.style.display="flex";
   nameEl.textContent=currentListName.replace(/_/g," ")+` (${lists[currentListName].length})`;
+  if(usedInEl){
+    const usage=listUsageFor(currentListName);
+    usedInEl.style.display="flex";
+    usedInEl.innerHTML=`<span class="lists-used-in-label">Used in:</span>`+(usage.length
+      ? usage.map(u=>`<span class="lists-used-in-chip"><b>${escapeHtml(u.entLabel)}</b>${escapeHtml(u.fieldLabelText)}</span>`).join("")
+      : `<span class="lists-used-in-chip" style="color:var(--muted)">No field uses this list yet</span>`);
+  }
   const arr=lists[currentListName];
   const esMap=listTranslationsEs[currentListName]||{};
   valuesEl.innerHTML=arr.map((v,i)=>
@@ -11692,6 +11779,14 @@ function renameCurrentList(){
   if(existing){ toast("A list with that name already exists","err"); return; }
   lists[newName]=lists[oldName];
   delete lists[oldName];
+  // v6.5.2: mismo tombstone que deleteCurrentList() — si oldName venía de DEFAULT_LISTS, renombrarla la
+  // deja tan "ausente de `lists`" como borrarla (misma condición `!(k in lists)` que revisan los 2 guards
+  // de arriba), así que sin este registro el nombre viejo volvería a resucitar solo en la siguiente
+  // carga/refresh del Excel — un duplicado fantasma con los valores originales del default, aparte de la
+  // lista ya renombrada. Si newName coincide con una lista default que el usuario había borrado antes, se
+  // quita del tombstone (mismo criterio que addNewList()) — ya existe de nuevo, bajo este nombre.
+  if(oldName in DEFAULT_LISTS){ deletedDefaultLists.add(oldName); saveDeletedDefaultLists(); }
+  if(deletedDefaultLists.has(newName)){ deletedDefaultLists.delete(newName); saveDeletedDefaultLists(); }
   if(oldName in listTranslationsEs){ listTranslationsEs[newName]=listTranslationsEs[oldName]; delete listTranslationsEs[oldName]; saveListTranslationsEs(); }
   for(const ent in fieldConfig){
     (fieldConfig[ent]||[]).forEach(f=>{ if(f.list===oldName) f.list=newName; });
@@ -11709,16 +11804,21 @@ function renameCurrentList(){
 function deleteCurrentList(){
   if(!currentListName) return;
   const name=currentListName;
-  const usedBy=[];
-  for(const ent in fieldConfig){
-    (fieldConfig[ent]||[]).forEach(f=>{ if(f.list===name) usedBy.push(`${ENTITIES[ent].label}: ${fieldLabel(f.key)}`); });
-  }
+  const usedBy=listUsageFor(name).map(u=>`${u.entLabel}: ${u.fieldLabelText}`); // ver listUsageFor() — antes era un loop propio, duplicado con lo que ahora también arma el contador/chips "Used in"
   if(usedBy.length){
     alert(`No se puede borrar "${name.replace(/_/g," ")}" — todavía la usan ${usedBy.length} campo(s):\n\n${usedBy.join("\n")}\n\nQuítale o cámbiale la lista a esos campos desde Configuración > Campos antes de borrarla.`);
     return;
   }
   if(!confirm(`Delete the list "${name.replace(/_/g," ")}" and its ${lists[name].length} value(s)? This action cannot be undone.`)) return;
   delete lists[name];
+  // v6.5.2, bug real corregido: sin este tombstone, el guard "trae listas nuevas a quien ya tenía guardado"
+  // (línea ~2213, y su gemelo dentro de loadListsFromSheet()) no podía distinguir esta lista de una
+  // GENUINAMENTE nueva del código que el usuario aún no tuviera — la resucitaba sola en la siguiente carga
+  // de la página (o cada vez que se releía/refrescaba el Excel/Config vinculado), con sus valores originales
+  // del default, deshaciendo el borrado en silencio. Solo hace falta registrar esto para listas que SÍ
+  // existen en DEFAULT_LISTS — una lista creada a mano por el usuario (+ New list) nunca está ahí, así que
+  // nunca puede "resucitar" de ese guard para empezar.
+  if(name in DEFAULT_LISTS){ deletedDefaultLists.add(name); saveDeletedDefaultLists(); }
   if(name in listTranslationsEs){ delete listTranslationsEs[name]; saveListTranslationsEs(); }
   saveLists();
   currentListName=null;

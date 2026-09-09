@@ -11818,7 +11818,14 @@ async function loadConsolidatedFromRoot(rootHandle, onProgress){
   // de abajo YA recorre `for(const ent in ENTITIES)` genérico (incluye Oficinas/Spaces desde que se agregaron) y
   // hace `merged[ent].push(...)` — si algún archivo de Modo Consolidado tuviera una hoja OFICINAS/SPACES, esto
   // habría tronado (`undefined.push`) porque `merged` no traía esas 2 keys inicializadas.
-  const merged={PROPIEDADES:[],PARKS:[],TRANSACCIONES:[],LAND:[],OFICINAS:[],SPACES:[]};
+  // v6.4.1, MISMO bug reaparecido con BITACORA (Pres. Log, agregado como entidad nueva en v6.0.0, después de
+  // este fix): cualquier oficina que ya tuviera al menos 1 presentación impresa trae una hoja "BITACORA" real
+  // en su Excel — extractEntityRowsReadOnly() la encontraba y tronaba en `merged.BITACORA.push(...)`
+  // (undefined.push), abortando la lectura de ESE archivo a medio camino (después de ya haber volcado
+  // Propiedades/Parques/etc. a `merged`, porque Bitácora se procesa al final del loop de ENTITIES) y
+  // marcándolo como "no se pudo leer" en el aviso final — mensaje engañoso, el archivo sí se leyó, solo
+  // Bitácora se perdía. El usuario preguntó explícitamente si Pres. Log se consolidaba (no) y pidió que sí.
+  const merged={PROPIEDADES:[],PARKS:[],TRANSACCIONES:[],LAND:[],OFICINAS:[],SPACES:[],BITACORA:[]};
   let officeCount=0, fileCount=0, skipped=[], officeIdx=0;
   for await (const [officeName, officeHandle] of rootHandle.entries()){
     if(officeHandle.kind!=="directory") continue;
@@ -11886,6 +11893,10 @@ function applyConsolidatedResult(merged, officeCount, fileCount, total){
   state.PROPIEDADES=merged.PROPIEDADES; state.PARKS=merged.PARKS;
   state.TRANSACCIONES=merged.TRANSACCIONES; state.LAND=merged.LAND;
   state.OFICINAS=merged.OFICINAS; state.SPACES=merged.SPACES;
+  // v6.4.1, pedido explícito del usuario: Pres. Log (BITACORA) también se consolida — mismo patrón que las
+  // otras 6 entidades, `merged.BITACORA` ya se recolecta desde loadConsolidatedFromRoot(), solo faltaba
+  // volcarla aquí.
+  state.BITACORA=merged.BITACORA;
   invalidateSubmarketToMarketCache();
   parkDerivedCacheSig=null;
   setConsolidatedChip(officeCount, fileCount, total);

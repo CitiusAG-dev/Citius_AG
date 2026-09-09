@@ -2575,6 +2575,12 @@ const TRANS_CATEGORY_LINK={
     fieldMap:{PROPERTY_NAME:"PROPERTY_NAME", DEVELOPER:"DEVELOPER", PARK_NAME:null, LISTING_BROKER:null, TRANSACCION_TYPE:"TRANSACTION_AVAILABLE", BROKER_BUILDING:null},
     columns:[{key:"MAPPING_CODE", label:"Mapping Code", width:"1fr"}, {key:"PROPERTY_NAME", label:"Property Name", width:"1.5fr"}, {key:"CATEGORY_OFFICES", label:"Category", width:"1.2fr"}, {key:"MARKET", label:"Market", width:"1fr"}, {key:"SUBMARKET", label:"Submarket", width:"1fr"}] }
 };
+// v6.4.2, pedido explícito del usuario: "Industrial" (valor nuevo de PROPERTY_TYPE que reemplaza a
+// "Buildings" en la lista) hereda EXACTAMENTE la configuración de "Buildings" — mismo picker, misma
+// entidad ligada (PROPIEDADES), mismo autofill. Alias en vez de duplicar el objeto, para que un ajuste
+// futuro a "Buildings" (ej. agregar un campo al fieldMap) aplique a "Industrial" también sin acordarse de
+// tocar 2 lugares.
+TRANS_CATEGORY_LINK.Industrial=TRANS_CATEGORY_LINK.Buildings;
 function openLinkedRecordPickerForTransaction(){
   const catEl=document.querySelector('#mBody [data-key="PROPERTY_TYPE"]');
   const cfg=catEl && TRANS_CATEGORY_LINK[catEl.value];
@@ -3329,20 +3335,18 @@ let state = loadState();
 if(!state.LAND) state.LAND=[]; // migración: usuarios con datos ya guardados no tenían esta entidad
 if(!state.OFICINAS) state.OFICINAS=[]; // migración: misma idea, para quien ya tenía datos guardados antes de v3.48.0
 if(!state.SPACES) state.SPACES=[]; // migración: misma idea, para quien ya tenía datos guardados antes de v3.48.2
-/* v3.51.6, migración de datos ya capturados (pedido explícito del usuario): PROPERTY_TYPE de Transacciones
-   cambió de lista en v3.49.0 (Industrial/Land/Offices/Retail -> Buildings/Parks/Land/Offices, ver
-   TRANS_CATEGORY_LINK) — "Land"/"Offices" ya calzan igual, pero transacciones viejas con "Industrial" o
-   "Retail" ya capturadas se quedaban con un valor que no existe en la lista nueva: transactionVisibleFields()
-   no las reconoce y cae al set completo sin organizar en pestañas, en vez del Gross/Negative de siempre.
-   Se corre tanto al arrancar (datos ya guardados en este navegador) como al leer/refrescar el Excel vinculado
-   (ver loadFromWorkbook) — "Retail" se trata igual que "Industrial": en la práctica ambas estaban enlazadas
-   a un registro de Propiedades por Mapping Code, mismo flujo de campos que Buildings de todas formas. */
-function migrateTransactionPropertyTypeValues(){
-  (state.TRANSACCIONES||[]).forEach(r=>{
-    if(r.PROPERTY_TYPE==="Industrial" || r.PROPERTY_TYPE==="Retail") r.PROPERTY_TYPE="Buildings";
-  });
-}
-migrateTransactionPropertyTypeValues();
+/* v3.51.6→v6.4.2: hubo una migración aquí (migrateTransactionPropertyTypeValues()) que convertía
+   "Industrial"/"Retail" -> "Buildings" en cada carga, porque en v3.49.0 la lista PROPERTY_TYPE de
+   Transacciones había cambiado de Industrial/Land/Offices/Retail a Buildings/Parks/Land/Offices y hacía
+   falta arrastrar los datos viejos al nuevo esquema. **Se ELIMINÓ en v6.4.2** porque el usuario volvió a
+   cambiar la lista, ahora en sentido CONTRARIO (de vuelta a Industrial/Land/Offices/Retail) — dejar esta
+   migración activa habría revertido en silencio cualquier transacción nueva capturada con "Industrial" de
+   vuelta a "Buildings" en la siguiente carga, peleando contra el cambio que el usuario acaba de pedir.
+   "Industrial" ahora es un valor de primera clase (ver TRANS_CATEGORY_LINK.Industrial/
+   transactionVisibleFields() más abajo, mismo comportamiento que tenía "Buildings"), no una excepción que
+   haya que corregir. Si la lista cambia de sentido otra vez en el futuro, replicar este mismo criterio:
+   agregar el valor nuevo como alias del viejo en los 2 lugares de arriba, no reescribir datos ya
+   capturados a la fuerza. */
 let current = "PROPIEDADES";
 /* ==== Última pestaña visitada: se restaura sola al recargar el navegador (antes siempre mandaba a
    Propiedades). "table" guarda también qué entidad (Propiedades/Parques/Terrenos/Transacciones) estaba
@@ -6123,7 +6127,16 @@ function transactionVisibleFields(ent, record, allFields){
   let order;
   if(!category) order=TRANS_CATEGORY_ONLY;
   else if(category==="offices") order = absorption ? TRANSACCION_FIELDS_OFFICE : TRANS_CATEGORY_AND_ABSORPTION;
-  else if(category==="buildings"||category==="parks"||category==="land"){
+  // v6.4.2, pedido explícito del usuario: la lista PROPERTY_TYPE de Transacciones cambió (de nuevo, en
+  // sentido contrario a v3.49.0 — ver la nota de migrateTransactionPropertyTypeValues() más abajo, ya
+  // removida) a Industrial/Land/Offices/Retail. "Industrial" hereda EXACTAMENTE el comportamiento de
+  // "Buildings" (decisión confirmada con el usuario vía AskUserQuestion) — mismo set de campos Gross/
+  // Negative, mismo picker (ver TRANS_CATEGORY_LINK.Industrial más abajo). "buildings"/"parks" se dejan
+  // reconocidos también (no se quitan) para que transacciones YA capturadas con esos valores viejos sigan
+  // mostrando su set filtrado de siempre, en vez de caer al fallback "categoría no reconocida" (que muestra
+  // TODOS los campos sin filtrar) solo por no haberse migrado. "Retail" (valor nuevo, sin comportamiento
+  // definido todavía — pedido explícito del usuario "déjamelo para después") cae a ese mismo fallback.
+  else if(category==="industrial"||category==="buildings"||category==="parks"||category==="land"){
     if(!absorption) order=TRANS_CATEGORY_AND_ABSORPTION;
     else if(absorption==="gross") order=TRANSACCION_FIELDS_GROSS;
     else if(absorption==="negative") order=TRANSACCION_FIELDS_NEGATIVE;
@@ -10706,7 +10719,6 @@ function loadFromWorkbook(wb){
     state[ent]=rows;
     matchedSheets++;
   }
-  migrateTransactionPropertyTypeValues();
   if(!configFileHandle){ loadListsFromSheet(wb); loadFieldConfigFromSheet(wb); loadCascadeCatalogFromSheet(wb); }
   return matchedSheets;
 }

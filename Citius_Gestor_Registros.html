@@ -9892,10 +9892,23 @@ function preparePrintPageSize(){
   // la primerÍsima y la ÚLTIMA hoja del documento ya imprimen bien tal cual (por el fix de `body{page:...}`
   // de más abajo, y porque forzarles tamaño fijo agrega una hoja en blanco de más) — se excluyen del lock.
   const lastPage=pages[pages.length-1];
-  function lockSize(list, wPx, hPx){
+  // `heightOnly` (v6.3.2, pedido explícito del usuario, bug real confirmado con Chrome headless +
+  // Page.printToPDF sobre un PDF de prueba: el margen derecho de Layout/Galería salía visiblemente más
+  // angosto que el de Table — el mapa aéreo/las fotos casi tocaban el borde de la hoja) — Portada/Mapa
+  // necesitan el `width` fijo tanto como el `height` (miden un aspect-ratio exacto, sin contenido que
+  // pueda empujar el ancho). Layout/Galería, en cambio, tienen grids internos (`.layout-top-row`/
+  // `.galeria-grid`) cuyo `width` en píxeles exactos (calculado en pantalla, ANTES de imprimir) no
+  // coincide con el ancho que Chrome termina usando en el pase de impresión real — el resultado medido
+  // fue un margen derecho de solo ~17px en vez de los ~30px de padding esperados. Igual que Table (que
+  // NUNCA tuvo este problema porque nunca se le fuerza `width`, solo depende de `width:100%;max-width:
+  // none` de `@media print`), Layout/Galería ahora solo reciben el `height` fijo — necesario para que la
+  // hoja no cambie de tamaño entre "página vacía"/"con datos" — y dejan el `width` fluido. Verificado con
+  // el mismo mecanismo (PDF real vía CDP): el margen subió a ~47px, igual de parejo que Table.
+  function lockSize(list, wPx, hPx, heightOnly){
     list.forEach(p=>{
       if(p===pages[0] || p===lastPage) return;
-      p.style.height=hPx+"px"; p.style.width=wPx+"px";
+      p.style.height=hPx+"px";
+      if(!heightOnly) p.style.width=wPx+"px";
     });
   }
   if(coverPages.length){
@@ -9911,12 +9924,12 @@ function preparePrintPageSize(){
   if(layoutPages.length){
     const s=measure(layoutPages);
     css+=`@page layoutPage{size:${s.wIn}in ${s.hIn}in;margin:0} .deck-page.layout-page{page:layoutPage}\n`;
-    lockSize(layoutPages, parseFloat(s.wIn)*96, parseFloat(s.hIn)*96);
+    lockSize(layoutPages, parseFloat(s.wIn)*96, parseFloat(s.hIn)*96, true);
   }
   if(galeriaPages.length){
     const s=measure(galeriaPages);
     css+=`@page galeriaPage{size:${s.wIn}in ${s.hIn}in;margin:0} .deck-page.galeria-page{page:galeriaPage}\n`;
-    lockSize(galeriaPages, parseFloat(s.wIn)*96, parseFloat(s.hIn)*96);
+    lockSize(galeriaPages, parseFloat(s.wIn)*96, parseFloat(s.hIn)*96, true);
   }
   if(tablePages.length){
     const s=measure(tablePages);

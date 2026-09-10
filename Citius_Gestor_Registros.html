@@ -12405,9 +12405,12 @@ document.getElementById("unlinkFileBtn").onclick=async()=>{
   // "Desvincular" seguía borrando solo los 3 nombres hardcodeados de antes de que existieran — sus datos se
   // quedaban huérfanos en el navegador después de desvincular, a diferencia de Propiedades/Parques/
   // Transacciones. Se agregan aquí igual que las demás.
-  if(!confirm(`Unlink "${fileHandle.name}"? This will ERASE all Properties, Parks, Transactions, Offices, and Spaces records already loaded in this browser — this cannot be undone. Link the file again to recover them.`)) return;
+  // v6.5.11, MISMO bug reportado por el usuario ("hice pruebas y encontré que cuando le das unlink no
+  // borra los datos de land"): Terrenos se unió a este mismo Excel en v6.5.10 pero se quedó fuera de esta
+  // lista hardcodeada — se agrega aquí por la misma razón que Oficinas/Spaces arriba.
+  if(!confirm(`Unlink "${fileHandle.name}"? This will ERASE all Properties, Parks, Land, Transactions, Offices, and Spaces records already loaded in this browser — this cannot be undone. Link the file again to recover them.`)) return;
   fileHandle=null; lastKnownFileModTime=null;
-  state.PROPIEDADES=[]; state.PARKS=[]; state.TRANSACCIONES=[]; state.OFICINAS=[]; state.SPACES=[];
+  state.PROPIEDADES=[]; state.PARKS=[]; state.LAND=[]; state.TRANSACCIONES=[]; state.OFICINAS=[]; state.SPACES=[];
   await saveHandle(null);
   backupLocal();
   document.getElementById("reconnectBar").style.display="none";

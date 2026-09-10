@@ -1626,10 +1626,6 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       There's a remembered configuration file (<b id="reconnectConfigName"></b>) but Chrome needs your permission to write to it again.
       <button class="btn" id="reconnectConfigBtn" style="padding:5px 12px;margin-left:10px">Reconnect file</button>
     </div>
-    <div id="reconnectLandBar" style="display:none;background:rgba(245,176,65,.12);border-bottom:1px solid var(--line);padding:10px 24px;font-size:13px;color:#8a6200">
-      There's a remembered Land file (<b id="reconnectLandName"></b>) but Chrome needs your permission to write to it again.
-      <button class="btn" id="reconnectLandBtn" style="padding:5px 12px;margin-left:10px">Reconnect file</button>
-    </div>
     <div id="reconnectComplementaryBar" style="display:none;background:rgba(245,176,65,.12);border-bottom:1px solid var(--line);padding:10px 24px;font-size:13px;color:#8a6200">
       There's a remembered supplementary data file (<b id="reconnectComplementaryName"></b>) but Chrome needs your permission to read it again.
       <button class="btn" id="reconnectComplementaryBtn" style="padding:5px 12px;margin-left:10px">Reconnect file</button>
@@ -1806,18 +1802,8 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
               <button class="btn ghost" id="unlinkConfigFileBtn" disabled>Unlink</button>
             </div>
           </div>
-          <div class="files-card">
-            <h5>Land File</h5>
-            <div class="settings-row">
-              <span id="landFileChip" style="padding:4px 10px;border-radius:20px;background:rgba(107,116,128,.15);color:var(--muted);font-size:12px">No file linked</span>
-            </div>
-            <div class="path-note" id="landFilePathNote"></div>
-            <p class="map-hint">Independent Excel file (e.g. LAND_CS.xlsx) where Land records live — separate from the Properties/Parks/Transactions data Excel. While it's linked, every change in Land is saved there automatically.</p>
-            <div class="settings-actions">
-              <button class="btn ghost" id="openLandFileBtn">Open Land file…</button>
-              <button class="btn ghost" id="unlinkLandFileBtn" disabled>Unlink</button>
-            </div>
-          </div>
+          <!-- v6.5.10, pedido explícito del usuario: se quitó la tarjeta "Land File" — Terrenos ya no vive
+               en un archivo independiente, es una hoja "LAND" más dentro del Excel de datos principal. -->
           <div class="files-card">
             <h5>Supplementary Data (Map)</h5>
             <div class="settings-row">
@@ -2723,7 +2709,6 @@ function recalcAllGeoIds(){
   invalidateSubmarketToMarketCache();
   try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){}
   if(fileHandle) writeToFile();
-  if(landFileHandle) writeToLandFile();
   renderTable();
   const msg=`${touched} of ${scanned} record(s) updated.`;
   const resultEl=document.getElementById("recalcGeoIdsResult");
@@ -3571,8 +3556,10 @@ function saveState(){
   invalidateSubmarketToMarketCache(); // el guardado pudo cambiar SUBMARKET/MARKET de algún registro
   try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
   catch(e){ mem=state; } // crash backup
-  const linked = current==="LAND" ? (typeof landFileHandle!=="undefined" && landFileHandle) : (typeof fileHandle!=="undefined" && fileHandle);
-  if(linked){ if(current==="LAND") writeToLandFile(); else writeToFile(); } // auto-save al Excel correspondiente
+  // v6.5.10: Terrenos ya no tiene un archivo/writer aparte (ver el comentario grande donde vivía
+  // writeToLandFile()) — un solo `fileHandle` cubre las 7 entidades por igual.
+  const linked = typeof fileHandle!=="undefined" && fileHandle;
+  if(linked){ writeToFile(); } // auto-save al Excel
   else {
     const a=document.getElementById("autosave");
     if(a){ a.textContent="✓ guardado (local)"; a.style.opacity="1"; clearTimeout(window.__asT); window.__asT=setTimeout(()=>a.style.opacity="0",1200); }
@@ -3749,8 +3736,7 @@ async function showTableView(){
   renderTabs();
   const dataChanged=await refreshFromFileIfLinked();
   const cfgChanged=await refreshConfigFileIfLinked();
-  const landChanged=await refreshLandFileIfLinked();
-  if(dataChanged||cfgChanged||landChanged) renderTable();
+  if(dataChanged||cfgChanged) renderTable();
 }
 async function showMapView(){
   mapViewActive=true; presentationViewActive=false; landPresentationViewActive=false; officePresentationViewActive=false; configViewActive=false; resumenViewActive=false;
@@ -3760,7 +3746,6 @@ async function showMapView(){
   renderTabs();
   await refreshFromFileIfLinked();
   await refreshConfigFileIfLinked();
-  await refreshLandFileIfLinked();
   await refreshComplementaryFileIfLinked();
   renderMapFilterSidebar();
   // v3.5x.x, pedido explícito del usuario ("cuando regreso al mapa me regresa al zoom inicial, quiero que
@@ -3779,7 +3764,6 @@ async function showPresentationView(){
   renderTabs();
   await refreshFromFileIfLinked();
   await refreshConfigFileIfLinked();
-  await refreshLandFileIfLinked();
   syncPresentationOrderToTableSort();
   renderPresentationView();
 }
@@ -3799,7 +3783,9 @@ async function showLandPresentationView(){
   document.getElementById("landPresentationView").style.display="flex";
   document.getElementById("landPresTopbarControls").style.display="flex";
   renderTabs();
-  await refreshLandFileIfLinked();
+  // v6.5.10: Terrenos ya vive en el mismo archivo principal, no en uno aparte — mismo refresh que cualquier
+  // otra vista (antes era refreshLandFileIfLinked()).
+  await refreshFromFileIfLinked();
   renderLandPresentationView();
 }
 /* ==== Presentación de Oficinas — deck de Stage 2 (v4.2.0 en construcción, pedido explícito del usuario:
@@ -3832,7 +3818,6 @@ async function showConfigView(){
   renderTabs();
   await refreshFromFileIfLinked();
   await refreshConfigFileIfLinked();
-  await refreshLandFileIfLinked();
   renderConfigSections();
 }
 async function showResumenView(){
@@ -3843,7 +3828,6 @@ async function showResumenView(){
   renderTabs();
   await refreshFromFileIfLinked();
   await refreshConfigFileIfLinked();
-  await refreshLandFileIfLinked();
   renderResumenView();
 }
 /* ==== Configuración: menú de secciones (Archivos/Imágenes, Campos, Listas) ==== */
@@ -3854,7 +3838,7 @@ function renderConfigSections(){
   document.getElementById("configListsSection").style.display=configSection==="lists"?"":"none";
   document.getElementById("configFieldMatrixSection").style.display=configSection==="matrix"?"":"none";
   document.getElementById("configReleaseNotesSection").style.display=configSection==="notes"?"":"none";
-  if(configSection==="files"){ renderPathNote("excel","filePathNote"); renderPathNote("images","imagesPathNote"); renderPathNote("configFile","configFilePathNote"); renderPathNote("land","landFilePathNote"); renderPathNote("complementary","complementaryFilePathNote"); }
+  if(configSection==="files"){ renderPathNote("excel","filePathNote"); renderPathNote("images","imagesPathNote"); renderPathNote("configFile","configFilePathNote"); renderPathNote("complementary","complementaryFilePathNote"); }
   else if(configSection==="fields") renderFieldConfigView();
   else if(configSection==="lists") renderListsNav();
   else if(configSection==="matrix") renderFieldMatrix();
@@ -5435,13 +5419,13 @@ const RESUMEN_USAGE_ENTITIES=["PROPIEDADES","PARKS","TRANSACCIONES","LAND","OFIC
    esta gráfica — confirmado con el usuario, "solo para esa gráfica"):
    - Modo Consolidado: cada registro ya trae `__sourceDoc` (el nombre real del .xlsx leído — ver
      extractEntityRowsReadOnly() más abajo, en la sección "Consolidado").
-   - Modo normal (un Excel de datos vinculado, más el de Terrenos que SIEMPRE vive aparte — ver
-     `## Terrenos`): como todos los registros de una misma entidad vienen del MISMO archivo en este modo, se
-     resuelve por ENTIDAD, no por registro — no hace falta guardar nada nuevo en `state`. Confirmado con el
-     usuario vía AskUserQuestion: granularidad por ARCHIVO real (nombre del .xlsx), no por oficina/mercado. */
+   - Modo normal (un solo Excel de datos vinculado — desde v6.5.10 Terrenos ya vive ahí también, ver el
+     comentario junto a loadFromWorkbook()): como todos los registros de todas las entidades vienen del
+     MISMO archivo en este modo, se resuelve por `fileHandle` sin distinguir por entidad — no hace falta
+     guardar nada nuevo en `state`. Confirmado con el usuario vía AskUserQuestion: granularidad por ARCHIVO
+     real (nombre del .xlsx), no por oficina/mercado. */
 function recordSourceDoc(ent, rec){
   if(consolidatedMode) return (rec && rec.__sourceDoc) || "(unknown file)";
-  if(ent==="LAND") return landFileHandle ? landFileHandle.name : "Land file (not linked)";
   return fileHandle ? fileHandle.name : "Data file (not linked)";
 }
 function resumenUsageDocsAvailable(){
@@ -7435,10 +7419,10 @@ document.getElementById("printConfirmAcceptBtn").onclick=()=>{
 };
 document.getElementById("printConfirmOverlay").onclick=e=>{ if(e.target.id==="printConfirmOverlay") closePrintConfirmModal(); };
 /* Registra 1 fila en Bitácora — `entry`: {presentationType, companyProject, size, markets, brokers[],
-   propertiesCount}. Bitácora vive SIEMPRE en el archivo principal (fileHandle/buildWorkbook), nunca en el
-   archivo aparte de Terrenos — si en este momento `current==="LAND"` (caso típico: se imprime justo desde
-   la Presentación de Terrenos), saveState() enrutaría el guardado a writeToLandFile() (que solo toca
-   state.LAND) y esta fila nunca llegaría a disco, así que se fuerza también un writeToFile() directo. */
+   propertiesCount}. v6.5.10: antes hacía falta forzar un writeToFile() extra aquí porque, si en ese momento
+   `current==="LAND"`, saveState() enrutaba el guardado a writeToLandFile() (el archivo aparte de Terrenos,
+   que nunca tocaba Bitácora) y esta fila nunca llegaría a disco. Ya no aplica — Terrenos vive en el mismo
+   archivo principal que Bitácora, así que el saveState() normal de abajo ya la persiste sola. */
 function logBitacoraEntry(entry){
   const rec={
     __id: "BITACORA_"+Date.now(),
@@ -7460,9 +7444,6 @@ function logBitacoraEntry(entry){
   state.BITACORA = state.BITACORA || [];
   state.BITACORA.unshift(rec);
   saveState();
-  if(current==="LAND" && typeof fileHandle!=="undefined" && fileHandle){
-    try{ writeToFile(); }catch(e){}
-  }
 }
 
 /* ==== Map view: all captured polygons across records (Propiedades/Parques/Terrenos, con filtro de capas) ==== */
@@ -10806,21 +10787,20 @@ async function openEdit(id){
   if(consolidatedMode) return openView(id); // solo lectura: mostrar como ficha de vista, nunca de edición
   showFichaLoading();
   try{
-    // v3.45.7: las 3 lecturas de archivo vinculado (datos/config/terrenos) no tenían timeout — a diferencia
+    // v3.45.7: las lecturas de archivo vinculado (datos/config) no tenían timeout — a diferencia
     // de ensurePhotoSet() (justo abajo), que sí lo tiene desde v3.45.2. Si alguno vive en una carpeta OneDrive
     // "a petición" y está en estado nube-solamente, getFile()/arrayBuffer() puede no resolver NUNCA —
     // verificado en vivo: sin este fix la ficha se queda colgada indefinidamente ("Cargando…" sin salida).
     // Se envuelven en withTimeout(...,4000,false) (mismo mecanismo ya usado para fotos) y se lanzan en
     // paralelo con Promise.all (sin dependencia de orden entre ellas: loadFromWorkbook solo toca
     // lists/fieldConfig/cascadeCatalog cuando !configFileHandle, mutuamente excluyente con
-    // refreshConfigFileIfLinked; loadLandFromWorkbook solo toca state.LAND) — el peor caso pasa de hasta
-    // 3×4s secuenciales a 4s como máximo total.
-    const [dataChanged,cfgChanged,landChanged]=await Promise.all([
+    // refreshConfigFileIfLinked) — el peor caso pasa de hasta 2×4s secuenciales a 4s como máximo total.
+    // v6.5.10: se quitó la 3ra lectura (Terrenos ya no tiene archivo aparte, ver loadFromWorkbook()).
+    const [dataChanged,cfgChanged]=await Promise.all([
       withTimeout(refreshFromFileIfLinked(), 4000, false),
-      withTimeout(refreshConfigFileIfLinked(), 4000, false),
-      withTimeout(refreshLandFileIfLinked(), 4000, false)
+      withTimeout(refreshConfigFileIfLinked(), 4000, false)
     ]);
-    if(dataChanged||cfgChanged||landChanged) renderTable();
+    if(dataChanged||cfgChanged) renderTable();
     if(PHOTO_ID_FIELD[current]) await withTimeout(ensurePhotoSet(), 4000, null);
     editingId=id;
     const rec=(state[current]||[]).find(r=>r.__id===id);
@@ -10832,21 +10812,20 @@ async function openEdit(id){
 async function openView(id, panelIdx){
   showFichaLoading();
   try{
-    // v3.45.7: las 3 lecturas de archivo vinculado (datos/config/terrenos) no tenían timeout — a diferencia
+    // v3.45.7: las lecturas de archivo vinculado (datos/config) no tenían timeout — a diferencia
     // de ensurePhotoSet() (justo abajo), que sí lo tiene desde v3.45.2. Si alguno vive en una carpeta OneDrive
     // "a petición" y está en estado nube-solamente, getFile()/arrayBuffer() puede no resolver NUNCA —
     // verificado en vivo: sin este fix la ficha se queda colgada indefinidamente ("Cargando…" sin salida).
     // Se envuelven en withTimeout(...,4000,false) (mismo mecanismo ya usado para fotos) y se lanzan en
     // paralelo con Promise.all (sin dependencia de orden entre ellas: loadFromWorkbook solo toca
     // lists/fieldConfig/cascadeCatalog cuando !configFileHandle, mutuamente excluyente con
-    // refreshConfigFileIfLinked; loadLandFromWorkbook solo toca state.LAND) — el peor caso pasa de hasta
-    // 3×4s secuenciales a 4s como máximo total.
-    const [dataChanged,cfgChanged,landChanged]=await Promise.all([
+    // refreshConfigFileIfLinked) — el peor caso pasa de hasta 2×4s secuenciales a 4s como máximo total.
+    // v6.5.10: se quitó la 3ra lectura (Terrenos ya no tiene archivo aparte, ver loadFromWorkbook()).
+    const [dataChanged,cfgChanged]=await Promise.all([
       withTimeout(refreshFromFileIfLinked(), 4000, false),
-      withTimeout(refreshConfigFileIfLinked(), 4000, false),
-      withTimeout(refreshLandFileIfLinked(), 4000, false)
+      withTimeout(refreshConfigFileIfLinked(), 4000, false)
     ]);
-    if(dataChanged||cfgChanged||landChanged) renderTable();
+    if(dataChanged||cfgChanged) renderTable();
     if(PHOTO_ID_FIELD[current]) await withTimeout(ensurePhotoSet(), 4000, null);
     editingId=id;
     const rec=(state[current]||[]).find(r=>r.__id===id);
@@ -11061,7 +11040,9 @@ function defaultLayout(ent){
 function buildWorkbook(){
   const wb = XLSX.utils.book_new();
   for(const ent in ENTITIES){
-    if(ent==="LAND") continue; // Terrenos vive en su propio archivo independiente
+    // v6.5.10, pedido explícito del usuario: Terrenos dejó de vivir en su propio archivo (LAND_CS.xlsx) —
+    // ahora es una hoja "LAND" más, dentro del mismo archivo de datos que Buildings/Parks/etc. (ver
+    // buildLandWorkbook()/writeToLandFile() ya removidos, y el comentario junto a loadFromWorkbook() abajo).
     const lay = layouts[ent] || defaultLayout(ent);
     const keys = lay.headerKeys;
     const known = new Set(fields(ent).map(f=>f.key));
@@ -11119,7 +11100,10 @@ function excelSerialToISODate(serial){
 function loadFromWorkbook(wb){
   let matchedSheets=0;
   for(const ent in ENTITIES){
-    if(ent==="LAND") continue; // Terrenos vive en su propio archivo independiente
+    // v6.5.10, pedido explícito del usuario ("cada usuario tiene un documento en donde gestiona sus propios
+    // registros... no hay casos en donde el mismo documento está siendo usado por múltiples usuarios"): con
+    // un solo dueño de escritura por archivo (igual que ya pasa con Buildings/Parks/etc.), no hace falta el
+    // archivo aparte de Terrenos (LAND_CS.xlsx) — se lee/escribe la hoja "LAND" genérica, igual que las demás.
     const sheetName=wb.SheetNames.find(n=>n.toUpperCase()===ent);
     if(!sheetName) continue;
     const aoa=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1,defval:"",blankrows:false});
@@ -11163,8 +11147,6 @@ async function saveImagesHandle(h){ const db=await idb(); return new Promise((re
 async function getImagesHandle(){ const db=await idb(); return new Promise((res)=>{ const tx=db.transaction("handles","readonly"); const rq=tx.objectStore("handles").get("images"); rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>res(null); }); }
 async function saveConfigHandle(h){ const db=await idb(); return new Promise((res)=>{ const tx=db.transaction("handles","readwrite"); tx.objectStore("handles").put(h,"config"); tx.oncomplete=res; }); }
 async function getConfigHandle(){ const db=await idb(); return new Promise((res)=>{ const tx=db.transaction("handles","readonly"); const rq=tx.objectStore("handles").get("config"); rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>res(null); }); }
-async function saveLandHandle(h){ const db=await idb(); return new Promise((res)=>{ const tx=db.transaction("handles","readwrite"); tx.objectStore("handles").put(h,"land"); tx.oncomplete=res; }); }
-async function getLandHandle(){ const db=await idb(); return new Promise((res)=>{ const tx=db.transaction("handles","readonly"); const rq=tx.objectStore("handles").get("land"); rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>res(null); }); }
 async function saveComplementaryHandle(h){ const db=await idb(); return new Promise((res)=>{ const tx=db.transaction("handles","readwrite"); tx.objectStore("handles").put(h,"complementary"); tx.oncomplete=res; }); }
 async function getComplementaryHandle(){ const db=await idb(); return new Promise((res)=>{ const tx=db.transaction("handles","readonly"); const rq=tx.objectStore("handles").get("complementary"); rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>res(null); }); }
 
@@ -11301,118 +11283,14 @@ async function restoreConfigFile(){
   }
 }
 
-/* ==== Archivo de Terrenos (LAND_CS.xlsx) — 4to recurso vinculable, completamente independiente del Excel de datos ==== */
-let landFileHandle=null;
-let lastKnownLandModTime=null;
-let writingLand=false, pendingWriteLand=false;
-/* Parses the LAND sheet into state.LAND; returns true if it recognized and loaded the sheet */
-function loadLandFromWorkbook(wb){
-  const sheetName=wb.SheetNames.find(n=>n.toUpperCase()==="LAND");
-  if(!sheetName) return false;
-  const aoa=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1,defval:"",blankrows:false});
-  if(!aoa.length) return false;
-  const known=new Set(fields("LAND").map(f=>f.key));
-  const dateKeys=new Set(fields("LAND").filter(f=>f.type==="date").map(f=>f.key));
-  const {row:hRow, matched}=detectHeaderRow(aoa, known);
-  if(matched===0) return false;
-  const headerKeys=aoa[hRow].map(c=> c==null?"":String(c).trim());
-  while(headerKeys.length && headerKeys[headerKeys.length-1]==="") headerKeys.pop();
-  fields("LAND").forEach(f=>{ if(!headerKeys.includes(f.key)) headerKeys.push(f.key); });
-  layouts.LAND={ preamble: aoa.slice(0,hRow).map(r=>r.slice()), headerKeys };
-  const rows=[];
-  for(let r=hRow+1;r<aoa.length;r++){
-    const arr=aoa[r];
-    if(!arr || arr.every(v=>v===""||v==null)) continue;
-    const o={__id:"LAND_f_"+r, __row:arr.slice()};
-    headerKeys.forEach((k,ci)=>{
-      if(!known.has(k)) return;
-      let v=arr[ci];
-      if(v===""||v==null) return;
-      if(dateKeys.has(k) && typeof v==="number"){ const iso=excelSerialToISODate(v); if(iso) v=iso; }
-      o[k]=v;
-    });
-    rows.push(o);
-  }
-  state.LAND=rows;
-  return true;
-}
-function buildLandWorkbook(){
-  const wb=XLSX.utils.book_new();
-  const lay=layouts.LAND || defaultLayout("LAND");
-  const keys=lay.headerKeys;
-  const known=new Set(fields("LAND").map(f=>f.key));
-  const aoa=[...lay.preamble.map(r=>r.slice()), keys.slice()];
-  (state.LAND||[]).forEach(r=>{
-    aoa.push(keys.map((k,ci)=>{
-      if(known.has(k)) return (r[k]!==undefined && r[k]!==null) ? r[k] : "";
-      return (r.__row && r.__row[ci]!==undefined && r.__row[ci]!==null) ? r.__row[ci] : "";
-    }));
-  });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "LAND");
-  return wb;
-}
-/* Re-reads the linked Terrenos file only if it changed on disk since we last knew about it. Returns true if state.LAND was refreshed. */
-async function refreshLandFileIfLinked(){
-  if(!landFileHandle) return false;
-  try{
-    const file=await landFileHandle.getFile();
-    if(lastKnownLandModTime!==null && file.lastModified===lastKnownLandModTime) return false;
-    const wb=XLSX.read(await file.arrayBuffer(),{type:"array",cellFormula:false,cellHTML:false});
-    loadLandFromWorkbook(wb);
-    lastKnownLandModTime=file.lastModified;
-    backupLocal();
-    return true;
-  }catch(e){ return false; }
-}
-function setLandFileChip(){
-  const chip=document.getElementById("landFileChip");
-  if(!chip) return;
-  if(landFileHandle){ chip.textContent="● "+landFileHandle.name; chip.style.background="rgba(30,158,90,.14)"; chip.style.color="var(--green)"; }
-  else { chip.textContent="No file linked"; chip.style.background="rgba(107,116,128,.14)"; chip.style.color="var(--muted)"; }
-  const unlinkBtn=document.getElementById("unlinkLandFileBtn");
-  if(unlinkBtn) unlinkBtn.disabled=!landFileHandle;
-}
-/* Mirrors writeToFile(), but targets el archivo independiente de Terrenos. */
-async function writeToLandFile(){
-  if(!landFileHandle) return false;
-  if(writingLand){ pendingWriteLand=true; return false; }
-  writingLand=true;
-  let ok=false;
-  try{
-    if(lastKnownLandModTime!==null){
-      const onDisk=await landFileHandle.getFile();
-      if(onDisk.lastModified!==lastKnownLandModTime){
-        const proceed=confirm("The Land file \""+landFileHandle.name+"\" changed (someone else edited it, or has it open) since this system last read it.\n\nIf you save now, those external changes will be lost.\n\nSave anyway?");
-        if(!proceed){
-          writingLand=false; pendingWriteLand=false;
-          toast("Save canceled to avoid overwriting external changes.","err");
-          return false;
-        }
-      }
-    }
-    const buf=XLSX.write(buildLandWorkbook(),{bookType:"xlsx",type:"array"});
-    const w=await landFileHandle.createWritable();
-    await w.write(buf); await w.close();
-    const written=await landFileHandle.getFile();
-    lastKnownLandModTime=written.lastModified;
-    flashSaved(landFileHandle.name);
-    ok=true;
-  }catch(e){ toast("Couldn't write the Land file: "+e.message,"err"); }
-  writingLand=false;
-  if(pendingWriteLand){ pendingWriteLand=false; writeToLandFile(); }
-  return ok;
-}
-async function restoreLandFile(){
-  if(!FSA) { document.getElementById("openLandFileBtn").disabled=true; return; }
-  const h=await getLandHandle(); if(!h) return;
-  if((await h.queryPermission({mode:"readwrite"}))==="granted"){
-    try{ const file=await h.getFile(); const wb=XLSX.read(await file.arrayBuffer(),{type:"array",cellFormula:false,cellHTML:false}); loadLandFromWorkbook(wb); lastKnownLandModTime=file.lastModified; }catch(e){}
-    landFileHandle=h; setLandFileChip(); backupLocal(); renderTable();
-  } else {
-    document.getElementById("reconnectLandName").textContent=h.name;
-    document.getElementById("reconnectLandBar").style.display="block";
-  }
-}
+/* v6.5.10, pedido explícito del usuario: Terrenos ya NO tiene un archivo independiente vinculable
+   (LAND_CS.xlsx) — antes había un 4to recurso completo aquí (landFileHandle, loadLandFromWorkbook(),
+   buildLandWorkbook(), refreshLandFileIfLinked(), setLandFileChip(), writeToLandFile(), restoreLandFile()),
+   todo removido. Terrenos ahora es una hoja "LAND" más dentro del mismo archivo de datos que Buildings/
+   Parks/Offices/etc. — ver el `for(const ent in ENTITIES)` genérico de loadFromWorkbook()/buildWorkbook()
+   más arriba, que ya no la salta. Motivo del usuario: cada usuario tiene su propio documento (nunca 2
+   personas escribiendo el mismo archivo), así que no había razón real para mantenerlo aparte.
+*/
 
 /* ==== Datos Complementarios (Mapa) — capas de referencia de SOLO LECTURA (pozos de agua, líneas de alta
    tensión). No alimentan `state`, no tienen ficha ni módulo propio — solo se dibujan en la pestaña Mapa. ==== */
@@ -12360,7 +12238,6 @@ function setConsolidatedChip(officeCount, fileCount, totalRecords){
 function applyConsolidatedUIState(){
   document.getElementById("addBtn").style.display = consolidatedMode?"none":"";
   document.getElementById("openFileBtn").disabled = consolidatedMode;
-  document.getElementById("openLandFileBtn").disabled = consolidatedMode;
   document.getElementById("openConsolidatedBtn").style.display = consolidatedMode?"none":"";
   document.getElementById("refreshConsolidatedBtn").style.display = consolidatedMode?"":"none";
   document.getElementById("exitConsolidatedBtn").style.display = consolidatedMode?"":"none";
@@ -12410,11 +12287,10 @@ document.getElementById("openConsolidatedBtn").onclick=async()=>{
     }
     // Es uno u otro: al activar el consolidado se desvincula (solo por esta sesión, sin borrar el archivo
     // recordado) el Excel individual — se puede reconectar normal al salir del consolidado.
-    fileHandle=null; landFileHandle=null;
+    fileHandle=null;
     document.getElementById("reconnectBar").style.display="none";
-    document.getElementById("reconnectLandBar").style.display="none";
     consolidatedMode=true; consolidatedRootHandle=rootHandle;
-    setChip(); setLandFileChip();
+    setChip();
     applyConsolidatedResult(merged, officeCount, fileCount, total);
     applyConsolidatedUIState();
     toast("Consolidated mode active: "+total+" records from "+officeCount+" office(s)."+(skipped.length?(" ("+skipped.length+" file(s) could not be read)"):""),"ok");
@@ -12444,8 +12320,7 @@ async function exitConsolidatedMode(){
   setConsolidatedChip(0,0,0);
   applyConsolidatedUIState();
   await restoreFile();
-  await restoreLandFile();
-  if(!fileHandle && !landFileHandle){
+  if(!fileHandle){
     const backup=loadState();
     if(backup && Object.keys(backup).length) state=Object.assign({PROPIEDADES:[],PARKS:[],TRANSACCIONES:[],LAND:[],OFICINAS:[],SPACES:[]}, backup);
   }
@@ -12595,44 +12470,9 @@ document.getElementById("unlinkConfigFileBtn").onclick=async()=>{
   toast("Configuration file unlinked and local settings reset to defaults.","ok");
 };
 
-/* ==== Archivo de Terrenos — vincular / reconectar (READ ONLY al abrir — nunca escribe) ==== */
-document.getElementById("openLandFileBtn").onclick=async()=>{
-  if(!FSA){ toast("Your browser doesn't support this. Use Chrome or Edge.","err"); return; }
-  try{
-    const [h]=await window.showOpenFilePicker({types:[{description:"Excel",accept:{"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":[".xlsx",".xls"]}}]});
-    if(!await ensurePermission(h,"readwrite")){ toast("Permission denied","err"); return; }
-    if(consolidatedMode){ consolidatedMode=false; consolidatedRootHandle=null; setConsolidatedChip(0,0,0); applyConsolidatedUIState(); }
-    const file=await h.getFile();
-    const wb=XLSX.read(await file.arrayBuffer(),{type:"array",cellFormula:false,cellHTML:false});
-    const matched=loadLandFromWorkbook(wb);
-    if(!matched){
-      toast("I didn't recognize that file's columns. It wasn't linked, to avoid damaging it.","err");
-      return;
-    }
-    landFileHandle=h; lastKnownLandModTime=file.lastModified; await saveLandHandle(h); setLandFileChip(); backupLocal(); renderTable();
-    toast("Linked to "+h.name+". Land changes will be saved here.","ok");
-  }catch(e){ if(e.name!=="AbortError") toast("Error: "+e.message,"err"); }
-};
-document.getElementById("reconnectLandBtn").onclick=async()=>{
-  const h=await getLandHandle(); if(!h) return;
-  if(await ensurePermission(h,"readwrite")){
-    try{ const file=await h.getFile(); const wb=XLSX.read(await file.arrayBuffer(),{type:"array",cellFormula:false,cellHTML:false}); loadLandFromWorkbook(wb); lastKnownLandModTime=file.lastModified; }catch(e){}
-    landFileHandle=h; setLandFileChip(); document.getElementById("reconnectLandBar").style.display="none"; backupLocal(); renderTable();
-    toast("Reconnected to "+h.name,"ok");
-  } else { toast("Permission denied","err"); }
-};
-document.getElementById("unlinkLandFileBtn").onclick=async()=>{
-  if(!landFileHandle) return;
-  if(!confirm(`Unlink "${landFileHandle.name}"? This will ERASE all Land records already loaded in this browser — this cannot be undone. Link the file again to recover them.`)) return;
-  landFileHandle=null; lastKnownLandModTime=null;
-  state.LAND=[];
-  await saveLandHandle(null);
-  backupLocal();
-  document.getElementById("reconnectLandBar").style.display="none";
-  setLandFileChip();
-  renderTable();
-  toast("Land file unlinked and local data erased.","ok");
-};
+/* v6.5.10, pedido explícito del usuario: se quitaron los 3 listeners de "Archivo de Terrenos" (Open/
+   Reconnect/Unlink) — Terrenos ya no es un archivo aparte, ver el comentario grande junto a
+   loadFromWorkbook() sobre dónde vive ahora. */
 
 /* ==== Datos Complementarios (Mapa) — vincular / reconectar (SOLO LECTURA, nunca escribe) ==== */
 document.getElementById("openComplementaryFileBtn").onclick=async()=>{
@@ -12766,7 +12606,6 @@ document.addEventListener("keydown",e=>{
 setChip(); restoreFile();
 setImagesChip(); restoreImagesDir();
 setConfigFileChip(); restoreConfigFile();
-setLandFileChip(); restoreLandFile();
 setComplementaryFileChip(); restoreComplementaryFile();
 </script>
 </body>

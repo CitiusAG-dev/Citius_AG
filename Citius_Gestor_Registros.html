@@ -278,9 +278,16 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      Matrix para el resto del render (siempre se reconstruye completo desde fieldConfig). */
   table.fieldmatrix-table .fieldmatrix-section-row{cursor:pointer;background:rgba(240,179,35,.07)}
   table.fieldmatrix-table .fieldmatrix-section-row:hover{background:rgba(240,179,35,.13)}
+  /* v6.5.13, pedido explícito del usuario ("quiero que la línea del grupo tenga el mismo color amarillo
+     claro en toda la línea, ahorita solo lo tiene la primera celda"): el <td colspan> de esta fila traía
+     `display:flex` directo — eso lo saca del modelo de layout de tabla (deja de comportarse como celda),
+     así que en vez de estirarse a todo el ancho que le tocaría por su colspan, se encogía al contenido
+     (chevron + texto + pill), dejando el resto de la fila sin el fondo amarillo. El <td> se queda como
+     celda normal (heredando el ancho completo del colspan); el flex se mueve a un <span> de adentro,
+     ver fieldmatrix-section-row-inner en el JS. */
   table.fieldmatrix-table .fieldmatrix-section-row td{padding:8px 12px;font-size:11px;font-weight:700;
-    text-transform:uppercase;letter-spacing:.5px;color:var(--accent-ink);white-space:nowrap;
-    display:flex;align-items:center;gap:8px}
+    text-transform:uppercase;letter-spacing:.5px;color:var(--accent-ink);white-space:nowrap}
+  table.fieldmatrix-table .fieldmatrix-section-row-inner{display:flex;align-items:center;gap:8px}
   table.fieldmatrix-table .fieldmatrix-chevron{flex-shrink:0;transition:transform .15s}
   /* Tabla "Proposed in Presentations" (pestaña Listing) — mismo shell que .resumen-table, pero header gris
      (no el amarillo/acento de Resumen) y más chico, pedido explícito del usuario. */
@@ -4211,7 +4218,7 @@ function renderFieldMatrix(){
     const collapsed=fieldMatrixCollapsedGroups.has(sec);
     const chevron=`<svg class="fieldmatrix-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(${collapsed?"-90deg":"0deg"})"><polyline points="6 9 12 15 18 9"/></svg>`;
     const headerRow=`<tr class="fieldmatrix-section-row" onclick="toggleFieldMatrixSection('${escapeAttr(sec)}')">
-      <td colspan="${totalCols}">${chevron}${escapeHtml(sec)}<span class="pill gray">${secRows.length} field${secRows.length===1?"":"s"}</span></td>
+      <td colspan="${totalCols}"><span class="fieldmatrix-section-row-inner">${chevron}${escapeHtml(sec)}<span class="pill gray">${secRows.length} field${secRows.length===1?"":"s"}</span></span></td>
     </tr>`;
     if(collapsed) return headerRow;
     const dataRows=secRows.map(row=>{

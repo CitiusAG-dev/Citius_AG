@@ -2987,6 +2987,9 @@ function renderFieldConfigGroups(){
       <div class="fc-group-head" title="Arrastra para reordenar este grupo">
         ${FC_DRAG_ICON}
         <h5>${escapeHtml(g.name)}</h5>
+        <button type="button" class="fc-help-btn" onclick="event.stopPropagation();renameFieldGroup(${gi})" title="Rename this section">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>
+        </button>
         <span class="pill gray">${g.fields.length} campo${g.fields.length===1?"":"s"}</span>
       </div>
       <div class="fc-fields-list" data-gidx="${gi}" ondragover="fcListDragOver(event)" ondrop="fcListDrop(event,${gi})">
@@ -3098,6 +3101,40 @@ function editFieldLabel(gi,fi){
   if(trimmed) customFieldLabels[f.key]=trimmed; else delete customFieldLabels[f.key];
   saveCustomFieldLabels();
   renderFieldConfigGroups();
+}
+/* Rename de sección/grupo (v6.5.7): a diferencia del key de un campo (que SÍ se compara literal contra el
+   encabezado de la columna del Excel de datos — ver LEGACY_FIELD_KEY_ALIASES), el grupo es puro texto
+   organizacional: solo vive en fieldConfig[ent][i].group, en localStorage y en la columna GRUPO de la hoja
+   CONFIG_CAMPOS. No hay ningún archivo de datos del usuario que dependa de ese texto, así que renombrarlo
+   no puede romper una carga de Excel ni perder información ya capturada.
+   Sí es GLOBAL por texto exacto (igual que las etiquetas personalizadas y las listas): la ficha arma sus
+   secciones agrupando campos por f.group, y Field Matrix usa f.group como el nombre de "Sección" — ambas
+   leen fieldConfig en vivo, así que basta con mutar los objetos aquí para que se vean actualizadas la
+   próxima vez que se rendericen (buildForm / renderFieldMatrix), sin pasos de propagación aparte.
+   Por eso el rename aplica a TODAS las entidades que tengan un grupo con ese nombre EXACTO, no solo a la
+   entidad actual — si solo se renombrara aquí, Field Matrix (y la entidad "hermana") seguirían mostrando
+   el nombre viejo para el mismo concepto de sección.
+   También registra el rename en groupRenames (persistido) — ver el comentario junto a GROUP_RENAMES_KEY —
+   para que GROUP_META (ícono de la pestaña), TRANSACCION_FIELD_GROUP (a qué pestaña de Transacciones
+   pertenece cada campo) y el bloque especial de historial de presentaciones (pestaña "LISTING") sigan
+   reconociendo el grupo después de renombrado, en vez de caer silenciosamente al ícono genérico o perder
+   ese contenido especial. */
+function renameFieldGroup(gi){
+  const groups=fcGroupsInOrder();
+  const oldName=groups[gi].name;
+  const val=prompt(`Rename section "${oldName}" to:\n\nThis renames it everywhere it's used — the record form and Field Matrix — for every entity that has a section with this exact name, not just ${ENTITIES[fcEntity].label}.`, oldName);
+  if(val===null) return;
+  const newName=val.trim();
+  if(!newName || newName===oldName) return;
+  let count=0;
+  Object.keys(ENTITIES).forEach(ent=>{
+    (fieldConfig[ent]||[]).forEach(f=>{ if(f.group===oldName){ f.group=newName; count++; } });
+  });
+  saveFieldConfigLocal();
+  groupRenames[oldName]=newName;
+  saveGroupRenames();
+  renderFieldConfigView();
+  toast(`Section renamed to "${newName}" (${count} field${count===1?"":"s"} across all entities)`,"ok");
 }
 function fcMoveFieldToGroup(gi,fi,newGroupName){
   const groups=fcGroupsInOrder();
@@ -6175,6 +6212,27 @@ function polygonSummary(raw){
     return `Polygon captured (${coords.length-1} vertices)`;
   }catch(e){ return "Polygon captured"; }
 }
+/* Renombres de sección/grupo (v6.5.7, ver renameFieldGroup()) — group es puro texto organizacional que vive
+   en fieldConfig[ent][i].group, pero unos pocos lugares MÁS ADELANTE en el archivo comparan un nombre de
+   grupo contra un string hardcodeado a propósito (GROUP_META: ícono + etiqueta corta de cada pestaña de la
+   ficha; TRANSACCION_FIELD_GROUP: a qué pestaña de Transacciones pertenece cada campo; el bloque especial de
+   historial de presentaciones que solo aparece en la pestaña "LISTING"). Sin este mapa, renombrar cualquiera
+   de esos grupos haría que esos 3 lugares dejaran de reconocerlo silenciosamente (ícono genérico de círculo,
+   campos de Transacciones cayendo a un grupo equivocado, historial de Listing desapareciendo) aunque
+   Configuración > Campos y Field Matrix sí mostraran ya el nombre nuevo. Persistido (sobrevive un reload),
+   GLOBAL (no por entidad), igual que customFieldLabels/LEGACY_FIELD_KEY_ALIASES. */
+const GROUP_RENAMES_KEY="citius_group_renames_v1";
+function loadGroupRenames(){ try{ const s=localStorage.getItem(GROUP_RENAMES_KEY); if(s) return JSON.parse(s); }catch(e){} return {}; }
+function saveGroupRenames(){ try{ localStorage.setItem(GROUP_RENAMES_KEY, JSON.stringify(groupRenames)); }catch(e){} }
+let groupRenames=loadGroupRenames();
+/* Sigue la cadena de renombres a partir de un nombre ORIGINAL (el que está hardcodeado en GROUP_META o
+   TRANSACCION_FIELD_GROUP) hasta su nombre VIGENTE hoy — soporta más de un renombre encadenado del mismo
+   grupo. Si nunca se renombró, regresa el mismo nombre que se le pasó. */
+function currentGroupName(originalName){
+  let n=originalName; const seen=new Set();
+  while(groupRenames[n]!==undefined && !seen.has(n)){ seen.add(n); n=groupRenames[n]; }
+  return n;
+}
 const GROUP_META = {
   "Photography": {label:"Photos", icon:'<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>'},
   "GENERAL": {label:"General", icon:'<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>'},
@@ -6199,7 +6257,13 @@ const GROUP_META = {
 };
 function groupMeta(g){
   const fallbackLabel=g.charAt(0)+g.slice(1).toLowerCase();
-  return GROUP_META[g] || {label: fallbackLabel, icon:'<circle cx="12" cy="12" r="10"/>'};
+  if(GROUP_META[g]) return GROUP_META[g];
+  // "g" es un nombre VIGENTE (ya renombrado) — si algún nombre ORIGINAL de GROUP_META hoy resuelve a "g"
+  // vía currentGroupName(), conserva su ícono (la etiqueta corta sí se deja re-derivar del nombre nuevo,
+  // ver comentario junto a GROUP_RENAMES_KEY).
+  const origName=Object.keys(GROUP_META).find(k=>currentGroupName(k)===g);
+  if(origName) return {label: fallbackLabel, icon: GROUP_META[origName].icon};
+  return {label: fallbackLabel, icon:'<circle cx="12" cy="12" r="10"/>'};
 }
 /* Groups a "_VALUE" field with its matching "_UNIT" sibling (if the group has one) so they can render as a single combined control */
 function pairFieldsByUnit(list){
@@ -6411,7 +6475,7 @@ function transactionVisibleFields(ent, record, allFields){
     else order=TRANSACCION_FIELDS_GROSS; // Absorption Type no reconocido -> set completo, no el reducido
   } else return allFields; // Categoría no reconocida (ej. dato importado viejo) -> no ocultar nada de más
   const byKey={}; allFields.forEach(f=>{ byKey[f.key]=f; });
-  return order.map(k=>byKey[k] ? {...byKey[k], group:TRANSACCION_FIELD_GROUP[k]||byKey[k].group} : null).filter(Boolean);
+  return order.map(k=>byKey[k] ? {...byKey[k], group:TRANSACCION_FIELD_GROUP[k]?currentGroupName(TRANSACCION_FIELD_GROUP[k]):byKey[k].group} : null).filter(Boolean);
 }
 /* ==== Historial de propuestas dentro de la pestaña "Listing" (v_pendiente, pedido explícito del usuario) ====
    Al imprimir una presentación (ver logBitacoraEntry/doPresPrint/doLandPresPrint), cada registro incluido
@@ -6672,7 +6736,7 @@ function buildForm(ent, record){
       html+= item.pair ? renderPairField(item.valueField, item.unitField) : renderStandaloneField(item.field);
     });
     html+=`</div>`;
-    if(g==="LISTING") html+=listingPresentationHistoryHtml(ent, record);
+    if(g===currentGroupName("LISTING")) html+=listingPresentationHistoryHtml(ent, record);
     panels.push({label:g, html, missing:countMissingRequired(ent, groups[g], record)});
   }
   if(PHOTO_ID_FIELD[ent]) panels.push({label:"Photography", html:buildImageBlock(ent), missing:photoMissingCount(ent,record)});
@@ -6812,7 +6876,7 @@ function buildViewForm(ent, record){
       html+=`<div class="field"${forceNewRow}><label>${fieldLabel(f.key)}${reqMark}${helpIcon}</label><div class="view-val${mismatchCls}"${mismatchTitle}>${displayVal}</div></div>`;
     });
     html+=`</div>`;
-    if(g==="LISTING") html+=listingPresentationHistoryHtml(ent, record);
+    if(g===currentGroupName("LISTING")) html+=listingPresentationHistoryHtml(ent, record);
     panels.push({label:g, html, missing:countMissingRequired(ent, groups[g], record)});
   }
   if(PHOTO_ID_FIELD[ent]) panels.push({label:"Photography", html:buildImageViewBlock(ent), missing:photoMissingCount(ent,record)});

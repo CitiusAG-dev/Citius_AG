@@ -268,9 +268,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     border-radius:50%;border:1.5px solid var(--line);background:var(--panel);cursor:pointer;margin:0;
     position:relative;vertical-align:middle}
   table.fieldmatrix-table input.fieldmatrix-toggle:hover{border-color:var(--accent)}
+  /* v6.5.17, pedido explícito del usuario ("quítale el carácter de la palomita... solo deja el círculo
+     verde"): antes tenía un ::after con el glifo "✓" encima del círculo — se quita, el círculo relleno de
+     verde claro ya es suficiente para distinguir marcado de no marcado. */
   table.fieldmatrix-table input.fieldmatrix-toggle:checked{background:rgba(30,158,90,.18);border-color:rgba(30,158,90,.4)}
-  table.fieldmatrix-table input.fieldmatrix-toggle:checked::after{content:"✓";position:absolute;inset:0;
-    display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--green);line-height:1}
   table.fieldmatrix-table .fieldmatrix-w62{width:62px}
   table.fieldmatrix-table .fieldmatrix-entcol-first{border-left:2px solid var(--line)}
   table.fieldmatrix-table .fieldmatrix-mismatch{color:var(--red);font-weight:600;cursor:help}
@@ -4309,12 +4310,18 @@ function fieldMatrixExpandAll(){
      existe en el código de esa entidad) se dejó fuera a propósito ("olvidemos esto por lo pronto"):
      necesitaría agregar el campo al código de esa entidad, no solo cambiar config (mismo tipo de trabajo
      que un rename de campo). */
-let fieldMatrixEdits={types:{}, used:{}, required:{}};
+let fieldMatrixEdits={types:{}, lists:{}, used:{}, required:{}};
 function fieldMatrixPendingCount(){
-  return Object.keys(fieldMatrixEdits.types).length+Object.keys(fieldMatrixEdits.used).length+Object.keys(fieldMatrixEdits.required).length;
+  return Object.keys(fieldMatrixEdits.types).length+Object.keys(fieldMatrixEdits.lists).length+Object.keys(fieldMatrixEdits.used).length+Object.keys(fieldMatrixEdits.required).length;
 }
 function fieldMatrixSetType(key, newType, actualType){
   if(newType===actualType) delete fieldMatrixEdits.types[key]; else fieldMatrixEdits.types[key]=newType;
+  renderFieldMatrix();
+}
+/* List editable (v6.5.17, pedido explícito del usuario: "así como lo hacemos para el type") — mismo criterio
+   exacto que Type: se aplica a TODAS las entidades que usan ese campo a la vez, en vez de una por una. */
+function fieldMatrixSetList(key, newList, actualList){
+  if(newList===actualList) delete fieldMatrixEdits.lists[key]; else fieldMatrixEdits.lists[key]=newList;
   renderFieldMatrix();
 }
 function fieldMatrixToggleUsed(key, ent, checked){
@@ -4334,7 +4341,7 @@ function fieldMatrixDiscardChanges(){
   const n=fieldMatrixPendingCount();
   if(!n) return;
   if(!confirm(`Discard ${n} unsaved change${n===1?"":"s"}?`)) return;
-  fieldMatrixEdits={types:{},used:{},required:{}};
+  fieldMatrixEdits={types:{},lists:{},used:{},required:{}};
   renderFieldMatrix();
 }
 /* Aplica fieldMatrixEdits a fieldConfig de verdad y lo guarda — mismo destino EXACTO que fcSaveBtn
@@ -4350,6 +4357,13 @@ async function fieldMatrixSaveChanges(){
       if(f) f.type=newType;
     });
   });
+  Object.keys(fieldMatrixEdits.lists).forEach(key=>{
+    const newList=fieldMatrixEdits.lists[key];
+    FIELD_MATRIX_ENTITIES.forEach(ent=>{
+      const f=(fieldConfig[ent]||[]).find(x=>x.key===key);
+      if(f) f.list=newList;
+    });
+  });
   Object.keys(fieldMatrixEdits.required).forEach(k=>{
     const [key,ent]=k.split("|");
     const f=(fieldConfig[ent]||[]).find(x=>x.key===key);
@@ -4359,7 +4373,7 @@ async function fieldMatrixSaveChanges(){
     const [key,ent]=k.split("|");
     if(!fieldMatrixEdits.used[k]) fieldConfig[ent]=(fieldConfig[ent]||[]).filter(f=>f.key!==key);
   });
-  fieldMatrixEdits={types:{},used:{},required:{}};
+  fieldMatrixEdits={types:{},lists:{},used:{},required:{}};
   saveFieldConfigLocal();
   if(configFileHandle){
     const ok=await writeToConfigFile();
@@ -4432,7 +4446,20 @@ function renderFieldMatrix(){
       const typeTdClasses=[meta.typeMismatch?"fieldmatrix-mismatch":"", typeDirty?"fieldmatrix-cell-dirty":""].filter(Boolean).join(" ");
       const typeTdAttrs=`${typeTdClasses?` class="${typeTdClasses}"`:""}${meta.typeMismatch?` title="${escapeAttr(meta.typeDetail)}"`:""}`;
       const typeSelectHtml=`<select class="fieldmatrix-type-select" onchange="fieldMatrixSetType('${escapeAttr(row.key)}',this.value,'${escapeAttr(meta.type)}')">${FIELDMATRIX_TYPE_OPTIONS.map(t=>`<option value="${t}"${t===typeEff?" selected":""}>${t}</option>`).join("")}</select>`;
-      const listCls=meta.listMismatch?` class="fieldmatrix-mismatch" title="${escapeAttr(meta.listDetail)}"`:"";
+      // List editable (v6.5.17, pedido explícito del usuario: "así como lo hacemos para el type") — mismo
+      // criterio EXACTO que Type de arriba (pendiente por key, aplica a todas las entidades al guardar).
+      // Excepción: los campos de la cascada Región/Estado/Mercado/Submercado (CASCADE_ORDER) no usan una
+      // lista normal — su catálogo sale de cascadeCatalog, no de `lists` — mismo guard que ya usa
+      // fcFieldRowHtml() en Configuración > Campos para no ofrecer un selector que no aplicaría a nada.
+      const isCascadeField=CASCADE_ORDER.includes(row.key)&&cascadeCatalog.length;
+      const listPending=fieldMatrixEdits.lists[row.key];
+      const listEff=listPending!==undefined?listPending:(meta.list||"");
+      const listDirty=listPending!==undefined;
+      const listTdClasses=[meta.listMismatch?"fieldmatrix-mismatch":"", listDirty?"fieldmatrix-cell-dirty":""].filter(Boolean).join(" ");
+      const listTdAttrs=`${listTdClasses?` class="${listTdClasses}"`:""}${meta.listMismatch?` title="${escapeAttr(meta.listDetail)}"`:""}`;
+      const listSelectHtml=isCascadeField
+        ? `<span class="fc-cascade-note" title="This field is filled from the location catalog (Region/State/Market/Submarket), not a regular dropdown list">Region/State/Market/Submarket cascade</span>`
+        : `<select class="fieldmatrix-type-select" onchange="fieldMatrixSetList('${escapeAttr(row.key)}',this.value,'${escapeAttr(meta.list||"")}')"><option value=""${listEff?"":" selected"}>— None —</option>${Object.keys(lists).sort().map(ln=>`<option value="${escapeAttr(ln)}"${ln===listEff?" selected":""}>${escapeHtml(ln)}</option>`).join("")}</select>`;
       const entCells=FIELD_MATRIX_ENTITIES.map(ent=>{
         const f=row.perEnt[ent];
         const usedK=row.key+"|"+ent, reqK=row.key+"|"+ent;
@@ -4452,7 +4479,7 @@ function renderFieldMatrix(){
         <td><code>${escapeHtml(row.key)}</code></td>
         <td>${escapeHtml(fieldLabel(row.key))}</td>
         <td${typeTdAttrs}>${typeSelectHtml}</td>
-        <td${listCls}>${meta.list?escapeHtml(meta.list.replace(/_/g," ")):"—"}</td>
+        <td${listTdAttrs}>${listSelectHtml}</td>
         ${entCells}
       </tr>`;
     }).join("");

@@ -4464,9 +4464,15 @@ function renderFieldMatrix(){
       const listDirty=listPending!==undefined;
       const listTdClasses=[meta.listMismatch?"fieldmatrix-mismatch":"", listDirty?"fieldmatrix-cell-dirty":""].filter(Boolean).join(" ");
       const listTdAttrs=`${listTdClasses?` class="${listTdClasses}"`:""}${meta.listMismatch?` title="${escapeAttr(meta.listDetail)}"`:""}`;
+      // v6.5.19, pedido explícito del usuario ("al poner el mouse encima de mi lista... ver los valores me
+      // ayudará mucho a quedarme en la misma página sin salir a otra parte del sistema"): tooltip nativo con
+      // los valores reales de la lista seleccionada, para no tener que ir a Configuración > Listas nada más
+      // a consultarlos. Se arma por cada <option> (la lista elegida ahora mismo, y cualquier otra que se
+      // esté por elegir) y también en el <select> mismo, para que se vea sin necesidad de abrir el desplegable.
+      const listValuesTitle=ln=> (lists[ln]||[]).length ? escapeAttr((lists[ln]||[]).join(", ")) : "";
       const listSelectHtml=isCascadeField
         ? `<span class="fc-cascade-note" title="This field is filled from the location catalog (Region/State/Market/Submarket), not a regular dropdown list">Region/State/Market/Submarket cascade</span>`
-        : `<select class="fieldmatrix-type-select" onchange="fieldMatrixSetList('${escapeAttr(row.key)}',this.value,'${escapeAttr(meta.list||"")}')"><option value=""${listEff?"":" selected"}>— None —</option>${Object.keys(lists).sort().map(ln=>`<option value="${escapeAttr(ln)}"${ln===listEff?" selected":""}>${escapeHtml(ln)}</option>`).join("")}</select>`;
+        : `<select class="fieldmatrix-type-select" onchange="fieldMatrixSetList('${escapeAttr(row.key)}',this.value,'${escapeAttr(meta.list||"")}')"${listEff?` title="${listValuesTitle(listEff)}"`:""}><option value=""${listEff?"":" selected"}>— None —</option>${Object.keys(lists).sort().map(ln=>`<option value="${escapeAttr(ln)}"${ln===listEff?" selected":""} title="${listValuesTitle(ln)}">${escapeHtml(ln)}</option>`).join("")}</select>`;
       const entCells=FIELD_MATRIX_ENTITIES.map(ent=>{
         const f=row.perEnt[ent];
         const usedK=row.key+"|"+ent, reqK=row.key+"|"+ent;

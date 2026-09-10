@@ -235,11 +235,24 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   table.fieldmatrix-table{table-layout:auto;font-size:10.5px}
   table.fieldmatrix-table td, table.fieldmatrix-table th{white-space:nowrap}
   table.fieldmatrix-table thead th{vertical-align:top}
+  /* v6.5.12, pedido explícito del usuario ("cuando bajo en los registros solo se queda fijo Used/Req. pero
+     el nombre de la entidad se va para arriba y no se ve"): el header tiene 2 filas (nombres de entidad +
+     Used/Req.), pero la regla global `th{position:sticky;top:0}` les da `top:0` a AMBAS — la 2da fila
+     termina pegada exactamente encima de la 1ra, tapándola. La 1ra fila (nombres de entidad + las 5
+     columnas rowspan=2) sí se queda bien con top:0 (es la que toca el borde de arriba); la 2da fila
+     necesita `top` = la altura real de la 1ra (medida en vivo vía Chrome: ~29.5px) para apilarse DEBAJO de
+     ella en vez de encima. */
+  table.fieldmatrix-table thead tr.fieldmatrix-thead-row2 th{top:29.5px}
   table.fieldmatrix-table code{font-size:.95em;background:var(--panel-2);padding:1px 5px;border-radius:4px}
-  table.fieldmatrix-table .fieldmatrix-check{text-align:center;color:var(--green);font-weight:700}
+  /* v6.5.12, pedido explícito del usuario ("que sea más bien un círculo en verde claro con la palomita
+     adentro para que se vea más visible"): antes era solo un ✓ de texto verde sobre fondo blanco. */
+  table.fieldmatrix-table .fieldmatrix-check{text-align:center}
+  table.fieldmatrix-table .fieldmatrix-check-badge{display:inline-flex;align-items:center;justify-content:center;
+    width:16px;height:16px;border-radius:50%;background:rgba(30,158,90,.18);color:var(--green);
+    font-size:10px;font-weight:700;line-height:1}
   table.fieldmatrix-table .fieldmatrix-w62{width:62px}
   table.fieldmatrix-table .fieldmatrix-entcol-first{border-left:2px solid var(--line)}
-  table.fieldmatrix-table .fieldmatrix-mismatch{color:var(--red);font-weight:600}
+  table.fieldmatrix-table .fieldmatrix-mismatch{color:var(--red);font-weight:600;cursor:help}
   /* v6.5.8: título + buscador + Expand/Collapse fijos (no se van con el scroll) — ver el comentario junto a
      #configFieldMatrixSection en el HTML. Mismo criterio que .fc-table/.fieldconfig-panel: el panel es una
      columna flex y solo .fieldmatrix-body (la "tarjeta" de la tabla) tiene su propio scroll acotado.
@@ -4142,7 +4155,14 @@ function fieldMatrixRowMeta(row){
   const canonical=row.perEnt[entOrder[0]];
   const typeMismatch=entOrder.some(e=>row.perEnt[e].type!==canonical.type);
   const listMismatch=entOrder.some(e=>row.perEnt[e].list!==canonical.list);
-  return {type:canonical.type, list:canonical.list, typeMismatch, listMismatch};
+  // v6.5.12, pedido explícito del usuario ("que al poner el cursor arriba me diga cuáles son todos los
+  // tipos de datos o listas que tienen los campos usados... ahorita tengo que navegar entre todas las
+  // pestañas para encontrarlo"): arma el tooltip detallado por entidad, solo con las que SÍ usan este campo
+  // — "Buildings: text / Parks: decimal / ..." — para no tener que ir a Configuración > Campos de cada
+  // entidad nada más para ver qué trae cada una.
+  const typeDetail=entOrder.map(e=>`${ENTITIES[e].label}: ${row.perEnt[e].type}`).join("\n");
+  const listDetail=entOrder.map(e=>`${ENTITIES[e].label}: ${row.perEnt[e].list||"—"}`).join("\n");
+  return {type:canonical.type, list:canonical.list, typeMismatch, listMismatch, typeDetail, listDetail};
 }
 /* Secciones colapsadas (v6.5.8, pedido explícito del usuario: "colapsar la tabla a nivel sección") — solo
    en memoria (no persistido, se reinicia cada vez que se abre Configuración > Field Matrix), igual que
@@ -4196,11 +4216,12 @@ function renderFieldMatrix(){
     if(collapsed) return headerRow;
     const dataRows=secRows.map(row=>{
       const meta=fieldMatrixRowMeta(row);
-      const typeCls=meta.typeMismatch?' class="fieldmatrix-mismatch" title="Type is not the same across every table that uses this field"':"";
-      const listCls=meta.listMismatch?' class="fieldmatrix-mismatch" title="A different dropdown list is assigned across the tables that use this field"':"";
+      const typeCls=meta.typeMismatch?` class="fieldmatrix-mismatch" title="${escapeAttr(meta.typeDetail)}"`:"";
+      const listCls=meta.listMismatch?` class="fieldmatrix-mismatch" title="${escapeAttr(meta.listDetail)}"`:"";
+      const CHECK_BADGE=`<span class="fieldmatrix-check-badge">✓</span>`;
       const entCells=FIELD_MATRIX_ENTITIES.map(ent=>{
         const f=row.perEnt[ent];
-        return `<td class="fieldmatrix-check fieldmatrix-entcol-first fieldmatrix-w62">${f?"✓":""}</td><td class="fieldmatrix-check fieldmatrix-w62">${f&&f.required?"✓":""}</td>`;
+        return `<td class="fieldmatrix-check fieldmatrix-entcol-first fieldmatrix-w62">${f?CHECK_BADGE:""}</td><td class="fieldmatrix-check fieldmatrix-w62">${f&&f.required?CHECK_BADGE:""}</td>`;
       }).join("");
       return `<tr>
         <td></td>
@@ -4222,7 +4243,7 @@ function renderFieldMatrix(){
       <th rowspan="2">List</th>
       ${entHead1}
     </tr>
-    <tr>${entHead2}</tr>
+    <tr class="fieldmatrix-thead-row2">${entHead2}</tr>
   </thead>
   <tbody>${bodyHtml || `<tr><td colspan="${totalCols}" class="col-add-empty">No fields match "${escapeHtml(q)}"</td></tr>`}</tbody>`;
 }

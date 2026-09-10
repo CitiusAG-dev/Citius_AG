@@ -214,6 +214,20 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   table.resumen-table tbody tr:last-child td{border-bottom:none}
   table.resumen-table td.num-cell{text-align:right;font-variant-numeric:tabular-nums}
   table.resumen-table tr.resumen-total-row{font-weight:700;background:rgba(240,179,35,.08)}
+  /* Field Matrix (v6.5.4) — reusa .resumen-table (mismo look que el resto de la app) pero table-layout:auto
+     en vez de fixed: con 5 columnas fijas de texto + 2 por cada una de las 6 entidades (Used/Mandatory,
+     angostas), repartir el ancho parejo (el default de .resumen-table, pensado para pocas columnas
+     numéricas) dejaría las columnas de texto ilegiblemente angostas. `white-space:nowrap` en las celdas
+     Used/Mandatory (siempre "✓" o vacío) + centradas, para que se vean como checkboxes de verdad. El
+     borde grueso a la izquierda de cada bloque "Used" (y su encabezado) separa visualmente cada entidad,
+     igual que en el mockup de referencia del usuario (Excel con columnas agrupadas). */
+  table.fieldmatrix-table{table-layout:auto}
+  table.fieldmatrix-table td, table.fieldmatrix-table th{white-space:nowrap}
+  table.fieldmatrix-table td:nth-child(2), table.fieldmatrix-table td:nth-child(3){white-space:normal}
+  table.fieldmatrix-table code{font-size:.95em;background:var(--panel-2);padding:1px 5px;border-radius:4px}
+  table.fieldmatrix-table .fieldmatrix-check{text-align:center;color:var(--green);font-weight:700}
+  table.fieldmatrix-table .fieldmatrix-entcol-first{border-left:2px solid var(--line)}
+  table.fieldmatrix-table .fieldmatrix-mismatch{color:var(--red);font-weight:600}
   /* Tabla "Proposed in Presentations" (pestaña Listing) — mismo shell que .resumen-table, pero header gris
      (no el amarillo/acento de Resumen) y más chico, pedido explícito del usuario. */
   table.listing-history-table thead th{background:var(--panel-2);color:var(--muted);font-weight:600;
@@ -1868,6 +1882,18 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
            de usuario (distinto de los comentarios técnicos del código), ver RELEASE_NOTES/renderReleaseNotes()
            más abajo en el archivo. Mismo patrón que las otras 3 secciones de Configuración (display:none,
            lo prende/apaga renderConfigSections() según `configSection`). -->
+      <!-- Matriz de campos (v6.5.4, pedido explícito del usuario): reporte de solo lectura, calculado en
+           vivo desde fieldConfig — nunca una copia guardada aparte, así que nunca queda desactualizado.
+           Mismo patrón que las otras secciones de Configuración (display:none, prendida/apagada por
+           renderConfigSections() según `configSection`). Ver renderFieldMatrix() más abajo. -->
+      <div class="tablewrap fieldmatrix-panel" id="configFieldMatrixSection" style="display:none">
+        <h4>Field Matrix</h4>
+        <p class="map-hint">Every field across all 6 tables, one row per technical key — which table(s) use it, whether it's required there, its type, and its dropdown list (if any). Helps spot fields that could be standardized (same concept, different name) or fields already sharing a key but captured inconsistently (different type/list between tables — flagged in red).</p>
+        <input id="fieldMatrixSearch" class="columns-panel-search" style="max-width:320px;margin-bottom:12px" placeholder="Search section, field, label…" oninput="renderFieldMatrix()">
+        <div class="resumen-scroll">
+          <table class="resumen-table fieldmatrix-table" id="fieldMatrixTable"></table>
+        </div>
+      </div>
       <div class="tablewrap releasenotes-panel" id="configReleaseNotesSection" style="display:none">
         <h4>Release notes</h4>
         <p class="map-hint">What changed in each version of the app.</p>
@@ -3728,10 +3754,12 @@ function renderConfigSections(){
   document.getElementById("configFilesSection").style.display=configSection==="files"?"":"none";
   document.getElementById("fieldConfigPanel").style.display=configSection==="fields"?"":"none";
   document.getElementById("configListsSection").style.display=configSection==="lists"?"":"none";
+  document.getElementById("configFieldMatrixSection").style.display=configSection==="matrix"?"":"none";
   document.getElementById("configReleaseNotesSection").style.display=configSection==="notes"?"":"none";
   if(configSection==="files"){ renderPathNote("excel","filePathNote"); renderPathNote("images","imagesPathNote"); renderPathNote("configFile","configFilePathNote"); renderPathNote("land","landFilePathNote"); renderPathNote("complementary","complementaryFilePathNote"); }
   else if(configSection==="fields") renderFieldConfigView();
   else if(configSection==="lists") renderListsNav();
+  else if(configSection==="matrix") renderFieldMatrix();
   else if(configSection==="notes") renderReleaseNotes();
 }
 /* ==== Novedades / historial de versiones (v3.44.3, pedido explícito del usuario) ====
@@ -3964,6 +3992,91 @@ const RELEASE_NOTES=[
     "Corregida una franja blanca que aparecía en el borde del mapa dentro de la presentación de Propiedades/Terrenos, solo al imprimir/exportar a PDF."
   ]}
 ];
+/* ==== Field Matrix (v6.5.4, pedido explícito del usuario) ====
+   "Quiero poder ver en el sistema una matriz de todos los campos que tenemos... para saber si el campo
+   existe en esa entidad y si es obligatorio o no" — reporte de auditoría de solo lectura para encontrar
+   candidatos a homologar (mismo concepto, nombre distinto — ver LEGACY_FIELD_KEY_ALIASES arriba) Y campos
+   que YA comparten key entre entidades pero quedaron configurados de forma inconsistente (type/lista
+   distinta). Se arma en vivo desde `fieldConfig` (fields(ent), la fuente de verdad en runtime) — nunca una
+   copia guardada aparte, así que nunca queda desactualizada según lo que el usuario haya cambiado en
+   Configuración > Campos.
+   Las 6 entidades reales de la app, en el orden en que aparecen como columnas (decisión confirmada con el
+   usuario vía AskUserQuestion — su mockup solo mostraba 5, sin Transacciones; se agregó la 6ta para que la
+   matriz refleje el modelo completo). */
+const FIELD_MATRIX_ENTITIES=["PROPIEDADES","PARKS","LAND","OFICINAS","SPACES","TRANSACCIONES"];
+/* Une los campos de las 6 entidades en un solo array de filas, una por KEY técnico distinto — si 2+
+   entidades ya comparten el mismo key (ej. tras un rename como CLASS->CLASSIFICATION), es UNA sola fila con
+   ambas marcadas; si todavía tienen keys distintos para "lo mismo" (el caso que el usuario quiere cazar),
+   son 2 filas separadas, una por key — la matriz no adivina equivalencias semánticas, solo refleja el
+   estado real del código tal cual está hoy. `group` de la fila se toma de la PRIMERA entidad (en el orden
+   de FIELD_MATRIX_ENTITIES) que define ese key — normalmente coincide entre todas, pero si no, se documenta
+   como una inconsistencia más abajo (ver groupMismatch). */
+function buildFieldMatrixRows(){
+  const byKey={};
+  FIELD_MATRIX_ENTITIES.forEach(ent=>{
+    fields(ent).forEach(f=>{
+      let row=byKey[f.key];
+      if(!row) row=byKey[f.key]={key:f.key, group:f.group||"OTHER", perEnt:{}};
+      row.perEnt[ent]={required:!!f.required, type:f.type||"text", list:f.list||""};
+    });
+  });
+  return Object.values(byKey);
+}
+/* Type/Lista "canónicos" de la fila (los de la primera entidad que la usa, mismo criterio que `group`
+   arriba) + si alguna OTRA entidad que también usa este key trae un type/lista DISTINTO — la razón real de
+   marcarlo: dos campos con el MISMO nombre deberían, en general, capturarse de la misma forma (texto libre
+   vs. lista, y si es lista, la MISMA lista) entre tablas; si no, es una inconsistencia real de datos, no
+   solo de nomenclatura. */
+function fieldMatrixRowMeta(row){
+  const entOrder=FIELD_MATRIX_ENTITIES.filter(e=>row.perEnt[e]);
+  const canonical=row.perEnt[entOrder[0]];
+  const typeMismatch=entOrder.some(e=>row.perEnt[e].type!==canonical.type);
+  const listMismatch=entOrder.some(e=>row.perEnt[e].list!==canonical.list);
+  return {type:canonical.type, list:canonical.list, typeMismatch, listMismatch};
+}
+function renderFieldMatrix(){
+  const tableEl=document.getElementById("fieldMatrixTable");
+  if(!tableEl) return;
+  const q=(document.getElementById("fieldMatrixSearch")?.value||"").trim().toLowerCase();
+  let rows=buildFieldMatrixRows();
+  if(q){
+    rows=rows.filter(r=>
+      r.group.toLowerCase().includes(q) || r.key.toLowerCase().includes(q) || fieldLabel(r.key).toLowerCase().includes(q)
+    );
+  }
+  rows.sort((a,b)=> a.group.localeCompare(b.group) || a.key.localeCompare(b.key));
+  const entHead1=FIELD_MATRIX_ENTITIES.map(ent=>`<th colspan="2" class="fieldmatrix-entcol-first">${escapeHtml(ENTITIES[ent].label)}</th>`).join("");
+  const entHead2=FIELD_MATRIX_ENTITIES.map(()=>`<th class="fieldmatrix-entcol-first">Used</th><th>Mandatory</th>`).join("");
+  const bodyHtml=rows.map(row=>{
+    const meta=fieldMatrixRowMeta(row);
+    const typeCls=meta.typeMismatch?' class="fieldmatrix-mismatch" title="Type is not the same across every table that uses this field"':"";
+    const listCls=meta.listMismatch?' class="fieldmatrix-mismatch" title="A different dropdown list is assigned across the tables that use this field"':"";
+    const entCells=FIELD_MATRIX_ENTITIES.map(ent=>{
+      const f=row.perEnt[ent];
+      return `<td class="fieldmatrix-check fieldmatrix-entcol-first">${f?"✓":""}</td><td class="fieldmatrix-check">${f&&f.required?"✓":""}</td>`;
+    }).join("");
+    return `<tr>
+      <td>${escapeHtml(row.group)}</td>
+      <td><code>${escapeHtml(row.key)}</code></td>
+      <td>${escapeHtml(fieldLabel(row.key))}</td>
+      <td${typeCls}>${escapeHtml(meta.type)}</td>
+      <td${listCls}>${meta.list?escapeHtml(meta.list.replace(/_/g," ")):"—"}</td>
+      ${entCells}
+    </tr>`;
+  }).join("");
+  tableEl.innerHTML=`<thead>
+    <tr>
+      <th rowspan="2">Section</th>
+      <th rowspan="2">System Field</th>
+      <th rowspan="2">System Label</th>
+      <th rowspan="2">Type</th>
+      <th rowspan="2">List</th>
+      ${entHead1}
+    </tr>
+    <tr>${entHead2}</tr>
+  </thead>
+  <tbody>${bodyHtml || `<tr><td colspan="${5+FIELD_MATRIX_ENTITIES.length*2}" class="col-add-empty">No fields match "${escapeHtml(q)}"</td></tr>`}</tbody>`;
+}
 function renderReleaseNotes(){
   const el=document.getElementById("releaseNotesList");
   if(!el) return;
@@ -4011,6 +4124,7 @@ const CONFIG_MENU_ITEMS=[
   {key:"files", label:"Excel Files / Images"},
   {key:"fields", label:"Record Fields"},
   {key:"lists", label:"Lists"},
+  {key:"matrix", label:"Field Matrix"},
   {key:"notes", label:"Release notes"}
 ];
 function toggleConfigMenu(evt){

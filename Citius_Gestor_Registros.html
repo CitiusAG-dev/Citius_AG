@@ -240,6 +240,26 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   table.fieldmatrix-table .fieldmatrix-w62{width:62px}
   table.fieldmatrix-table .fieldmatrix-entcol-first{border-left:2px solid var(--line)}
   table.fieldmatrix-table .fieldmatrix-mismatch{color:var(--red);font-weight:600}
+  /* v6.5.8: título + buscador + Expand/Collapse fijos (no se van con el scroll) — ver el comentario junto a
+     #configFieldMatrixSection en el HTML. Mismo criterio que .fc-table/.fieldconfig-panel: el panel es una
+     columna flex y solo .fieldmatrix-body (la "tarjeta" de la tabla) tiene su propio scroll acotado. */
+  .fieldmatrix-panel{padding:20px 24px;flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+  .fieldmatrix-panel h4{margin:0 0 10px;font-size:15px;color:var(--txt);flex-shrink:0}
+  .fieldmatrix-toolbar{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-shrink:0}
+  .fieldmatrix-toolbar .btn.ghost{padding:6px 12px;font-size:12px}
+  .fieldmatrix-body{flex:1;min-height:0;overflow:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel)}
+  /* Fila-encabezado de sección (v6.5.8, pedido explícito del usuario: "colapsar la tabla a nivel sección")
+     — un <tr> con un solo <td colspan> por sección, mismo criterio visual que .fc-group-head en
+     Configuración > Campos (fondo ámbar tenue, texto en mayúsculas). Clicable para expandir/colapsar; las
+     filas de esa sección simplemente no se imprimen en el HTML mientras está colapsada (ver
+     toggleFieldMatrixSection()), no hay animación de alto — mismo patrón "todo o nada" que ya usa Field
+     Matrix para el resto del render (siempre se reconstruye completo desde fieldConfig). */
+  table.fieldmatrix-table .fieldmatrix-section-row{cursor:pointer;background:rgba(240,179,35,.07)}
+  table.fieldmatrix-table .fieldmatrix-section-row:hover{background:rgba(240,179,35,.13)}
+  table.fieldmatrix-table .fieldmatrix-section-row td{padding:8px 12px;font-size:11px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.5px;color:var(--accent-ink);white-space:nowrap;
+    display:flex;align-items:center;gap:8px}
+  table.fieldmatrix-table .fieldmatrix-chevron{flex-shrink:0;transition:transform .15s}
   /* Tabla "Proposed in Presentations" (pestaña Listing) — mismo shell que .resumen-table, pero header gris
      (no el amarillo/acento de Resumen) y más chico, pedido explícito del usuario. */
   table.listing-history-table thead th{background:var(--panel-2);color:var(--muted);font-weight:600;
@@ -1907,10 +1927,24 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
            Archivos/Campos/Listas (las otras 3 secciones de Configuración), la tabla vive DIRECTO dentro de
            `.tablewrap`, que ya es el único contenedor de scroll (ambos ejes) acotado a la pantalla — mismo
            mecanismo que usa `#tbl` en Buildings/Parks/etc. (el usuario pidió "más parecido a Buildings"). -->
+      <!-- v6.5.8, pedido explícito del usuario ("el filtro se oculta, todo está dentro del mismo
+           contenedor"): la v6.5.6 de arriba resolvió el scroll horizontal pero dejó el título "Field Matrix"
+           y el buscador DENTRO de ese mismo contenedor con scroll — al bajar, se iban con las filas. La
+           corrección real no es que `#tbl` de Buildings (que no tiene buscador propio), sino la de
+           `#fieldConfigPanel`/`.fc-table` (Configuración > Campos, arriba): ahí el título/descripción/tabs
+           quedan FUERA del scroll, y solo `#fcGroupsWrap.fc-groups-scroll` (un contenedor interno propio)
+           se desplaza. Mismo patrón aquí: `.fieldmatrix-toolbar` (buscador + Expand/Collapse all) queda fijo
+           junto al `<h4>`, y `.fieldmatrix-body` (nuevo) es el único contenedor con scroll — ver su CSS. -->
       <div class="tablewrap fieldmatrix-panel" id="configFieldMatrixSection" style="display:none">
         <h4>Field Matrix</h4>
-        <input id="fieldMatrixSearch" class="columns-panel-search" style="max-width:320px;margin-bottom:12px" placeholder="Search section, field, label…" oninput="renderFieldMatrix()">
-        <table class="resumen-table fieldmatrix-table" id="fieldMatrixTable"></table>
+        <div class="fieldmatrix-toolbar">
+          <input id="fieldMatrixSearch" class="columns-panel-search" style="max-width:320px" placeholder="Search section, field, label…" oninput="renderFieldMatrix()">
+          <button type="button" class="btn ghost" onclick="fieldMatrixExpandAll()">Expand all</button>
+          <button type="button" class="btn ghost" onclick="fieldMatrixCollapseAll()">Collapse all</button>
+        </div>
+        <div class="fieldmatrix-body">
+          <table class="resumen-table fieldmatrix-table" id="fieldMatrixTable"></table>
+        </div>
       </div>
       <div class="tablewrap releasenotes-panel" id="configReleaseNotesSection" style="display:none">
         <h4>Release notes</h4>
@@ -4066,16 +4100,37 @@ const FIELD_MATRIX_ENTITIES=["PROPIEDADES","PARKS","LAND","OFICINAS","SPACES","T
    estado real del código tal cual está hoy. `group` de la fila se toma de la PRIMERA entidad (en el orden
    de FIELD_MATRIX_ENTITIES) que define ese key — normalmente coincide entre todas, pero si no, se documenta
    como una inconsistencia más abajo (ver groupMismatch). */
+/* v6.5.8, pedido explícito del usuario ("ver las secciones en el orden que están mostrándose en las
+   fichas... sé que no es el mismo para cada entidad, pero no sé qué se pueda hacer"): no hay un único orden
+   que calce EXACTO con las 6 fichas a la vez (cada entidad puede tener el mismo grupo o campo en una
+   posición distinta) — lo más fiel posible es usar como referencia el orden real en que grupos y campos
+   aparecen recorriendo las entidades en el mismo orden de FIELD_MATRIX_ENTITIES (Propiedades primero, por
+   ser la más completa): la primera vez que se ve un grupo o un campo dentro de su grupo, esa es su posición;
+   si una entidad más adelante en la lista trae un grupo o campo que ninguna anterior tenía, se agrega
+   después de lo ya visto. Con esto, dos entidades que comparten el mismo grupo/campo casi siempre van a
+   coincidir en el orden (es el caso típico); solo se nota una diferencia real cuando dos entidades
+   genuinamente difieren entre sí, que es exactamente el tipo de inconsistencia que esta matriz existe para
+   exhibir. _groupOrder/_fieldOrder son metadata interna del render, no se guardan ni se muestran. */
 function buildFieldMatrixRows(){
   const byKey={};
+  const groupSeq={}, fieldSeqInGroup={};
   FIELD_MATRIX_ENTITIES.forEach(ent=>{
     fields(ent).forEach(f=>{
+      const g=f.group||"OTHER";
       let row=byKey[f.key];
-      if(!row) row=byKey[f.key]={key:f.key, group:f.group||"OTHER", perEnt:{}};
+      if(!row) row=byKey[f.key]={key:f.key, group:g, perEnt:{}};
       row.perEnt[ent]={required:!!f.required, type:f.type||"text", list:f.list||""};
+      if(!(g in groupSeq)) groupSeq[g]=Object.keys(groupSeq).length;
+      if(!fieldSeqInGroup[g]) fieldSeqInGroup[g]={};
+      if(!(f.key in fieldSeqInGroup[g])) fieldSeqInGroup[g][f.key]=Object.keys(fieldSeqInGroup[g]).length;
     });
   });
-  return Object.values(byKey);
+  const rows=Object.values(byKey);
+  rows.forEach(row=>{
+    row._groupOrder=groupSeq[row.group];
+    row._fieldOrder=fieldSeqInGroup[row.group][row.key];
+  });
+  return rows;
 }
 /* Type/Lista "canónicos" de la fila (los de la primera entidad que la usa, mismo criterio que `group`
    arriba) + si alguna OTRA entidad que también usa este key trae un type/lista DISTINTO — la razón real de
@@ -4089,6 +4144,23 @@ function fieldMatrixRowMeta(row){
   const listMismatch=entOrder.some(e=>row.perEnt[e].list!==canonical.list);
   return {type:canonical.type, list:canonical.list, typeMismatch, listMismatch};
 }
+/* Secciones colapsadas (v6.5.8, pedido explícito del usuario: "colapsar la tabla a nivel sección") — solo
+   en memoria (no persistido, se reinicia cada vez que se abre Configuración > Field Matrix), igual que
+   fcEntity/fcDragGroup y el resto del estado transitorio de las vistas de Configuración. */
+let fieldMatrixCollapsedGroups=new Set();
+function toggleFieldMatrixSection(name){
+  if(fieldMatrixCollapsedGroups.has(name)) fieldMatrixCollapsedGroups.delete(name);
+  else fieldMatrixCollapsedGroups.add(name);
+  renderFieldMatrix();
+}
+function fieldMatrixCollapseAll(){
+  fieldMatrixCollapsedGroups=new Set(buildFieldMatrixRows().map(r=>r.group));
+  renderFieldMatrix();
+}
+function fieldMatrixExpandAll(){
+  fieldMatrixCollapsedGroups=new Set();
+  renderFieldMatrix();
+}
 function renderFieldMatrix(){
   const tableEl=document.getElementById("fieldMatrixTable");
   if(!tableEl) return;
@@ -4099,7 +4171,9 @@ function renderFieldMatrix(){
       r.group.toLowerCase().includes(q) || r.key.toLowerCase().includes(q) || fieldLabel(r.key).toLowerCase().includes(q)
     );
   }
-  rows.sort((a,b)=> a.group.localeCompare(b.group) || a.key.localeCompare(b.key));
+  // v6.5.8: orden "como en la ficha" en vez de alfabético — ver el comentario junto a buildFieldMatrixRows().
+  rows.sort((a,b)=> a._groupOrder-b._groupOrder || a._fieldOrder-b._fieldOrder);
+  const totalCols=5+FIELD_MATRIX_ENTITIES.length*2;
   const entHead1=FIELD_MATRIX_ENTITIES.map(ent=>`<th colspan="2" class="fieldmatrix-entcol-first">${escapeHtml(ENTITIES[ent].label)}</th>`).join("");
   // "Req." en vez de "Mandatory" (v6.5.5, pedido explícito del usuario: mismo ancho que "Used") — con
   // table-layout:auto + white-space:nowrap, un `width` en CSS es solo una sugerencia mínima: el navegador
@@ -4107,22 +4181,37 @@ function renderFieldMatrix(){
   // La forma confiable de que ambas columnas midan EXACTAMENTE lo mismo es que su encabezado tenga el mismo
   // largo de texto — "Used" y "Req." son ambos 4 caracteres.
   const entHead2=FIELD_MATRIX_ENTITIES.map(()=>`<th class="fieldmatrix-entcol-first fieldmatrix-w62">Used</th><th class="fieldmatrix-w62" title="Mandatory">Req.</th>`).join("");
-  const bodyHtml=rows.map(row=>{
-    const meta=fieldMatrixRowMeta(row);
-    const typeCls=meta.typeMismatch?' class="fieldmatrix-mismatch" title="Type is not the same across every table that uses this field"':"";
-    const listCls=meta.listMismatch?' class="fieldmatrix-mismatch" title="A different dropdown list is assigned across the tables that use this field"':"";
-    const entCells=FIELD_MATRIX_ENTITIES.map(ent=>{
-      const f=row.perEnt[ent];
-      return `<td class="fieldmatrix-check fieldmatrix-entcol-first fieldmatrix-w62">${f?"✓":""}</td><td class="fieldmatrix-check fieldmatrix-w62">${f&&f.required?"✓":""}</td>`;
-    }).join("");
-    return `<tr>
-      <td>${escapeHtml(row.group)}</td>
-      <td><code>${escapeHtml(row.key)}</code></td>
-      <td>${escapeHtml(fieldLabel(row.key))}</td>
-      <td${typeCls}>${escapeHtml(meta.type)}</td>
-      <td${listCls}>${meta.list?escapeHtml(meta.list.replace(/_/g," ")):"—"}</td>
-      ${entCells}
+  // v6.5.8: agrupa las filas (ya ordenadas) por sección consecutiva, con una fila-encabezado clicable por
+  // sección — mismo criterio visual que .fc-group-head de Configuración > Campos. Colapsada = solo se
+  // imprime esa fila-encabezado, las filas de campos de esa sección ni se agregan al HTML.
+  const sections=[]; const bySection={};
+  rows.forEach(r=>{ if(!bySection[r.group]){ bySection[r.group]=[]; sections.push(r.group); } bySection[r.group].push(r); });
+  const bodyHtml=sections.map(sec=>{
+    const secRows=bySection[sec];
+    const collapsed=fieldMatrixCollapsedGroups.has(sec);
+    const chevron=`<svg class="fieldmatrix-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(${collapsed?"-90deg":"0deg"})"><polyline points="6 9 12 15 18 9"/></svg>`;
+    const headerRow=`<tr class="fieldmatrix-section-row" onclick="toggleFieldMatrixSection('${escapeAttr(sec)}')">
+      <td colspan="${totalCols}">${chevron}${escapeHtml(sec)}<span class="pill gray">${secRows.length} field${secRows.length===1?"":"s"}</span></td>
     </tr>`;
+    if(collapsed) return headerRow;
+    const dataRows=secRows.map(row=>{
+      const meta=fieldMatrixRowMeta(row);
+      const typeCls=meta.typeMismatch?' class="fieldmatrix-mismatch" title="Type is not the same across every table that uses this field"':"";
+      const listCls=meta.listMismatch?' class="fieldmatrix-mismatch" title="A different dropdown list is assigned across the tables that use this field"':"";
+      const entCells=FIELD_MATRIX_ENTITIES.map(ent=>{
+        const f=row.perEnt[ent];
+        return `<td class="fieldmatrix-check fieldmatrix-entcol-first fieldmatrix-w62">${f?"✓":""}</td><td class="fieldmatrix-check fieldmatrix-w62">${f&&f.required?"✓":""}</td>`;
+      }).join("");
+      return `<tr>
+        <td></td>
+        <td><code>${escapeHtml(row.key)}</code></td>
+        <td>${escapeHtml(fieldLabel(row.key))}</td>
+        <td${typeCls}>${escapeHtml(meta.type)}</td>
+        <td${listCls}>${meta.list?escapeHtml(meta.list.replace(/_/g," ")):"—"}</td>
+        ${entCells}
+      </tr>`;
+    }).join("");
+    return headerRow+dataRows;
   }).join("");
   tableEl.innerHTML=`<thead>
     <tr>
@@ -4135,7 +4224,7 @@ function renderFieldMatrix(){
     </tr>
     <tr>${entHead2}</tr>
   </thead>
-  <tbody>${bodyHtml || `<tr><td colspan="${5+FIELD_MATRIX_ENTITIES.length*2}" class="col-add-empty">No fields match "${escapeHtml(q)}"</td></tr>`}</tbody>`;
+  <tbody>${bodyHtml || `<tr><td colspan="${totalCols}" class="col-add-empty">No fields match "${escapeHtml(q)}"</td></tr>`}</tbody>`;
 }
 function renderReleaseNotes(){
   const el=document.getElementById("releaseNotesList");

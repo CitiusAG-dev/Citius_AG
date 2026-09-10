@@ -1898,12 +1898,19 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
            vivo desde fieldConfig — nunca una copia guardada aparte, así que nunca queda desactualizado.
            Mismo patrón que las otras secciones de Configuración (display:none, prendida/apagada por
            renderConfigSections() según `configSection`). Ver renderFieldMatrix() más abajo. -->
+      <!-- v6.5.6, pedido explícito del usuario: la tabla se recorría en scroll horizontal, pero no se
+           llegaba a esa barra sin bajar hasta el final de las 265 filas primero — causa real: el
+           `.resumen-scroll` (overflow-x:auto, alto SIN límite, pensado para las tablas cortas del
+           Resumen) quedaba ANIDADO dentro de `.tablewrap` (overflow:auto, alto SÍ acotado a la pantalla vía
+           .wrap/flex) — dos contenedores de scroll en cascada, la barra horizontal de adentro solo se veía
+           tras agotar el scroll vertical de afuera. Fix: se quitó `.resumen-scroll` — igual que
+           Archivos/Campos/Listas (las otras 3 secciones de Configuración), la tabla vive DIRECTO dentro de
+           `.tablewrap`, que ya es el único contenedor de scroll (ambos ejes) acotado a la pantalla — mismo
+           mecanismo que usa `#tbl` en Buildings/Parks/etc. (el usuario pidió "más parecido a Buildings"). -->
       <div class="tablewrap fieldmatrix-panel" id="configFieldMatrixSection" style="display:none">
         <h4>Field Matrix</h4>
         <input id="fieldMatrixSearch" class="columns-panel-search" style="max-width:320px;margin-bottom:12px" placeholder="Search section, field, label…" oninput="renderFieldMatrix()">
-        <div class="resumen-scroll">
-          <table class="resumen-table fieldmatrix-table" id="fieldMatrixTable"></table>
-        </div>
+        <table class="resumen-table fieldmatrix-table" id="fieldMatrixTable"></table>
       </div>
       <div class="tablewrap releasenotes-panel" id="configReleaseNotesSection" style="display:none">
         <h4>Release notes</h4>

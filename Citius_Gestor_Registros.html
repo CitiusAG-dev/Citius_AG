@@ -242,8 +242,17 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   table.fieldmatrix-table .fieldmatrix-mismatch{color:var(--red);font-weight:600}
   /* v6.5.8: título + buscador + Expand/Collapse fijos (no se van con el scroll) — ver el comentario junto a
      #configFieldMatrixSection en el HTML. Mismo criterio que .fc-table/.fieldconfig-panel: el panel es una
-     columna flex y solo .fieldmatrix-body (la "tarjeta" de la tabla) tiene su propio scroll acotado. */
-  .fieldmatrix-panel{padding:20px 24px;flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+     columna flex y solo .fieldmatrix-body (la "tarjeta" de la tabla) tiene su propio scroll acotado.
+     v6.5.9, pedido explícito del usuario ("sigue sin verse bien... una línea rara arriba del título" —
+     confirmado vía AskUserQuestion: "borde raro arriba del título"): el div sigue teniendo la clase base
+     `.tablewrap` (border+radius+background), y ahora ADEMÁS .fieldmatrix-body trae su propio border+
+     radius+background — 2 cajas anidadas, la de afuera se veía como una línea encima de todo. Se anula el
+     border/background heredado de `.tablewrap` aquí para que solo quede la tarjeta de adentro — con
+     `div.fieldmatrix-panel` (selector más específico) porque la regla base `.tablewrap` aparece MÁS ABAJO
+     en la hoja de estilos y, a especificidad igual, gana por orden de aparición si no se le sube la
+     especificidad aquí. */
+  div.fieldmatrix-panel{padding:20px 24px;flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;
+    border:none;background:transparent}
   .fieldmatrix-panel h4{margin:0 0 10px;font-size:15px;color:var(--txt);flex-shrink:0}
   .fieldmatrix-toolbar{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-shrink:0}
   .fieldmatrix-toolbar .btn.ghost{padding:6px 12px;font-size:12px}

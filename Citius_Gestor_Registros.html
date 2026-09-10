@@ -1459,7 +1459,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v6.4.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v7.0.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -3851,6 +3851,13 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"7.0.0", date:"2026-09-10", items:[
+    "New \"Field Matrix\" view in Settings — a spreadsheet-like audit of every field across all 6 tables (Buildings/Parks/Land/Offices/Spaces/Transactions): its section, technical name, label, type, dropdown list, and whether it's used/required per table. Flags in red where the same field has a different type or dropdown list across tables. Sections can be collapsed/expanded (one at a time or all at once), rows follow the order fields actually appear in the record forms, and the title/search bar stay visible while scrolling.",
+    "Settings > Record Fields: sections can now be renamed directly (pencil icon on each section card) — the rename applies everywhere that section is used (the record form, Field Matrix) across every table that shares it.",
+    "Parks' \"Class\" field renamed to \"Classification\" to match Buildings/Offices — first step of a broader effort to unify fields that mean the same thing but are named differently across tables. Existing data and Excel column headers keep working.",
+    "Land no longer needs its own separate Excel file — it's now a sheet in the same file as Buildings/Parks/Offices/Spaces/Transactions/Pres. Log, just like everything else. The \"Land File\" card in Settings > Files was removed.",
+    "Fixed: unlinking the main Excel file wasn't clearing Land's data from the browser (same class of bug already fixed before for Offices/Spaces)."
+  ]},
   {version:"6.4.0", date:"2026-09-09", items:[
     "Settings > Lists: selecting a list now shows \"Used in: [Table · Field]…\" chips so you can see at a glance which tables/fields depend on it, and the sidebar shows how many fields use each list next to its value count.",
     "Settings > Lists: widened the list sidebar and fixed the field-count badge wrapping awkwardly next to long list names.",

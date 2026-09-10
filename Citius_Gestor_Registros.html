@@ -259,14 +259,29 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   table.fieldmatrix-table thead tr.fieldmatrix-thead-row2 th{top:29.5px}
   table.fieldmatrix-table code{font-size:.95em;background:var(--panel-2);padding:1px 5px;border-radius:4px}
   /* v6.5.12, pedido explícito del usuario ("que sea más bien un círculo en verde claro con la palomita
-     adentro para que se vea más visible"): antes era solo un ✓ de texto verde sobre fondo blanco. */
+     adentro para que se vea más visible"): antes era solo un ✓ de texto verde sobre fondo blanco.
+     v6.5.16, pedido explícito del usuario ("marcar si está usado o requerido dando clic"): el círculo ya no
+     es un <span> decorativo, es un <input type="checkbox"> real (fieldmatrix-toggle) restyleado para verse
+     igual — así el clic/teclado lo maneja el navegador solo, sin reinventar nada. */
   table.fieldmatrix-table .fieldmatrix-check{text-align:center}
-  table.fieldmatrix-table .fieldmatrix-check-badge{display:inline-flex;align-items:center;justify-content:center;
-    width:16px;height:16px;border-radius:50%;background:rgba(30,158,90,.18);color:var(--green);
-    font-size:10px;font-weight:700;line-height:1}
+  table.fieldmatrix-table input.fieldmatrix-toggle{appearance:none;-webkit-appearance:none;width:16px;height:16px;
+    border-radius:50%;border:1.5px solid var(--line);background:var(--panel);cursor:pointer;margin:0;
+    position:relative;vertical-align:middle}
+  table.fieldmatrix-table input.fieldmatrix-toggle:hover{border-color:var(--accent)}
+  table.fieldmatrix-table input.fieldmatrix-toggle:checked{background:rgba(30,158,90,.18);border-color:rgba(30,158,90,.4)}
+  table.fieldmatrix-table input.fieldmatrix-toggle:checked::after{content:"✓";position:absolute;inset:0;
+    display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--green);line-height:1}
   table.fieldmatrix-table .fieldmatrix-w62{width:62px}
   table.fieldmatrix-table .fieldmatrix-entcol-first{border-left:2px solid var(--line)}
   table.fieldmatrix-table .fieldmatrix-mismatch{color:var(--red);font-weight:600;cursor:help}
+  /* v6.5.16, pedido explícito del usuario ("editar el tipo de dato... marcar como amarillo un cambio
+     pendiente de guardar, al guardar se quita el sombreado"): el <select> de Type usa el mismo look que
+     cualquier otro control de la app; el resaltado ámbar (misma familia de color que .fc-group-head) es
+     puramente la clase fieldmatrix-cell-dirty en el <td> que la contiene — se agrega/quita en cada render
+     según haya o no una edición pendiente para esa celda exacta, ver fieldMatrixEdits en el JS. */
+  table.fieldmatrix-table .fieldmatrix-type-select{font-size:10.5px;padding:2px 4px;border:1px solid var(--line);
+    border-radius:5px;background:var(--panel);color:var(--txt);cursor:pointer}
+  table.fieldmatrix-table td.fieldmatrix-cell-dirty{background:rgba(240,179,35,.35)}
   /* v6.5.8: título + buscador + Expand/Collapse fijos (no se van con el scroll) — ver el comentario junto a
      #configFieldMatrixSection en el HTML. Mismo criterio que .fc-table/.fieldconfig-panel: el panel es una
      columna flex y solo .fieldmatrix-body (la "tarjeta" de la tabla) tiene su propio scroll acotado.
@@ -1970,6 +1985,11 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
           <input id="fieldMatrixSearch" class="columns-panel-search" style="max-width:320px" placeholder="Search section, field, label…" oninput="renderFieldMatrix()">
           <button type="button" class="btn ghost" onclick="fieldMatrixExpandAll()">Expand all</button>
           <button type="button" class="btn ghost" onclick="fieldMatrixCollapseAll()">Collapse all</button>
+          <span id="fieldMatrixPendingWrap" style="display:none;margin-left:auto;align-items:center;gap:8px">
+            <span id="fieldMatrixPendingBadge" class="pill amber"></span>
+            <button type="button" class="btn ghost" onclick="fieldMatrixDiscardChanges()">Discard</button>
+            <button type="button" class="btn" onclick="fieldMatrixSaveChanges()">Save changes</button>
+          </span>
         </div>
         <div class="fieldmatrix-body">
           <table class="resumen-table fieldmatrix-table" id="fieldMatrixTable"></table>
@@ -4198,6 +4218,9 @@ const RELEASE_NOTES=[
    usuario vía AskUserQuestion — su mockup solo mostraba 5, sin Transacciones; se agregó la 6ta para que la
    matriz refleje el modelo completo). */
 const FIELD_MATRIX_ENTITIES=["PROPIEDADES","PARKS","LAND","OFICINAS","SPACES","TRANSACCIONES"];
+/* Mismas 4 opciones que ya ofrece Configuración > Campos (fcFieldRowHtml) para el tipo de un campo — ver
+   fieldMatrixSetType() más abajo. */
+const FIELDMATRIX_TYPE_OPTIONS=["text","int","decimal","date"];
 /* Une los campos de las 6 entidades en un solo array de filas, una por KEY técnico distinto — si 2+
    entidades ya comparten el mismo key (ej. tras un rename como CLASS->CLASSIFICATION), es UNA sola fila con
    ambas marcadas; si todavía tienen keys distintos para "lo mismo" (el caso que el usuario quiere cazar),
@@ -4273,6 +4296,82 @@ function fieldMatrixExpandAll(){
   fieldMatrixCollapsedGroups=new Set();
   renderFieldMatrix();
 }
+/* Edición en vivo desde Field Matrix (v6.5.16, pedido explícito del usuario: "quiero editar el tipo de
+   dato... así como también marcar si está usado o requerido dando clic"). Los cambios NO tocan fieldConfig
+   de inmediato — quedan en fieldMatrixEdits ("pendiente") hasta que el usuario le da "Save changes"; cada
+   celda con una edición pendiente se resalta en ámbar (ver fieldmatrix-cell-dirty en el CSS) y ese resaltado
+   se quita justo al guardar, tal como se pidió. Guardar así (en vez de mutar fieldConfig en cada clic)
+   también deja "deshacer" un cambio con solo volver a marcar/desmarcar, sin pasos extra.
+   Alcance confirmado con el usuario vía AskUserQuestion:
+   - Type: al cambiarlo se aplica a TODAS las entidades que usan ese campo de una vez — resuelve el
+     mismatch en un clic, en vez de tener que ir entidad por entidad.
+   - Used/Required: solo editable en una celda que YA está en uso — activar una celda en blanco (el campo no
+     existe en el código de esa entidad) se dejó fuera a propósito ("olvidemos esto por lo pronto"):
+     necesitaría agregar el campo al código de esa entidad, no solo cambiar config (mismo tipo de trabajo
+     que un rename de campo). */
+let fieldMatrixEdits={types:{}, used:{}, required:{}};
+function fieldMatrixPendingCount(){
+  return Object.keys(fieldMatrixEdits.types).length+Object.keys(fieldMatrixEdits.used).length+Object.keys(fieldMatrixEdits.required).length;
+}
+function fieldMatrixSetType(key, newType, actualType){
+  if(newType===actualType) delete fieldMatrixEdits.types[key]; else fieldMatrixEdits.types[key]=newType;
+  renderFieldMatrix();
+}
+function fieldMatrixToggleUsed(key, ent, checked){
+  const k=key+"|"+ent;
+  const actual=!!(fieldConfig[ent]||[]).find(f=>f.key===key);
+  if(checked===actual) delete fieldMatrixEdits.used[k]; else fieldMatrixEdits.used[k]=checked;
+  renderFieldMatrix();
+}
+function fieldMatrixToggleRequired(key, ent, checked){
+  const k=key+"|"+ent;
+  const f=(fieldConfig[ent]||[]).find(x=>x.key===key);
+  const actual=f?!!f.required:false;
+  if(checked===actual) delete fieldMatrixEdits.required[k]; else fieldMatrixEdits.required[k]=checked;
+  renderFieldMatrix();
+}
+function fieldMatrixDiscardChanges(){
+  const n=fieldMatrixPendingCount();
+  if(!n) return;
+  if(!confirm(`Discard ${n} unsaved change${n===1?"":"s"}?`)) return;
+  fieldMatrixEdits={types:{},used:{},required:{}};
+  renderFieldMatrix();
+}
+/* Aplica fieldMatrixEdits a fieldConfig de verdad y lo guarda — mismo destino EXACTO que fcSaveBtn
+   (Configuración > Campos): el Archivo de Configuración si está vinculado, si no el Excel de datos, si no
+   ninguno se queda solo en este navegador. No hay una "hoja de Field Matrix" aparte en el Excel — esto son
+   los mismos campos de fieldConfig de siempre, solo editados desde una vista distinta. */
+async function fieldMatrixSaveChanges(){
+  if(!fieldMatrixPendingCount()) return;
+  Object.keys(fieldMatrixEdits.types).forEach(key=>{
+    const newType=fieldMatrixEdits.types[key];
+    FIELD_MATRIX_ENTITIES.forEach(ent=>{
+      const f=(fieldConfig[ent]||[]).find(x=>x.key===key);
+      if(f) f.type=newType;
+    });
+  });
+  Object.keys(fieldMatrixEdits.required).forEach(k=>{
+    const [key,ent]=k.split("|");
+    const f=(fieldConfig[ent]||[]).find(x=>x.key===key);
+    if(f) f.required=fieldMatrixEdits.required[k];
+  });
+  Object.keys(fieldMatrixEdits.used).forEach(k=>{
+    const [key,ent]=k.split("|");
+    if(!fieldMatrixEdits.used[k]) fieldConfig[ent]=(fieldConfig[ent]||[]).filter(f=>f.key!==key);
+  });
+  fieldMatrixEdits={types:{},used:{},required:{}};
+  saveFieldConfigLocal();
+  if(configFileHandle){
+    const ok=await writeToConfigFile();
+    toast(ok?("Field Matrix changes saved to "+configFileHandle.name):"Couldn't save the changes — see error above", ok?"ok":"err");
+  } else if(fileHandle){
+    const ok=await writeToFile();
+    toast(ok?("Field Matrix changes saved to "+fileHandle.name):"Couldn't save the changes — see error above", ok?"ok":"err");
+  } else {
+    toast("Saved only in this browser — no Excel is linked","err");
+  }
+  renderFieldMatrix();
+}
 function renderFieldMatrix(){
   const tableEl=document.getElementById("fieldMatrixTable");
   if(!tableEl) return;
@@ -4324,18 +4423,35 @@ function renderFieldMatrix(){
     if(collapsed) return headerRow;
     const dataRows=secRows.map(row=>{
       const meta=fieldMatrixRowMeta(row);
-      const typeCls=meta.typeMismatch?` class="fieldmatrix-mismatch" title="${escapeAttr(meta.typeDetail)}"`:"";
+      // Type editable (v6.5.16) — dropdown en vez de texto plano; el valor mostrado ya es el PENDIENTE si
+      // hay uno (fieldMatrixEdits.types), independiente de si el mismatch (calculado sobre lo REALMENTE
+      // guardado) sigue marcado en rojo hasta que se le dé Save.
+      const typePending=fieldMatrixEdits.types[row.key];
+      const typeEff=typePending!==undefined?typePending:meta.type;
+      const typeDirty=typePending!==undefined;
+      const typeTdClasses=[meta.typeMismatch?"fieldmatrix-mismatch":"", typeDirty?"fieldmatrix-cell-dirty":""].filter(Boolean).join(" ");
+      const typeTdAttrs=`${typeTdClasses?` class="${typeTdClasses}"`:""}${meta.typeMismatch?` title="${escapeAttr(meta.typeDetail)}"`:""}`;
+      const typeSelectHtml=`<select class="fieldmatrix-type-select" onchange="fieldMatrixSetType('${escapeAttr(row.key)}',this.value,'${escapeAttr(meta.type)}')">${FIELDMATRIX_TYPE_OPTIONS.map(t=>`<option value="${t}"${t===typeEff?" selected":""}>${t}</option>`).join("")}</select>`;
       const listCls=meta.listMismatch?` class="fieldmatrix-mismatch" title="${escapeAttr(meta.listDetail)}"`:"";
-      const CHECK_BADGE=`<span class="fieldmatrix-check-badge">✓</span>`;
       const entCells=FIELD_MATRIX_ENTITIES.map(ent=>{
         const f=row.perEnt[ent];
-        return `<td class="fieldmatrix-check fieldmatrix-entcol-first fieldmatrix-w62">${f?CHECK_BADGE:""}</td><td class="fieldmatrix-check fieldmatrix-w62">${f&&f.required?CHECK_BADGE:""}</td>`;
+        const usedK=row.key+"|"+ent, reqK=row.key+"|"+ent;
+        let usedHtml="", usedDirty=false, reqHtml="", reqDirty=false;
+        if(f){
+          const usedEff=usedK in fieldMatrixEdits.used ? fieldMatrixEdits.used[usedK] : true;
+          usedDirty=usedK in fieldMatrixEdits.used;
+          usedHtml=`<input type="checkbox" class="fieldmatrix-toggle" ${usedEff?"checked":""} onchange="fieldMatrixToggleUsed('${escapeAttr(row.key)}','${ent}',this.checked)" title="Used in ${escapeAttr(ENTITIES[ent].label)}">`;
+          const reqEff=reqK in fieldMatrixEdits.required ? fieldMatrixEdits.required[reqK] : !!f.required;
+          reqDirty=reqK in fieldMatrixEdits.required;
+          reqHtml=`<input type="checkbox" class="fieldmatrix-toggle" ${reqEff?"checked":""} onchange="fieldMatrixToggleRequired('${escapeAttr(row.key)}','${ent}',this.checked)" title="Required in ${escapeAttr(ENTITIES[ent].label)}">`;
+        }
+        return `<td class="fieldmatrix-check fieldmatrix-entcol-first fieldmatrix-w62${usedDirty?" fieldmatrix-cell-dirty":""}">${usedHtml}</td><td class="fieldmatrix-check fieldmatrix-w62${reqDirty?" fieldmatrix-cell-dirty":""}">${reqHtml}</td>`;
       }).join("");
       return `<tr>
         <td></td>
         <td><code>${escapeHtml(row.key)}</code></td>
         <td>${escapeHtml(fieldLabel(row.key))}</td>
-        <td${typeCls}>${escapeHtml(meta.type)}</td>
+        <td${typeTdAttrs}>${typeSelectHtml}</td>
         <td${listCls}>${meta.list?escapeHtml(meta.list.replace(/_/g," ")):"—"}</td>
         ${entCells}
       </tr>`;
@@ -4350,6 +4466,15 @@ function renderFieldMatrix(){
     <tr class="fieldmatrix-thead-row2">${entHead2}</tr>
   </thead>
   <tbody>${bodyHtml || `<tr><td colspan="${totalCols}" class="col-add-empty">No fields match "${escapeHtml(q)}"</td></tr>`}</tbody>`;
+  // v6.5.16: muestra/oculta el badge de "N cambios pendientes" + Save/Discard del toolbar fijo (fuera de la
+  // tabla, así que no se reconstruye con el resto del innerHTML de arriba).
+  const pendingN=fieldMatrixPendingCount();
+  const pendingWrap=document.getElementById("fieldMatrixPendingWrap");
+  if(pendingWrap){
+    pendingWrap.style.display=pendingN?"flex":"none";
+    const badge=document.getElementById("fieldMatrixPendingBadge");
+    if(badge) badge.textContent=pendingN+" unsaved change"+(pendingN===1?"":"s");
+  }
 }
 function renderReleaseNotes(){
   const el=document.getElementById("releaseNotesList");

@@ -233,8 +233,22 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      verticalmente (default del navegador) mientras "Buildings"/"Parks"/etc. (1 sola fila) quedaban pegados
      arriba, un desalineado visual entre ambos grupos de encabezado. */
   table.fieldmatrix-table{table-layout:auto;font-size:10.5px}
+  /* v6.5.15: una vez que se arrastra la primera columna (fieldMatrixColsFrozen()===true), la tabla pasa a
+     fixed + <colgroup> — ver el comentario grande junto a FIELDMATRIX_COLS_ENT sobre por qué. Con fixed, el
+     contenido que no quepa en el ancho elegido necesita recortarse (no hay a dónde crecer), de ahí el
+     overflow+ellipsis aquí — antes de congelar, el nowrap+scroll de siempre sigue mandando. */
+  table.fieldmatrix-table.fieldmatrix-table-fixed{table-layout:fixed}
+  table.fieldmatrix-table.fieldmatrix-table-fixed td,
+  table.fieldmatrix-table.fieldmatrix-table-fixed th{overflow:hidden;text-overflow:ellipsis}
   table.fieldmatrix-table td, table.fieldmatrix-table th{white-space:nowrap}
   table.fieldmatrix-table thead th{vertical-align:top}
+  /* v6.5.14, pedido explícito del usuario ("quiero que los espacios de cada línea sean un poco más
+     compactos"): el padding de <td> normal viene del global `th,td{padding:6px 12px}` — se acorta solo el
+     vertical (arriba/abajo) para las filas de DATOS, sin tocar el header (rompería el offset de 29.5px
+     calculado a mano para el 2do renglón del sticky) ni la fila-encabezado de sección (su propio
+     `.fieldmatrix-section-row td{padding:8px 12px}` ya la deja más espaciosa a propósito) — el :not()
+     excluye esa fila explícitamente, si no esta regla le ganaría por especificidad y se la encogería igual. */
+  table.fieldmatrix-table tbody tr:not(.fieldmatrix-section-row) td{padding:3px 10px}
   /* v6.5.12, pedido explícito del usuario ("cuando bajo en los registros solo se queda fijo Used/Req. pero
      el nombre de la entidad se va para arriba y no se ve"): el header tiene 2 filas (nombres de entidad +
      Used/Req.), pero la regla global `th{position:sticky;top:0}` les da `top:0` a AMBAS — la 2da fila
@@ -2281,6 +2295,77 @@ function onColResizeUp(e){
 function colResizeHandleHtml(key){
   return `<span class="col-resize-handle" onmousedown="startColResize(event,'${key}')" title="Arrastra para cambiar el ancho"></span>`;
 }
+/* Anchos de columna de Field Matrix (v6.5.14, pedido explícito del usuario) — mismo mecanismo EXACTO que
+   colResizeState/startColResize/colWidthStyle de arriba (arrastrar el borde derecho de un <th>, solo se
+   mueve una guía visual durante el arrastre, el ancho se aplica y persiste al soltar), reutilizando
+   directamente columnWidths/getColWidth/setColWidth bajo un pseudo-"ent" fijo (FIELDMATRIX_COLS_ENT) en vez
+   de duplicar ese almacenamiento — Field Matrix no tiene una "entidad actual" real como current en la tabla
+   normal, así que no puede reusar startColResize/onColResizeUp tal cual (fijan ent:current y llaman
+   renderTable() al soltar); son casi idénticas, solo con ent fijo y renderFieldMatrix() al final.
+   v6.5.15, mismo pedido: colWidthStyle() (poner `width` inline en cada <th>/<td>) sirve para ACHICAR una
+   columna bajo table-layout:auto (con overflow:hidden recortando visualmente lo que sobra), pero NO sirve
+   para AGRANDARLA — comprobado en vivo con Chrome, incluso en la tabla de Buildings/Parks que ya usa este
+   mismo mecanismo: bajo auto, el navegador ignora un `width` más grande que el contenido natural de esa
+   columna. La única forma confiable de agrandar Y achicar es table-layout:fixed con un <colgroup> dando el
+   ancho de TODAS las columnas a la vez (verificado en vivo, si funciona). Por eso: la tabla se queda en
+   auto (comportamiento de siempre, cero cambio visual) hasta el PRIMER arrastre de cualquier columna — ahí
+   se "congelan" los anchos naturales de las 17 columnas tal como estaban (fieldMatrixFreezeCurrentWidths())
+   y de ahí en adelante la tabla renderiza con table-layout:fixed + colgroup (ver renderFieldMatrix()). */
+const FIELDMATRIX_COLS_ENT="__FIELDMATRIX__";
+/* Las 5 columnas fijas (Section/System Field/System Label/Type/List) en orden — mismo array que usa
+   renderFieldMatrix() para pintar sus <th rowspan=2>, y el que usa fieldMatrixFreezeCurrentWidths() para
+   saber en qué orden leer sus anchos actuales del DOM. */
+const FIELDMATRIX_FIXED_COLS=[{key:"section",label:"Section"},{key:"field",label:"System Field"},{key:"label",label:"System Label"},{key:"type",label:"Type"},{key:"list",label:"List"}];
+function fieldMatrixColsFrozen(){ return Object.keys(columnWidths[FIELDMATRIX_COLS_ENT]||{}).length>0; }
+function fieldMatrixFreezeCurrentWidths(){
+  // +8px de colchón (v6.5.15, encontrado en pruebas): "Section" casi no tiene texto en las filas de datos
+  // (el nombre de sección solo se ve en la fila-encabezado, colspan) — su ancho natural bajo auto se mide
+  // pegado al texto exacto del título ("SECTION"), y ese mismo número, ya en fixed+ellipsis, alcanzaba a
+  // recortarlo ("SECTI..."). Un colchón chico evita que cualquier columna quede al filo justo al congelar.
+  const PAD=8;
+  const table=document.getElementById("fieldMatrixTable");
+  const theadRows=table.querySelectorAll("thead tr");
+  const fixedThs=theadRows[0].querySelectorAll("th[rowspan]");
+  FIELDMATRIX_FIXED_COLS.forEach((c,i)=>{ setColWidth(FIELDMATRIX_COLS_ENT, c.key, Math.round(fixedThs[i].getBoundingClientRect().width)+PAD); });
+  const usedReqThs=theadRows[1].querySelectorAll("th");
+  FIELD_MATRIX_ENTITIES.forEach((ent,i)=>{
+    setColWidth(FIELDMATRIX_COLS_ENT, "used_"+ent, Math.round(usedReqThs[i*2].getBoundingClientRect().width)+PAD);
+    setColWidth(FIELDMATRIX_COLS_ENT, "req_"+ent, Math.round(usedReqThs[i*2+1].getBoundingClientRect().width)+PAD);
+  });
+}
+let fmColResizeState=null;
+function startFieldMatrixColResize(e, key){
+  e.preventDefault();
+  e.stopPropagation();
+  if(!fieldMatrixColsFrozen()) fieldMatrixFreezeCurrentWidths();
+  const th=e.currentTarget.closest("th");
+  const wrapRect=document.querySelector(".fieldmatrix-body").getBoundingClientRect();
+  const guide=document.createElement("div");
+  guide.id="fmColResizeGuide";
+  guide.style.cssText=`position:fixed;top:${wrapRect.top}px;height:${wrapRect.height}px;width:2px;background:var(--accent);z-index:2000;pointer-events:none;left:${e.clientX}px`;
+  document.body.appendChild(guide);
+  fmColResizeState={ key, startX:e.clientX, startWidth:th.getBoundingClientRect().width, guide };
+  document.addEventListener("mousemove", onFmColResizeMove);
+  document.addEventListener("mouseup", onFmColResizeUp);
+}
+function onFmColResizeMove(e){
+  if(!fmColResizeState) return;
+  fmColResizeState.guide.style.left=e.clientX+"px";
+}
+function onFmColResizeUp(e){
+  if(!fmColResizeState) return;
+  const delta=e.clientX-fmColResizeState.startX;
+  const newWidth=Math.max(50, Math.round(fmColResizeState.startWidth+delta));
+  setColWidth(FIELDMATRIX_COLS_ENT, fmColResizeState.key, newWidth);
+  fmColResizeState.guide.remove();
+  document.removeEventListener("mousemove", onFmColResizeMove);
+  document.removeEventListener("mouseup", onFmColResizeUp);
+  fmColResizeState=null;
+  renderFieldMatrix();
+}
+function fmColResizeHandleHtml(key){
+  return `<span class="col-resize-handle" onmousedown="startFieldMatrixColResize(event,'${key}')" title="Drag to resize"></span>`;
+}
 
 /* ==== Dropdown lists: which field uses which list, and the lists themselves (editable from the Listas panel) ==== */
 const DEFAULT_LISTS = {"PROPERTY_TYPE": ["Industrial", "Land", "Offices", "Retail"], "MARKET_STATUS": ["Available", "Vacant", "Occupied"], "CATEGORY_INDUSTRIAL": ["Inventory", "BTS", "Last mile"], "CATEGORY_LAND": ["Park", "Reserve", "Land"], "SUBCATEGORY_LAND": ["Industrial Park", "Campus", "Industrial Zone", "Stand Alone", "Greenfield"], "CATEGORY_OFFICES": ["Corporate Tower", "Mixed-Use Tower", "Business Park", "Standalone", "Office Flex", "Co-Working", "Government"], "CATEGORY_RETAIL": ["Centers", "Standalone", "Food & Beverage", "Entertainment", "Service Retail", "Convenience"], "TRANS_AVAILABLE": ["Lease", "Sublease", "Sale", "Sale & Leaseback"], "LOCATION": ["Industrial Park", "Building", "Tower"], "DEVELOPER_TYPE": ["Institutional", "Non-Institutional (Regional)", "Non-Institutional (Local/Family)"], "REGION": ["Bajio", "Central", "North", "Northeast", "Northwest", "Other", "South", "Southeast", "West"], "ESTATE": ["Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chihuahua", "Chiapas", "Coahuila", "Colima", "Durango", "Guanajuato", "Guerrero", "Hidalgo", "Jalisco", "Estado Mexico", "Cd Mexico", "Michoacan", "Morelos", "Nayarit", "Nuevo Leon", "Oaxaca", "Puebla", "Queretaro", "Quintana Roo", "San Luis Potosi", "Sinaloa", "Sonora", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatan", "Zacatecas", "Other"], "CLASSIFICATION": ["A", "B", "C", "NC"], "STATUS": ["Ready", "Under Construction", "Under Development", "Planned"], "TENANCY_TYPE": ["Single", "Multi", "Owner"], "GENERATION_BUILDING": ["New", "2nd", "NA"], "BUILDING_CERTIFICATION": ["LEED", "EDGE", "BREEAM", "WELL", "TBD", "None"], "BUILDING_CERTIFICATION_LEVEL": ["LEED: Certified", "LEED: Silver", "LEED: Gold", "LEED: Platinum", "BREEAM: Pass", "BREEAM: Good", "BREEAM: Very Good", "BREEAM: Excellent", "BREEAM: Outstanding"], "ZONING_LAND_USE": ["Industrial", "Mix", "Commercial", "Residencial"], "EXTERIOR_WALL_TYPE": ["Precast", "Tilt-up", "Mampostería", "Lámina metálica", "Mixto"], "ROOF_TYPE": ["Metal Sheet KR-18", "TPO", "Concreto", "Membrana"], "INSULATION_TYPE": ["Polyisocyanurate", "EPS", "Mineral Wool"], "SKYLIGHTS_TYPE": ["Polycarbonate", "Fiberglass", "ETFE Foil", "NA"], "FLOOR_REINFORCEMENT": ["Rebar", "Steel Fiber", "Synthetic Fiber", "Welded Wire Mesh"], "LIGHTING_TYPE": ["LED", "Fluorescent", "Metal Halide", "Sodium Vapor", "NA"], "FIRE_PROTECTION_SYSTEM": ["Sprinklers", "Hoses", "Extinguishers", "Detection", "To Suit", "TBC", "NA"], "SPRINKLERS": ["FM Global", "ESFR", "NFPA 13"], "HVAC_SYSTEMS": ["Split System", "VRF", "Chiller", "Fan Coil", "Evaporative Cooling", "NA"], "SOLAR_PANELS": ["Not Available", "Installed (Own Use)", "Installed (Grid-Connected)", "Available for Installation"], "SUPPORT_ROOMS": ["Guard House", "Electrical Room", "Generator Room", "Compressor Room", "Boiler Room", "HVAC Room", "Fire Pump Room", "Server Room", "Control Room", "Clean Room", "HAZMAT Room", "Chemical Storage", "Tool Room", "Maintenance Room", "Battery Charging"], "INFRASTRUCUTRE_STATUS": ["Fully Serviced", "Partially Serviced", "Under Development", "Greenfield", "To Suit"], "SECURITY": ["Guard House", "Perimeter Fence", "Security Guards"], "TELECOMMUNICATIONS": ["Fiber Optic", "Cable", "Inalámbrico", "Múltiples proveedores", "NA"], "LOADING_CONFIGURATION": ["Cross-Dock", "L-Shap", "Front Load", "Rear Load"], "AVAILABILITY_DELIVERY": ["Immediate", "1 Month", "2 Months", "3 Months", "4 Months", "5 Months", "6 Months", "7 Months", "8 Months", "9 Months", "10 Months", "11 Months", "12 Months"], "CONSTRUCTION_WELCOME": ["Yes", "No", "Upon Request"], "BUILDING_TYPE": ["Inventory", "BTS", "STS", "Expansion"], "PERIOD": ["Month to Month", "Month", "Year"], "UNIT": ["SF", "m²"], "INVESTMENT": ["New", "Existing", "Confidential", "TBC"], "CURRENCY": ["MX", "US"], "ORIGIN_COUNTRY": ["Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso", "Burundi", "Cambodia", "Cameroon", "Canada", "Cape Verde", "Central African Republic", "Chad", "Chile", "China", "Colombia", "Comoros", "Costa Rica", "Croatia", "Cuba", "Cyprus", "Czech Republic", "Democratic Republic of the Congo", "Denmark", "Djibouti", "Dominica", "Dominican Republic", "East Timor", "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", "Ethiopia", "Fiji", "Finland", "France", "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Grenada", "Guatemala", "Guinea", "Guinea-Bissau", "Guyana", "Haiti", "Honduras", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy", "Ivory Coast", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kiribati", "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg", "Madagascar", "Malawi", "Malaysia", "Maldives", "Malta", "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar", "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Korea", "North Macedonia", "Norway", "Oman", "Pakistan", "Palau", "Panama", "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Qatar", "Republic of the Congo", "Romania", "Russia", "Rwanda", "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa", "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Korea", "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland", "Syria", "Tajikistan", "Tanzania", "Thailand", "Togo", "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu", "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "United States", "Uruguay", "Uzbekistan", "Vanuatu", "Vatican City", "Venezuela", "Vietnam", "Yemen", "Zambia", "Zimbabwe"], "PARK_AMENITIES": ["Cafetería", "Restaurant", "Medical Services", "Green Areas", "Truck Parking", "Convenience Store", "ATM", "Fuel Station", "Childcare"], "OFFICE_AMENITIES": ["Lobby Concierge", "Gym", "Auditorium", "Rooftop", "EV Charging", "Food Court", "Conference Rooms"], "ELECTRIC_VOLTAGE_SERVICE": ["Low Voltage (127V/220V/440V)", "Medium Voltage (4.16kV, 13.2kV, 23kV y 34.5kV)", "High Voltage (115kV, 138kV, 230kV y 400kV)"], "WATER_SOURCE": ["Municipal", "Well Water", "Private"], "WATER_TREATMENT": ["Municipal", "Private"], "SEWER_SYSTEM": ["Municipal", "Wastewater Treatment Plant"], "TOPOGRAPHY": ["Flat", "Slopes", "Irregular"], "YES_NO": ["Yes", "No"], "WASTEWATER_TREATMENT": ["Available", "In Progress", "Feasibility Only", "Not Available"], "GAS_NATURAL_INFRASTRUCTURE": ["Available", "In Progress", "Feasibility Only", "Not Available"], "RAIL_ACCESS": ["Available", "Not Available", "Spur on site"], "CONDITION": ["Plug & Play", "Fitted", "Grey Shell", "Cold Shell", "Open Space"], "TRANSACTION_TYPE": ["Lease", "Sublease", "Sale", "Sale & Leaseback", "Confidencial"], "TRANS_PROPERTY_TYPE": ["Inventory", "BTS", "STS", "Expansion", "Land / Office"], "BUILDING_USE": ["Logistics & Warehousing", "Manufacturing", "Flex Industrial", "Cold Storage", "Data Center", "Confidential", "TBC"], "SPACE_USE": ["Corporate", "Government", "Legal", "Financial", "Medical", "Educational", "Technology", "Co-Working", "Call Center", "Showroom", "Mixed-General", "Confidential", "TBC"], "INDUSTRIAL_TYPE": ["Automotive", "Aerospace", "Electronics & Appliances", "Medical Devices", "Food & Beverage", "Pharmaceutical", "Chemical & Petrochemical", "Logistics", "E-Commerce", "Furniture & Wood", "Textile & Footwear", "Metal & Machinery", "Energy & Clean Tech", "Paper & Packaging", "Plastics & Rubber", "Retail & Consumer Goods", "Steel & Primary Metals", "Other", "Confidential", "TBC"], "OFFICE_TYPE": ["Financial Services & Banking", "Technology & IT", "Professional Services", "Oil & Gas", "Energy", "Manufacturing (HQ)", "Real Estate", "Healthcare & Pharma", "Consumer Goods & Retail", "Government", "Media & Communications", "Automotive (HQ / Regional)", "Logistics (Corporate)"], "ACQUIRE_BY": ["Tenant", "Developer", "End User"], "PROJECT_TYPE": ["Developer", "Greenfield"], "OWNER": ["A", "B", "C", "D"], "DEVELOPER": ["A", "B", "C", "D"], "ADMIN": ["A", "B", "C", "D"], "LAND_BUILDING": ["Land", "Building", "Both"], "HAS_M2": ["has", "m²"], "SF_M2": ["SF", "m²"], "FT_M": ["ft", "m"], "FC_LX": ["fc", "lx"], "KG_LB": ["kg", "lb"], "MXN_USD": ["MXN", "USD"], "CON_COMERCIAL": ["MXN/m2", "MXN/SF", "USD/m2", "USD/SF"], "CM_IN": ["cm", "in"], "ABSORPTION_TYPE": ["Gross", "Negative"], "PARK_ASKING_UNIT": ["MXN/m2", "USD/m2"], "LAND_SECURITY": ["Fence & Security Guards", "Guardhouse", "Guards", "In Process", "N/A", "Security Guards"], "LAND_INFRAESTRUCTURE_STATUS": ["Already Set", "Alredy Set", "Greenfield", "In Process", "Ready", "Under Development"], "LAND_ELECTRIC_SERVICE": ["115 Kv - 34.5 Kv", "Available", "Feasible", "Feasible (2026)", "In Process", "To Suit"], "LAND_WATER_SUPPLY": ["Feasible", "In Process", "Municipal", "Water Well", "Water well"], "LAND_SEWER_SYSTEM": ["Feasible", "In Process", "Municipal", "Water Treatment Plant"], "LAND_NATURAL_GAS": ["10* Line", "4\" Line", "Available", "Feasible", "In Process", "TBC"], "LAND_TELECOMUNICATIONS": ["Available", "Feasible", "In Process", "Telmex"], "LAND_RAILROAD": ["Near", "No", "Yes"], "LAND_LEASE_PURCHASE": ["Both", "Contribution Land", "Lease", "Purchase", "Purchase (Includes Construction)"], "LAND_CONSTRUCTION_WELCOME": ["No", "TBC", "Yes"], "TRANSACTION_PROPERTY_TYPE": ["Buildings", "Parks", "Land", "Offices"]};
@@ -4201,13 +4286,29 @@ function renderFieldMatrix(){
   // v6.5.8: orden "como en la ficha" en vez de alfabético — ver el comentario junto a buildFieldMatrixRows().
   rows.sort((a,b)=> a._groupOrder-b._groupOrder || a._fieldOrder-b._fieldOrder);
   const totalCols=5+FIELD_MATRIX_ENTITIES.length*2;
+  // v6.5.14/15, pedido explícito del usuario ("quiero poder editar el ancho de cada columna"): cada columna
+  // real (las 5 fijas + Used/Req. por entidad) es redimensionable arrastrando su borde derecho — mientras
+  // nadie haya arrastrado nada, la tabla sigue en table-layout:auto (cero cambio visual, comportamiento de
+  // siempre); en cuanto se arrastra la PRIMERA columna, fieldMatrixColsFrozen() empieza a dar true y de ahí
+  // en adelante se arma un <colgroup> (único mecanismo que agranda Y achica una columna de forma confiable
+  // — ver el comentario grande junto a FIELDMATRIX_COLS_ENT) y la tabla pasa a table-layout:fixed.
+  const fmFrozen=fieldMatrixColsFrozen();
+  const fixedColsHeadHtml=FIELDMATRIX_FIXED_COLS.map(c=>`<th rowspan="2">${c.label}${fmColResizeHandleHtml(c.key)}</th>`).join("");
   const entHead1=FIELD_MATRIX_ENTITIES.map(ent=>`<th colspan="2" class="fieldmatrix-entcol-first">${escapeHtml(ENTITIES[ent].label)}</th>`).join("");
   // "Req." en vez de "Mandatory" (v6.5.5, pedido explícito del usuario: mismo ancho que "Used") — con
-  // table-layout:auto + white-space:nowrap, un `width` en CSS es solo una sugerencia mínima: el navegador
-  // igual ensancha la columna lo que haga falta para que el texto del encabezado quepa en una sola línea.
-  // La forma confiable de que ambas columnas midan EXACTAMENTE lo mismo es que su encabezado tenga el mismo
-  // largo de texto — "Used" y "Req." son ambos 4 caracteres.
-  const entHead2=FIELD_MATRIX_ENTITIES.map(()=>`<th class="fieldmatrix-entcol-first fieldmatrix-w62">Used</th><th class="fieldmatrix-w62" title="Mandatory">Req.</th>`).join("");
+  // table-layout:auto + white-space:nowrap, un `width` en CSS es solo una sugerencia mínima que el
+  // navegador ignora si el contenido no cabe. La clase .fieldmatrix-w62 da el ancho DEFAULT (62px, ambas
+  // columnas con el mismo largo de texto de encabezado) mientras no esté "congelada" (ver fmFrozen arriba);
+  // una vez congelada, el <colgroup> (más abajo) manda sobre cualquier ancho de la clase.
+  const entHead2=FIELD_MATRIX_ENTITIES.map(ent=>
+    `<th class="fieldmatrix-entcol-first fieldmatrix-w62">Used${fmColResizeHandleHtml("used_"+ent)}</th><th class="fieldmatrix-w62" title="Mandatory">Req.${fmColResizeHandleHtml("req_"+ent)}</th>`
+  ).join("");
+  const colgroupHtml=fmFrozen ? `<colgroup>${
+    FIELDMATRIX_FIXED_COLS.map(c=>`<col style="width:${getColWidth(FIELDMATRIX_COLS_ENT,c.key)||120}px">`).join("")
+  }${
+    FIELD_MATRIX_ENTITIES.map(ent=>`<col style="width:${getColWidth(FIELDMATRIX_COLS_ENT,"used_"+ent)||62}px"><col style="width:${getColWidth(FIELDMATRIX_COLS_ENT,"req_"+ent)||62}px">`).join("")
+  }</colgroup>` : "";
+  tableEl.classList.toggle("fieldmatrix-table-fixed", fmFrozen);
   // v6.5.8: agrupa las filas (ya ordenadas) por sección consecutiva, con una fila-encabezado clicable por
   // sección — mismo criterio visual que .fc-group-head de Configuración > Campos. Colapsada = solo se
   // imprime esa fila-encabezado, las filas de campos de esa sección ni se agregan al HTML.
@@ -4241,13 +4342,9 @@ function renderFieldMatrix(){
     }).join("");
     return headerRow+dataRows;
   }).join("");
-  tableEl.innerHTML=`<thead>
+  tableEl.innerHTML=`${colgroupHtml}<thead>
     <tr>
-      <th rowspan="2">Section</th>
-      <th rowspan="2">System Field</th>
-      <th rowspan="2">System Label</th>
-      <th rowspan="2">Type</th>
-      <th rowspan="2">List</th>
+      ${fixedColsHeadHtml}
       ${entHead1}
     </tr>
     <tr class="fieldmatrix-thead-row2">${entHead2}</tr>

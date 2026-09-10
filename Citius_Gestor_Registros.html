@@ -214,18 +214,30 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   table.resumen-table tbody tr:last-child td{border-bottom:none}
   table.resumen-table td.num-cell{text-align:right;font-variant-numeric:tabular-nums}
   table.resumen-table tr.resumen-total-row{font-weight:700;background:rgba(240,179,35,.08)}
-  /* Field Matrix (v6.5.4) — reusa .resumen-table (mismo look que el resto de la app) pero table-layout:auto
-     en vez de fixed: con 5 columnas fijas de texto + 2 por cada una de las 6 entidades (Used/Mandatory,
-     angostas), repartir el ancho parejo (el default de .resumen-table, pensado para pocas columnas
-     numéricas) dejaría las columnas de texto ilegiblemente angostas. `white-space:nowrap` en las celdas
-     Used/Mandatory (siempre "✓" o vacío) + centradas, para que se vean como checkboxes de verdad. El
-     borde grueso a la izquierda de cada bloque "Used" (y su encabezado) separa visualmente cada entidad,
-     igual que en el mockup de referencia del usuario (Excel con columnas agrupadas). */
-  table.fieldmatrix-table{table-layout:auto}
+  /* Field Matrix (v6.5.4, ajustes v6.5.5 pedidos explícitos del usuario tras la 1ra versión) — reusa
+     .resumen-table (mismo look que el resto de la app) pero table-layout:auto en vez de fixed: con 5
+     columnas fijas de texto + 2 por cada una de las 6 entidades, repartir el ancho parejo (el default de
+     .resumen-table) dejaría las columnas de texto ilegiblemente angostas.
+     v6.5.5: NINGUNA celda envuelve texto ahora (antes System Field/System Label sí, a propósito, pero el
+     usuario prefiere que la tabla completa crezca de ancho y se recorra con scroll horizontal en vez de que
+     las filas salten de línea) — `.resumen-scroll` (el contenedor que envuelve la tabla, ver el HTML) ya
+     tenía `overflow-x:auto`; lo que en realidad impedía el scroll era que, con las 2 columnas anteriores
+     en white-space:normal, la tabla nunca se ponía más ancha que su contenedor (el texto se achicaba
+     partiéndose en vez de desbordar) — sin nada desbordando, no había nada que scrollear. Quitar ese
+     override es el fix real, no un cambio aparte al overflow. Used/Mandatory: mismo ancho fijo
+     (`--fieldmatrix-entcol-w`, 62px) para que "Used" y "Mandatory" midan literalmente lo mismo en vez de
+     que el texto más largo ("Mandatory") le gane espacio al más corto — con table-layout:auto un `width`
+     sin más es solo sugerencia, pero al ser texto corto y fijo (encabezado) o un solo carácter (✓), alcanza
+     para que se respete parejo. `vertical-align:top` explícito en TODOS los `<th>` del encabezado — antes
+     "Section"/"System Field"/etc. (que ocupan las 2 filas de encabezado vía rowspan) se veían centrados
+     verticalmente (default del navegador) mientras "Buildings"/"Parks"/etc. (1 sola fila) quedaban pegados
+     arriba, un desalineado visual entre ambos grupos de encabezado. */
+  table.fieldmatrix-table{table-layout:auto;font-size:10.5px}
   table.fieldmatrix-table td, table.fieldmatrix-table th{white-space:nowrap}
-  table.fieldmatrix-table td:nth-child(2), table.fieldmatrix-table td:nth-child(3){white-space:normal}
+  table.fieldmatrix-table thead th{vertical-align:top}
   table.fieldmatrix-table code{font-size:.95em;background:var(--panel-2);padding:1px 5px;border-radius:4px}
   table.fieldmatrix-table .fieldmatrix-check{text-align:center;color:var(--green);font-weight:700}
+  table.fieldmatrix-table .fieldmatrix-w62{width:62px}
   table.fieldmatrix-table .fieldmatrix-entcol-first{border-left:2px solid var(--line)}
   table.fieldmatrix-table .fieldmatrix-mismatch{color:var(--red);font-weight:600}
   /* Tabla "Proposed in Presentations" (pestaña Listing) — mismo shell que .resumen-table, pero header gris
@@ -1888,7 +1900,6 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
            renderConfigSections() según `configSection`). Ver renderFieldMatrix() más abajo. -->
       <div class="tablewrap fieldmatrix-panel" id="configFieldMatrixSection" style="display:none">
         <h4>Field Matrix</h4>
-        <p class="map-hint">Every field across all 6 tables, one row per technical key — which table(s) use it, whether it's required there, its type, and its dropdown list (if any). Helps spot fields that could be standardized (same concept, different name) or fields already sharing a key but captured inconsistently (different type/list between tables — flagged in red).</p>
         <input id="fieldMatrixSearch" class="columns-panel-search" style="max-width:320px;margin-bottom:12px" placeholder="Search section, field, label…" oninput="renderFieldMatrix()">
         <div class="resumen-scroll">
           <table class="resumen-table fieldmatrix-table" id="fieldMatrixTable"></table>
@@ -4046,14 +4057,19 @@ function renderFieldMatrix(){
   }
   rows.sort((a,b)=> a.group.localeCompare(b.group) || a.key.localeCompare(b.key));
   const entHead1=FIELD_MATRIX_ENTITIES.map(ent=>`<th colspan="2" class="fieldmatrix-entcol-first">${escapeHtml(ENTITIES[ent].label)}</th>`).join("");
-  const entHead2=FIELD_MATRIX_ENTITIES.map(()=>`<th class="fieldmatrix-entcol-first">Used</th><th>Mandatory</th>`).join("");
+  // "Req." en vez de "Mandatory" (v6.5.5, pedido explícito del usuario: mismo ancho que "Used") — con
+  // table-layout:auto + white-space:nowrap, un `width` en CSS es solo una sugerencia mínima: el navegador
+  // igual ensancha la columna lo que haga falta para que el texto del encabezado quepa en una sola línea.
+  // La forma confiable de que ambas columnas midan EXACTAMENTE lo mismo es que su encabezado tenga el mismo
+  // largo de texto — "Used" y "Req." son ambos 4 caracteres.
+  const entHead2=FIELD_MATRIX_ENTITIES.map(()=>`<th class="fieldmatrix-entcol-first fieldmatrix-w62">Used</th><th class="fieldmatrix-w62" title="Mandatory">Req.</th>`).join("");
   const bodyHtml=rows.map(row=>{
     const meta=fieldMatrixRowMeta(row);
     const typeCls=meta.typeMismatch?' class="fieldmatrix-mismatch" title="Type is not the same across every table that uses this field"':"";
     const listCls=meta.listMismatch?' class="fieldmatrix-mismatch" title="A different dropdown list is assigned across the tables that use this field"':"";
     const entCells=FIELD_MATRIX_ENTITIES.map(ent=>{
       const f=row.perEnt[ent];
-      return `<td class="fieldmatrix-check fieldmatrix-entcol-first">${f?"✓":""}</td><td class="fieldmatrix-check">${f&&f.required?"✓":""}</td>`;
+      return `<td class="fieldmatrix-check fieldmatrix-entcol-first fieldmatrix-w62">${f?"✓":""}</td><td class="fieldmatrix-check fieldmatrix-w62">${f&&f.required?"✓":""}</td>`;
     }).join("");
     return `<tr>
       <td>${escapeHtml(row.group)}</td>

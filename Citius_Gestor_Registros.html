@@ -1513,7 +1513,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v7.0.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v7.1.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -4003,6 +4003,13 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"7.1.0", date:"2026-09-11", items:[
+    "Summary: new \"Submarket\" filter next to \"Market\" — a checklist (search + select all) that lets you narrow the whole report to one or more submarkets, instead of only a single Market at a time.",
+    "Field Matrix: Type, List, Used, and Required are now editable directly in the table (Type/List apply to every table that uses that field at once). Edits are highlighted in amber until you click \"Save changes\" — click again to undo before saving.",
+    "Field Matrix: List now shows the actual values of the selected dropdown list on hover, so you can check its contents without leaving the page.",
+    "Field Matrix: rows are more compact, every column's width can be dragged to resize (in both directions), and the header no longer disappears or gets covered while scrolling.",
+    "Continued standardizing field names that mean the same thing across tables (previous batch: CLASS/ADRESS/GEOJSON variants) — this batch: Land's and Parks' own ID/Name fields, \"Property Type\", \"Developer\", and \"Last Modified\"/\"Last Update\" are now the same field everywhere. Existing data and Excel files keep working automatically."
+  ]},
   {version:"7.0.0", date:"2026-09-10", items:[
     "New \"Field Matrix\" view in Settings — a spreadsheet-like audit of every field across all 6 tables (Buildings/Parks/Land/Offices/Spaces/Transactions): its section, technical name, label, type, dropdown list, and whether it's used/required per table. Flags in red where the same field has a different type or dropdown list across tables. Sections can be collapsed/expanded (one at a time or all at once), rows follow the order fields actually appear in the record forms, and the title/search bar stay visible while scrolling.",
     "Settings > Record Fields: sections can now be renamed directly (pencil icon on each section card) — the rename applies everywhere that section is used (the record form, Field Matrix) across every table that shares it.",

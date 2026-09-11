@@ -113,6 +113,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .resumen-year-select{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
   .resumen-year-select select{border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:13px;
                                color:var(--txt);background:var(--panel);cursor:pointer}
+  /* v6.5.21: el filtro de Submercado es de selección múltiple (checklist flotante), así que en vez de un
+     <select> normal (como Market/Year) es un botón que abre ese panel — mismo alto/tipografía que los
+     <select> vecinos para que no se vea desalineado en la misma fila. */
+  .resumen-submarket-btn{padding:6px 10px!important;font-size:13px!important;border-radius:8px!important}
   .unit-view-select{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);margin-right:14px}
   .unit-view-select select{border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:13px;
                             color:var(--txt);background:var(--panel);cursor:pointer}
@@ -5371,11 +5375,35 @@ function resumenMarkets(){
    dos pierden esas filas por completo, sin ningún aviso. Ahora se usa `row.MARKET` directo siempre que la
    fila lo tenga (las 4 entidades ya lo capturan), sin importar `ent` — el diccionario queda solo de
    respaldo para filas viejas/incompletas sin MARKET propio. */
-function resumenMarketMatches(row, ent){
+function resumenMarketOnlyMatches(row, ent){
   if(!resumenMarket) return true;
   if(row.MARKET) return ciEq(row.MARKET,resumenMarket);
   const mk=resumenMarketForSubmarket(row.SUBMARKET);
   return mk?ciEq(mk,resumenMarket):false;
+}
+/* v6.5.21, pedido explícito del usuario: además del filtro de Market de siempre (factorizado arriba, en
+   resumenMarketOnlyMatches — se necesita aparte para armar la lista de OPCIONES del checklist de
+   Submercado, ver resumenSubmarketOptions(), sin caer en un círculo con el filtro que está armando), ahora
+   también respeta resumenSubmarketFilter — como esta función YA es el único punto por el que pasa
+   absolutamente todo el cálculo del Resumen (KPIs, donas, tablas de desglose), agregar el filtro aquí basta
+   para que TODO el reporte lo respete, sin tener que tocar cada cómputo uno por uno. */
+function resumenMarketMatches(row, ent){
+  if(!resumenMarketOnlyMatches(row,ent)) return false;
+  if(resumenSubmarketFilter.size){
+    const sm=String(row.SUBMARKET||"").trim().toLowerCase();
+    if(!sm || !resumenSubmarketFilter.has(sm)) return false;
+  }
+  return true;
+}
+/* Opciones para el checklist de Submercado — TODOS los submercados en uso bajo el Market actual, SIN
+   aplicar resumenSubmarketFilter (si no, marcar/desmarcar una casilla iría reduciendo las demás opciones
+   ofrecidas). Misma fuente que resumenSubmarkets() (PROPIEDADES/TRANSACCIONES), solo que esa SÍ aplica el
+   filtro completo (para las filas reales de las tablas de desglose). */
+function resumenSubmarketOptions(){
+  const set=new Set();
+  (state.PROPIEDADES||[]).forEach(r=>{ if(r.SUBMARKET && resumenMarketOnlyMatches(r,"PROPIEDADES")) set.add(r.SUBMARKET); });
+  (state.TRANSACCIONES||[]).forEach(r=>{ if(r.SUBMARKET && resumenMarketOnlyMatches(r,"TRANSACCIONES")) set.add(r.SUBMARKET); });
+  return [...set].sort((a,b)=>a.localeCompare(b));
 }
 function resumenYearsAvailable(){
   const set=new Set();
@@ -5822,6 +5850,12 @@ function resumenUsageChartHtml(data){
 }
 let resumenYear=String(new Date().getFullYear());
 let resumenMarket="";
+/* v6.5.21, pedido explícito del usuario ("filtro adicional... al lado derecho de Market, que sean los
+   Submercados"): a diferencia de Market (un solo valor, "" = Todos), este es de SELECCIÓN MÚLTIPLE — un
+   Set de nombres de submercado en minúsculas ("" / vacío = sin filtro = Todos, igual criterio que Market).
+   En memoria, no persistido — mismo criterio que resumenYear/resumenMarket/resumenUnit (se resetea cada
+   carga de página). Ver resumenMarketMatches()/resumenSubmarketOptions() más abajo para cómo se aplica. */
+let resumenSubmarketFilter=new Set();
 /* v3.5x.x, pedido explícito del usuario: selector de Unidades (Imperial/Metric) para las tarjetas KPI del
    Resumen — en memoria, no persistido, default "imperial" (mismo criterio que resumenYear/resumenMarket:
    se resetea a su default en cada carga de la página). El cálculo interno de Resumen sigue TODO normalizado
@@ -5855,10 +5889,17 @@ const LAND_PRICE_INFRA_STATUSES=["Fully Serviced","Partially Serviced","Under De
 let resumenUsageDays=30;
 let resumenUsageDoc="";
 function renderResumenView(){
+  closeResumenSubmarketPanel(); // defensivo: si el checklist quedó abierto, no dejarlo huérfano al re-renderizar el toolbar
   const years=resumenYearsAvailable();
   if(!years.includes(resumenYear)) resumenYear=years[0];
   const markets=resumenMarkets();
   if(resumenMarket && !markets.includes(resumenMarket)) resumenMarket="";
+  // v6.5.21: si cambiar de Market (o los datos mismos) deja seleccionado un submercado que ya no aplica
+  // aquí, se quita solo — mismo criterio que la línea de arriba para resumenMarket.
+  if(resumenSubmarketFilter.size){
+    const validNow=new Set(resumenSubmarketOptions().map(s=>s.toLowerCase()));
+    resumenSubmarketFilter=new Set([...resumenSubmarketFilter].filter(k=>validNow.has(k)));
+  }
   const yearStart=`${resumenYear}-01-01`, yearEnd=`${resumenYear}-12-31`;
   const k=resumenKpis(resumenYear);
   const pct=v=>(v*100).toFixed(1)+"%";
@@ -6041,6 +6082,13 @@ function renderResumenView(){
           <select id="resumenMarketSelect">${marketOptionsHtml}</select>
         </div>
         <div class="resumen-year-select">
+          <label for="resumenSubmarketBtn">Submarket</label>
+          <button type="button" class="btn ghost resumen-submarket-btn" id="resumenSubmarketBtn" onclick="toggleResumenSubmarketPanel(event)">
+            ${resumenSubmarketFilter.size?`${resumenSubmarketFilter.size} selected`:"All"}
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:4px;vertical-align:-2px"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+        </div>
+        <div class="resumen-year-select">
           <label for="resumenYearSelect">Year (transactions)</label>
           <select id="resumenYearSelect">${yearOptionsHtml}</select>
         </div>
@@ -6084,6 +6132,88 @@ function renderResumenView(){
   document.getElementById("resumenMarketSelect").onchange=function(){ resumenMarket=this.value; renderResumenView(); };
   document.getElementById("resumenUsageDocSelect").onchange=function(){ resumenUsageDoc=this.value; renderResumenView(); };
   document.getElementById("resumenUsageDaysSelect").onchange=function(){ resumenUsageDays=Number(this.value); renderResumenView(); };
+}
+/* Checklist flotante del filtro de Submercado (v6.5.21, pedido explícito del usuario) — mismo look visual
+   que .col-filter-dropdown (checklist de filtro de columna de las tablas), un panel nuevo aparte porque ese
+   otro está atado a `colFilterState`/una columna de tabla real, y este filtra el Resumen completo, no una
+   columna. Los cambios se acumulan en un borrador (resumenSubmarketDraft) mientras el panel está abierto —
+   no se aplican a resumenSubmarketFilter (y no se re-renderiza el reporte completo) hasta "Apply", para no
+   recalcular todo el dashboard en cada clic si el usuario va a marcar/desmarcar varias casillas seguidas. */
+let resumenSubmarketDraft=null, resumenSubmarketSearch="";
+function toggleResumenSubmarketPanel(evt){
+  evt.stopPropagation();
+  if(document.getElementById("resumenSubmarketDropdown")){ closeResumenSubmarketPanel(); return; }
+  resumenSubmarketDraft=new Set(resumenSubmarketFilter);
+  resumenSubmarketSearch="";
+  const btn=document.getElementById("resumenSubmarketBtn");
+  const rect=btn.getBoundingClientRect();
+  const el=document.createElement("div");
+  el.id="resumenSubmarketDropdown";
+  el.className="col-filter-dropdown";
+  el.style.width="240px";
+  el.style.left=Math.max(8,Math.min(rect.left, window.innerWidth-8-240))+"px";
+  el.style.top=(rect.bottom+4)+"px";
+  document.body.appendChild(el);
+  renderResumenSubmarketDropdown();
+  setTimeout(()=>document.addEventListener("mousedown", onResumenSubmarketDocClick, true), 0);
+}
+function closeResumenSubmarketPanel(){
+  const el=document.getElementById("resumenSubmarketDropdown");
+  if(el) el.remove();
+  document.removeEventListener("mousedown", onResumenSubmarketDocClick, true);
+}
+function onResumenSubmarketDocClick(e){
+  const el=document.getElementById("resumenSubmarketDropdown");
+  const btn=document.getElementById("resumenSubmarketBtn");
+  if(el && !el.contains(e.target) && e.target!==btn && !(btn&&btn.contains(e.target))) closeResumenSubmarketPanel();
+}
+function renderResumenSubmarketDropdown(){
+  const el=document.getElementById("resumenSubmarketDropdown");
+  if(!el) return;
+  const options=resumenSubmarketOptions();
+  const q=resumenSubmarketSearch.trim().toLowerCase();
+  const filtered=q?options.filter(s=>s.toLowerCase().includes(q)):options;
+  const allChecked=options.length>0 && options.every(s=>resumenSubmarketDraft.has(s.toLowerCase()));
+  const itemsHtml=filtered.length
+    ? filtered.map(s=>`<label class="col-filter-item"><input type="checkbox" ${resumenSubmarketDraft.has(s.toLowerCase())?"checked":""} onchange="onResumenSubmarketToggle('${escapeAttr(s)}',this.checked)">${escapeHtml(s)}</label>`).join("")
+    : `<div class="col-filter-empty">No matches</div>`;
+  el.innerHTML=`<div class="col-filter-body">
+      <input type="text" class="col-filter-search" placeholder="Search submarkets…" value="${escapeAttr(resumenSubmarketSearch)}" oninput="onResumenSubmarketSearch(this.value)">
+      <label class="col-filter-item col-filter-selectall"><input type="checkbox" ${allChecked?"checked":""} onchange="onResumenSubmarketSelectAll(this.checked)"><b>Select all</b></label>
+      <div class="col-filter-list">${itemsHtml}</div>
+    </div>
+    <div class="col-filter-foot">
+      <button class="btn ghost icon-only" onclick="onResumenSubmarketClear()" title="Clear filter">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+      </button>
+      <button class="btn" onclick="onResumenSubmarketApply()">Apply</button>
+    </div>`;
+}
+function onResumenSubmarketSearch(v){ resumenSubmarketSearch=v; renderResumenSubmarketDropdown(); }
+function onResumenSubmarketToggle(sm, checked){
+  const k=sm.toLowerCase();
+  if(checked) resumenSubmarketDraft.add(k); else resumenSubmarketDraft.delete(k);
+  renderResumenSubmarketDropdown();
+}
+function onResumenSubmarketSelectAll(checked){
+  if(checked) resumenSubmarketOptions().forEach(s=>resumenSubmarketDraft.add(s.toLowerCase()));
+  else resumenSubmarketDraft.clear();
+  renderResumenSubmarketDropdown();
+}
+function onResumenSubmarketClear(){
+  resumenSubmarketDraft.clear();
+  renderResumenSubmarketDropdown();
+}
+/* Aplica el borrador y cierra. v6.5.21: "todo marcado" se guarda como Set VACÍO (mismo significado que
+   "nada marcado" — ambos son "sin filtro, mostrar todo") en vez de la lista explícita de nombres, para que
+   un submercado nuevo que aparezca después (datos nuevos) se incluya solo, sin tener que volver a marcar
+   "Select all" — mismo criterio que resumenMarket==="" para "Todos". */
+function onResumenSubmarketApply(){
+  const allOptions=resumenSubmarketOptions().map(s=>s.toLowerCase());
+  const isAllOrNone = resumenSubmarketDraft.size===0 || (allOptions.length>0 && allOptions.every(k=>resumenSubmarketDraft.has(k)));
+  resumenSubmarketFilter = isAllOrNone ? new Set() : new Set(resumenSubmarketDraft);
+  closeResumenSubmarketPanel();
+  renderResumenView();
 }
 function fieldMatchesFilter(rowVal, filter){
   if(filter.type==="list"){

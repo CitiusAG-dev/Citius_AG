@@ -6710,7 +6710,16 @@ function mktDonutColorForIndex(i){
    generalizada para cualquier lista de {label,value} en vez de estar atada a "Submercado", con la paleta de
    marca de arriba en vez de la de KPI's — la usan las 8 donas nuevas de las páginas 2 y 4 del reporte
    (Quarter/Count/Type/Deal, Class/Count/Status/Generation), además de la de Availability de la portada. */
-function mktDonutHtml(title, data, unitLabel, strokeWidth){
+/* Mide el ancho real de un texto (canvas 2D, sin tocar el DOM) — usado por la resolución de colisiones de
+   abajo para saber cuánto espacio necesita cada etiqueta ANTES de decidir dónde colocarla. Un solo contexto
+   reusado (no hace falta crear un <canvas> nuevo cada vez). */
+let _mktMeasureCtx=null;
+function mktMeasureTextWidth(text, fontPx, weight){
+  if(!_mktMeasureCtx) _mktMeasureCtx=document.createElement("canvas").getContext("2d");
+  _mktMeasureCtx.font=`${weight||700} ${fontPx}px Arial, Helvetica, sans-serif`;
+  return _mktMeasureCtx.measureText(text).width;
+}
+function mktDonutHtml(title, data, unitLabel, strokeWidth, labelFontSize){
   const fmt=v=>Math.round(v).toLocaleString("en-US");
   const filtered=data.filter(d=>d.value>0);
   const total=filtered.reduce((a,d)=>a+d.value,0);
@@ -6730,23 +6739,66 @@ function mktDonutHtml(title, data, unitLabel, strokeWidth){
   // no el recortado, para que las proporciones no se corran.
   const GAP=2.5;
   const LBL_R=R+SW/2+22;
-  const LEADER_R1=R+SW/2+2, LEADER_R2=LBL_R-13; // v7.3.19: línea punteada del anillo a la etiqueta
-  let offset=0, arcsHtml="", labelsHtml="", leadersHtml="";
-  slices.forEach(s=>{
+  const LEADER_R1=R+SW/2+2; // v7.3.19: línea punteada del anillo a la etiqueta
+  // v7.3.35, pedido explícito del usuario (con captura, "hay tantos mercados que no se ven todos" —
+  // 9 submercados, varios chicos apretados junto al 0-5%): antes TODAS las etiquetas iban al mismo radio fijo
+  // LBL_R, así que con varias rebanadas chicas y angulares cercanas entre sí, sus cajas de texto se encimaban
+  // sin remedio. En vez de agrupar datos en "Others" o mover todo a una leyenda aparte (cambiaría lo que se
+  // ve, no solo cómo se acomoda), se resuelve por COLISIÓN REAL: se mide el ancho real de cada etiqueta
+  // (mktMeasureTextWidth) y se coloca en el radio más chico ("anillo") donde su caja no choca con ninguna ya
+  // colocada — si choca, se prueba el siguiente anillo hacia afuera, hasta encontrar uno libre (o, en el peor
+  // caso, el último anillo disponible). La línea punteada arranca del mismo punto de siempre junto al anillo
+  // y llega hasta la etiqueta en su radio final — se ve más larga para las que se empujaron, pero la conexión
+  // visual a su rebanada se mantiene clara. labelFontSize (5to argumento opcional, default 9 — el mismo de
+  // siempre) deja que el cálculo de colisión use el tamaño de letra REAL con el que se va a ver cada dona —
+  // Availability (portada) la pasa en 12 porque su CSS (.mkt-box-avail) agranda la letra de sus etiquetas.
+  const FS=labelFontSize||9;
+  let offset=0;
+  const items=slices.map(s=>{
     const frac=s.value/total, fullLen=frac*CIRC, pct=frac*100;
     const drawLen=Math.max(0, fullLen-GAP);
     const rotate=(offset/CIRC)*360-90;
-    arcsHtml+=`<circle class="mkt-donut-arc" cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="${s.color}"
-      stroke-width="${SW}" stroke-dasharray="${drawLen.toFixed(3)} ${(CIRC-drawLen).toFixed(3)}"
-      transform="rotate(${rotate} ${CX} ${CY})"><title>${escapeHtml(s.label)}: ${fmt(s.value)}${unitLabel?" "+unitLabel:""} (${pct.toFixed(1)}%)</title></circle>`;
     const midAngle=((offset+fullLen/2)/CIRC)*2*Math.PI-Math.PI/2;
     const cos=Math.cos(midAngle), sin=Math.sin(midAngle);
-    const lx=CX+LBL_R*cos, ly=CY+LBL_R*sin;
     const anchor=cos>0.15?"start":cos<-0.15?"end":"middle";
-    leadersHtml+=`<line class="mkt-donut-leader" x1="${(CX+LEADER_R1*cos).toFixed(1)}" y1="${(CY+LEADER_R1*sin).toFixed(1)}" x2="${(CX+LEADER_R2*cos).toFixed(1)}" y2="${(CY+LEADER_R2*sin).toFixed(1)}"/>`;
-    labelsHtml+=`<text class="mkt-donut-out-label" x="${lx.toFixed(1)}" y="${(ly-4).toFixed(1)}" text-anchor="${anchor}">${escapeHtml(s.label)}</text>
-      <text class="mkt-donut-out-pct" x="${lx.toFixed(1)}" y="${(ly+11).toFixed(1)}" text-anchor="${anchor}">${pct.toFixed(0)}%</text>`;
+    const pctText=`${pct.toFixed(0)}%`;
+    const boxW=Math.max(mktMeasureTextWidth(s.label,FS,700), mktMeasureTextWidth(pctText,FS,400))+4;
+    const boxH=FS*2.5; // 2 líneas (nombre + %) + un poco de aire, ver los offsets -4/+11 de abajo
     offset+=fullLen;
+    return {s, drawLen, rotate, pct, pctText, midAngle, cos, sin, anchor, boxW, boxH};
+  });
+  // Coloca las etiquetas en orden angular — así una rebanada chica "atrapada" entre 2 grandes se resuelve
+  // contra sus vecinas reales, no contra el orden arbitrario en que vienen los datos.
+  const TIER_STEP=Math.max(16, LBL_R*0.16);
+  const MAX_TIERS=6;
+  const rectFor=(cx,cy,anchor,w,h)=>{
+    const x0=anchor==="start"?cx:anchor==="end"?cx-w:cx-w/2;
+    return {x0, x1:x0+w, y0:cy-h/2, y1:cy+h/2};
+  };
+  const overlaps=(a,b)=>a.x0<b.x1 && a.x1>b.x0 && a.y0<b.y1 && a.y1>b.y0;
+  const placedRects=[];
+  [...items.keys()].sort((a,b)=>items[a].midAngle-items[b].midAngle).forEach(idx=>{
+    const it=items[idx];
+    let rect=null;
+    for(let tier=0; tier<MAX_TIERS; tier++){
+      const r=LBL_R+tier*TIER_STEP;
+      const lx=CX+r*it.cos, ly=CY+r*it.sin;
+      const candidate=rectFor(lx,ly,it.anchor,it.boxW,it.boxH);
+      if(tier===MAX_TIERS-1 || !placedRects.some(p=>overlaps(candidate,p))){
+        it.lx=lx; it.ly=ly; it.finalR=r; rect=candidate; break;
+      }
+    }
+    placedRects.push(rect);
+  });
+  let arcsHtml="", labelsHtml="", leadersHtml="";
+  items.forEach(it=>{
+    arcsHtml+=`<circle class="mkt-donut-arc" cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="${it.s.color}"
+      stroke-width="${SW}" stroke-dasharray="${it.drawLen.toFixed(3)} ${(CIRC-it.drawLen).toFixed(3)}"
+      transform="rotate(${it.rotate} ${CX} ${CY})"><title>${escapeHtml(it.s.label)}: ${fmt(it.s.value)}${unitLabel?" "+unitLabel:""} (${it.pct.toFixed(1)}%)</title></circle>`;
+    const leaderR2=it.finalR-13;
+    leadersHtml+=`<line class="mkt-donut-leader" x1="${(CX+LEADER_R1*it.cos).toFixed(1)}" y1="${(CY+LEADER_R1*it.sin).toFixed(1)}" x2="${(CX+leaderR2*it.cos).toFixed(1)}" y2="${(CY+leaderR2*it.sin).toFixed(1)}"/>`;
+    labelsHtml+=`<text class="mkt-donut-out-label" x="${it.lx.toFixed(1)}" y="${(it.ly-4).toFixed(1)}" text-anchor="${it.anchor}">${escapeHtml(it.s.label)}</text>
+      <text class="mkt-donut-out-pct" x="${it.lx.toFixed(1)}" y="${(it.ly+11).toFixed(1)}" text-anchor="${it.anchor}">${it.pctText}</text>`;
   });
   return `<div class="mkt-donut-panel">
     <div class="mkt-donut-title">${escapeHtml(title)}</div>
@@ -6923,7 +6975,7 @@ function mktBuildCoverPage(){
           </div>
           <div class="mkt-box mkt-box-avail">
             <div class="mkt-box-title">Availability</div>
-            ${mktDonutHtml("", resumenAvailabilityBySubmarket().map(d=>({label:d.submarket.toUpperCase(), value:d.value})), resumenAreaUnitLabel(), 40)}
+            ${mktDonutHtml("", resumenAvailabilityBySubmarket().map(d=>({label:d.submarket.toUpperCase(), value:d.value})), resumenAreaUnitLabel(), 40, 12)}
           </div>
         </div>
         <div class="mkt-cover-col">

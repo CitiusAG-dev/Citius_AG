@@ -221,8 +221,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      alto (margin-top 188px -> 178px, sube el borde superior — el inferior sigue pegado al fondo de la hoja
      por el stretch de flex, igual que antes).
      v7.3.27, pedido explícito del usuario: 15px más alto todavía (margin-top 178px -> 163px).
-     v7.3.30, pedido explícito del usuario: 10px más alto todavía (margin-top 163px -> 153px). */
-  .mkt-cover-accent{flex:0 0 15px;background:var(--accent);margin-top:153px}
+     v7.3.30, pedido explícito del usuario: 10px más alto todavía (margin-top 163px -> 153px).
+     v7.3.31, pedido explícito del usuario: 10px más alto todavía (margin-top 153px -> 143px). */
+  .mkt-cover-accent{flex:0 0 15px;background:var(--accent);margin-top:143px}
   /* v7.3.8, pedido explícito del usuario: la línea dorada pasa de .mkt-cover-title (display:inline-block,
      solo tan ancha como el texto) a .mkt-cover-titleblock (bloque normal, tan ancho como el panel gris menos
      su padding) — "que se extienda hasta donde termina el panel gris" — y bastante más delgada (3px -> 1px). */
@@ -377,6 +378,11 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-box .mkt-absorption-table th.mkt-absorption-th-label{text-align:left}
   .mkt-box .mkt-absorption-table th.mkt-absorption-th-ytd{text-align:right}
   .mkt-box .mkt-absorption-table td{padding:2px 8px;border-right:1px solid var(--line)}
+  /* v7.3.31, pedido explícito del usuario (con captura): quita el padding-right "de seguridad" solo en la
+     columna YTD (que trae el sufijo de unidad, ej. " SF", y por eso es la más ancha de texto) para que el
+     dato pueda usar todo el ancho real de la columna sin desbordarse hacia la izquierda (ver el comentario
+     grande en mktAbsorptionTableHtml). */
+  .mkt-box .mkt-absorption-table td.mkt-absorption-td-ytd{padding-right:2px}
   .mkt-box .mkt-absorption-table td:last-child{border-right:none}
   .mkt-box .mkt-absorption-table tr.mkt-total-row td{background:transparent}
   .mkt-box .mkt-absorption-table tr:last-child td{border-bottom:none}
@@ -6763,9 +6769,16 @@ function mktAbsorptionTableHtml(firstColLabel, firstColSuffix, showQuarterHeader
     // v7.3.23, pedido explícito del usuario: la columna YTD ya NO va en negritas en cada renglón de
     // submercado — solo el renglón de Total (mkt-total-row, negritas por CSS general, ver .mkt-total-row
     // más abajo) se queda en negritas, como ya lo tenemos en esa fila.
-    rows+=`<tr><td>${escapeHtml(sm)}</td>${vals.map(v=>`<td class="num-cell">${fmt(v)}</td>`).join("")}<td class="num-cell">${fmt(ytd)} ${unitLbl}</td></tr>`;
+    // v7.3.31, bug real reportado por el usuario (con captura): con números grandes, "269,098 SF" alcanzaba
+    // a desbordar el ancho fijo de la columna YTD (table-layout:fixed) — el padding-right "de seguridad"
+    // (heredado del `td{padding:...}` genérico, ver .mkt-absorption-td-ytd más abajo) dejaba muy poco margen
+    // real para el texto, y como el desborde de un elemento alineado a la derecha se va hacia la IZQUIERDA,
+    // distintos montos (distinta cantidad de dígitos) invadían la columna 4Q en distinta medida — parecía que
+    // "SF" terminaba en un lugar diferente en cada renglón. class="mkt-absorption-td-ytd" le quita ese padding
+    // de seguridad para que el dato use todo el ancho real de la columna.
+    rows+=`<tr><td>${escapeHtml(sm)}</td>${vals.map(v=>`<td class="num-cell">${fmt(v)}</td>`).join("")}<td class="num-cell mkt-absorption-td-ytd">${fmt(ytd)} ${unitLbl}</td></tr>`;
   });
-  rows+=`<tr class="mkt-total-row"><td></td>${colTotals.slice(0,4).map(v=>`<td class="num-cell">${fmt(v)}</td>`).join("")}<td class="num-cell">${fmt(colTotals[4])} ${unitLbl}</td></tr>`;
+  rows+=`<tr class="mkt-total-row"><td></td>${colTotals.slice(0,4).map(v=>`<td class="num-cell">${fmt(v)}</td>`).join("")}<td class="num-cell mkt-absorption-td-ytd">${fmt(colTotals[4])} ${unitLbl}</td></tr>`;
   // v7.3.19, bug real reportado por el usuario (con captura): con las 5 celdas del header VACÍAS (Negative/
   // Net) pero cada tabla es un <table> APARTE con table-layout:auto, el texto largo de "NEGATIVE (Deliveries
   // 2nd Gen)" en la 1ra celda le "robaba" ancho a las demás columnas de ESA tabla — sin nada que las
@@ -6784,7 +6797,11 @@ function mktAbsorptionTableHtml(firstColLabel, firstColSuffix, showQuarterHeader
   // v7.3.29, pedido explícito del usuario: al menos 5px más angosta todavía (25% -> 23.75%, ~5.3px con el
   // ancho real de la tabla a tamaño de impresión, ~427px), repartido entre las otras 5 columnas
   // (15% -> 15.25% cada una: 23.75+15.25*5=100%).
-  const colgroupHtml=`<colgroup><col style="width:23.75%"><col style="width:15.25%"><col style="width:15.25%"><col style="width:15.25%"><col style="width:15.25%"><col style="width:15.25%"></colgroup>`;
+  // v7.3.31, bug real reportado por el usuario (con captura): con montos grandes, "1,234,567 SF" no cabía en
+  // el ancho fijo de la columna YTD (~65px) y se desbordaba de forma visible más allá del borde derecho de la
+  // tabla (distinto para cada renglón, según cuántos dígitos tenga el monto) — 4% de ancho, tomado por igual
+  // de 1Q/2Q/3Q/4Q (esas sí sobran, son solo dígitos cortos), se le suma a YTD.
+  const colgroupHtml=`<colgroup><col style="width:23.75%"><col style="width:14.25%"><col style="width:14.25%"><col style="width:14.25%"><col style="width:14.25%"><col style="width:19.25%"></colgroup>`;
   return `<table class="mkt-table mkt-absorption-table">${colgroupHtml}<thead><tr>${headerCells}</tr></thead><tbody>${rows}</tbody></table>`;
 }
 function mktMatrixTableHtml(rowCategories, computeFn, opts){

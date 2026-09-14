@@ -408,12 +408,21 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-detail-table{font-size:10px}
   .mkt-detail-table th{position:static}
   .mkt-empty{color:var(--muted);font-style:italic;padding:8px 0;text-align:center}
-  .mkt-page-header{display:flex;justify-content:space-between;align-items:flex-end;
-                    border-bottom:3px solid var(--accent);padding:14px 26px 6px;margin-bottom:8px}
-  .mkt-page-title{margin:0;font-size:20px;font-weight:400;font-family:Georgia,'Times New Roman',serif;color:#404040}
-  .mkt-page-subtitle{font-size:11px;color:var(--muted);margin-top:1px}
-  .mkt-page-header-right{display:flex;align-items:center;gap:10px}
+  /* v7.3.38, pedido explícito del usuario (con imagen de referencia): el header de las páginas 2-5 pasa a
+     parecerse al de la portada — nombre del Mercado con la misma tipografía/tamaño que .mkt-cover-title
+     (Dala Moa, 38px) y el mismo gris #7f7f7f que "Completed Transactions" (antes Georgia 20px, #404040).
+     La línea dorada ya NO cruza todo el ancho del header (antes border-bottom de 3px en .mkt-page-header
+     completo) — ahora es delgada (1px, como la de portada) y solo debajo del bloque izquierdo (nombre +
+     subtítulo), hasta ~3/4 del ancho de la página; el trimestre/año, la página web y el isotipo quedan a la
+     derecha, sin línea debajo. */
+  .mkt-page-header{display:flex;align-items:center;padding:14px 26px 6px;margin-bottom:8px}
+  .mkt-page-header-left{flex:0 0 74%;border-bottom:1px solid var(--accent);padding-bottom:4px}
+  .mkt-page-title{margin:0;font-size:38px;font-weight:400;font-family:'Dala Moa',Georgia,serif;color:#7f7f7f}
+  .mkt-page-subtitle{font-size:11px;color:#7f7f7f;margin-top:1px}
+  .mkt-page-header-right{display:flex;align-items:center;gap:10px;margin-left:auto}
+  .mkt-page-header-right-text{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
   .mkt-page-year{font-size:13px;font-weight:700;color:#404040}
+  .mkt-page-website{font-size:11px;color:#7f7f7f}
   .mkt-page-logo{width:26px;height:26px;object-fit:contain}
   /* v7.3.3, bug real reportado por el usuario ("no me imprime todas las hojas") — parte del mismo arreglo:
      una vez que se destrabó el recorte de #resumenView/#resumenScrollArea (ver arriba), esta página SÍ medía
@@ -7034,12 +7043,15 @@ function mktBuildCoverPage(){
 function mktPageHeaderHtml(subtitle){
   const marketLabel=resumenMarket||"All Markets";
   return `<div class="mkt-page-header">
-    <div>
+    <div class="mkt-page-header-left">
       <h2 class="mkt-page-title">${escapeHtml(marketLabel)}</h2>
       <div class="mkt-page-subtitle">${escapeHtml(subtitle)}</div>
     </div>
     <div class="mkt-page-header-right">
-      <div class="mkt-page-year">${escapeHtml(resumenYear)}</div>
+      <div class="mkt-page-header-right-text">
+        <div class="mkt-page-year">${mktCurrentQuarterLabel()} ${escapeHtml(resumenYear)}</div>
+        <div class="mkt-page-website">CitiusAG.com</div>
+      </div>
       <img class="mkt-page-logo" src="${DECK_LOGO_SRC}" alt="Citius AG">
     </div>
   </div>`;

@@ -170,6 +170,67 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .resumen-row-3 table.resumen-table th, .resumen-row-3 table.resumen-table td{padding:4px 3px}
   .resumen-subtitle{margin:0 0 4px;font-size:12.5px;color:var(--txt);text-transform:uppercase;letter-spacing:.4px}
   .resumen-block-note{margin:0 0 8px;font-size:11.5px;color:var(--muted)}
+  /* ==== Market Report (PDF) — v7.3.0, pedido explícito del usuario ====
+     Mismo criterio que .deck-page (Presentación, ver ahí): sin sombra/tarjeta en pantalla (el tamaño de
+     página real solo importa al imprimir, vía @page — ver doMarketReportPrint()); en pantalla es solo un
+     bloque blanco de ancho fijo, uno tras otro. `.mkt-page` sí agrega un separador punteado propio entre
+     páginas (Presentación no lo tiene) porque acá SÍ conviene distinguir dónde termina cada una de las 5
+     páginas de un vistazo — se oculta al imprimir. */
+  .mkt-report-outer{padding:24px 0}
+  .mkt-report-placeholder{max-width:520px;margin:60px auto;text-align:center;color:var(--muted);font-size:14px}
+  .mkt-report-toolbar{max-width:1180px;margin:0 auto 16px;display:flex;justify-content:flex-end}
+  .mkt-report-pages{display:flex;flex-direction:column;align-items:center}
+  .mkt-page{background:#fff;color:#1a1a1a;width:100%;max-width:1180px;aspect-ratio:11/8.5;
+            box-sizing:border-box;overflow:hidden;font-size:11px;border-top:2px dashed var(--line);margin-top:28px;padding-top:28px}
+  .mkt-page:first-child{border-top:none;margin-top:0;padding-top:0}
+  .mkt-cover-page{display:flex}
+  .mkt-cover-sidebar{flex:0 0 27%;background:#4a4a4a;color:#fff;padding:34px 26px;display:flex;flex-direction:column;justify-content:flex-end}
+  .mkt-cover-title{margin:0 0 6px;font-size:34px;font-weight:400;font-family:Georgia,'Times New Roman',serif;
+                    border-bottom:3px solid var(--accent);display:inline-block;padding-bottom:8px}
+  .mkt-cover-subtitle{font-size:14px;font-weight:300;margin-top:14px}
+  .mkt-cover-year{font-size:14px;font-weight:300;opacity:.85}
+  .mkt-cover-main{flex:1;padding:26px 30px;position:relative;overflow:auto}
+  .mkt-cover-logo{position:absolute;top:26px;right:30px;width:150px}
+  .mkt-cover-logo img{width:100%;display:block}
+  .mkt-cover-grid{display:grid;grid-template-columns:1fr 1.5fr;gap:16px;margin-top:66px}
+  .mkt-box{border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:#fff;min-width:0}
+  .mkt-box-title{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;
+                  border-bottom:2px solid var(--accent);padding-bottom:6px;margin-bottom:8px;color:#1a1a1a}
+  .mkt-box .resumen-block{margin-bottom:10px}
+  .mkt-box .resumen-subtitle{font-size:10px}
+  .mkt-box .resumen-donut-panel{border:none;padding:0}
+  .mkt-table{width:100%;border-collapse:collapse;font-size:10.5px}
+  .mkt-table th{background:var(--panel-2);color:var(--muted);font-weight:700;text-transform:uppercase;
+                 font-size:9px;letter-spacing:.3px;padding:5px 6px;text-align:left;border-bottom:1px solid var(--line)}
+  .mkt-table td{padding:4px 6px;border-bottom:1px solid var(--line)}
+  .mkt-table td.num-cell{text-align:right;font-variant-numeric:tabular-nums}
+  .mkt-table .mkt-center{text-align:center}
+  .mkt-table-plain{font-size:11px}
+  .mkt-table-plain td{border-bottom:1px dotted var(--line);padding:4.5px 0}
+  .mkt-table-plain tr:last-child td{border-bottom:none}
+  .mkt-total-row td{background:var(--panel-2);font-weight:700;border-top:1.5px solid var(--txt)}
+  .mkt-group-row td{background:#eee;font-weight:700;text-transform:uppercase;font-size:10px;letter-spacing:.3px}
+  .mkt-detail-table{font-size:10px}
+  .mkt-detail-table th{position:static}
+  .mkt-empty{color:var(--muted);font-style:italic;padding:8px 0;text-align:center}
+  .mkt-page-header{display:flex;justify-content:space-between;align-items:flex-end;
+                    border-bottom:3px solid var(--accent);padding:22px 30px 10px;margin-bottom:14px}
+  .mkt-page-title{margin:0;font-size:26px;font-weight:400;font-family:Georgia,'Times New Roman',serif;color:#1a1a1a}
+  .mkt-page-subtitle{font-size:12px;color:var(--muted);margin-top:2px}
+  .mkt-page-header-right{display:flex;align-items:center;gap:12px}
+  .mkt-page-year{font-size:15px;font-weight:700;color:#1a1a1a}
+  .mkt-page-logo{width:32px;height:32px;object-fit:contain}
+  .mkt-page-body{padding:0 30px 20px;display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+  .mkt-page-body>.mkt-table.mkt-detail-table{grid-column:1/-1}
+  .mkt-donut-row{grid-column:1/-1;display:flex;gap:12px;flex-wrap:wrap;justify-content:space-between}
+  .mkt-donut-panel{flex:1;min-width:220px;text-align:center}
+  .mkt-donut-title{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px}
+  .mkt-donut-svg{width:100%;max-width:210px;overflow:visible}
+  .mkt-donut-arc{cursor:default}
+  .mkt-donut-out-label{font-size:9px;font-weight:700;fill:#1a1a1a}
+  .mkt-donut-out-pct{font-size:9px;fill:var(--muted)}
+  .mkt-donut-empty{color:var(--muted);font-size:10px;font-style:italic}
+  @media(max-width:900px){ .mkt-cover-grid{grid-template-columns:1fr} .mkt-page-body{grid-template-columns:1fr} }
   /* "Tool Usage" — gráfica de barras al fondo de Resumen. `.resumen-usage-header` reemplaza el
      margin-top:48px de `.resumen-section-title` de siempre (aquí puesto en 0 desde el HTML) por el margen
      del contenedor, para poder alinear el título+nota a la izquierda con los 2 selectores (Documento/
@@ -1031,6 +1092,15 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     #presPages, #landPresPages, #officePresPages{display:block}
     .deck-page{page-break-after:always;page-break-inside:avoid;box-shadow:none;border:none;max-width:none;margin:0 auto}
     .deck-page:last-child{page-break-after:auto}
+    /* Market Report (PDF) — v7.3.0, mismo criterio EXACTO que el bloque de arriba (#presPages/etc.), aparte
+       porque vive en su propio contenedor (#mktReportPages, dentro de #resumenContent) sin nada que ver con
+       Presentación. */
+    #mktReportPages, #mktReportPages *{visibility:visible}
+    #mktReportPages{display:block}
+    .mkt-page{page-break-after:always;page-break-inside:avoid;max-width:none;width:100%;aspect-ratio:auto;
+               border-top:none;margin-top:0;padding-top:0}
+    .mkt-page:last-child{page-break-after:auto}
+    .mkt-report-toolbar{display:none}
     /* Prueba (v3.32.3): quitar la sombra del pin SOLO al imprimir/exportar PDF — Vista Previa de macOS
        muestra un recuadro gris alrededor de cada pin en el PDF exportado (Chrome/Acrobat lo ven bien); la
        sospecha es que Chrome rasteriza el pin (cuadrado rotado 45° + border-radius + box-shadow no tiene
@@ -1064,6 +1134,14 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   body.printing-deck .map-page-badge{top:30px}
   body.printing-deck .map-page-attribution{top:30px;right:44px}
   body.printing-deck .map-page .deck-note{right:44px;bottom:26px}
+  /* Market Report (PDF) — v7.3.0, mismo criterio que body.printing-deck de arriba (aplicado vía JS por
+     doMarketReportPrint(), no solo dentro de @media print, mismo motivo: no hay measure-before-print que
+     dependa de esto como en Presentación, pero mantiene la misma convención por consistencia). */
+  body.printing-mktreport header.topbar,
+  body.printing-mktreport .sidebar,
+  body.printing-mktreport #resumenHeaderBar{display:none}
+  body.printing-mktreport .main{margin-left:0}
+  body.printing-mktreport #mktReportPages{width:100%}
   table{border-collapse:collapse;width:100%;font-size:12px}
   th,td{padding:6px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
   th{background:var(--panel-2);color:var(--muted);font-weight:600;position:sticky;top:0;font-size:11.5px;
@@ -3901,7 +3979,9 @@ const RESUMEN_ICON=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" s
 const resumenTabBtn=document.createElement("button");
 resumenTabBtn.innerHTML=`<span class="nav-icon">${RESUMEN_ICON}</span><span class="nav-label">Summary</span>`;
 resumenTabBtn.dataset.k="__RESUMEN__";
-resumenTabBtn.onclick=showResumenView;
+/* v7.3.0, pedido explícito del usuario: el clic ya no navega directo — abre un mini-menú (KPI's/Market
+   Report), mismo patrón exacto que togglePresentationMenu (ver ese comentario). */
+resumenTabBtn.onclick=toggleResumenMenu;
 tabsEl.appendChild(resumenTabBtn);
 Object.keys(ENTITIES).forEach(k=>{
   const b=document.createElement("button");
@@ -3977,6 +4057,7 @@ function hideAllViews(){
   closeRowMenu();
   closeColumnsPanel();
   closePresentationMenu();
+  closeResumenMenu();
 }
 /* ==== Mini-menú "Presentación": Propiedades / Terrenos (v3.36.0) ====
    Mismo patrón exacto que toggleConfigMenu — un popover flotante, no una navegación directa. A propósito
@@ -4015,6 +4096,47 @@ function selectPresentationMenuOption(opt){
   if(opt==="terrenos") showLandPresentationView();
   else if(opt==="oficinas") showOfficePresentationView();
   else showPresentationView();
+}
+/* ==== Mini-menú "Summary": KPI's / Market Report (PDF) (v7.3.0, pedido explícito del usuario) ====
+   Mismo patrón EXACTO que togglePresentationMenu de arriba. A diferencia de Presentación (3 flags booleanos
+   separados, un show*View() por opción), Resumen ya tenía un único contenedor/vista (#resumenView) con un
+   solo `renderResumenView()` — así que la sub-sección se modela con un único string `resumenSection`
+   ("kpis"|"market_report"), más cerca del patrón de `configSection` (ver toggleConfigMenu) que del de
+   Presentación. renderResumenView() decide al final qué contenido meter en #resumenContent según este
+   valor — el header (Units/Market/Submarket/Year) se sigue construyendo IGUAL para las 2 secciones, pedido
+   explícito del usuario ("quiero un filtro de Mercado y Submercados así como lo tenemos ahora arriba en
+   Summary"). */
+let resumenSection="kpis";
+function closeResumenMenu(){
+  const el=document.getElementById("resumenMenuDropdown");
+  if(el) el.remove();
+  document.removeEventListener("mousedown", onDocMouseDownForResumenMenu, true);
+}
+function onDocMouseDownForResumenMenu(e){
+  const el=document.getElementById("resumenMenuDropdown");
+  if(el && !el.contains(e.target) && e.target!==resumenTabBtn && !resumenTabBtn.contains(e.target)) closeResumenMenu();
+}
+function toggleResumenMenu(evt){
+  evt.stopPropagation();
+  const alreadyOpen=!!document.getElementById("resumenMenuDropdown");
+  closeResumenMenu();
+  if(alreadyOpen) return;
+  const el=document.createElement("div");
+  el.id="resumenMenuDropdown";
+  el.className="row-menu-dropdown config-menu-dropdown";
+  el.innerHTML=`
+    <button type="button" class="${resumenViewActive&&resumenSection==="kpis"?"active":""}" onclick="selectResumenMenuOption('kpis')">KPI's</button>
+    <button type="button" class="${resumenViewActive&&resumenSection==="market_report"?"active":""}" onclick="selectResumenMenuOption('market_report')">Market Report (PDF)</button>`;
+  document.body.appendChild(el);
+  const r=resumenTabBtn.getBoundingClientRect();
+  el.style.left=(r.right+8)+"px";
+  el.style.top=r.top+"px";
+  setTimeout(()=>document.addEventListener("mousedown", onDocMouseDownForResumenMenu, true), 0);
+}
+function selectResumenMenuOption(section){
+  closeResumenMenu();
+  resumenSection=section;
+  showResumenView();
 }
 async function showTableView(){
   mapViewActive=false; presentationViewActive=false; landPresentationViewActive=false; officePresentationViewActive=false; configViewActive=false; resumenViewActive=false;
@@ -6246,7 +6368,15 @@ function renderResumenView(){
     </div>
   `;
   const el=document.getElementById("resumenContent");
-  el.innerHTML=`
+  // v7.3.0, pedido explícito del usuario: Summary se divide en 2 sub-vistas (ver toggleResumenMenu) — KPI's
+  // es EXACTAMENTE lo de siempre (nada de lo de arriba se tocó); Market Report (PDF) es contenido nuevo del
+  // todo (renderMarketReportHtml() más abajo), que reutiliza el MISMO header de filtros de arriba (Market/
+  // Submarket/Year/Units, pedido explícito del usuario) pero NO ninguno de los bloques kpiHtml/grossHtml/
+  // etc. de esta rama — a propósito se sigue calculando todo lo de arriba sin importar la sección activa
+  // (más simple/seguro que separarlo en 2 ramas desde el principio de la función); optimizar eso queda para
+  // más adelante si de verdad hace falta.
+  el.className=resumenSection==="market_report" ? "mkt-report-outer" : "";
+  el.innerHTML = resumenSection==="market_report" ? renderMarketReportHtml() : `
     <div class="resumen-kpi-outer">
       <div class="resumen-kpi-grid">${kpiHtml}</div>
       ${donutHtml}
@@ -6277,11 +6407,362 @@ function renderResumenView(){
     </div>
     ${resumenUsageChartHtml(usageData)}
   `;
+  if(resumenSection==="market_report") wireMarketReportEvents();
   document.getElementById("resumenUnitSelect").onchange=function(){ resumenUnit=this.value; renderResumenView(); };
   document.getElementById("resumenYearSelect").onchange=function(){ resumenYear=this.value; renderResumenView(); };
   document.getElementById("resumenMarketSelect").onchange=function(){ resumenMarket=this.value; renderResumenView(); };
-  document.getElementById("resumenUsageDocSelect").onchange=function(){ resumenUsageDoc=this.value; renderResumenView(); };
-  document.getElementById("resumenUsageDaysSelect").onchange=function(){ resumenUsageDays=Number(this.value); renderResumenView(); };
+  // v7.3.0: estos 2 selects solo existen dentro del bloque "Tool Usage", que ya no se renderiza en la
+  // sub-vista Market Report (PDF) — guard, si no `getElementById(...).onchange=` truena sobre `null`.
+  const usageDocSel=document.getElementById("resumenUsageDocSelect");
+  if(usageDocSel) usageDocSel.onchange=function(){ resumenUsageDoc=this.value; renderResumenView(); };
+  const usageDaysSel=document.getElementById("resumenUsageDaysSelect");
+  if(usageDaysSel) usageDaysSel.onchange=function(){ resumenUsageDays=Number(this.value); renderResumenView(); };
+}
+/* ==== Market Report (PDF) — v7.3.0, pedido explícito del usuario ====
+   Vista previa (en pantalla) de un reporte de mercado con la misma apariencia del PDF de referencia que
+   compartió ("Industrial Market Report", branding Citius AG) — mismos indicadores que ya calcula KPI's
+   (resumenKpis/resumenQuarterTableHtml/resumenBreakdownTableHtml/resumenAvailabilityDonutHtml, todos
+   reusados tal cual), solo que acomodados en este layout de 5 páginas en vez de las tarjetas del dashboard.
+   Primera versión (pedido explícito del usuario: "primero ve creando estas vistas... para ir luego
+   ajustando un par de cosas más adelante") — el mecanismo de impresión reusa el patrón de doPresPrint()/
+   preparePrintPageSize() (ver ahí), simplificado: las 5 páginas del reporte SIEMPRE miden lo mismo (Carta
+   horizontal), así que no hace falta el sistema de "un @page con nombre por grupo" que sí necesita
+   Presentación (ese tiene 5 tipos de hoja con proporciones distintas) — un solo `@page{size:11in 8.5in}`
+   fijo en el CSS (ver más abajo) alcanza. */
+function quarterOfDate(dateStr){
+  const m=/^\d{4}-(\d{2})/.exec(String(dateStr||""));
+  if(!m) return null;
+  return Math.floor((Number(m[1])-1)/3)+1;
+}
+/* Dona genérica — mismo mecanismo EXACTO que resumenAvailabilityDonutHtml (arcos SVG con stroke-dasharray,
+   misma paleta RESUMEN_DONUT_BASE_COLORS/resumenDonutColorForIndex), generalizada para cualquier lista de
+   {label,value} en vez de estar atada a "Submercado" — la usan las 8 donas nuevas de las páginas 2 y 4 del
+   reporte (Quarter/Count/Type/Deal, Class/Count/Status/Generation), además de la de Availability por
+   Submercado de la portada (esa sigue usando resumenAvailabilityDonutHtml tal cual, ver mktBuildCoverPage). */
+function mktDonutHtml(title, data, unitLabel){
+  const fmt=v=>Math.round(v).toLocaleString("en-US");
+  const filtered=data.filter(d=>d.value>0);
+  const total=filtered.reduce((a,d)=>a+d.value,0);
+  if(!filtered.length||total<=0){
+    return `<div class="mkt-donut-panel"><div class="mkt-donut-title">${escapeHtml(title)}</div><p class="mkt-donut-empty">No data.</p></div>`;
+  }
+  const slices=filtered.map((d,i)=>({...d, color:resumenDonutColorForIndex(i)}));
+  const CX=160, CY=160, R=90, SW=28, CIRC=2*Math.PI*R;
+  const LBL_R=R+SW/2+22;
+  let offset=0, arcsHtml="", labelsHtml="";
+  slices.forEach(s=>{
+    const frac=s.value/total, len=frac*CIRC, pct=frac*100;
+    const rotate=(offset/CIRC)*360-90;
+    arcsHtml+=`<circle class="mkt-donut-arc" cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="${s.color}"
+      stroke-width="${SW}" stroke-dasharray="${len.toFixed(3)} ${(CIRC-len).toFixed(3)}"
+      transform="rotate(${rotate} ${CX} ${CY})"><title>${escapeHtml(s.label)}: ${fmt(s.value)}${unitLabel?" "+unitLabel:""} (${pct.toFixed(1)}%)</title></circle>`;
+    const midAngle=((offset+len/2)/CIRC)*2*Math.PI-Math.PI/2;
+    const cos=Math.cos(midAngle), sin=Math.sin(midAngle);
+    const lx=CX+LBL_R*cos, ly=CY+LBL_R*sin;
+    const anchor=cos>0.15?"start":cos<-0.15?"end":"middle";
+    labelsHtml+=`<text class="mkt-donut-out-label" x="${lx.toFixed(1)}" y="${(ly-4).toFixed(1)}" text-anchor="${anchor}">${escapeHtml(s.label)}</text>
+      <text class="mkt-donut-out-pct" x="${lx.toFixed(1)}" y="${(ly+11).toFixed(1)}" text-anchor="${anchor}">${pct.toFixed(0)}%</text>`;
+    offset+=len;
+  });
+  return `<div class="mkt-donut-panel">
+    <div class="mkt-donut-title">${escapeHtml(title)}</div>
+    <svg class="mkt-donut-svg" viewBox="0 0 320 320" role="img" aria-label="${escapeAttr(title)}">${arcsHtml}${labelsHtml}</svg>
+  </div>`;
+}
+/* Tabla "matriz": filas = categorías (ej. Quarter, o un rango de tamaño), columnas = Submercado + Total —
+   orientación INVERSA a resumenBreakdownTableHtml/resumenQuarterTableHtml (esas van filas=Submercado,
+   columnas=categoría), que es como el PDF de referencia arma "Completed Transactions"/"Available Inventory"
+   (páginas 2 y 4). `computeFn(sm, catKey)` recibe Submercado + la categoría de esa fila; `opts.isArea`
+   convierte con resumenAreaVal() igual que el resto del Resumen. */
+function mktMatrixTableHtml(rowCategories, computeFn, opts){
+  opts=opts||{};
+  const subs=resumenSubmarkets();
+  if(!subs.length) return `<p class="mkt-empty">No data.</p>`;
+  const fmt=v=>Math.round(v).toLocaleString("en-US");
+  const rows=rowCategories.map(cat=>{
+    const vals=subs.map(sm=>{ const raw=computeFn(sm,cat.key); return opts.isArea?resumenAreaVal(raw):raw; });
+    return {label:cat.label, vals, total:vals.reduce((a,b)=>a+b,0)};
+  });
+  const colTotals=subs.map((sm,i)=>rows.reduce((a,r)=>a+r.vals[i],0));
+  const grandTotal=colTotals.reduce((a,b)=>a+b,0);
+  const unitSfx=opts.unitSuffix?` ${opts.unitSuffix}`:"";
+  const headerCells=subs.map(sm=>`<th>${escapeHtml(sm.toUpperCase())}</th>`).join("")+`<th>TOTAL</th>`;
+  const bodyRows=rows.map(r=>`<tr><td>${escapeHtml(r.label)}</td>${r.vals.map(v=>`<td class="num-cell">${fmt(v)}</td>`).join("")}<td class="num-cell"><b>${fmt(r.total)}${unitSfx}</b></td></tr>`).join("");
+  const totalRow=`<tr class="mkt-total-row"><td>${escapeHtml(opts.totalRowLabel||"Total")}</td>${colTotals.map(v=>`<td class="num-cell">${fmt(v)}${unitSfx}</td>`).join("")}<td class="num-cell">${fmt(grandTotal)}${unitSfx}</td></tr>`;
+  return `<table class="mkt-table"><thead><tr><th></th>${headerCells}</tr></thead><tbody>${bodyRows}${totalRow}</tbody></table>`;
+}
+/* Top N transacciones (por "Transaction Area") del año/filtro activo — "Significant Transactions" de la
+   portada (página 1). Solo "Absorption Type"="Gross" (mismo criterio que "Lease Transactions" del KPI y
+   txQuarterHtml de KPI's), para no listar entregas negativas como si fueran una transacción "significativa". */
+function mktSignificantTransactions(limit){
+  const yearStart=`${resumenYear}-01-01`, yearEnd=`${resumenYear}-12-31`;
+  return (state.TRANSACCIONES||[])
+    .filter(r=>resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd)
+    .map(r=>({tenant:r.TENANT_BUYER_USER||"Confidential", buildingType:r.BUILDING_TYPE||"", dealType:r.TRANSACCION_TYPE||"", areaSF:areaValueInSF(r,"TRANSACTION_AREA")}))
+    .filter(r=>r.areaSF>0)
+    .sort((a,b)=>b.areaSF-a.areaSF)
+    .slice(0, limit||4);
+}
+/* ==== Página 1: portada (Market/Absorption/Availability/Significant Transactions) ==== */
+function mktBuildCoverPage(){
+  const k=resumenKpis(resumenYear);
+  const num=v=>Math.round(v).toLocaleString("en-US");
+  const area=v=>num(resumenAreaVal(v))+" "+resumenAreaUnitLabel();
+  const pct=v=>(v*100).toFixed(2)+"%";
+  const money=v=>"US $ "+resumenRateVal(v).toFixed(3);
+  const marketRowsHtml=[
+    ["Total Market (Class A & B Bldgs)", area(k.marketAB)],
+    ["+ Class C", area(k.marketABC)],
+    ["Inventory", area(k.inventory)],
+    ["Vacancy Rate", pct(k.vacancyRate)],
+    ["Under Construction", area(k.underConstruction)],
+    ["Sublease", area(k.sublease)],
+    ["Availability", area(k.availability)],
+    ["Availability Rate", pct(k.availabilityRate)],
+    ["Lease Transactions", area(k.leaseTx)],
+    ["Average Asking Price ("+resumenAreaUnitLabel()+"/Mo)", money(k.avgAsking)],
+    ["Land Prices Min - Max ("+resumenAreaUnitLabel()+")", k.landPriceMin||k.landPriceMax?`US $ ${resumenRateVal(k.landPriceMin).toFixed(2)} - ${resumenRateVal(k.landPriceMax).toFixed(2)}`:"—"]
+  ].map(([label,value])=>`<tr><td>${escapeHtml(label)}</td><td class="num-cell"><b>${value}</b></td></tr>`).join("");
+  const sigTx=mktSignificantTransactions(4);
+  const sigTxRows=sigTx.length?sigTx.map(t=>`<tr><td>${escapeHtml(t.tenant)}</td><td>${escapeHtml(t.buildingType)}</td><td>${escapeHtml(t.dealType)}</td><td class="num-cell">${num(resumenAreaVal(t.areaSF))} ${resumenAreaUnitLabel()}</td></tr>`).join("")
+    : `<tr><td colspan="4" class="mkt-empty">No transactions.</td></tr>`;
+  const marketLabel=resumenMarket||"All Markets";
+  return `<div class="mkt-page mkt-cover-page">
+    <div class="mkt-cover-sidebar">
+      <div>
+        <h1 class="mkt-cover-title">${escapeHtml(marketLabel)}</h1>
+        <div class="mkt-cover-subtitle">Industrial Market Report</div>
+        <div class="mkt-cover-year">${escapeHtml(resumenYear)}</div>
+      </div>
+    </div>
+    <div class="mkt-cover-main">
+      <div class="mkt-cover-logo"><img src="${DECK_LOGO_SRC}" alt="Citius AG"></div>
+      <div class="mkt-cover-grid">
+        <div class="mkt-box">
+          <div class="mkt-box-title">Market</div>
+          <table class="mkt-table mkt-table-plain"><tbody>${marketRowsHtml}</tbody></table>
+        </div>
+        <div class="mkt-box">
+          <div class="mkt-box-title">Absorption (${escapeHtml(resumenYear)})</div>
+          ${resumenQuarterTableHtml("Gross", "", (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true)}
+          ${resumenQuarterTableHtml("Negative (Deliveries 2nd Gen)", "", (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true)}
+          ${resumenQuarterTableHtml("Net", "", (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q);
+            const gross=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
+            const neg=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
+            return gross+neg; }, true)}
+        </div>
+        <div class="mkt-box">
+          <div class="mkt-box-title">Availability</div>
+          ${resumenAvailabilityDonutHtml()}
+        </div>
+        <div class="mkt-box">
+          <div class="mkt-box-title">Significant Transactions</div>
+          <table class="mkt-table"><thead><tr><th>Tenant/Buyer</th><th>Building Type</th><th>Transaction</th><th>Area</th></tr></thead><tbody>${sigTxRows}</tbody></table>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+/* Encabezado repetido en las páginas 2-5 (todas menos la portada) — logo+título, mismo criterio de reuso de
+   marca que .deck-header/.deck-logo de Presentación (ver DECK_LOGO_SRC), estilo propio (.mkt-page-header). */
+function mktPageHeaderHtml(subtitle){
+  const marketLabel=resumenMarket||"All Markets";
+  return `<div class="mkt-page-header">
+    <div>
+      <h2 class="mkt-page-title">${escapeHtml(marketLabel)}</h2>
+      <div class="mkt-page-subtitle">${escapeHtml(subtitle)}</div>
+    </div>
+    <div class="mkt-page-header-right">
+      <div class="mkt-page-year">${escapeHtml(resumenYear)}</div>
+      <img class="mkt-page-logo" src="${DECK_LOGO_SRC}" alt="Citius AG">
+    </div>
+  </div>`;
+}
+/* ==== Página 2: Completed Transactions — resumen (matriz por Submercado + 4 donas) ==== */
+function mktBuildTxSummaryPage(){
+  const yearStart=`${resumenYear}-01-01`, yearEnd=`${resumenYear}-12-31`;
+  const txGross=r=>ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd;
+  const quarterTable=mktMatrixTableHtml([1,2,3,4].map(q=>({key:q,label:"Q"+q})),
+    (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); },
+    {isArea:true, unitSuffix:resumenAreaUnitLabel()});
+  const bucketCategories=RESUMEN_SIZE_BUCKETS.map(b=>({key:b,label:resumenSizeBucketLabel(b)}));
+  const countTable=mktMatrixTableHtml(bucketCategories,
+    (sm,bucket)=>countByPredicate(state.TRANSACCIONES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&txGross(r)&&inSizeBucket(resumenAreaVal(areaValueInSF(r,"TRANSACTION_AREA")),bucket)));
+  const typeCategories=[{key:"Inventory",label:"Inventory"},{key:"Expansion",label:"Expansion"},{key:"STS",label:"Spec to Suit"},{key:"BTS",label:"Build to Suit"}];
+  const typeTable=mktMatrixTableHtml(typeCategories,
+    (sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.BUILDING_TYPE,type)&&txGross(r)),
+    {isArea:true, unitSuffix:resumenAreaUnitLabel()});
+  const dealCategories=resumenFieldListValues("TRANSACCIONES","TRANSACCION_TYPE").map(t=>({key:t,label:t}));
+  const dealTable=mktMatrixTableHtml(dealCategories,
+    (sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,type)&&txGross(r)),
+    {isArea:true, unitSuffix:resumenAreaUnitLabel()});
+  const T=(state.TRANSACCIONES||[]).filter(r=>resumenMarketMatches(r,"TRANSACCIONES")&&txGross(r));
+  const quarterDonutData=[1,2,3,4].map(q=>({label:"Q"+q, value:sumByPredicate(T,"TRANSACTION_AREA", r=>quarterOfDate(r.TRANSACTION_DATE)===q)}));
+  const countDonutData=RESUMEN_SIZE_BUCKETS.map(b=>({label:resumenSizeBucketLabel(b), value:countByPredicate(T, r=>inSizeBucket(resumenAreaVal(areaValueInSF(r,"TRANSACTION_AREA")),b))}));
+  const typeDonutData=typeCategories.map(c=>({label:c.label, value:sumByPredicate(T,"TRANSACTION_AREA", r=>ciEq(r.BUILDING_TYPE,c.key))}));
+  const dealDonutData=dealCategories.map(c=>({label:c.label, value:sumByPredicate(T,"TRANSACTION_AREA", r=>ciEq(r.TRANSACCION_TYPE,c.key))}));
+  return `<div class="mkt-page">
+    ${mktPageHeaderHtml("Completed Transactions")}
+    <div class="mkt-page-body">
+      <div class="mkt-box"><div class="mkt-box-title">Completed Transactions (${resumenAreaUnitLabel()})</div>${quarterTable}</div>
+      <div class="mkt-box"><div class="mkt-box-title">Building Count</div>${countTable}</div>
+      <div class="mkt-box"><div class="mkt-box-title">Building Type (${resumenAreaUnitLabel()})</div>${typeTable}</div>
+      <div class="mkt-box"><div class="mkt-box-title">Deal (${resumenAreaUnitLabel()})</div>${dealTable}</div>
+      <div class="mkt-donut-row">
+        ${mktDonutHtml("Quarter", quarterDonutData, resumenAreaUnitLabel())}
+        ${mktDonutHtml("Count", countDonutData, "")}
+        ${mktDonutHtml("Type", typeDonutData, resumenAreaUnitLabel())}
+        ${mktDonutHtml("Deal", dealDonutData, resumenAreaUnitLabel())}
+      </div>
+    </div>
+  </div>`;
+}
+/* ==== Página 3: Completed Transactions — detalle (una fila por transacción, agrupado por Submercado) ==== */
+function mktBuildTxDetailPage(){
+  const subs=resumenSubmarkets();
+  const yearStart=`${resumenYear}-01-01`, yearEnd=`${resumenYear}-12-31`;
+  const num=v=>Math.round(v).toLocaleString("en-US");
+  let bodyHtml="", grandTotalSF=0;
+  subs.forEach(sm=>{
+    const rows=(state.TRANSACCIONES||[]).filter(r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd);
+    if(!rows.length) return;
+    bodyHtml+=`<tr class="mkt-group-row"><td colspan="7">▼ ${escapeHtml(sm.toUpperCase())}</td></tr>`;
+    rows.slice().sort((a,b)=>String(a.TRANSACTION_DATE||"").localeCompare(String(b.TRANSACTION_DATE||""))).forEach(r=>{
+      const areaSF=areaValueInSF(r,"TRANSACTION_AREA");
+      grandTotalSF+=areaSF;
+      const q=quarterOfDate(r.TRANSACTION_DATE);
+      bodyHtml+=`<tr><td>${escapeHtml(sm)}</td><td>${escapeHtml(r.TENANT_BUYER_USER||"Confidential")}</td><td>${escapeHtml(r.DEVELOPER||"")}</td><td>${escapeHtml(r.PARK_NAME||r.PROPERTY_NAME||"")}</td><td class="num-cell">${num(resumenAreaVal(areaSF))}</td><td>${escapeHtml(r.BUILDING_TYPE||"")}</td><td class="mkt-center">${q?q+"Q":"—"}</td><td>${escapeHtml(r.TRANSACCION_TYPE||"")}</td></tr>`;
+    });
+  });
+  if(!bodyHtml) bodyHtml=`<tr><td colspan="8" class="mkt-empty">No transactions.</td></tr>`;
+  return `<div class="mkt-page">
+    ${mktPageHeaderHtml("Completed Transactions — Detail")}
+    <div class="mkt-page-body">
+      <table class="mkt-table mkt-detail-table">
+        <thead><tr><th>Submarket</th><th>Tenant/Buyer</th><th>Developer</th><th>Location</th><th>Area (${resumenAreaUnitLabel()})</th><th>Building Type</th><th>Q</th><th>Trans</th></tr></thead>
+        <tbody>${bodyHtml}</tbody>
+        <tfoot><tr class="mkt-total-row"><td colspan="4">TOTAL:</td><td class="num-cell">${num(resumenAreaVal(grandTotalSF))} ${resumenAreaUnitLabel()}</td><td colspan="3"></td></tr></tfoot>
+      </table>
+    </div>
+  </div>`;
+}
+/* ==== Página 4: Available Inventory — resumen (matriz por Submercado + 4 donas) ==== */
+function mktBuildAvailSummaryPage(){
+  const isAB=r=>ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B");
+  const availTable=mktMatrixTableHtml([{key:"__avail__",label:"Availability"}],
+    (sm)=>resumenAvailabilityForSubmarket(sm), {isArea:true, unitSuffix:resumenAreaUnitLabel()});
+  const classCategories=[{key:"A",label:"Class A"},{key:"B",label:"Class B"}];
+  const classTable=mktMatrixTableHtml(classCategories,
+    (sm,cls)=>resumenAvailabilityForSubmarket(sm, r=>ciEq(r.CLASSIFICATION,cls)), {isArea:true, unitSuffix:resumenAreaUnitLabel()});
+  const bucketCategories=RESUMEN_SIZE_BUCKETS.map(b=>({key:b,label:resumenSizeBucketLabel(b)}));
+  const countTable=mktMatrixTableHtml(bucketCategories,
+    (sm,bucket)=>countByPredicate(state.PROPIEDADES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.MARKET_STATUS,"Available")&&inSizeBucket(resumenAreaVal(areaValueInSF(r,"AVAILABLE_AREA_VALUE")),bucket)));
+  const statusCategories=resumenFieldListValues("PROPIEDADES","STATUS").map(s=>({key:s,label:s}));
+  const statusComputeFn=(sm,status)=>status==="Under Construction"
+    ? sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.STATUS,status)&&ciEq(r.MARKET_STATUS,"Available"))
+    : sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.STATUS,status)&&ciEq(r.MARKET_STATUS,"Available"));
+  const statusTable=mktMatrixTableHtml(statusCategories, statusComputeFn, {isArea:true, unitSuffix:resumenAreaUnitLabel()});
+  const genCategories=[{key:"New",label:"New"},{key:"2nd",label:"2nd Gen"}];
+  const genTable=mktMatrixTableHtml(genCategories,
+    (sm,gen)=>resumenAvailabilityForSubmarket(sm, r=>isAB(r)&&ciEq(r.BUILDING_GENERATION,gen)), {isArea:true, unitSuffix:resumenAreaUnitLabel()});
+  const P=(state.PROPIEDADES||[]).filter(r=>resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.MARKET_STATUS,"Available"));
+  const classDonutData=classCategories.map(c=>({label:c.label, value:resumenSubmarkets().reduce((a,sm)=>a+resumenAvailabilityForSubmarket(sm, r=>ciEq(r.CLASSIFICATION,c.key)),0)}));
+  const countDonutData=bucketCategories.map(b=>({label:b.label, value:countByPredicate(P, r=>inSizeBucket(resumenAreaVal(areaValueInSF(r,"AVAILABLE_AREA_VALUE")),b.key))}));
+  const statusDonutData=statusCategories.map(c=>({label:c.label, value:statusCategories.length?resumenSubmarkets().reduce((a,sm)=>a+statusComputeFn(sm,c.key),0):0}));
+  const genDonutData=genCategories.map(c=>({label:c.label, value:resumenSubmarkets().reduce((a,sm)=>a+resumenAvailabilityForSubmarket(sm, r=>isAB(r)&&ciEq(r.BUILDING_GENERATION,c.key)),0)}));
+  return `<div class="mkt-page">
+    ${mktPageHeaderHtml("Available Inventory")}
+    <div class="mkt-page-body">
+      <div class="mkt-box"><div class="mkt-box-title">Available Inventory (${resumenAreaUnitLabel()})</div>${availTable}</div>
+      <div class="mkt-box"><div class="mkt-box-title">Class (${resumenAreaUnitLabel()})</div>${classTable}</div>
+      <div class="mkt-box"><div class="mkt-box-title">Building Count</div>${countTable}</div>
+      <div class="mkt-box"><div class="mkt-box-title">Status (${resumenAreaUnitLabel()})</div>${statusTable}</div>
+      <div class="mkt-box"><div class="mkt-box-title">Generation (${resumenAreaUnitLabel()})</div>${genTable}</div>
+      <div class="mkt-donut-row">
+        ${mktDonutHtml("Class", classDonutData, resumenAreaUnitLabel())}
+        ${mktDonutHtml("Count", countDonutData, "")}
+        ${mktDonutHtml("Status", statusDonutData, resumenAreaUnitLabel())}
+        ${mktDonutHtml("Generation", genDonutData, resumenAreaUnitLabel())}
+      </div>
+    </div>
+  </div>`;
+}
+/* ==== Página 5: Available Inventory — detalle (una fila por Propiedad, agrupado por Submercado) ==== */
+function mktBuildAvailDetailPage(){
+  const subs=resumenSubmarkets();
+  const num=v=>Math.round(v).toLocaleString("en-US");
+  let bodyHtml="", grandTotalSF=0;
+  subs.forEach(sm=>{
+    const rows=(state.PROPIEDADES||[]).filter(r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B"))&&ciEq(r.MARKET_STATUS,"Available"));
+    if(!rows.length) return;
+    const submarketTotal=rows.reduce((a,r)=>a+areaValueInSF(r,"AVAILABLE_AREA_VALUE"),0);
+    bodyHtml+=`<tr class="mkt-group-row"><td colspan="9">▼ ${escapeHtml(sm.toUpperCase())}</td><td class="num-cell">${num(resumenAreaVal(submarketTotal))}</td></tr>`;
+    rows.forEach(r=>{
+      const availSF=areaValueInSF(r,"AVAILABLE_AREA_VALUE");
+      grandTotalSF+=availSF;
+      const rate=r.ASKING_RATE_VALUE?`${/usd/i.test(r.ASKING_RATE_UNIT||"")?"US":"MX"} $ ${Number(r.ASKING_RATE_VALUE).toFixed(2)}`:"UR";
+      bodyHtml+=`<tr><td>${escapeHtml(r.PROPERTY_NAME||r.MAPPING_CODE||"")}</td><td>${escapeHtml(r.DEVELOPER||"")}</td><td>${escapeHtml(r.ADDRESS||"")}</td>
+        <td class="num-cell">${num(resumenAreaVal(areaValueInSF(r,"LEASABLE_AREA_GLA_VALUE")))}</td>
+        <td class="num-cell">${num(resumenAreaVal(areaValueInSF(r,"OCUPIED_AREA_VALUE")))}</td>
+        <td class="num-cell">${num(resumenAreaVal(availSF))}</td>
+        <td class="mkt-center">${r.MIN_CLEAR_HEIGHT_VALUE||"—"}</td>
+        <td class="mkt-center">${escapeHtml(r.STATUS||"—")}</td>
+        <td class="mkt-center">${escapeHtml(r.CLASSIFICATION||"—")}</td>
+        <td class="num-cell">${rate}</td></tr>`;
+    });
+  });
+  if(!bodyHtml) bodyHtml=`<tr><td colspan="10" class="mkt-empty">No available inventory.</td></tr>`;
+  return `<div class="mkt-page">
+    ${mktPageHeaderHtml("Available Inventory — Detail")}
+    <div class="mkt-page-body">
+      <table class="mkt-table mkt-detail-table">
+        <thead><tr><th>Name</th><th>Developer</th><th>Location</th><th>Size (${resumenAreaUnitLabel()})</th><th>Occupied</th><th>Available</th><th>Clear Height</th><th>Status</th><th>Class</th><th>$/${resumenAreaUnitLabel()}/Mo</th></tr></thead>
+        <tbody>${bodyHtml}</tbody>
+        <tfoot><tr class="mkt-total-row"><td colspan="5">TOTAL:</td><td class="num-cell">${num(resumenAreaVal(grandTotalSF))} ${resumenAreaUnitLabel()}</td><td colspan="4"></td></tr></tfoot>
+      </table>
+    </div>
+  </div>`;
+}
+function renderMarketReportHtml(){
+  if(!resumenMarket){
+    return `<div class="mkt-report-placeholder">
+      <p>Select a Market above to generate its report — a Market Report is built for one Market at a time (optionally narrowed further with Submarket).</p>
+    </div>`;
+  }
+  return `<div class="mkt-report-toolbar">
+      <button type="button" class="btn" id="mktReportPrintBtn">🖨️ Print / Save as PDF</button>
+    </div>
+    <div class="mkt-report-pages" id="mktReportPages">
+      ${mktBuildCoverPage()}
+      ${mktBuildTxSummaryPage()}
+      ${mktBuildTxDetailPage()}
+      ${mktBuildAvailSummaryPage()}
+      ${mktBuildAvailDetailPage()}
+    </div>`;
+}
+function wireMarketReportEvents(){
+  const btn=document.getElementById("mktReportPrintBtn");
+  if(btn) btn.onclick=doMarketReportPrint;
+}
+function doMarketReportPrint(){
+  document.body.classList.add("printing-mktreport");
+  // Mismo mecanismo que preparePrintPageSize() de Presentación (ver ahí) para evitar que un @page dinámico
+  // viejo de OTRO módulo se quede pisando el tamaño — su propio #dynamicPrintPageSize nunca se borra
+  // después de usarse, se queda vivo en <head>. Las 5 páginas del reporte SIEMPRE miden lo mismo (Carta
+  // horizontal), así que a diferencia de Presentación no hace falta el sistema de "un @page con nombre por
+  // grupo" — un solo @page sin nombre alcanza, pero (re)insertado cada vez que se imprime (appendChild sobre
+  // un nodo que ya existe lo MUEVE al final de <head>) para que siempre sea la regla @page MÁS RECIENTE del
+  // documento y gane la cascada sin importar qué se haya impreso antes en esta misma sesión.
+  let styleEl=document.getElementById("dynamicMktReportPageSize");
+  if(!styleEl){ styleEl=document.createElement("style"); styleEl.id="dynamicMktReportPageSize"; }
+  styleEl.textContent=`@page{size:11in 8.5in;margin:0}`;
+  document.head.appendChild(styleEl);
+  const originalTitle=document.title;
+  const marketLabel=(resumenMarket||"Market").replace(/[\\/:*?"<>|]/g,"-");
+  document.title=`${marketLabel} Market Report ${resumenYear}`;
+  window.print();
+  document.title=originalTitle;
+  document.body.classList.remove("printing-mktreport");
 }
 /* Checklist flotante del filtro de Submercado (v6.5.21, pedido explícito del usuario) — mismo look visual
    que .col-filter-dropdown (checklist de filtro de columna de las tablas), un panel nuevo aparte porque ese

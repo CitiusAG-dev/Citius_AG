@@ -412,13 +412,19 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      parecerse al de la portada — nombre del Mercado con la misma tipografía/tamaño que .mkt-cover-title
      (Dala Moa, 38px) y el mismo gris #7f7f7f que "Completed Transactions" (antes Georgia 20px, #404040).
      La línea dorada ya NO cruza todo el ancho del header (antes border-bottom de 3px en .mkt-page-header
-     completo) — ahora es delgada (1px, como la de portada) y solo debajo del bloque izquierdo (nombre +
-     subtítulo), hasta ~3/4 del ancho de la página; el trimestre/año, la página web y el isotipo quedan a la
-     derecha, sin línea debajo. */
+     completo) — ahora es delgada (1px, como la de portada), hasta ~3/4 del ancho de la página; el
+     trimestre/año, la página web y el isotipo quedan a la derecha, sin línea debajo.
+     v7.3.39, corrige v7.3.38 (pedido explícito del usuario): la línea va ENTRE el nombre del Mercado y el
+     subtítulo (border-bottom en .mkt-page-title mismo, no en todo el bloque izquierdo) — igual que en la
+     portada, donde la línea separa el título del subtítulo/trimestre que sigue, no encierra a los dos. */
   .mkt-page-header{display:flex;align-items:center;padding:14px 26px 6px;margin-bottom:8px}
-  .mkt-page-header-left{flex:0 0 74%;border-bottom:1px solid var(--accent);padding-bottom:4px}
-  .mkt-page-title{margin:0;font-size:38px;font-weight:400;font-family:'Dala Moa',Georgia,serif;color:#7f7f7f}
-  .mkt-page-subtitle{font-size:11px;color:#7f7f7f;margin-top:1px}
+  /* v7.3.40, pedido explícito del usuario: línea al menos 100px más larga (74% -> 84%, ~100px con el ancho
+     real del header a tamaño de impresión, ~1005px). */
+  .mkt-page-header-left{flex:0 0 84%}
+  .mkt-page-title{margin:0;font-size:38px;font-weight:400;font-family:'Dala Moa',Georgia,serif;color:#7f7f7f;
+                    border-bottom:1px solid var(--accent);padding-bottom:4px}
+  /* v7.3.41, pedido explícito del usuario: un poco más grande (11px -> 13px). */
+  .mkt-page-subtitle{font-size:13px;color:#7f7f7f;margin-top:4px}
   .mkt-page-header-right{display:flex;align-items:center;gap:10px;margin-left:auto}
   .mkt-page-header-right-text{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
   .mkt-page-year{font-size:13px;font-weight:700;color:#404040}

@@ -182,20 +182,28 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-page{background:#fff;color:#1a1a1a;width:100%;max-width:1180px;aspect-ratio:11/8.5;
             box-sizing:border-box;overflow:hidden;font-size:11px;border-top:2px dashed var(--line);margin-top:28px;padding-top:28px}
   .mkt-page:first-child{border-top:none;margin-top:0;padding-top:0}
-  .mkt-cover-page{display:flex}
+  /* v7.3.5, pedido explícito del usuario: height:100% — .mkt-cover-page es hijo directo de .mkt-page (alto
+     fijo vía aspect-ratio), pero sin altura propia explícita solo tomaba el alto de SU contenido, no el de
+     toda la hoja — el panel gris (align-items:stretch, default de flex, ya estiraba al sidebar a la altura
+     de .mkt-cover-page, pero esa altura era la corta) se quedaba corto contra el fondo blanco de abajo. */
+  .mkt-cover-page{display:flex;height:100%}
   /* v7.3.4, pedido explícito del usuario (con imagen de referencia): #767676, más angosto (27% -> 22%), el
      bloque de título arriba y el de equipo abajo (space-between, antes solo flex-end apilaba todo abajo).
      Fuentes: 'Dala Moa'/'Unitext' YA están cargadas en la app vía @font-face (mismas que usa el módulo de
      Presentación, ver DECK_LOGO_SRC/.deck-header h2 arriba) — se reusan tal cual en vez de Georgia/sans-serif
      genéricos. Pedido explícito: Dala Moa SOLO para el nombre del Mercado y los nombres del equipo; el resto
-     (subtítulo, trimestre, cargo/dirección/teléfono, el sitio web) en Unitext. */
+     (subtítulo, trimestre, cargo/dirección/teléfono, el sitio web) en Unitext.
+     v7.3.5: título recorrido a la derecha (padding-left propio, no el del sidebar completo — el bloque de
+     equipo tiene su propia alineación aparte, ver .mkt-cover-team) e info del equipo alineada a la derecha,
+     con el nombre más grande (14px -> 19px), ambos pedidos explícitos del usuario. */
   .mkt-cover-sidebar{flex:0 0 22%;background:#767676;color:#fff;padding:30px 22px;display:flex;flex-direction:column;justify-content:space-between}
+  .mkt-cover-titleblock{padding-left:14px}
   .mkt-cover-title{margin:0 0 6px;font-size:30px;font-weight:400;font-family:'Dala Moa',Georgia,serif;
                     border-bottom:3px solid var(--accent);display:inline-block;padding-bottom:8px}
   .mkt-cover-subtitle{font-size:13px;font-weight:300;margin-top:12px;font-family:'Unitext',Arial,sans-serif}
   .mkt-cover-year{font-size:13px;font-weight:300;opacity:.85;font-family:'Unitext',Arial,sans-serif}
-  .mkt-cover-team{display:flex;flex-direction:column;gap:16px}
-  .mkt-cover-person-name{font-size:17px;font-family:'Dala Moa',Georgia,serif;margin-bottom:2px}
+  .mkt-cover-team{display:flex;flex-direction:column;gap:16px;text-align:right}
+  .mkt-cover-person-name{font-size:19px;font-family:'Dala Moa',Georgia,serif;margin-bottom:2px}
   .mkt-cover-person-role{font-size:11px;font-weight:700;font-family:'Unitext',Arial,sans-serif}
   .mkt-cover-person-addr{font-size:10.5px;font-weight:300;opacity:.9;font-family:'Unitext',Arial,sans-serif;line-height:1.4}
   .mkt-cover-person-phone{font-size:10.5px;font-weight:300;opacity:.9;font-family:'Unitext',Arial,sans-serif}
@@ -6648,7 +6656,7 @@ function mktBuildCoverPage(){
     </div>`).join("");
   return `<div class="mkt-page mkt-cover-page">
     <div class="mkt-cover-sidebar">
-      <div>
+      <div class="mkt-cover-titleblock">
         <h1 class="mkt-cover-title">${escapeHtml(marketLabel)}</h1>
         <div class="mkt-cover-subtitle">Industrial Market Report</div>
         <div class="mkt-cover-year">${mktCurrentQuarterLabel()} ${escapeHtml(resumenYear)}</div>

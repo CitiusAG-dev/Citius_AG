@@ -219,8 +219,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      midiendo dónde cae de verdad la línea bajo el título (ver mkt-cover-title/titleblock). */
   /* v7.3.26, pedido explícito del usuario: recuadro amarillo un poco más ancho (10px -> 15px) y ~10px más
      alto (margin-top 188px -> 178px, sube el borde superior — el inferior sigue pegado al fondo de la hoja
-     por el stretch de flex, igual que antes). */
-  .mkt-cover-accent{flex:0 0 15px;background:var(--accent);margin-top:178px}
+     por el stretch de flex, igual que antes).
+     v7.3.27, pedido explícito del usuario: 15px más alto todavía (margin-top 178px -> 163px). */
+  .mkt-cover-accent{flex:0 0 15px;background:var(--accent);margin-top:163px}
   /* v7.3.8, pedido explícito del usuario: la línea dorada pasa de .mkt-cover-title (display:inline-block,
      solo tan ancha como el texto) a .mkt-cover-titleblock (bloque normal, tan ancho como el panel gris menos
      su padding) — "que se extienda hasta donde termina el panel gris" — y bastante más delgada (3px -> 1px). */
@@ -230,8 +231,11 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      bloque normal (no inline-block), así que ocupa el ancho completo disponible (hasta donde termina el
      panel gris), igual que antes. Nombre del Mercado también más grande (30px -> 34px). */
   .mkt-cover-titleblock{padding-left:14px}
-  /* v7.3.23, pedido explícito del usuario: nombre del Mercado un poco más grande todavía (34px -> 38px). */
-  .mkt-cover-title{margin:0;font-size:38px;font-weight:400;font-family:'Dala Moa',Georgia,serif;
+  /* v7.3.23, pedido explícito del usuario: nombre del Mercado un poco más grande todavía (34px -> 38px).
+     v7.3.27, pedido explícito del usuario: la línea dorada bajo el nombre del Mercado terminaba "hasta donde
+     termina el panel gris MENOS su padding" (22px antes del borde real) — un margin-right negativo, igual a
+     ese padding, estira el bloque (y su border-bottom) exactamente hasta el borde real del recuadro gris. */
+  .mkt-cover-title{margin:0 -22px 0 0;font-size:38px;font-weight:400;font-family:'Dala Moa',Georgia,serif;
                     border-bottom:1px solid var(--accent);padding-bottom:8px}
   /* v7.3.10, pedido explícito del usuario: bold real (font-weight:700 — Unitext SÍ tiene un @font-face de
      ese peso cargado, ver el comentario grande de 'Dala Moa'/'Unitext' más arriba — nada de negrita
@@ -362,11 +366,15 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-box .mkt-absorption-table{font-size:9px;table-layout:fixed;width:100%}
   /* v7.3.25, bug real reportado por el usuario (con captura): el header 1Q/2Q/3Q/4Q/YTD estaba centrado
      pero las celdas de datos (.num-cell) van alineadas a la derecha — la columna YTD en particular se veía
-     "descuadrada" porque el número (a la derecha) no quedaba debajo de su título (centrado). Ahora el header
-     también va a la derecha, igual que los datos — todo alineado a la derecha correctamente. La celda-etiqueta
-     (GROSS / el <th colspan> de Negative-Net) se queda a la izquierda vía .mkt-absorption-th-label, sin cambio. */
-  .mkt-box .mkt-absorption-table th{background:#e6e6e6;padding:3px 8px;font-size:9.5px;color:#404040;text-align:right}
+     "descuadrada" porque el número (a la derecha) no quedaba debajo de su título (centrado).
+     v7.3.28, pedido explícito del usuario (con captura, corrige v7.3.25): alinear TODOS los headers a la
+     derecha no era lo que quería — 1Q/2Q/3Q/4Q vuelven a quedar centrados. Solo el header de YTD (columna
+     "resumen", con sufijo de unidad y más ancha que las demás) se queda alineado a la derecha, igual que su
+     dato — .mkt-absorption-th-ytd. La celda-etiqueta (GROSS / el <th colspan> de Negative-Net) se queda a la
+     izquierda vía .mkt-absorption-th-label, sin cambio. */
+  .mkt-box .mkt-absorption-table th{background:#e6e6e6;padding:3px 8px;font-size:9.5px;color:#404040;text-align:center}
   .mkt-box .mkt-absorption-table th.mkt-absorption-th-label{text-align:left}
+  .mkt-box .mkt-absorption-table th.mkt-absorption-th-ytd{text-align:right}
   .mkt-box .mkt-absorption-table td{padding:2px 8px;border-right:1px solid var(--line)}
   .mkt-box .mkt-absorption-table td:last-child{border-right:none}
   .mkt-box .mkt-absorption-table tr.mkt-total-row td{background:transparent}
@@ -6768,7 +6776,7 @@ function mktAbsorptionTableHtml(firstColLabel, firstColSuffix, showQuarterHeader
   // (1Q/2Q/3Q/4Q/YTD en Gross), que se quedan centrados.
   const labelHtml=`${escapeHtml(firstColLabel)}${firstColSuffix?` <span class="mkt-label-normal">${escapeHtml(firstColSuffix)}</span>`:""}`;
   const headerCells=showQuarterHeaders
-    ? `<th class="mkt-absorption-th-label">${labelHtml}</th>`+["1Q","2Q","3Q","4Q","YTD"].map(h=>`<th>${h}</th>`).join("")
+    ? `<th class="mkt-absorption-th-label">${labelHtml}</th>`+["1Q","2Q","3Q","4Q","YTD"].map(h=>`<th${h==="YTD"?' class="mkt-absorption-th-ytd"':""}>${h}</th>`).join("")
     : `<th colspan="6" class="mkt-absorption-th-label">${labelHtml}</th>`;
   // v7.3.20, pedido explícito del usuario: columna de Submarket ~8px más angosta (28% -> 25% de la tabla),
   // el espacio sobrante se reparte entre las otras 5 columnas (14.4% -> 15% cada una: 25+15*5=100%).

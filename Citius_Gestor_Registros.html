@@ -2945,13 +2945,23 @@ async function applyLocationCatalogMigration(wb){
   // noCrosswalkMatch = sí lo encontró, pero ese ID viejo no aparece en el archivo nuevo que se subió (archivo
   // equivocado, o de verdad no está ese renglón ahí).
   let touched=0, scanned=0, unresolved=0, noOldId=0, noCrosswalkMatch=0;
+  // v7.2.2, mismo bug: con noCrosswalkMatch alto (el ID viejo SÍ se resuelve, pero no aparece en el archivo
+  // subido) hace falta ver IDs concretos para saber si el catálogo activo es de verdad la misma línea que el
+  // archivo nuevo (ej. ambos traen "224" pero con MAYÚSCULA/espacio distinto) o si son dos catálogos
+  // distintos sin relación. sampleMismatches junta hasta 5 ejemplos reales (ID viejo del registro + qué
+  // Mercado/Submercado tenía resuelto) para poder compararlos a simple vista sin tener que adivinar.
+  const sampleMismatches=[];
   ["PROPIEDADES","PARKS","LAND","OFICINAS"].forEach(ent=>{
     (state[ent]||[]).forEach(rec=>{
       scanned++;
       const oldIds=resolveGeoIds(key=>String(rec[key]||"").trim());
       if(!oldIds.SUBMARKET_ID){ unresolved++; noOldId++; return; }
       const entry=crosswalk.byOldSubmarketId.get(oldIds.SUBMARKET_ID);
-      if(!entry){ unresolved++; noCrosswalkMatch++; return; }
+      if(!entry){
+        unresolved++; noCrosswalkMatch++;
+        if(sampleMismatches.length<5) sampleMismatches.push({ent, oldSubmarketId:oldIds.SUBMARKET_ID, market:rec.MARKET||"", submarket:rec.SUBMARKET||""});
+        return;
+      }
       let changed=false;
       CASCADE_ORDER.forEach(key=>{
         if(String(rec[key]||"")!==entry[key]){ rec[key]=entry[key]; changed=true; }
@@ -2961,12 +2971,13 @@ async function applyLocationCatalogMigration(wb){
       if(changed) touched++;
     });
   });
+  const activeCatalogRows=cascadeCatalog.length; // antes de que loadConfigFromWorkbook la reemplace, abajo
   await loadConfigFromWorkbook(wb); // deja el catálogo (y Listas/Campos si venían en el mismo archivo) como el activo
   invalidateSubmarketToMarketCache();
   try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){}
   if(fileHandle) writeToFile();
   renderTable();
-  return {scanned, touched, unresolved, noOldId, noCrosswalkMatch};
+  return {scanned, touched, unresolved, noOldId, noCrosswalkMatch, sampleMismatches, activeCatalogRows, uploadedCatalogRows:crosswalk.rowCount};
 }
 /* Transacciones: al capturar/editar el MAPPING_CODE, trae PROPERTY_NAME y la ubicación (Región/Estado/
    Mercado/Submercado) de la Propiedad correspondiente — pura conveniencia de captura, los campos quedan
@@ -13025,7 +13036,13 @@ document.getElementById("migrateLocationCatalogBtn").onclick=async()=>{
       msg+=".";
     } else msg+=".";
     const resultEl=document.getElementById("migrateLocationCatalogResult");
-    if(resultEl) resultEl.textContent=msg;
+    if(resultEl){
+      let html=escapeHtml(msg)+`<br>Active catalog: ${result.activeCatalogRows} row(s) · Uploaded file: ${result.uploadedCatalogRows} row(s).`;
+      if(result.sampleMismatches && result.sampleMismatches.length){
+        html+=`<br>Sample old IDs not found in the uploaded file: `+result.sampleMismatches.map(s=>escapeHtml(`${s.ent} "${s.market}/${s.submarket}" (old SUBMARKET_ID=${s.oldSubmarketId})`)).join("; ");
+      }
+      resultEl.innerHTML=html;
+    }
     toast(msg, result.touched?"ok":"");
   }catch(e){ if(e.name!=="AbortError") toast("Error: "+e.message,"err"); }
 };

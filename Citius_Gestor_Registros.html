@@ -248,8 +248,13 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      #404040 (ver .mkt-page de arriba — cascada hacia abajo; los pocos colores fijos que lo pisaban, como
      este título, se actualizan también en vez de dejarlos peleando contra la cascada). */
   .mkt-box{border:none;border-radius:6px;padding:7px 9px;background:#fff;min-width:0}
+  /* v7.3.13, pedido explícito del usuario (con imagen de referencia): la línea ya no va DEBAJO de todo el
+     título (border-bottom, ancho completo del tile) — va SEGUIDA del texto, en la misma línea/renglón, como
+     "MARKET ────────". Un ::after con flex:1 rellena el resto del ancho disponible; color de la línea = color
+     del texto (#404040) en vez del dorado de antes. */
   .mkt-box-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;
-                  border-bottom:2px solid var(--accent);padding-bottom:3px;margin-bottom:4px;color:#404040;flex:0 0 auto}
+                  margin-bottom:4px;color:#404040;flex:0 0 auto;display:flex;align-items:center;gap:8px}
+  .mkt-box-title::after{content:"";flex:1;height:1px;background:#404040;min-width:0}
   /* v7.3.2, ajuste de layout tras comparar contra el PDF de referencia: Absorption/Significant Transactions
      se dejan a su alto NATURAL (flex:0 0 auto) — antes `flex:1` los estiraba a la altura completa de la
      columna, y como su contenido real es mucho más corto que eso, cada una de las 3 tablas (Gross/Negative/

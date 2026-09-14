@@ -2937,13 +2937,21 @@ async function applyLocationCatalogMigration(wb){
   if(!cascadeCatalog.length){ toast("Link the current Location catalog first (Data Excel or Configuration file)","err"); return null; }
   const crosswalk=parseLocationCatalogCrosswalk(wb);
   if(!crosswalk){ toast("I didn't recognize that file's Location catalog columns (need Region/State/Market/Submarket and the old ID_SUBMERCADO column).","err"); return null; }
-  let touched=0, scanned=0, unresolved=0;
+  // v7.2.1, bug reportado por el usuario (captura real: 0 de 4445 actualizados, TODOS sin resolver) —
+  // "unresolved" solo no alcanzaba para saber POR QUÉ fallaba cada uno. Se separa en dos causas bien
+  // distintas para poder diagnosticar sin adivinar: noOldId = resolveGeoIds() ni siquiera encontró un
+  // ID_SUBMERCADO viejo para el registro contra el catálogo ACTIVO ahora mismo (o el catálogo activo no
+  // tiene las columnas de ID — ver el comentario grande junto a CASCADE_ID_HEADER_ALIASES), vs
+  // noCrosswalkMatch = sí lo encontró, pero ese ID viejo no aparece en el archivo nuevo que se subió (archivo
+  // equivocado, o de verdad no está ese renglón ahí).
+  let touched=0, scanned=0, unresolved=0, noOldId=0, noCrosswalkMatch=0;
   ["PROPIEDADES","PARKS","LAND","OFICINAS"].forEach(ent=>{
     (state[ent]||[]).forEach(rec=>{
       scanned++;
       const oldIds=resolveGeoIds(key=>String(rec[key]||"").trim());
-      const entry=oldIds.SUBMARKET_ID?crosswalk.byOldSubmarketId.get(oldIds.SUBMARKET_ID):null;
-      if(!entry){ unresolved++; return; }
+      if(!oldIds.SUBMARKET_ID){ unresolved++; noOldId++; return; }
+      const entry=crosswalk.byOldSubmarketId.get(oldIds.SUBMARKET_ID);
+      if(!entry){ unresolved++; noCrosswalkMatch++; return; }
       let changed=false;
       CASCADE_ORDER.forEach(key=>{
         if(String(rec[key]||"")!==entry[key]){ rec[key]=entry[key]; changed=true; }
@@ -2958,7 +2966,7 @@ async function applyLocationCatalogMigration(wb){
   try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){}
   if(fileHandle) writeToFile();
   renderTable();
-  return {scanned, touched, unresolved};
+  return {scanned, touched, unresolved, noOldId, noCrosswalkMatch};
 }
 /* Transacciones: al capturar/editar el MAPPING_CODE, trae PROPERTY_NAME y la ubicación (Región/Estado/
    Mercado/Submercado) de la Propiedad correspondiente — pura conveniencia de captura, los campos quedan
@@ -13007,7 +13015,15 @@ document.getElementById("migrateLocationCatalogBtn").onclick=async()=>{
     if(!result) return;
     configFileHandle=h; lastKnownConfigModTime=file.lastModified; await saveConfigHandle(h); setConfigFileChip();
     renderFieldConfigView(); renderListsNav();
-    const msg=`${result.touched} of ${result.scanned} record(s) updated to the new catalog`+(result.unresolved?`; ${result.unresolved} couldn't be matched and were left as-is.`:".");
+    let msg=`${result.touched} of ${result.scanned} record(s) updated to the new catalog`;
+    if(result.unresolved){
+      msg+=`; ${result.unresolved} couldn't be matched and were left as-is`;
+      const parts=[];
+      if(result.noOldId) parts.push(`${result.noOldId} didn't resolve against the currently active catalog`);
+      if(result.noCrosswalkMatch) parts.push(`${result.noCrosswalkMatch} resolved but their old ID isn't in the uploaded file`);
+      if(parts.length) msg+=` (${parts.join("; ")})`;
+      msg+=".";
+    } else msg+=".";
     const resultEl=document.getElementById("migrateLocationCatalogResult");
     if(resultEl) resultEl.textContent=msg;
     toast(msg, result.touched?"ok":"");

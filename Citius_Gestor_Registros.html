@@ -6905,11 +6905,13 @@ function mktMatrixTableHtml(rowCategories, computeFn, opts){
     +subs.map(sm=>`<th>${escapeHtml(sm.toUpperCase())}</th>`).join("")+`<th>TOTAL</th>`;
   const bodyRows=rows.map(r=>`<tr><td>${escapeHtml(r.label)}</td>${r.vals.map(v=>`<td class="num-cell">${fmt(v)}</td>`).join("")}<td class="num-cell">${fmt(r.total)}${unitSfx}</td></tr>`).join("");
   const totalRow=`<tr class="mkt-total-row"><td>${escapeHtml(opts.totalRowLabel||"Total")}</td>${colTotals.map(v=>`<td class="num-cell">${fmt(v)}${unitSfx}</td>`).join("")}<td class="num-cell">${fmt(grandTotal)}${unitSfx}</td></tr>`;
-  // Ancho fijo: 1ra columna (etiqueta de fila, ej. "Q1"/"Spec to Suit") más ancha (22%), el resto
-  // (submercados + Total) se reparten el resto por igual — igual fórmula en las 4 tablas de la página
-  // (todas comparten el mismo número de submercados), así quedan idénticas al apilarse.
-  const dataColPct=(78/(subs.length+1)).toFixed(3);
-  const colgroupHtml=`<colgroup><col style="width:22%">${subs.map(()=>`<col style="width:${dataColPct}%">`).join("")}<col style="width:${dataColPct}%"></colgroup>`;
+  // Ancho fijo: 1ra columna (etiqueta de fila, ej. "Q1"/"Spec to Suit") más ancha, el resto (submercados +
+  // Total) se reparten el resto por igual — igual fórmula en las 4 tablas de la página (todas comparten el
+  // mismo número de submercados), así quedan idénticas al apilarse.
+  // v7.3.37, pedido explícito del usuario: 1ra columna ~40px más angosta (22% -> 18%, ~39.4px con el ancho
+  // real de la tabla a tamaño de impresión, ~986px), repartido entre las demás columnas (78% -> 82%).
+  const dataColPct=(82/(subs.length+1)).toFixed(3);
+  const colgroupHtml=`<colgroup><col style="width:18%">${subs.map(()=>`<col style="width:${dataColPct}%">`).join("")}<col style="width:${dataColPct}%"></colgroup>`;
   return `<table class="mkt-table mkt-absorption-table">${colgroupHtml}<thead><tr>${headerCells}</tr></thead><tbody>${bodyRows}${totalRow}</tbody></table>`;
 }
 /* Top N transacciones (por "Transaction Area") del año/filtro activo — "Significant Transactions" de la
@@ -7048,7 +7050,7 @@ function mktBuildTxSummaryPage(){
   const txGross=r=>ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd;
   const quarterTable=mktMatrixTableHtml([1,2,3,4].map(q=>({key:q,label:"Q"+q})),
     (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); },
-    {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:`Completed Transactions (${resumenAreaUnitLabel()})`});
+    {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:"Completed Transactions"});
   const bucketCategories=RESUMEN_SIZE_BUCKETS.map(b=>({key:b,label:resumenSizeBucketLabel(b)}));
   const countTable=mktMatrixTableHtml(bucketCategories,
     (sm,bucket)=>countByPredicate(state.TRANSACCIONES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&txGross(r)&&inSizeBucket(resumenAreaVal(areaValueInSF(r,"TRANSACTION_AREA")),bucket)),
@@ -7056,11 +7058,11 @@ function mktBuildTxSummaryPage(){
   const typeCategories=[{key:"Inventory",label:"Inventory"},{key:"Expansion",label:"Expansion"},{key:"STS",label:"Spec to Suit"},{key:"BTS",label:"Build to Suit"}];
   const typeTable=mktMatrixTableHtml(typeCategories,
     (sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.BUILDING_TYPE,type)&&txGross(r)),
-    {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:`Building Type (${resumenAreaUnitLabel()})`});
+    {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:"Building Type"});
   const dealCategories=resumenFieldListValues("TRANSACCIONES","TRANSACCION_TYPE").map(t=>({key:t,label:t}));
   const dealTable=mktMatrixTableHtml(dealCategories,
     (sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,type)&&txGross(r)),
-    {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:`Deal (${resumenAreaUnitLabel()})`});
+    {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:"Deal"});
   const T=(state.TRANSACCIONES||[]).filter(r=>resumenMarketMatches(r,"TRANSACCIONES")&&txGross(r));
   const quarterDonutData=[1,2,3,4].map(q=>({label:"Q"+q, value:sumByPredicate(T,"TRANSACTION_AREA", r=>quarterOfDate(r.TRANSACTION_DATE)===q)}));
   const countDonutData=RESUMEN_SIZE_BUCKETS.map(b=>({label:resumenSizeBucketLabel(b), value:countByPredicate(T, r=>inSizeBucket(resumenAreaVal(areaValueInSF(r,"TRANSACTION_AREA")),b))}));
@@ -7115,10 +7117,10 @@ function mktBuildTxDetailPage(){
 function mktBuildAvailSummaryPage(){
   const isAB=r=>ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B");
   const availTable=mktMatrixTableHtml([{key:"__avail__",label:"Availability"}],
-    (sm)=>resumenAvailabilityForSubmarket(sm), {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:`Available Inventory (${resumenAreaUnitLabel()})`});
+    (sm)=>resumenAvailabilityForSubmarket(sm), {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:"Available Inventory"});
   const classCategories=[{key:"A",label:"Class A"},{key:"B",label:"Class B"}];
   const classTable=mktMatrixTableHtml(classCategories,
-    (sm,cls)=>resumenAvailabilityForSubmarket(sm, r=>ciEq(r.CLASSIFICATION,cls)), {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:`Class (${resumenAreaUnitLabel()})`});
+    (sm,cls)=>resumenAvailabilityForSubmarket(sm, r=>ciEq(r.CLASSIFICATION,cls)), {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:"Class"});
   const bucketCategories=RESUMEN_SIZE_BUCKETS.map(b=>({key:b,label:resumenSizeBucketLabel(b)}));
   const countTable=mktMatrixTableHtml(bucketCategories,
     (sm,bucket)=>countByPredicate(state.PROPIEDADES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.MARKET_STATUS,"Available")&&inSizeBucket(resumenAreaVal(areaValueInSF(r,"AVAILABLE_AREA_VALUE")),bucket)),
@@ -7127,10 +7129,10 @@ function mktBuildAvailSummaryPage(){
   const statusComputeFn=(sm,status)=>status==="Under Construction"
     ? sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.STATUS,status)&&ciEq(r.MARKET_STATUS,"Available"))
     : sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.STATUS,status)&&ciEq(r.MARKET_STATUS,"Available"));
-  const statusTable=mktMatrixTableHtml(statusCategories, statusComputeFn, {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:`Status (${resumenAreaUnitLabel()})`});
+  const statusTable=mktMatrixTableHtml(statusCategories, statusComputeFn, {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:"Status"});
   const genCategories=[{key:"New",label:"New"},{key:"2nd",label:"2nd Gen"}];
   const genTable=mktMatrixTableHtml(genCategories,
-    (sm,gen)=>resumenAvailabilityForSubmarket(sm, r=>isAB(r)&&ciEq(r.BUILDING_GENERATION,gen)), {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:`Generation (${resumenAreaUnitLabel()})`});
+    (sm,gen)=>resumenAvailabilityForSubmarket(sm, r=>isAB(r)&&ciEq(r.BUILDING_GENERATION,gen)), {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:"Generation"});
   const P=(state.PROPIEDADES||[]).filter(r=>resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.MARKET_STATUS,"Available"));
   const classDonutData=classCategories.map(c=>({label:c.label, value:resumenSubmarkets().reduce((a,sm)=>a+resumenAvailabilityForSubmarket(sm, r=>ciEq(r.CLASSIFICATION,c.key)),0)}));
   const countDonutData=bucketCategories.map(b=>({label:b.label, value:countByPredicate(P, r=>inSizeBucket(resumenAreaVal(areaValueInSF(r,"AVAILABLE_AREA_VALUE")),b.key))}));

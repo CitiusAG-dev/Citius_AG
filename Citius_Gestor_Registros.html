@@ -12613,8 +12613,17 @@ function loadFromWorkbook(wb){
       const arr=aoa[r];
       if(!arr || arr.every(v=>v===""||v==null)) continue;
       const o={__id:ent+"_f_"+r, __row:arr.slice()};   // keep raw row to preserve unknown columns
+      // v7.3.34, bug real reportado por el usuario: si el Excel real tiene AMBAS columnas — la vieja
+      // (ej. "LAST_MODIFIED") y la nueva ya renombrada (ej. "LAST_UPDATE", ver LEGACY_FIELD_KEY_ALIASES) —
+      // applyLegacyKeyAliases() NO toca la vieja (guard defensivo: no pisa una columna nueva que ya existe
+      // por su cuenta), así que se queda con su nombre viejo en headerKeys. Sin este `||`, `known.has(k)`
+      // fallaba para ese nombre viejo (ya no es un field conocido de la entidad) y la columna entera se
+      // ignoraba — perdiendo la fecha real si la columna nueva estaba vacía (típico tras mover/duplicar
+      // columnas a mano en Excel). SYSTEM_TIMESTAMP_FIELD_KEYS ya es la lista canónica de estos alias de
+      // timestamp — dejarlos pasar aquí hace que el fallback genérico que YA existe más abajo
+      // (`rec.LAST_MODIFIED||rec.LAST_UPDATE`, ver daysSinceUpdate/resumenUsageData) tenga con qué trabajar.
       headerKeys.forEach((k,ci)=>{
-        if(!known.has(k)) return;
+        if(!known.has(k) && !SYSTEM_TIMESTAMP_FIELD_KEYS.has(k)) return;
         let v=arr[ci];
         if(v==="" || v==null) return;
         if(dateKeys.has(k) && typeof v==="number"){ const iso=excelSerialToISODate(v); if(iso) v=iso; }
@@ -13660,8 +13669,9 @@ function extractEntityRowsReadOnly(wb, tag, officeLabel, fileName, merged){
       const arr=aoa[r];
       if(!arr || arr.every(v=>v===""||v==null)) continue;
       const o={__id:ent+"_c"+tag+"_"+r, __consolidatedOffice:officeLabel, __sourceDoc:fileName};
+      // v7.3.34, mismo bug/fix que loadFromWorkbook() — ver el comentario grande ahí.
       headerKeys.forEach((k,ci)=>{
-        if(!known.has(k)) return;
+        if(!known.has(k) && !SYSTEM_TIMESTAMP_FIELD_KEYS.has(k)) return;
         let v=arr[ci];
         if(v===""||v==null) return;
         if(dateKeys.has(k) && typeof v==="number"){ const iso=excelSerialToISODate(v); if(iso) v=iso; }

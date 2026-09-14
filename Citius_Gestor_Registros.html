@@ -2934,16 +2934,13 @@ function parseLocationCatalogCrosswalk(wb){
    quede exactamente como si el usuario lo hubiera vinculado ahí directamente). Como recalcAllGeoIds, NO
    toca Last Modified. */
 async function applyLocationCatalogMigration(wb){
-  if(!cascadeCatalog.length){ toast("Link the current Location catalog first (Data Excel or Configuration file)","err"); return null; }
   const crosswalk=parseLocationCatalogCrosswalk(wb);
   if(!crosswalk){ toast("I didn't recognize that file's Location catalog columns (need Region/State/Market/Submarket and the old ID_SUBMERCADO column).","err"); return null; }
   // v7.2.1, bug reportado por el usuario (captura real: 0 de 4445 actualizados, TODOS sin resolver) —
   // "unresolved" solo no alcanzaba para saber POR QUÉ fallaba cada uno. Se separa en dos causas bien
-  // distintas para poder diagnosticar sin adivinar: noOldId = resolveGeoIds() ni siquiera encontró un
-  // ID_SUBMERCADO viejo para el registro contra el catálogo ACTIVO ahora mismo (o el catálogo activo no
-  // tiene las columnas de ID — ver el comentario grande junto a CASCADE_ID_HEADER_ALIASES), vs
-  // noCrosswalkMatch = sí lo encontró, pero ese ID viejo no aparece en el archivo nuevo que se subió (archivo
-  // equivocado, o de verdad no está ese renglón ahí).
+  // distintas para poder diagnosticar sin adivinar: noOldId = no se encontró ningún ID_SUBMERCADO viejo para
+  // el registro, vs noCrosswalkMatch = sí se encontró, pero ese ID viejo no aparece en el archivo nuevo que
+  // se subió (archivo equivocado, o de verdad no está ese renglón ahí).
   let touched=0, scanned=0, unresolved=0, noOldId=0, noCrosswalkMatch=0;
   // v7.2.2, mismo bug: con noCrosswalkMatch alto (el ID viejo SÍ se resuelve, pero no aparece en el archivo
   // subido) hace falta ver IDs concretos para saber si el catálogo activo es de verdad la misma línea que el
@@ -2951,15 +2948,27 @@ async function applyLocationCatalogMigration(wb){
   // distintos sin relación. sampleMismatches junta hasta 5 ejemplos reales (ID viejo del registro + qué
   // Mercado/Submercado tenía resuelto) para poder compararlos a simple vista sin tener que adivinar.
   const sampleMismatches=[];
+  // v7.2.3, bug REAL encontrado con captura del usuario (columnas REGION_ID..SUBMARKET_ID de su Excel real):
+  // un intento previo (aunque no hubiera actualizado nada) YA dejaba el catálogo NUEVO como el activo al
+  // final (ver loadConfigFromWorkbook() más abajo — corre siempre, sin importar el resultado). Recalcular el
+  // ID viejo contra "lo que esté activo ahora" (resolveGeoIds) quedaba en un círculo vicioso: en el segundo
+  // intento cascadeCatalog YA era el nuevo, así que devolvía IDs con formato NUEVO (ej. "SUB_00266"), que
+  // nunca calzan contra las llaves —formato VIEJO— del cruce; cada intento fallido garantizaba que el
+  // siguiente también fallara. Se usa PRIMERO el ID que el registro YA trae guardado (rec.SUBMARKET_ID, lo
+  // llenó syncGeoIdFields()/recalcAllGeoIds() contra el catálogo que estaba activo cuando se capturó/
+  // actualizó) — independiente de qué catálogo esté vinculado ahora. Solo si el registro nunca tuvo el ID
+  // guardado (nunca se corrió "Fill in Location IDs…", o es de antes de que existiera) se recalcula con
+  // resolveGeoIds() contra el catálogo activo como respaldo, mejor que nada.
   ["PROPIEDADES","PARKS","LAND","OFICINAS"].forEach(ent=>{
     (state[ent]||[]).forEach(rec=>{
       scanned++;
-      const oldIds=resolveGeoIds(key=>String(rec[key]||"").trim());
-      if(!oldIds.SUBMARKET_ID){ unresolved++; noOldId++; return; }
-      const entry=crosswalk.byOldSubmarketId.get(oldIds.SUBMARKET_ID);
+      const storedOldId=String(rec.SUBMARKET_ID||"").trim();
+      const oldSubmarketId=storedOldId||resolveGeoIds(key=>String(rec[key]||"").trim()).SUBMARKET_ID;
+      if(!oldSubmarketId){ unresolved++; noOldId++; return; }
+      const entry=crosswalk.byOldSubmarketId.get(oldSubmarketId);
       if(!entry){
         unresolved++; noCrosswalkMatch++;
-        if(sampleMismatches.length<5) sampleMismatches.push({ent, oldSubmarketId:oldIds.SUBMARKET_ID, market:rec.MARKET||"", submarket:rec.SUBMARKET||""});
+        if(sampleMismatches.length<5) sampleMismatches.push({ent, oldSubmarketId, market:rec.MARKET||"", submarket:rec.SUBMARKET||""});
         return;
       }
       let changed=false;

@@ -188,16 +188,39 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
                     border-bottom:3px solid var(--accent);display:inline-block;padding-bottom:8px}
   .mkt-cover-subtitle{font-size:14px;font-weight:300;margin-top:14px}
   .mkt-cover-year{font-size:14px;font-weight:300;opacity:.85}
-  .mkt-cover-main{flex:1;padding:26px 30px;position:relative;overflow:auto}
-  .mkt-cover-logo{position:absolute;top:26px;right:30px;width:150px}
+  .mkt-cover-main{flex:1;padding:14px 22px 16px;overflow:hidden;display:flex;flex-direction:column;min-height:0}
+  .mkt-cover-logo-row{flex:0 0 auto;display:flex;justify-content:flex-end;margin-bottom:2px}
+  .mkt-cover-logo{width:118px}
   .mkt-cover-logo img{width:100%;display:block}
-  .mkt-cover-grid{display:grid;grid-template-columns:1fr 1.5fr;gap:16px;margin-top:66px}
-  .mkt-box{border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:#fff;min-width:0}
-  .mkt-box-title{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;
-                  border-bottom:2px solid var(--accent);padding-bottom:6px;margin-bottom:8px;color:#1a1a1a}
-  .mkt-box .resumen-block{margin-bottom:10px}
-  .mkt-box .resumen-subtitle{font-size:10px}
-  .mkt-box .resumen-donut-panel{border:none;padding:0}
+  .mkt-cover-grid{display:flex;gap:10px;flex:1;min-height:0}
+  .mkt-cover-col{flex:1;display:flex;flex-direction:column;gap:8px;min-height:0}
+  .mkt-cover-col:last-child{flex:1.6}
+  .mkt-box{border:1px solid var(--line);border-radius:6px;padding:7px 9px;background:#fff;min-width:0}
+  .mkt-box-title{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;
+                  border-bottom:2px solid var(--accent);padding-bottom:3px;margin-bottom:4px;color:#1a1a1a;flex:0 0 auto}
+  /* v7.3.2, ajuste de layout tras comparar contra el PDF de referencia: Absorption/Significant Transactions
+     se dejan a su alto NATURAL (flex:0 0 auto) — antes `flex:1` los estiraba a la altura completa de la
+     columna, y como su contenido real es mucho más corto que eso, cada una de las 3 tablas (Gross/Negative/
+     Net) quedaba con un hueco enorme abajo antes de la siguiente. Availability (columna izquierda, con MUCHO
+     menos contenido natural que Absorption) es la que ahora absorbe el espacio sobrante de la columna
+     (flex:1) — sigue mostrando la dona centrada ahí, en vez de dejar huecos repartidos por toda la página. */
+  .mkt-box-market,.mkt-box-absorption,.mkt-box-sigtx{flex:0 0 auto}
+  .mkt-box-avail{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+  .mkt-box-absorption>div:not(.mkt-box-title){display:flex;flex-direction:column;gap:6px}
+  /* Reusa resumenQuarterTableHtml()/resumenAvailabilityDonutHtml() TAL CUAL (mismo HTML que ya genera KPI's,
+     ver mktBuildCoverPage) — pero acá necesita verse como una tabla de reporte impreso compacta, no como una
+     tarjeta de dashboard: se sobreescribe su estilo SOLO dentro de `.mkt-box` (KPI's no se toca). */
+  .mkt-box .resumen-block{margin-bottom:0}
+  .mkt-box .resumen-subtitle{font-size:7px;margin:0 0 1px;color:var(--muted);flex:0 0 auto}
+  .mkt-box .resumen-scroll{border:none;border-radius:0;background:transparent;overflow:visible;flex:1;min-height:0}
+  .mkt-box table.resumen-table{table-layout:auto;font-size:7px}
+  .mkt-box table.resumen-table th,.mkt-box table.resumen-table td{padding:1.5px 4px;white-space:nowrap;
+                                                                     border-right:none;overflow-wrap:normal;word-break:normal}
+  .mkt-box table.resumen-table thead th{background:transparent;color:var(--muted);font-size:1em;font-weight:700;
+                                          border-bottom:1px solid var(--txt)}
+  .mkt-box table.resumen-table tr.resumen-total-row{background:transparent;border-top:1px solid var(--txt)}
+  .mkt-box-avail .mkt-donut-panel{flex:1;display:flex;flex-direction:column;justify-content:center;min-height:0}
+  .mkt-box-avail .mkt-donut-svg{max-width:190px;margin:0 auto}
   .mkt-table{width:100%;border-collapse:collapse;font-size:10.5px}
   .mkt-table th{background:var(--panel-2);color:var(--muted);font-weight:700;text-transform:uppercase;
                  font-size:9px;letter-spacing:.3px;padding:5px 6px;text-align:left;border-bottom:1px solid var(--line)}
@@ -207,6 +230,11 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-table-plain{font-size:11px}
   .mkt-table-plain td{border-bottom:1px dotted var(--line);padding:4.5px 0}
   .mkt-table-plain tr:last-child td{border-bottom:none}
+  .mkt-box .mkt-table-plain{font-size:9px}
+  .mkt-box .mkt-table-plain td{padding:2.5px 0}
+  .mkt-box .mkt-table{font-size:8.5px}
+  .mkt-box .mkt-table th{padding:2.5px 4px;font-size:7.5px}
+  .mkt-box .mkt-table td{padding:2px 4px}
   .mkt-total-row td{background:var(--panel-2);font-weight:700;border-top:1.5px solid var(--txt)}
   .mkt-group-row td{background:#eee;font-weight:700;text-transform:uppercase;font-size:10px;letter-spacing:.3px}
   .mkt-detail-table{font-size:10px}
@@ -6446,11 +6474,21 @@ function quarterOfDate(dateStr){
   if(!m) return null;
   return Math.floor((Number(m[1])-1)/3)+1;
 }
-/* Dona genérica — mismo mecanismo EXACTO que resumenAvailabilityDonutHtml (arcos SVG con stroke-dasharray,
-   misma paleta RESUMEN_DONUT_BASE_COLORS/resumenDonutColorForIndex), generalizada para cualquier lista de
-   {label,value} en vez de estar atada a "Submercado" — la usan las 8 donas nuevas de las páginas 2 y 4 del
-   reporte (Quarter/Count/Type/Deal, Class/Count/Status/Generation), además de la de Availability por
-   Submercado de la portada (esa sigue usando resumenAvailabilityDonutHtml tal cual, ver mktBuildCoverPage). */
+/* Paleta propia del reporte — v7.3.2, ajuste tras comparar contra el PDF de referencia (branding Citius AG:
+   dorado como color dominante, con acentos morado/naranja) en vez de la paleta categórica azul/naranja/verde
+   de RESUMEN_DONUT_BASE_COLORS (esa se queda tal cual para las donas de KPI's, sin tocar — es una paleta ya
+   validada para ese contexto, aparte del reporte). Mismo mecanismo de "tandas más claras" que
+   resumenLightenHex si hay más de 8 categorías (caso raro). */
+const MKT_DONUT_COLORS=["#f0b323","#6a4c93","#eb6834","#2a78d6","#1baf7a","#e34948","#4a3aa7","#e87ba4"];
+function mktDonutColorForIndex(i){
+  const n=MKT_DONUT_COLORS.length;
+  const tier=Math.floor(i/n), base=MKT_DONUT_COLORS[i%n];
+  return tier===0 ? base : resumenLightenHex(base, Math.min(0.6, tier*0.28));
+}
+/* Dona genérica — mismo mecanismo EXACTO que resumenAvailabilityDonutHtml (arcos SVG con stroke-dasharray),
+   generalizada para cualquier lista de {label,value} en vez de estar atada a "Submercado", con la paleta de
+   marca de arriba en vez de la de KPI's — la usan las 8 donas nuevas de las páginas 2 y 4 del reporte
+   (Quarter/Count/Type/Deal, Class/Count/Status/Generation), además de la de Availability de la portada. */
 function mktDonutHtml(title, data, unitLabel){
   const fmt=v=>Math.round(v).toLocaleString("en-US");
   const filtered=data.filter(d=>d.value>0);
@@ -6458,7 +6496,7 @@ function mktDonutHtml(title, data, unitLabel){
   if(!filtered.length||total<=0){
     return `<div class="mkt-donut-panel"><div class="mkt-donut-title">${escapeHtml(title)}</div><p class="mkt-donut-empty">No data.</p></div>`;
   }
-  const slices=filtered.map((d,i)=>({...d, color:resumenDonutColorForIndex(i)}));
+  const slices=filtered.map((d,i)=>({...d, color:mktDonutColorForIndex(i)}));
   const CX=160, CY=160, R=90, SW=28, CIRC=2*Math.PI*R;
   const LBL_R=R+SW/2+22;
   let offset=0, arcsHtml="", labelsHtml="";
@@ -6505,15 +6543,26 @@ function mktMatrixTableHtml(rowCategories, computeFn, opts){
 }
 /* Top N transacciones (por "Transaction Area") del año/filtro activo — "Significant Transactions" de la
    portada (página 1). Solo "Absorption Type"="Gross" (mismo criterio que "Lease Transactions" del KPI y
-   txQuarterHtml de KPI's), para no listar entregas negativas como si fueran una transacción "significativa". */
+   txQuarterHtml de KPI's), para no listar entregas negativas como si fueran una transacción "significativa".
+   v7.3.2, bug real encontrado comparando contra el PDF de referencia (comparación visual, no dato inventado):
+   UN inquilino con 2+ transacciones grandes desplazaba del top a otros inquilinos más chicos pero
+   igualmente "significativos" (ej. 2 transacciones de "Autotech" ocupaban 2 de los 4 lugares) — el PDF de
+   referencia solo trae LA MÁS GRANDE por inquilino. Se dedupea por "Tenant/Buyer" (se queda con la
+   transacción más grande de cada uno) ANTES de tomar el top N, para que cada fila sea un inquilino distinto. */
 function mktSignificantTransactions(limit){
   const yearStart=`${resumenYear}-01-01`, yearEnd=`${resumenYear}-12-31`;
-  return (state.TRANSACCIONES||[])
+  const byTenant=new Map();
+  (state.TRANSACCIONES||[])
     .filter(r=>resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd)
-    .map(r=>({tenant:r.TENANT_BUYER_USER||"Confidential", buildingType:r.BUILDING_TYPE||"", dealType:r.TRANSACCION_TYPE||"", areaSF:areaValueInSF(r,"TRANSACTION_AREA")}))
-    .filter(r=>r.areaSF>0)
-    .sort((a,b)=>b.areaSF-a.areaSF)
-    .slice(0, limit||4);
+    .forEach(r=>{
+      const areaSF=areaValueInSF(r,"TRANSACTION_AREA");
+      if(areaSF<=0) return;
+      const tenant=r.TENANT_BUYER_USER||"Confidential";
+      const key=tenant.toLowerCase();
+      const existing=byTenant.get(key);
+      if(!existing || areaSF>existing.areaSF) byTenant.set(key, {tenant, buildingType:r.BUILDING_TYPE||"", dealType:r.TRANSACCION_TYPE||"", areaSF});
+    });
+  return [...byTenant.values()].sort((a,b)=>b.areaSF-a.areaSF).slice(0, limit||4);
 }
 /* ==== Página 1: portada (Market/Absorption/Availability/Significant Transactions) ==== */
 function mktBuildCoverPage(){
@@ -6548,28 +6597,34 @@ function mktBuildCoverPage(){
       </div>
     </div>
     <div class="mkt-cover-main">
-      <div class="mkt-cover-logo"><img src="${DECK_LOGO_SRC}" alt="Citius AG"></div>
+      <div class="mkt-cover-logo-row"><div class="mkt-cover-logo"><img src="${DECK_LOGO_SRC}" alt="Citius AG"></div></div>
       <div class="mkt-cover-grid">
-        <div class="mkt-box">
-          <div class="mkt-box-title">Market</div>
-          <table class="mkt-table mkt-table-plain"><tbody>${marketRowsHtml}</tbody></table>
+        <div class="mkt-cover-col">
+          <div class="mkt-box mkt-box-market">
+            <div class="mkt-box-title">Market</div>
+            <table class="mkt-table mkt-table-plain"><tbody>${marketRowsHtml}</tbody></table>
+          </div>
+          <div class="mkt-box mkt-box-avail">
+            <div class="mkt-box-title">Availability</div>
+            ${mktDonutHtml("", resumenAvailabilityBySubmarket().map(d=>({label:d.submarket.toUpperCase(), value:d.value})), resumenAreaUnitLabel())}
+          </div>
         </div>
-        <div class="mkt-box">
-          <div class="mkt-box-title">Absorption (${escapeHtml(resumenYear)})</div>
-          ${resumenQuarterTableHtml("Gross", "", (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true)}
-          ${resumenQuarterTableHtml("Negative (Deliveries 2nd Gen)", "", (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true)}
-          ${resumenQuarterTableHtml("Net", "", (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q);
-            const gross=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
-            const neg=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
-            return gross+neg; }, true)}
-        </div>
-        <div class="mkt-box">
-          <div class="mkt-box-title">Availability</div>
-          ${resumenAvailabilityDonutHtml()}
-        </div>
-        <div class="mkt-box">
-          <div class="mkt-box-title">Significant Transactions</div>
-          <table class="mkt-table"><thead><tr><th>Tenant/Buyer</th><th>Building Type</th><th>Transaction</th><th>Area</th></tr></thead><tbody>${sigTxRows}</tbody></table>
+        <div class="mkt-cover-col">
+          <div class="mkt-box mkt-box-absorption">
+            <div class="mkt-box-title">Absorption (${escapeHtml(resumenYear)})</div>
+            <div>
+              ${resumenQuarterTableHtml("Gross", "", (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true)}
+              ${resumenQuarterTableHtml("Negative (Deliveries 2nd Gen)", "", (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true)}
+              ${resumenQuarterTableHtml("Net", "", (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q);
+                const gross=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
+                const neg=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
+                return gross+neg; }, true)}
+            </div>
+          </div>
+          <div class="mkt-box mkt-box-sigtx">
+            <div class="mkt-box-title">Significant Transactions</div>
+            <table class="mkt-table"><thead><tr><th>Tenant/Buyer</th><th>Building Type</th><th>Transaction</th><th>Area</th></tr></thead><tbody>${sigTxRows}</tbody></table>
+          </div>
         </div>
       </div>
     </div>

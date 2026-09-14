@@ -1513,7 +1513,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v7.1.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v7.2.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -4141,6 +4141,11 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"7.2.0", date:"2026-09-14", items:[
+    "Settings > Files: new \"Update Location catalog (one-time migration)\" — if you renamed Markets/Submarkets and reassigned their IDs in a new copy of LISTAS_CAMPOS.xlsx (keeping the old ID_REGION/ID_STATE/ID_MERCADO/ID_SUBMERCADO columns as reference), upload it here to carry those renames over to already-captured Properties/Parks/Land/Offices/Transactions — matched by the old Location ID, not by name, so renamed markets are found correctly. Leaves that file linked as your Configuration file afterward, same as linking it directly.",
+    "Transactions now also carry the 4 hidden Location IDs (Region/State/Market/Submarket) that Buildings/Parks/Land/Offices already had — filled in automatically from the linked record, and covered by \"Fill in Location IDs…\" and the new catalog migration above.",
+    "Fixed a stale comment on \"Fill in Location IDs…\" left over from when Land had its own separate file."
+  ]},
   {version:"7.1.0", date:"2026-09-11", items:[
     "Summary: new \"Submarket\" filter next to \"Market\" — a checklist (search + select all) that lets you narrow the whole report to one or more submarkets, instead of only a single Market at a time.",
     "Field Matrix: Type, List, Used, and Required are now editable directly in the table (Type/List apply to every table that uses that field at once). Edits are highlighted in amber until you click \"Save changes\" — click again to undo before saving.",

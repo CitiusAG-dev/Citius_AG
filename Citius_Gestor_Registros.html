@@ -179,7 +179,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-report-outer{padding:24px 0}
   .mkt-report-placeholder{max-width:520px;margin:60px auto;text-align:center;color:var(--muted);font-size:14px}
   .mkt-report-pages{display:flex;flex-direction:column;align-items:center}
-  .mkt-page{background:#fff;color:#1a1a1a;width:100%;max-width:950px;aspect-ratio:11/8.5;
+  .mkt-page{background:#fff;color:#404040;width:100%;max-width:950px;aspect-ratio:11/8.5;
             box-sizing:border-box;overflow:hidden;font-size:11px;border-top:2px dashed var(--line);margin-top:28px;padding-top:28px}
   .mkt-page:first-child{border-top:none;margin-top:0;padding-top:0}
   /* v7.3.5, pedido explícito del usuario: height:100% — .mkt-cover-page es hijo directo de .mkt-page (alto
@@ -220,9 +220,13 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-cover-grid{display:flex;gap:10px;flex:1;min-height:0}
   .mkt-cover-col{flex:1;display:flex;flex-direction:column;gap:8px;min-height:0}
   .mkt-cover-col:last-child{flex:1.6}
-  .mkt-box{border:1px solid var(--line);border-radius:6px;padding:7px 9px;background:#fff;min-width:0}
-  .mkt-box-title{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;
-                  border-bottom:2px solid var(--accent);padding-bottom:3px;margin-bottom:4px;color:#1a1a1a;flex:0 0 auto}
+  /* v7.3.9, pedido explícito del usuario: sin borde alrededor de cada "tile" (antes border:1px solid), título
+     de cada tile más grande (9.5px -> 13px), y el color de texto base de TODO el reporte pasa de #1a1a1a a
+     #404040 (ver .mkt-page de arriba — cascada hacia abajo; los pocos colores fijos que lo pisaban, como
+     este título, se actualizan también en vez de dejarlos peleando contra la cascada). */
+  .mkt-box{border:none;border-radius:6px;padding:7px 9px;background:#fff;min-width:0}
+  .mkt-box-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;
+                  border-bottom:2px solid var(--accent);padding-bottom:3px;margin-bottom:4px;color:#404040;flex:0 0 auto}
   /* v7.3.2, ajuste de layout tras comparar contra el PDF de referencia: Absorption/Significant Transactions
      se dejan a su alto NATURAL (flex:0 0 auto) — antes `flex:1` los estiraba a la altura completa de la
      columna, y como su contenido real es mucho más corto que eso, cada una de las 3 tablas (Gross/Negative/
@@ -267,10 +271,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-empty{color:var(--muted);font-style:italic;padding:8px 0;text-align:center}
   .mkt-page-header{display:flex;justify-content:space-between;align-items:flex-end;
                     border-bottom:3px solid var(--accent);padding:14px 26px 6px;margin-bottom:8px}
-  .mkt-page-title{margin:0;font-size:20px;font-weight:400;font-family:Georgia,'Times New Roman',serif;color:#1a1a1a}
+  .mkt-page-title{margin:0;font-size:20px;font-weight:400;font-family:Georgia,'Times New Roman',serif;color:#404040}
   .mkt-page-subtitle{font-size:11px;color:var(--muted);margin-top:1px}
   .mkt-page-header-right{display:flex;align-items:center;gap:10px}
-  .mkt-page-year{font-size:13px;font-weight:700;color:#1a1a1a}
+  .mkt-page-year{font-size:13px;font-weight:700;color:#404040}
   .mkt-page-logo{width:26px;height:26px;object-fit:contain}
   /* v7.3.3, bug real reportado por el usuario ("no me imprime todas las hojas") — parte del mismo arreglo:
      una vez que se destrabó el recorte de #resumenView/#resumenScrollArea (ver arriba), esta página SÍ medía
@@ -281,7 +285,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-page-body>.mkt-table.mkt-detail-table{grid-column:1/-1}
   .mkt-donut-row{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between}
   .mkt-donut-panel{flex:1;min-width:140px;text-align:center}
-  .mkt-donut-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px}
+  .mkt-donut-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px}
   .mkt-donut-svg{width:100%;max-width:130px;overflow:visible}
   .mkt-donut-arc{cursor:default}
   .mkt-donut-out-label{font-size:9px;font-weight:700;fill:#1a1a1a}

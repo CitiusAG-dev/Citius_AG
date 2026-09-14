@@ -241,18 +241,23 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-detail-table th{position:static}
   .mkt-empty{color:var(--muted);font-style:italic;padding:8px 0;text-align:center}
   .mkt-page-header{display:flex;justify-content:space-between;align-items:flex-end;
-                    border-bottom:3px solid var(--accent);padding:22px 30px 10px;margin-bottom:14px}
-  .mkt-page-title{margin:0;font-size:26px;font-weight:400;font-family:Georgia,'Times New Roman',serif;color:#1a1a1a}
-  .mkt-page-subtitle{font-size:12px;color:var(--muted);margin-top:2px}
-  .mkt-page-header-right{display:flex;align-items:center;gap:12px}
-  .mkt-page-year{font-size:15px;font-weight:700;color:#1a1a1a}
-  .mkt-page-logo{width:32px;height:32px;object-fit:contain}
-  .mkt-page-body{padding:0 30px 20px;display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+                    border-bottom:3px solid var(--accent);padding:14px 26px 6px;margin-bottom:8px}
+  .mkt-page-title{margin:0;font-size:20px;font-weight:400;font-family:Georgia,'Times New Roman',serif;color:#1a1a1a}
+  .mkt-page-subtitle{font-size:11px;color:var(--muted);margin-top:1px}
+  .mkt-page-header-right{display:flex;align-items:center;gap:10px}
+  .mkt-page-year{font-size:13px;font-weight:700;color:#1a1a1a}
+  .mkt-page-logo{width:26px;height:26px;object-fit:contain}
+  /* v7.3.3, bug real reportado por el usuario ("no me imprime todas las hojas") — parte del mismo arreglo:
+     una vez que se destrabó el recorte de #resumenView/#resumenScrollArea (ver arriba), esta página SÍ medía
+     más alto que una hoja Carta horizontal real (11x8.5in) — las 4 tablas + fila de donas juntas no cabían,
+     así que un pedazo se corría a una hoja física de más. Se comprime bastante más que en pantalla (donde
+     "se veía bien" dentro de la caja con aspect-ratio, pero a tamaño de impresión REAL no alcanzaba). */
+  .mkt-page-body{padding:0 26px 10px;display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
   .mkt-page-body>.mkt-table.mkt-detail-table{grid-column:1/-1}
-  .mkt-donut-row{grid-column:1/-1;display:flex;gap:12px;flex-wrap:wrap;justify-content:space-between}
-  .mkt-donut-panel{flex:1;min-width:220px;text-align:center}
-  .mkt-donut-title{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px}
-  .mkt-donut-svg{width:100%;max-width:210px;overflow:visible}
+  .mkt-donut-row{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between}
+  .mkt-donut-panel{flex:1;min-width:140px;text-align:center}
+  .mkt-donut-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px}
+  .mkt-donut-svg{width:100%;max-width:130px;overflow:visible}
   .mkt-donut-arc{cursor:default}
   .mkt-donut-out-label{font-size:9px;font-weight:700;fill:#1a1a1a}
   .mkt-donut-out-pct{font-size:9px;fill:var(--muted)}
@@ -1170,6 +1175,16 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   body.printing-mktreport #resumenHeaderBar{display:none}
   body.printing-mktreport .main{margin-left:0}
   body.printing-mktreport #mktReportPages{width:100%}
+  /* v7.3.3, bug real reportado por el usuario: "solo imprime lo que veo en pantalla" — a diferencia de
+     Presentación (`.presentationview`, SIN overflow propio — ver ahí), #resumenView usa la clase `.wrap`
+     (overflow:hidden, para el scroll normal de KPI's) y #resumenScrollArea adentro tiene su propio
+     overflow-y:auto — 2 capas de recorte con alto fijo, calculado a partir del viewport EN PANTALLA. Chrome
+     imprime lo que sea que quepa en esa caja ya recortada, nunca el contenido completo debajo — ninguna
+     combinación de page-break-* en `.mkt-page` puede "destrabar" eso, el recorte pasa ANTES de llegar a
+     paginar. Se liberan las 2 capas (alto automático, sin recorte) mientras se imprime, para que las 5
+     páginas completas queden en el flujo normal del documento y sí las alcance la paginación real. */
+  body.printing-mktreport #resumenView{overflow:visible;height:auto}
+  body.printing-mktreport #resumenScrollArea{overflow:visible;height:auto;padding:0}
   table{border-collapse:collapse;width:100%;font-size:12px}
   th,td{padding:6px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
   th{background:var(--panel-2);color:var(--muted);font-weight:600;position:sticky;top:0;font-size:11.5px;

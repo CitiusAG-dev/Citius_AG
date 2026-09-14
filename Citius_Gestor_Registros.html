@@ -354,7 +354,12 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      se quedan igual, tienen su propio font-size:9.5px explícito, no heredan de esta base) y filas un poco
      menos altas todavía (padding vertical 3px -> 2px) para que la tabla se vea más compacta. */
   .mkt-box .mkt-absorption-table{font-size:9px;table-layout:fixed;width:100%}
-  .mkt-box .mkt-absorption-table th{background:#e6e6e6;padding:3px 8px;font-size:9.5px;color:#404040;text-align:center}
+  /* v7.3.25, bug real reportado por el usuario (con captura): el header 1Q/2Q/3Q/4Q/YTD estaba centrado
+     pero las celdas de datos (.num-cell) van alineadas a la derecha — la columna YTD en particular se veía
+     "descuadrada" porque el número (a la derecha) no quedaba debajo de su título (centrado). Ahora el header
+     también va a la derecha, igual que los datos — todo alineado a la derecha correctamente. La celda-etiqueta
+     (GROSS / el <th colspan> de Negative-Net) se queda a la izquierda vía .mkt-absorption-th-label, sin cambio. */
+  .mkt-box .mkt-absorption-table th{background:#e6e6e6;padding:3px 8px;font-size:9.5px;color:#404040;text-align:right}
   .mkt-box .mkt-absorption-table th.mkt-absorption-th-label{text-align:left}
   .mkt-box .mkt-absorption-table td{padding:2px 8px;border-right:1px solid var(--line)}
   .mkt-box .mkt-absorption-table td:last-child{border-right:none}

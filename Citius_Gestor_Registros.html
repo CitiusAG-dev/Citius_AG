@@ -270,7 +270,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-box .resumen-block{margin-bottom:0}
   .mkt-box .resumen-subtitle{font-size:7px;margin:0 0 1px;color:var(--muted);flex:0 0 auto}
   .mkt-box .resumen-scroll{border:none;border-radius:0;background:transparent;overflow:visible;flex:1;min-height:0}
-  .mkt-box table.resumen-table{table-layout:auto;font-size:7px}
+  /* v7.3.15, pedido explícito del usuario: mismo tamaño de letra que la tabla Market (.mkt-table-plain,
+     9.5px) — antes 7px, se notaba la inconsistencia entre Absorption (reusa resumen-table de KPI's) y
+     Market (su propia clase). */
+  .mkt-box table.resumen-table{table-layout:auto;font-size:9.5px}
   .mkt-box table.resumen-table th,.mkt-box table.resumen-table td{padding:1.5px 4px;white-space:nowrap;
                                                                      border-right:none;overflow-wrap:normal;word-break:normal}
   .mkt-box table.resumen-table thead th{background:transparent;color:var(--muted);font-size:1em;font-weight:700;
@@ -287,11 +290,28 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-table-plain{font-size:11px}
   .mkt-table-plain td{border-bottom:1px dotted var(--line);padding:4.5px 0}
   .mkt-table-plain tr:last-child td{border-bottom:none}
-  .mkt-box .mkt-table-plain{font-size:9px}
-  .mkt-box .mkt-table-plain td{padding:2.5px 0}
+  /* Significant Transactions (portada) — su propia clase, aparte de .mkt-box .mkt-table genérico (ese
+     también lo usan las tablas compactas de las páginas 2/4, ya ajustadas para caber en una sola hoja física
+     al imprimir — aflojarlas de más ahí reintroduciría el bug de páginas de más, ver v7.3.3). */
+  .mkt-box .mkt-sigtx-table{font-size:10px}
+  .mkt-box .mkt-sigtx-table th{padding:5px 8px;font-size:8.5px}
+  .mkt-box .mkt-sigtx-table td{padding:6px 8px}
   .mkt-box .mkt-table{font-size:8.5px}
   .mkt-box .mkt-table th{padding:2.5px 4px;font-size:7.5px}
   .mkt-box .mkt-table td{padding:2px 4px}
+  /* v7.3.14/15, pedido explícito del usuario: la tabla Market (el único lugar que usa .mkt-table-plain) se
+     veía "muy pegada" — más aire (padding vertical y horizontal, antes 0 horizontal) — y una línea vertical
+     entre la columna de etiqueta y la de valor (antes no había separación de columnas en absoluto, solo la
+     línea horizontal de fila). Solo los 3 renglones marcados por marketRowsHtml (ver ahí) llevan negritas —
+     antes TODOS los valores iban en <b>. Este bloque va DESPUÉS de `.mkt-box .mkt-table` (arriba) a propósito
+     — la tabla Market usa AMBAS clases juntas (`class="mkt-table mkt-table-plain"`), y con la misma
+     especificidad para las dos, el orden en la hoja de estilos decide el empate; puesto antes, el
+     font-size:8.5px de `.mkt-table` genérico le ganaba silenciosamente a este 9.5px (bug real reportado por
+     el usuario: "el tamaño de letra... no lo veo igual" entre Market y Absorption). */
+  .mkt-box .mkt-table-plain{font-size:9.5px}
+  .mkt-box .mkt-table-plain td{padding:6px 10px}
+  .mkt-box .mkt-table-plain td:first-child{border-right:1px solid var(--line)}
+  .mkt-box .mkt-table-plain tr.mkt-row-strong td{font-weight:700}
   .mkt-total-row td{background:var(--panel-2);font-weight:700;border-top:1.5px solid var(--txt)}
   .mkt-group-row td{background:#eee;font-weight:700;text-transform:uppercase;font-size:10px;letter-spacing:.3px}
   .mkt-detail-table{font-size:10px}
@@ -6685,19 +6705,22 @@ function mktBuildCoverPage(){
   const area=v=>num(resumenAreaVal(v))+" "+resumenAreaUnitLabel();
   const pct=v=>(v*100).toFixed(2)+"%";
   const money=v=>"US $ "+resumenRateVal(v).toFixed(3);
+  // v7.3.14, pedido explícito del usuario: solo 3 renglones (Total Market, Vacancy Rate, Average Asking
+  // Price) van en negritas — antes TODOS los valores (no las etiquetas) iban en <b>. El 3er elemento de cada
+  // fila marca cuáles.
   const marketRowsHtml=[
-    ["Total Market (Class A & B Bldgs)", area(k.marketAB)],
-    ["+ Class C", area(k.marketABC)],
-    ["Inventory", area(k.inventory)],
-    ["Vacancy Rate", pct(k.vacancyRate)],
-    ["Under Construction", area(k.underConstruction)],
-    ["Sublease", area(k.sublease)],
-    ["Availability", area(k.availability)],
-    ["Availability Rate", pct(k.availabilityRate)],
-    ["Lease Transactions", area(k.leaseTx)],
-    ["Average Asking Price ("+resumenAreaUnitLabel()+"/Mo)", money(k.avgAsking)],
-    ["Land Prices Min - Max ("+resumenAreaUnitLabel()+")", k.landPriceMin||k.landPriceMax?`US $ ${resumenRateVal(k.landPriceMin).toFixed(2)} - ${resumenRateVal(k.landPriceMax).toFixed(2)}`:"—"]
-  ].map(([label,value])=>`<tr><td>${escapeHtml(label)}</td><td class="num-cell"><b>${value}</b></td></tr>`).join("");
+    ["Total Market (Class A & B Bldgs)", area(k.marketAB), true],
+    ["+ Class C", area(k.marketABC), false],
+    ["Inventory", area(k.inventory), false],
+    ["Vacancy Rate", pct(k.vacancyRate), true],
+    ["Under Construction", area(k.underConstruction), false],
+    ["Sublease", area(k.sublease), false],
+    ["Availability", area(k.availability), false],
+    ["Availability Rate", pct(k.availabilityRate), false],
+    ["Lease Transactions", area(k.leaseTx), false],
+    ["Average Asking Price ("+resumenAreaUnitLabel()+"/Mo)", money(k.avgAsking), true],
+    ["Land Prices Min - Max ("+resumenAreaUnitLabel()+")", k.landPriceMin||k.landPriceMax?`US $ ${resumenRateVal(k.landPriceMin).toFixed(2)} - ${resumenRateVal(k.landPriceMax).toFixed(2)}`:"—", false]
+  ].map(([label,value,strong])=>`<tr class="${strong?"mkt-row-strong":""}"><td>${escapeHtml(label)}</td><td class="num-cell">${value}</td></tr>`).join("");
   const sigTx=mktSignificantTransactions(4);
   const sigTxRows=sigTx.length?sigTx.map(t=>`<tr><td>${escapeHtml(t.tenant)}</td><td>${escapeHtml(t.buildingType)}</td><td>${escapeHtml(t.dealType)}</td><td class="num-cell">${num(resumenAreaVal(t.areaSF))} ${resumenAreaUnitLabel()}</td></tr>`).join("")
     : `<tr><td colspan="4" class="mkt-empty">No transactions.</td></tr>`;
@@ -6754,7 +6777,7 @@ function mktBuildCoverPage(){
           </div>
           <div class="mkt-box mkt-box-sigtx">
             <div class="mkt-box-title">Significant Transactions</div>
-            <table class="mkt-table"><thead><tr><th>Tenant/Buyer</th><th>Building Type</th><th>Transaction</th><th>Area</th></tr></thead><tbody>${sigTxRows}</tbody></table>
+            <table class="mkt-table mkt-sigtx-table"><thead><tr><th>Tenant/Buyer</th><th>Building Type</th><th>Transaction</th><th>Area</th></tr></thead><tbody>${sigTxRows}</tbody></table>
           </div>
         </div>
       </div>

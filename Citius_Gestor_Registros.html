@@ -211,6 +211,13 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      empiece más abajo — solo arriba, no abajo (así el bloque de equipo no se mueve, sigue anclado al fondo
      por justify-content:space-between). */
   .mkt-cover-sidebar{flex:0 0 25%;background:#767676;color:#fff;padding:100px 22px 30px;display:flex;flex-direction:column;justify-content:space-between}
+  /* v7.3.21, pedido explícito del usuario (con imagen de referencia): recuadro angosto dorado al lado
+     derecho del panel gris, desde la altura de la línea del Mercado hasta abajo de la hoja. .mkt-cover-page
+     es flex (row) con height:100% (ver arriba) y align-items:stretch por default — un margin-top en este
+     3er hijo (entre sidebar y main) hace que se "recorte" desde arriba (empieza más abajo) pero se siga
+     estirando hasta el fondo real de la hoja, sin necesitar position:absolute. El margin-top se calibró
+     midiendo dónde cae de verdad la línea bajo el título (ver mkt-cover-title/titleblock). */
+  .mkt-cover-accent{flex:0 0 7px;background:var(--accent);margin-top:208px}
   /* v7.3.8, pedido explícito del usuario: la línea dorada pasa de .mkt-cover-title (display:inline-block,
      solo tan ancha como el texto) a .mkt-cover-titleblock (bloque normal, tan ancho como el panel gris menos
      su padding) — "que se extienda hasta donde termina el panel gris" — y bastante más delgada (3px -> 1px). */
@@ -228,7 +235,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-cover-subtitle{font-size:17px;font-weight:300;margin-top:6px;font-family:'Unitext',Arial,sans-serif}
   .mkt-cover-year{font-size:13px;font-weight:300;opacity:.85;font-family:'Unitext',Arial,sans-serif}
   .mkt-cover-team{display:flex;flex-direction:column;gap:16px;text-align:right}
-  .mkt-cover-person-name{font-size:25px;font-family:'Dala Moa',Georgia,serif;margin-bottom:2px}
+  .mkt-cover-person-name{font-size:27px;font-family:'Dala Moa',Georgia,serif;margin-bottom:2px}
   .mkt-cover-person-role{font-size:13px;font-weight:700;font-family:'Unitext',Arial,sans-serif}
   .mkt-cover-person-addr{font-size:12.5px;font-weight:300;opacity:.9;font-family:'Unitext',Arial,sans-serif;line-height:1.4}
   .mkt-cover-person-phone{font-size:12.5px;font-weight:300;opacity:.9;font-family:'Unitext',Arial,sans-serif}
@@ -289,6 +296,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      — al ser el mismo SVG con viewBox fijo, escalarlo también engruesa el anillo proporcionalmente, sin
      tocar el SW compartido con las 8 donas de las páginas 2/4). */
   .mkt-box-avail .mkt-donut-svg{max-width:240px;margin:0 auto}
+  /* v7.3.20, pedido explícito del usuario: etiquetas de la dona de Availability con letra más grande — solo
+     ahí (no las 8 donas de páginas 2/4, ya muy compactas para caber en una sola hoja al imprimir). */
+  .mkt-box-avail .mkt-donut-out-label,.mkt-box-avail .mkt-donut-out-pct{font-size:12px}
   .mkt-table{width:100%;border-collapse:collapse;font-size:10.5px}
   .mkt-table th{background:var(--panel-2);color:var(--muted);font-weight:700;text-transform:uppercase;
                  font-size:9px;letter-spacing:.3px;padding:5px 6px;text-align:left;border-bottom:1px solid var(--line)}
@@ -334,11 +344,17 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      distinto) — con datos reales distintos entre Gross/Negative/Net, las columnas podían volver a desalinearse
      más adelante. table-layout:fixed + un <colgroup> con los MISMOS porcentajes en las 3 tablas (ver
      mktAbsorptionTableHtml) garantiza columnas idénticas sin importar el contenido real de cada una. */
+  /* v7.3.20, pedido explícito del usuario: filas un poco menos altas (padding vertical 4px -> 3px), la
+     celda-etiqueta (GROSS / el <th colspan> de Negative-Net) alineada a la izquierda (el resto de headers de
+     Gross, 1Q-YTD, se quedan centrados), y sin línea al final de cada tabla (border-bottom del último
+     renglón, la fila de Total). */
   .mkt-box .mkt-absorption-table{font-size:9.5px;table-layout:fixed;width:100%}
-  .mkt-box .mkt-absorption-table th{background:#e6e6e6;padding:4px 8px;font-size:9.5px;color:#404040;text-align:center}
-  .mkt-box .mkt-absorption-table td{padding:4px 8px;border-right:1px solid var(--line)}
+  .mkt-box .mkt-absorption-table th{background:#e6e6e6;padding:3px 8px;font-size:9.5px;color:#404040;text-align:center}
+  .mkt-box .mkt-absorption-table th.mkt-absorption-th-label{text-align:left}
+  .mkt-box .mkt-absorption-table td{padding:3px 8px;border-right:1px solid var(--line)}
   .mkt-box .mkt-absorption-table td:last-child{border-right:none}
   .mkt-box .mkt-absorption-table tr.mkt-total-row td{background:transparent}
+  .mkt-box .mkt-absorption-table tr:last-child td{border-bottom:none}
   .mkt-total-row td{background:var(--panel-2);font-weight:700;border-top:1.5px solid var(--txt)}
   .mkt-group-row td{background:#eee;font-weight:700;text-transform:uppercase;font-size:10px;letter-spacing:.3px}
   .mkt-detail-table{font-size:10px}
@@ -6652,7 +6668,7 @@ function mktDonutColorForIndex(i){
    generalizada para cualquier lista de {label,value} en vez de estar atada a "Submercado", con la paleta de
    marca de arriba en vez de la de KPI's — la usan las 8 donas nuevas de las páginas 2 y 4 del reporte
    (Quarter/Count/Type/Deal, Class/Count/Status/Generation), además de la de Availability de la portada. */
-function mktDonutHtml(title, data, unitLabel){
+function mktDonutHtml(title, data, unitLabel, strokeWidth){
   const fmt=v=>Math.round(v).toLocaleString("en-US");
   const filtered=data.filter(d=>d.value>0);
   const total=filtered.reduce((a,d)=>a+d.value,0);
@@ -6660,7 +6676,10 @@ function mktDonutHtml(title, data, unitLabel){
     return `<div class="mkt-donut-panel"><div class="mkt-donut-title">${escapeHtml(title)}</div><p class="mkt-donut-empty">No data.</p></div>`;
   }
   const slices=filtered.map((d,i)=>({...d, color:mktDonutColorForIndex(i)}));
-  const CX=160, CY=160, R=90, SW=28, CIRC=2*Math.PI*R;
+  // v7.3.20, pedido explícito del usuario ("más gordita"): SW (grosor del anillo) ahora es un 4to argumento
+  // opcional, default 28 (el mismo de siempre, para las 8 donas de las páginas 2/4 — a ese tamaño más chico,
+  // un anillo más grueso se vería desproporcionado). Solo Availability (portada) pasa un valor mayor.
+  const CX=160, CY=160, R=90, SW=strokeWidth||28, CIRC=2*Math.PI*R;
   // v7.3.19, pedido explícito del usuario: separación blanca muy delgada entre cada slice (GAP, "un stroke
   // de cada slice en blanco") — como el donut se dibuja con `stroke-dasharray` sobre un `<circle>` (no con
   // `<path>` por segmento), no hay un borde real que pintar; se logra el mismo efecto recortando un pedacito
@@ -6725,11 +6744,16 @@ function mktAbsorptionTableHtml(firstColLabel, firstColSuffix, showQuarterHeader
   // referencie, las 3 tablas ya no alineaban sus columnas entre sí. Con el header vacío de todos modos (no
   // hay texto real que alinear), un solo <th colspan="6"> evita que el ancho de esa celda dependa del texto
   // largo — las columnas del cuerpo (números reales, mismo ancho en las 3 tablas) son las que mandan.
+  // v7.3.20, pedido explícito del usuario: el texto de la celda-etiqueta (GROSS, o el <th colspan> de
+  // Negative/Net) va alineado a la izquierda — mkt-absorption-th-label, distinta del resto de headers
+  // (1Q/2Q/3Q/4Q/YTD en Gross), que se quedan centrados.
   const labelHtml=`${escapeHtml(firstColLabel)}${firstColSuffix?` <span class="mkt-label-normal">${escapeHtml(firstColSuffix)}</span>`:""}`;
   const headerCells=showQuarterHeaders
-    ? `<th>${labelHtml}</th>`+["1Q","2Q","3Q","4Q","YTD"].map(h=>`<th>${h}</th>`).join("")
-    : `<th colspan="6">${labelHtml}</th>`;
-  const colgroupHtml=`<colgroup><col style="width:28%"><col style="width:14.4%"><col style="width:14.4%"><col style="width:14.4%"><col style="width:14.4%"><col style="width:14.4%"></colgroup>`;
+    ? `<th class="mkt-absorption-th-label">${labelHtml}</th>`+["1Q","2Q","3Q","4Q","YTD"].map(h=>`<th>${h}</th>`).join("")
+    : `<th colspan="6" class="mkt-absorption-th-label">${labelHtml}</th>`;
+  // v7.3.20, pedido explícito del usuario: columna de Submarket ~8px más angosta (28% -> 25% de la tabla),
+  // el espacio sobrante se reparte entre las otras 5 columnas (14.4% -> 15% cada una: 25+15*5=100%).
+  const colgroupHtml=`<colgroup><col style="width:25%"><col style="width:15%"><col style="width:15%"><col style="width:15%"><col style="width:15%"><col style="width:15%"></colgroup>`;
   return `<table class="mkt-table mkt-absorption-table">${colgroupHtml}<thead><tr>${headerCells}</tr></thead><tbody>${rows}</tbody></table>`;
 }
 function mktMatrixTableHtml(rowCategories, computeFn, opts){
@@ -6829,6 +6853,7 @@ function mktBuildCoverPage(){
         <div class="mkt-cover-website">CitiusAG.com</div>
       </div>
     </div>
+    <div class="mkt-cover-accent"></div>
     <div class="mkt-cover-main">
       <div class="mkt-cover-logo-row"><div class="mkt-cover-logo"><img src="${MKT_REPORT_LOGO_SRC}" alt="Citius AG - Corporate Real Estate Advisors"></div></div>
       <div class="mkt-cover-grid">
@@ -6839,7 +6864,7 @@ function mktBuildCoverPage(){
           </div>
           <div class="mkt-box mkt-box-avail">
             <div class="mkt-box-title">Availability</div>
-            ${mktDonutHtml("", resumenAvailabilityBySubmarket().map(d=>({label:d.submarket.toUpperCase(), value:d.value})), resumenAreaUnitLabel())}
+            ${mktDonutHtml("", resumenAvailabilityBySubmarket().map(d=>({label:d.submarket.toUpperCase(), value:d.value})), resumenAreaUnitLabel(), 40)}
           </div>
         </div>
         <div class="mkt-cover-col">

@@ -386,7 +386,13 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      v7.3.32, pedido explícito del usuario (corrige v7.3.28): el header de YTD también va centrado, igual que
      1Q/2Q/3Q/4Q — se quita el override de .mkt-absorption-th-ytd (el dato en sí se queda alineado a la
      derecha, ver .mkt-absorption-td-ytd más abajo, sin cambio). */
-  .mkt-box .mkt-absorption-table th{background:#e6e6e6;padding:3px 8px;font-size:9.5px;color:#404040;text-align:center}
+  /* v7.3.36, encontrado al probar las tablas "matriz" (Completed Transactions/Available Inventory) con
+     muchos submercados (ancho de columna fijo, ver mktMatrixTableHtml): con `white-space:nowrap` (heredado
+     del `th,td{...}` genérico) y una columna angosta, un nombre largo de submercado (ej. "Cienega de
+     Flores") se recortaba a la mitad ("CIENEGA DE F") sin ningún aviso visual. white-space:normal deja que
+     el encabezado pase a 2 líneas en vez de cortarse — las tablas de Absorption (1Q/2Q/etc., texto corto)
+     no lo notan. */
+  .mkt-box .mkt-absorption-table th{background:#e6e6e6;padding:3px 8px;font-size:9.5px;color:#404040;text-align:center;white-space:normal;line-height:1.25}
   .mkt-box .mkt-absorption-table th.mkt-absorption-th-label{text-align:left}
   .mkt-box .mkt-absorption-table td{padding:2px 8px;border-right:1px solid var(--line)}
   /* v7.3.31, pedido explícito del usuario (con captura): quita el padding-right "de seguridad" solo en la
@@ -414,7 +420,13 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      más alto que una hoja Carta horizontal real (11x8.5in) — las 4 tablas + fila de donas juntas no cabían,
      así que un pedazo se corría a una hoja física de más. Se comprime bastante más que en pantalla (donde
      "se veía bien" dentro de la caja con aspect-ratio, pero a tamaño de impresión REAL no alcanzaba). */
-  .mkt-page-body{padding:0 26px 10px;display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  /* v7.3.36, pedido explícito del usuario (con captura): antes 2 columnas (repeat(2,1fr)) — se veía bien en
+     la vista previa, pero la impresión REAL las mostraba en 1 sola columna (divergencia confirmada entre el
+     layout de pantalla/emulado y el de Page.printToPDF real — el motor de impresión de Chrome parece
+     computar el ancho de la página distinto al de la vista interactiva). En vez de perseguir esa divergencia,
+     se deja fijo en 1 columna siempre — que es, de cualquier forma, cómo el usuario quiere verlas — así
+     preview e impresión quedan idénticos por diseño, no por casualidad de a qué ancho caiga cada media query. */
+  .mkt-page-body{padding:0 26px 10px;display:grid;grid-template-columns:1fr;gap:10px}
   .mkt-page-body>.mkt-table.mkt-detail-table{grid-column:1/-1}
   .mkt-donut-row{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between}
   .mkt-donut-panel{flex:1;min-width:140px;text-align:center}
@@ -426,7 +438,6 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-donut-leader{stroke:#9aa0a6;stroke-width:1;stroke-dasharray:2,2}
   .mkt-donut-out-pct{font-size:9px;fill:var(--muted)}
   .mkt-donut-empty{color:var(--muted);font-size:10px;font-style:italic}
-  @media(max-width:900px){ .mkt-cover-grid{grid-template-columns:1fr} .mkt-page-body{grid-template-columns:1fr} }
   /* "Tool Usage" — gráfica de barras al fondo de Resumen. `.resumen-usage-header` reemplaza el
      margin-top:48px de `.resumen-section-title` de siempre (aquí puesto en 0 desde el HTML) por el margen
      del contenedor, para poder alinear el título+nota a la izquierda con los 2 selectores (Documento/
@@ -6867,6 +6878,17 @@ function mktAbsorptionTableHtml(firstColLabel, firstColSuffix, showQuarterHeader
   const colgroupHtml=`<colgroup><col style="width:23.75%"><col style="width:14.25%"><col style="width:14.25%"><col style="width:14.25%"><col style="width:14.25%"><col style="width:19.25%"></colgroup>`;
   return `<table class="mkt-table mkt-absorption-table">${colgroupHtml}<thead><tr>${headerCells}</tr></thead><tbody>${rows}</tbody></table>`;
 }
+/* v7.3.36, pedido explícito del usuario: las tablas "matriz" de las páginas 2/4 (Completed Transactions,
+   Building Count, Building Type, Deal / Available Inventory, Class, Status, Generation) pasan a tener el
+   MISMO estilo que las de Absorption de la portada — header gris #e6e6e6, columnas de ancho FIJO (mismo
+   criterio que mktAbsorptionTableHtml: un <colgroup> con los mismos porcentajes en las 4 tablas de cada
+   página, para que al apilarlas en una sola columna sus columnas de datos queden perfectamente alineadas
+   una arriba de otra sin importar qué tan largo sea el texto de cada tabla). El título que antes iba en un
+   `.mkt-box-title` APARTE (ej. "Completed Transactions (SF)") ahora vive DENTRO de la tabla, en la celda de
+   encabezado de la 1ra columna (`opts.tableLabel`) — exactamente como "GROSS"/"NEGATIVE"/"NET" en
+   Absorption, en vez de una línea de título repetida arriba de cada tabla. La columna Total ya NO va en
+   negritas por renglón (solo el renglón de Total general, negritas por CSS) — mismo criterio que se aplicó
+   a la columna YTD de Absorption. */
 function mktMatrixTableHtml(rowCategories, computeFn, opts){
   opts=opts||{};
   const subs=resumenSubmarkets();
@@ -6879,10 +6901,16 @@ function mktMatrixTableHtml(rowCategories, computeFn, opts){
   const colTotals=subs.map((sm,i)=>rows.reduce((a,r)=>a+r.vals[i],0));
   const grandTotal=colTotals.reduce((a,b)=>a+b,0);
   const unitSfx=opts.unitSuffix?` ${opts.unitSuffix}`:"";
-  const headerCells=subs.map(sm=>`<th>${escapeHtml(sm.toUpperCase())}</th>`).join("")+`<th>TOTAL</th>`;
-  const bodyRows=rows.map(r=>`<tr><td>${escapeHtml(r.label)}</td>${r.vals.map(v=>`<td class="num-cell">${fmt(v)}</td>`).join("")}<td class="num-cell"><b>${fmt(r.total)}${unitSfx}</b></td></tr>`).join("");
+  const headerCells=`<th class="mkt-absorption-th-label">${escapeHtml(opts.tableLabel||"")}</th>`
+    +subs.map(sm=>`<th>${escapeHtml(sm.toUpperCase())}</th>`).join("")+`<th>TOTAL</th>`;
+  const bodyRows=rows.map(r=>`<tr><td>${escapeHtml(r.label)}</td>${r.vals.map(v=>`<td class="num-cell">${fmt(v)}</td>`).join("")}<td class="num-cell">${fmt(r.total)}${unitSfx}</td></tr>`).join("");
   const totalRow=`<tr class="mkt-total-row"><td>${escapeHtml(opts.totalRowLabel||"Total")}</td>${colTotals.map(v=>`<td class="num-cell">${fmt(v)}${unitSfx}</td>`).join("")}<td class="num-cell">${fmt(grandTotal)}${unitSfx}</td></tr>`;
-  return `<table class="mkt-table"><thead><tr><th></th>${headerCells}</tr></thead><tbody>${bodyRows}${totalRow}</tbody></table>`;
+  // Ancho fijo: 1ra columna (etiqueta de fila, ej. "Q1"/"Spec to Suit") más ancha (22%), el resto
+  // (submercados + Total) se reparten el resto por igual — igual fórmula en las 4 tablas de la página
+  // (todas comparten el mismo número de submercados), así quedan idénticas al apilarse.
+  const dataColPct=(78/(subs.length+1)).toFixed(3);
+  const colgroupHtml=`<colgroup><col style="width:22%">${subs.map(()=>`<col style="width:${dataColPct}%">`).join("")}<col style="width:${dataColPct}%"></colgroup>`;
+  return `<table class="mkt-table mkt-absorption-table">${colgroupHtml}<thead><tr>${headerCells}</tr></thead><tbody>${bodyRows}${totalRow}</tbody></table>`;
 }
 /* Top N transacciones (por "Transaction Area") del año/filtro activo — "Significant Transactions" de la
    portada (página 1). Solo "Absorption Type"="Gross" (mismo criterio que "Lease Transactions" del KPI y
@@ -7020,18 +7048,19 @@ function mktBuildTxSummaryPage(){
   const txGross=r=>ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd;
   const quarterTable=mktMatrixTableHtml([1,2,3,4].map(q=>({key:q,label:"Q"+q})),
     (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); },
-    {isArea:true, unitSuffix:resumenAreaUnitLabel()});
+    {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:`Completed Transactions (${resumenAreaUnitLabel()})`});
   const bucketCategories=RESUMEN_SIZE_BUCKETS.map(b=>({key:b,label:resumenSizeBucketLabel(b)}));
   const countTable=mktMatrixTableHtml(bucketCategories,
-    (sm,bucket)=>countByPredicate(state.TRANSACCIONES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&txGross(r)&&inSizeBucket(resumenAreaVal(areaValueInSF(r,"TRANSACTION_AREA")),bucket)));
+    (sm,bucket)=>countByPredicate(state.TRANSACCIONES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&txGross(r)&&inSizeBucket(resumenAreaVal(areaValueInSF(r,"TRANSACTION_AREA")),bucket)),
+    {tableLabel:"Building Count"});
   const typeCategories=[{key:"Inventory",label:"Inventory"},{key:"Expansion",label:"Expansion"},{key:"STS",label:"Spec to Suit"},{key:"BTS",label:"Build to Suit"}];
   const typeTable=mktMatrixTableHtml(typeCategories,
     (sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.BUILDING_TYPE,type)&&txGross(r)),
-    {isArea:true, unitSuffix:resumenAreaUnitLabel()});
+    {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:`Building Type (${resumenAreaUnitLabel()})`});
   const dealCategories=resumenFieldListValues("TRANSACCIONES","TRANSACCION_TYPE").map(t=>({key:t,label:t}));
   const dealTable=mktMatrixTableHtml(dealCategories,
     (sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,type)&&txGross(r)),
-    {isArea:true, unitSuffix:resumenAreaUnitLabel()});
+    {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:`Deal (${resumenAreaUnitLabel()})`});
   const T=(state.TRANSACCIONES||[]).filter(r=>resumenMarketMatches(r,"TRANSACCIONES")&&txGross(r));
   const quarterDonutData=[1,2,3,4].map(q=>({label:"Q"+q, value:sumByPredicate(T,"TRANSACTION_AREA", r=>quarterOfDate(r.TRANSACTION_DATE)===q)}));
   const countDonutData=RESUMEN_SIZE_BUCKETS.map(b=>({label:resumenSizeBucketLabel(b), value:countByPredicate(T, r=>inSizeBucket(resumenAreaVal(areaValueInSF(r,"TRANSACTION_AREA")),b))}));
@@ -7040,10 +7069,10 @@ function mktBuildTxSummaryPage(){
   return `<div class="mkt-page">
     ${mktPageHeaderHtml("Completed Transactions")}
     <div class="mkt-page-body">
-      <div class="mkt-box"><div class="mkt-box-title">Completed Transactions (${resumenAreaUnitLabel()})</div>${quarterTable}</div>
-      <div class="mkt-box"><div class="mkt-box-title">Building Count</div>${countTable}</div>
-      <div class="mkt-box"><div class="mkt-box-title">Building Type (${resumenAreaUnitLabel()})</div>${typeTable}</div>
-      <div class="mkt-box"><div class="mkt-box-title">Deal (${resumenAreaUnitLabel()})</div>${dealTable}</div>
+      <div class="mkt-box">${quarterTable}</div>
+      <div class="mkt-box">${countTable}</div>
+      <div class="mkt-box">${typeTable}</div>
+      <div class="mkt-box">${dealTable}</div>
       <div class="mkt-donut-row">
         ${mktDonutHtml("Quarter", quarterDonutData, resumenAreaUnitLabel())}
         ${mktDonutHtml("Count", countDonutData, "")}
@@ -7086,21 +7115,22 @@ function mktBuildTxDetailPage(){
 function mktBuildAvailSummaryPage(){
   const isAB=r=>ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B");
   const availTable=mktMatrixTableHtml([{key:"__avail__",label:"Availability"}],
-    (sm)=>resumenAvailabilityForSubmarket(sm), {isArea:true, unitSuffix:resumenAreaUnitLabel()});
+    (sm)=>resumenAvailabilityForSubmarket(sm), {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:`Available Inventory (${resumenAreaUnitLabel()})`});
   const classCategories=[{key:"A",label:"Class A"},{key:"B",label:"Class B"}];
   const classTable=mktMatrixTableHtml(classCategories,
-    (sm,cls)=>resumenAvailabilityForSubmarket(sm, r=>ciEq(r.CLASSIFICATION,cls)), {isArea:true, unitSuffix:resumenAreaUnitLabel()});
+    (sm,cls)=>resumenAvailabilityForSubmarket(sm, r=>ciEq(r.CLASSIFICATION,cls)), {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:`Class (${resumenAreaUnitLabel()})`});
   const bucketCategories=RESUMEN_SIZE_BUCKETS.map(b=>({key:b,label:resumenSizeBucketLabel(b)}));
   const countTable=mktMatrixTableHtml(bucketCategories,
-    (sm,bucket)=>countByPredicate(state.PROPIEDADES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.MARKET_STATUS,"Available")&&inSizeBucket(resumenAreaVal(areaValueInSF(r,"AVAILABLE_AREA_VALUE")),bucket)));
+    (sm,bucket)=>countByPredicate(state.PROPIEDADES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.MARKET_STATUS,"Available")&&inSizeBucket(resumenAreaVal(areaValueInSF(r,"AVAILABLE_AREA_VALUE")),bucket)),
+    {tableLabel:"Building Count"});
   const statusCategories=resumenFieldListValues("PROPIEDADES","STATUS").map(s=>({key:s,label:s}));
   const statusComputeFn=(sm,status)=>status==="Under Construction"
     ? sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.STATUS,status)&&ciEq(r.MARKET_STATUS,"Available"))
     : sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.STATUS,status)&&ciEq(r.MARKET_STATUS,"Available"));
-  const statusTable=mktMatrixTableHtml(statusCategories, statusComputeFn, {isArea:true, unitSuffix:resumenAreaUnitLabel()});
+  const statusTable=mktMatrixTableHtml(statusCategories, statusComputeFn, {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:`Status (${resumenAreaUnitLabel()})`});
   const genCategories=[{key:"New",label:"New"},{key:"2nd",label:"2nd Gen"}];
   const genTable=mktMatrixTableHtml(genCategories,
-    (sm,gen)=>resumenAvailabilityForSubmarket(sm, r=>isAB(r)&&ciEq(r.BUILDING_GENERATION,gen)), {isArea:true, unitSuffix:resumenAreaUnitLabel()});
+    (sm,gen)=>resumenAvailabilityForSubmarket(sm, r=>isAB(r)&&ciEq(r.BUILDING_GENERATION,gen)), {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:`Generation (${resumenAreaUnitLabel()})`});
   const P=(state.PROPIEDADES||[]).filter(r=>resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.MARKET_STATUS,"Available"));
   const classDonutData=classCategories.map(c=>({label:c.label, value:resumenSubmarkets().reduce((a,sm)=>a+resumenAvailabilityForSubmarket(sm, r=>ciEq(r.CLASSIFICATION,c.key)),0)}));
   const countDonutData=bucketCategories.map(b=>({label:b.label, value:countByPredicate(P, r=>inSizeBucket(resumenAreaVal(areaValueInSF(r,"AVAILABLE_AREA_VALUE")),b.key))}));
@@ -7109,11 +7139,11 @@ function mktBuildAvailSummaryPage(){
   return `<div class="mkt-page">
     ${mktPageHeaderHtml("Available Inventory")}
     <div class="mkt-page-body">
-      <div class="mkt-box"><div class="mkt-box-title">Available Inventory (${resumenAreaUnitLabel()})</div>${availTable}</div>
-      <div class="mkt-box"><div class="mkt-box-title">Class (${resumenAreaUnitLabel()})</div>${classTable}</div>
-      <div class="mkt-box"><div class="mkt-box-title">Building Count</div>${countTable}</div>
-      <div class="mkt-box"><div class="mkt-box-title">Status (${resumenAreaUnitLabel()})</div>${statusTable}</div>
-      <div class="mkt-box"><div class="mkt-box-title">Generation (${resumenAreaUnitLabel()})</div>${genTable}</div>
+      <div class="mkt-box">${availTable}</div>
+      <div class="mkt-box">${classTable}</div>
+      <div class="mkt-box">${countTable}</div>
+      <div class="mkt-box">${statusTable}</div>
+      <div class="mkt-box">${genTable}</div>
       <div class="mkt-donut-row">
         ${mktDonutHtml("Class", classDonutData, resumenAreaUnitLabel())}
         ${mktDonutHtml("Count", countDonutData, "")}

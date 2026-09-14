@@ -252,9 +252,12 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      título (border-bottom, ancho completo del tile) — va SEGUIDA del texto, en la misma línea/renglón, como
      "MARKET ────────". Un ::after con flex:1 rellena el resto del ancho disponible; color de la línea = color
      del texto (#404040) en vez del dorado de antes. */
+  /* v7.3.17, pedido explícito del usuario: la línea (::after) baja de align-items:center (quedaba a media
+     altura del texto) a flex-end — a la altura de la base del texto ("donde empieza el texto, la parte de
+     abajo"), no centrada contra todo el alto de la línea de texto. */
   .mkt-box-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;
-                  margin-bottom:4px;color:#404040;flex:0 0 auto;display:flex;align-items:center;gap:8px}
-  .mkt-box-title::after{content:"";flex:1;height:1px;background:#404040;min-width:0}
+                  margin-bottom:4px;color:#404040;flex:0 0 auto;display:flex;align-items:flex-end;gap:8px}
+  .mkt-box-title::after{content:"";flex:1;height:1px;background:#404040;min-width:0;margin-bottom:2px}
   /* v7.3.2, ajuste de layout tras comparar contra el PDF de referencia: Absorption/Significant Transactions
      se dejan a su alto NATURAL (flex:0 0 auto) — antes `flex:1` los estiraba a la altura completa de la
      columna, y como su contenido real es mucho más corto que eso, cada una de las 3 tablas (Gross/Negative/
@@ -312,6 +315,16 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-box .mkt-table-plain td{padding:6px 10px}
   .mkt-box .mkt-table-plain td:first-child{border-right:1px solid var(--line)}
   .mkt-box .mkt-table-plain tr.mkt-row-strong td{font-weight:700}
+  .mkt-label-normal{font-weight:400}
+  /* Absorción (GROSS/NEGATIVE/NET) — v7.3.17/18, pedido explícito del usuario (con imagen de referencia):
+     más aire que el resto de tablas compactas de .mkt-box (ver .mkt-box .mkt-table más abajo, esas siguen
+     apretadas a propósito, ver v7.3.3), fondo gris #e6e6e6 en el header, y línea vertical entre cada columna
+     (border-right en todas menos la última). */
+  .mkt-box .mkt-absorption-table{font-size:9.5px}
+  .mkt-box .mkt-absorption-table th{background:#e6e6e6;padding:4px 8px;font-size:9.5px;border-right:1px solid #fff}
+  .mkt-box .mkt-absorption-table th:last-child{border-right:none}
+  .mkt-box .mkt-absorption-table td{padding:4px 8px;border-right:1px solid var(--line)}
+  .mkt-box .mkt-absorption-table td:last-child{border-right:none}
   .mkt-total-row td{background:var(--panel-2);font-weight:700;border-top:1.5px solid var(--txt)}
   .mkt-group-row td{background:#eee;font-weight:700;text-transform:uppercase;font-size:10px;letter-spacing:.3px}
   .mkt-detail-table{font-size:10px}
@@ -6658,6 +6671,33 @@ function mktDonutHtml(title, data, unitLabel){
    columnas=categoría), que es como el PDF de referencia arma "Completed Transactions"/"Available Inventory"
    (páginas 2 y 4). `computeFn(sm, catKey)` recibe Submercado + la categoría de esa fila; `opts.isArea`
    convierte con resumenAreaVal() igual que el resto del Resumen. */
+/* Tabla de Absorción de la portada (GROSS/NEGATIVE/NET) — v7.3.17/18, pedido explícito del usuario (con
+   imagen de referencia): ya no reusa resumenQuarterTableHtml() (compartida con KPI's, columna 1 siempre dice
+   "Submarket" y el header Q1-Q4/YTD siempre se repite) — acá la columna 1 dice el nombre de la tabla (GROSS/
+   NEGATIVE/NET, con un sufijo opcional en peso normal, ej. "(Deliveries 2nd Gen)"), y las tablas 2/3 pueden
+   ocultar el texto de los headers Q1-Q4/YTD (siguen ahí las celdas, solo sin texto — ya se ven en la 1ra
+   tabla, repetirlos era redundante). El renglón de Total no lleva la palabra "Total", va en blanco (así lo
+   trae la imagen de referencia). Línea vertical entre cada columna, mismo criterio que la tabla Market. */
+function mktAbsorptionTableHtml(firstColLabel, firstColSuffix, showQuarterHeaders, computeFn){
+  const subs=resumenSubmarkets();
+  if(!subs.length) return `<p class="mkt-empty">No data.</p>`;
+  const fmt=v=>Math.round(v).toLocaleString("en-US");
+  const unitLbl=resumenAreaUnitLabel();
+  const colTotals=[0,0,0,0,0];
+  let rows="";
+  subs.forEach(sm=>{
+    const vals=[1,2,3,4].map(q=>resumenAreaVal(computeFn(sm,q)));
+    const ytd=vals.reduce((a,b)=>a+b,0);
+    vals.forEach((v,i)=>colTotals[i]+=v);
+    colTotals[4]+=ytd;
+    rows+=`<tr><td>${escapeHtml(sm)}</td>${vals.map(v=>`<td class="num-cell">${fmt(v)}</td>`).join("")}<td class="num-cell"><b>${fmt(ytd)} ${unitLbl}</b></td></tr>`;
+  });
+  rows+=`<tr class="mkt-total-row"><td></td>${colTotals.slice(0,4).map(v=>`<td class="num-cell">${fmt(v)}</td>`).join("")}<td class="num-cell">${fmt(colTotals[4])} ${unitLbl}</td></tr>`;
+  const qLabels=showQuarterHeaders?["1Q","2Q","3Q","4Q","YTD"]:["","","","",""];
+  const headerCells=`<th>${escapeHtml(firstColLabel)}${firstColSuffix?` <span class="mkt-label-normal">${escapeHtml(firstColSuffix)}</span>`:""}</th>`
+    +qLabels.map(h=>`<th>${h}</th>`).join("");
+  return `<table class="mkt-table mkt-absorption-table"><thead><tr>${headerCells}</tr></thead><tbody>${rows}</tbody></table>`;
+}
 function mktMatrixTableHtml(rowCategories, computeFn, opts){
   opts=opts||{};
   const subs=resumenSubmarkets();
@@ -6720,7 +6760,12 @@ function mktBuildCoverPage(){
     ["Lease Transactions", area(k.leaseTx), false],
     ["Average Asking Price ("+resumenAreaUnitLabel()+"/Mo)", money(k.avgAsking), true],
     ["Land Prices Min - Max ("+resumenAreaUnitLabel()+")", k.landPriceMin||k.landPriceMax?`US $ ${resumenRateVal(k.landPriceMin).toFixed(2)} - ${resumenRateVal(k.landPriceMax).toFixed(2)}`:"—", false]
-  ].map(([label,value,strong])=>`<tr class="${strong?"mkt-row-strong":""}"><td>${escapeHtml(label)}</td><td class="num-cell">${value}</td></tr>`).join("");
+  // v7.3.16, pedido explícito del usuario: dentro de "Total Market (Class A & B Bldgs)" (fila en negritas),
+  // el paréntesis va en peso normal — solo "Total Market" se queda en negritas.
+  ].map(([label,value,strong])=>{
+    const labelHtml=strong?escapeHtml(label).replace(/(\(.*\))/, '<span class="mkt-label-normal">$1</span>'):escapeHtml(label);
+    return `<tr class="${strong?"mkt-row-strong":""}"><td>${labelHtml}</td><td class="num-cell">${value}</td></tr>`;
+  }).join("");
   const sigTx=mktSignificantTransactions(4);
   const sigTxRows=sigTx.length?sigTx.map(t=>`<tr><td>${escapeHtml(t.tenant)}</td><td>${escapeHtml(t.buildingType)}</td><td>${escapeHtml(t.dealType)}</td><td class="num-cell">${num(resumenAreaVal(t.areaSF))} ${resumenAreaUnitLabel()}</td></tr>`).join("")
     : `<tr><td colspan="4" class="mkt-empty">No transactions.</td></tr>`;
@@ -6765,14 +6810,14 @@ function mktBuildCoverPage(){
         </div>
         <div class="mkt-cover-col">
           <div class="mkt-box mkt-box-absorption">
-            <div class="mkt-box-title">Absorption (${escapeHtml(resumenYear)})</div>
+            <div class="mkt-box-title">Absorption</div>
             <div>
-              ${resumenQuarterTableHtml("Gross", "", (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true)}
-              ${resumenQuarterTableHtml("Negative (Deliveries 2nd Gen)", "", (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true)}
-              ${resumenQuarterTableHtml("Net", "", (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q);
+              ${mktAbsorptionTableHtml("Gross", "", true, (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); })}
+              ${mktAbsorptionTableHtml("Negative", "(Deliveries 2nd Gen)", false, (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); })}
+              ${mktAbsorptionTableHtml("Net", "", false, (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q);
                 const gross=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
                 const neg=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
-                return gross+neg; }, true)}
+                return gross+neg; })}
             </div>
           </div>
           <div class="mkt-box mkt-box-sigtx">

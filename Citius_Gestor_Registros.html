@@ -255,8 +255,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   /* v7.3.17, pedido explícito del usuario: la línea (::after) baja de align-items:center (quedaba a media
      altura del texto) a flex-end — a la altura de la base del texto ("donde empieza el texto, la parte de
      abajo"), no centrada contra todo el alto de la línea de texto. */
+  /* v7.3.19, pedido explícito del usuario: un poco más de aire entre el título del tile y su contenido
+     (margin-bottom 4px -> 8px) — se veía "muy pegado" arriba. */
   .mkt-box-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;
-                  margin-bottom:4px;color:#404040;flex:0 0 auto;display:flex;align-items:flex-end;gap:8px}
+                  margin-bottom:8px;color:#404040;flex:0 0 auto;display:flex;align-items:flex-end;gap:8px}
   .mkt-box-title::after{content:"";flex:1;height:1px;background:#404040;min-width:0;margin-bottom:2px}
   /* v7.3.2, ajuste de layout tras comparar contra el PDF de referencia: Absorption/Significant Transactions
      se dejan a su alto NATURAL (flex:0 0 auto) — antes `flex:1` los estiraba a la altura completa de la
@@ -266,7 +268,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      (flex:1) — sigue mostrando la dona centrada ahí, en vez de dejar huecos repartidos por toda la página. */
   .mkt-box-market,.mkt-box-absorption,.mkt-box-sigtx{flex:0 0 auto}
   .mkt-box-avail{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
-  .mkt-box-absorption>div:not(.mkt-box-title){display:flex;flex-direction:column;gap:6px}
+  .mkt-box-absorption>div:not(.mkt-box-title){display:flex;flex-direction:column;gap:4px}
   /* Reusa resumenQuarterTableHtml()/resumenAvailabilityDonutHtml() TAL CUAL (mismo HTML que ya genera KPI's,
      ver mktBuildCoverPage) — pero acá necesita verse como una tabla de reporte impreso compacta, no como una
      tarjeta de dashboard: se sobreescribe su estilo SOLO dentro de `.mkt-box` (KPI's no se toca). */
@@ -283,7 +285,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
                                           border-bottom:1px solid var(--txt)}
   .mkt-box table.resumen-table tr.resumen-total-row{background:transparent;border-top:1px solid var(--txt)}
   .mkt-box-avail .mkt-donut-panel{flex:1;display:flex;flex-direction:column;justify-content:center;min-height:0}
-  .mkt-box-avail .mkt-donut-svg{max-width:190px;margin:0 auto}
+  /* v7.3.19, pedido explícito del usuario: dona de Availability más grande y gruesa (max-width 190 -> 240px
+     — al ser el mismo SVG con viewBox fijo, escalarlo también engruesa el anillo proporcionalmente, sin
+     tocar el SW compartido con las 8 donas de las páginas 2/4). */
+  .mkt-box-avail .mkt-donut-svg{max-width:240px;margin:0 auto}
   .mkt-table{width:100%;border-collapse:collapse;font-size:10.5px}
   .mkt-table th{background:var(--panel-2);color:var(--muted);font-weight:700;text-transform:uppercase;
                  font-size:9px;letter-spacing:.3px;padding:5px 6px;text-align:left;border-bottom:1px solid var(--line)}
@@ -320,11 +325,20 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      más aire que el resto de tablas compactas de .mkt-box (ver .mkt-box .mkt-table más abajo, esas siguen
      apretadas a propósito, ver v7.3.3), fondo gris #e6e6e6 en el header, y línea vertical entre cada columna
      (border-right en todas menos la última). */
-  .mkt-box .mkt-absorption-table{font-size:9.5px}
-  .mkt-box .mkt-absorption-table th{background:#e6e6e6;padding:4px 8px;font-size:9.5px;border-right:1px solid #fff}
-  .mkt-box .mkt-absorption-table th:last-child{border-right:none}
+  /* v7.3.19, pedido explícito del usuario: texto del header del mismo color que los títulos de sección
+     (#404040) y centrado; sin línea divisoria dentro del header (border-right quitado, antes blanco); la
+     fila de Total sin fondo (antes heredaba background de .mkt-total-row genérico). */
+  /* v7.3.19 (2da parte del mismo bug): el colspan del header (arriba) no bastó del todo — cada tabla es un
+     <table> APARTE con table-layout:auto, así que aunque el header ya no fuerce nada, el ANCHO de columna
+     real sigue calculándose por separado en cada tabla según SU PROPIO contenido (ej. "0" vs "20,000" pesan
+     distinto) — con datos reales distintos entre Gross/Negative/Net, las columnas podían volver a desalinearse
+     más adelante. table-layout:fixed + un <colgroup> con los MISMOS porcentajes en las 3 tablas (ver
+     mktAbsorptionTableHtml) garantiza columnas idénticas sin importar el contenido real de cada una. */
+  .mkt-box .mkt-absorption-table{font-size:9.5px;table-layout:fixed;width:100%}
+  .mkt-box .mkt-absorption-table th{background:#e6e6e6;padding:4px 8px;font-size:9.5px;color:#404040;text-align:center}
   .mkt-box .mkt-absorption-table td{padding:4px 8px;border-right:1px solid var(--line)}
   .mkt-box .mkt-absorption-table td:last-child{border-right:none}
+  .mkt-box .mkt-absorption-table tr.mkt-total-row td{background:transparent}
   .mkt-total-row td{background:var(--panel-2);font-weight:700;border-top:1.5px solid var(--txt)}
   .mkt-group-row td{background:#eee;font-weight:700;text-transform:uppercase;font-size:10px;letter-spacing:.3px}
   .mkt-detail-table{font-size:10px}
@@ -350,6 +364,8 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-donut-svg{width:100%;max-width:130px;overflow:visible}
   .mkt-donut-arc{cursor:default}
   .mkt-donut-out-label{font-size:9px;font-weight:700;fill:#1a1a1a}
+  /* v7.3.19, pedido explícito del usuario: línea punteada del anillo a cada etiqueta */
+  .mkt-donut-leader{stroke:#9aa0a6;stroke-width:1;stroke-dasharray:2,2}
   .mkt-donut-out-pct{font-size:9px;fill:var(--muted)}
   .mkt-donut-empty{color:var(--muted);font-size:10px;font-style:italic}
   @media(max-width:900px){ .mkt-cover-grid{grid-template-columns:1fr} .mkt-page-body{grid-template-columns:1fr} }
@@ -6645,25 +6661,35 @@ function mktDonutHtml(title, data, unitLabel){
   }
   const slices=filtered.map((d,i)=>({...d, color:mktDonutColorForIndex(i)}));
   const CX=160, CY=160, R=90, SW=28, CIRC=2*Math.PI*R;
+  // v7.3.19, pedido explícito del usuario: separación blanca muy delgada entre cada slice (GAP, "un stroke
+  // de cada slice en blanco") — como el donut se dibuja con `stroke-dasharray` sobre un `<circle>` (no con
+  // `<path>` por segmento), no hay un borde real que pintar; se logra el mismo efecto recortando un pedacito
+  // de cada arco (drawLen = largo real - GAP) — el fondo blanco de la página se asoma por ese hueco, como si
+  // cada slice tuviera un borde blanco. El offset de rotación de cada slice usa el largo COMPLETO (fullLen),
+  // no el recortado, para que las proporciones no se corran.
+  const GAP=2.5;
   const LBL_R=R+SW/2+22;
-  let offset=0, arcsHtml="", labelsHtml="";
+  const LEADER_R1=R+SW/2+2, LEADER_R2=LBL_R-13; // v7.3.19: línea punteada del anillo a la etiqueta
+  let offset=0, arcsHtml="", labelsHtml="", leadersHtml="";
   slices.forEach(s=>{
-    const frac=s.value/total, len=frac*CIRC, pct=frac*100;
+    const frac=s.value/total, fullLen=frac*CIRC, pct=frac*100;
+    const drawLen=Math.max(0, fullLen-GAP);
     const rotate=(offset/CIRC)*360-90;
     arcsHtml+=`<circle class="mkt-donut-arc" cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="${s.color}"
-      stroke-width="${SW}" stroke-dasharray="${len.toFixed(3)} ${(CIRC-len).toFixed(3)}"
+      stroke-width="${SW}" stroke-dasharray="${drawLen.toFixed(3)} ${(CIRC-drawLen).toFixed(3)}"
       transform="rotate(${rotate} ${CX} ${CY})"><title>${escapeHtml(s.label)}: ${fmt(s.value)}${unitLabel?" "+unitLabel:""} (${pct.toFixed(1)}%)</title></circle>`;
-    const midAngle=((offset+len/2)/CIRC)*2*Math.PI-Math.PI/2;
+    const midAngle=((offset+fullLen/2)/CIRC)*2*Math.PI-Math.PI/2;
     const cos=Math.cos(midAngle), sin=Math.sin(midAngle);
     const lx=CX+LBL_R*cos, ly=CY+LBL_R*sin;
     const anchor=cos>0.15?"start":cos<-0.15?"end":"middle";
+    leadersHtml+=`<line class="mkt-donut-leader" x1="${(CX+LEADER_R1*cos).toFixed(1)}" y1="${(CY+LEADER_R1*sin).toFixed(1)}" x2="${(CX+LEADER_R2*cos).toFixed(1)}" y2="${(CY+LEADER_R2*sin).toFixed(1)}"/>`;
     labelsHtml+=`<text class="mkt-donut-out-label" x="${lx.toFixed(1)}" y="${(ly-4).toFixed(1)}" text-anchor="${anchor}">${escapeHtml(s.label)}</text>
       <text class="mkt-donut-out-pct" x="${lx.toFixed(1)}" y="${(ly+11).toFixed(1)}" text-anchor="${anchor}">${pct.toFixed(0)}%</text>`;
-    offset+=len;
+    offset+=fullLen;
   });
   return `<div class="mkt-donut-panel">
     <div class="mkt-donut-title">${escapeHtml(title)}</div>
-    <svg class="mkt-donut-svg" viewBox="0 0 320 320" role="img" aria-label="${escapeAttr(title)}">${arcsHtml}${labelsHtml}</svg>
+    <svg class="mkt-donut-svg" viewBox="0 0 320 320" role="img" aria-label="${escapeAttr(title)}">${arcsHtml}${leadersHtml}${labelsHtml}</svg>
   </div>`;
 }
 /* Tabla "matriz": filas = categorías (ej. Quarter, o un rango de tamaño), columnas = Submercado + Total —
@@ -6693,10 +6719,18 @@ function mktAbsorptionTableHtml(firstColLabel, firstColSuffix, showQuarterHeader
     rows+=`<tr><td>${escapeHtml(sm)}</td>${vals.map(v=>`<td class="num-cell">${fmt(v)}</td>`).join("")}<td class="num-cell"><b>${fmt(ytd)} ${unitLbl}</b></td></tr>`;
   });
   rows+=`<tr class="mkt-total-row"><td></td>${colTotals.slice(0,4).map(v=>`<td class="num-cell">${fmt(v)}</td>`).join("")}<td class="num-cell">${fmt(colTotals[4])} ${unitLbl}</td></tr>`;
-  const qLabels=showQuarterHeaders?["1Q","2Q","3Q","4Q","YTD"]:["","","","",""];
-  const headerCells=`<th>${escapeHtml(firstColLabel)}${firstColSuffix?` <span class="mkt-label-normal">${escapeHtml(firstColSuffix)}</span>`:""}</th>`
-    +qLabels.map(h=>`<th>${h}</th>`).join("");
-  return `<table class="mkt-table mkt-absorption-table"><thead><tr>${headerCells}</tr></thead><tbody>${rows}</tbody></table>`;
+  // v7.3.19, bug real reportado por el usuario (con captura): con las 5 celdas del header VACÍAS (Negative/
+  // Net) pero cada tabla es un <table> APARTE con table-layout:auto, el texto largo de "NEGATIVE (Deliveries
+  // 2nd Gen)" en la 1ra celda le "robaba" ancho a las demás columnas de ESA tabla — sin nada que las
+  // referencie, las 3 tablas ya no alineaban sus columnas entre sí. Con el header vacío de todos modos (no
+  // hay texto real que alinear), un solo <th colspan="6"> evita que el ancho de esa celda dependa del texto
+  // largo — las columnas del cuerpo (números reales, mismo ancho en las 3 tablas) son las que mandan.
+  const labelHtml=`${escapeHtml(firstColLabel)}${firstColSuffix?` <span class="mkt-label-normal">${escapeHtml(firstColSuffix)}</span>`:""}`;
+  const headerCells=showQuarterHeaders
+    ? `<th>${labelHtml}</th>`+["1Q","2Q","3Q","4Q","YTD"].map(h=>`<th>${h}</th>`).join("")
+    : `<th colspan="6">${labelHtml}</th>`;
+  const colgroupHtml=`<colgroup><col style="width:28%"><col style="width:14.4%"><col style="width:14.4%"><col style="width:14.4%"><col style="width:14.4%"><col style="width:14.4%"></colgroup>`;
+  return `<table class="mkt-table mkt-absorption-table">${colgroupHtml}<thead><tr>${headerCells}</tr></thead><tbody>${rows}</tbody></table>`;
 }
 function mktMatrixTableHtml(rowCategories, computeFn, opts){
   opts=opts||{};

@@ -178,7 +178,6 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      páginas de un vistazo — se oculta al imprimir. */
   .mkt-report-outer{padding:24px 0}
   .mkt-report-placeholder{max-width:520px;margin:60px auto;text-align:center;color:var(--muted);font-size:14px}
-  .mkt-report-toolbar{max-width:1180px;margin:0 auto 16px;display:flex;justify-content:flex-end}
   .mkt-report-pages{display:flex;flex-direction:column;align-items:center}
   .mkt-page{background:#fff;color:#1a1a1a;width:100%;max-width:1180px;aspect-ratio:11/8.5;
             box-sizing:border-box;overflow:hidden;font-size:11px;border-top:2px dashed var(--line);margin-top:28px;padding-top:28px}
@@ -1094,13 +1093,14 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     .deck-page:last-child{page-break-after:auto}
     /* Market Report (PDF) — v7.3.0, mismo criterio EXACTO que el bloque de arriba (#presPages/etc.), aparte
        porque vive en su propio contenedor (#mktReportPages, dentro de #resumenContent) sin nada que ver con
-       Presentación. */
+       Presentación. El botón "Print / PDF" (v7.3.1: ahora en #resumenHeaderBar, no dentro de #mktReportPages)
+       ya queda oculto solo — vive fuera de #mktReportPages, así que el `body *{visibility:hidden}` de arriba
+       ya lo cubre, sin necesitar una regla aparte. */
     #mktReportPages, #mktReportPages *{visibility:visible}
     #mktReportPages{display:block}
     .mkt-page{page-break-after:always;page-break-inside:avoid;max-width:none;width:100%;aspect-ratio:auto;
                border-top:none;margin-top:0;padding-top:0}
     .mkt-page:last-child{page-break-after:auto}
-    .mkt-report-toolbar{display:none}
     /* Prueba (v3.32.3): quitar la sombra del pin SOLO al imprimir/exportar PDF — Vista Previa de macOS
        muestra un recuadro gris alrededor de cada pin en el PDF exportado (Chrome/Acrobat lo ven bien); la
        sospecha es que Chrome rasteriza el pin (cuadrado rotado 45° + border-radius + box-shadow no tiene
@@ -6339,6 +6339,11 @@ function renderResumenView(){
   // de sticky-dentro-del-contenido. #resumenHeaderBar/#resumenScrollArea son hermanos dentro de
   // #resumenView (ver el HTML estático) — igual que #wrap separa su tabla (con scroll propio) de
   // header.topbar (fijo, fuera de esa área).
+  // v7.3.1, pedido explícito del usuario: en la sub-vista Market Report (PDF) el header solo debe traer
+  // Units/Market/Submarket (SIN Year — el reporte ya muestra los 4 trimestres completos, no hace falta
+  // elegir uno) + el botón "Print / PDF" a la derecha, mismo look que el de Presentación (presPrintBtn) —
+  // en vez de vivir aparte dentro del contenido (como en v7.3.0), ahora es parte de este mismo header.
+  const isMarketReport=resumenSection==="market_report";
   document.getElementById("resumenHeaderBar").innerHTML=`
     <div class="resumen-header">
       <div class="resumen-header-controls">
@@ -6360,13 +6365,18 @@ function renderResumenView(){
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:4px;vertical-align:-2px"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
         </div>
+        ${isMarketReport ? "" : `
         <div class="resumen-year-select">
           <label for="resumenYearSelect">Year (transactions)</label>
           <select id="resumenYearSelect">${yearOptionsHtml}</select>
-        </div>
+        </div>`}
+        ${isMarketReport ? `
+        <button class="btn ghost" id="mktReportPrintBtn" ${resumenMarket?"":"disabled"}>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-3px"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print / PDF</button>` : ""}
       </div>
     </div>
   `;
+  if(isMarketReport) document.getElementById("mktReportPrintBtn").onclick=doMarketReportPrint;
   const el=document.getElementById("resumenContent");
   // v7.3.0, pedido explícito del usuario: Summary se divide en 2 sub-vistas (ver toggleResumenMenu) — KPI's
   // es EXACTAMENTE lo de siempre (nada de lo de arriba se tocó); Market Report (PDF) es contenido nuevo del
@@ -6407,9 +6417,11 @@ function renderResumenView(){
     </div>
     ${resumenUsageChartHtml(usageData)}
   `;
-  if(resumenSection==="market_report") wireMarketReportEvents();
   document.getElementById("resumenUnitSelect").onchange=function(){ resumenUnit=this.value; renderResumenView(); };
-  document.getElementById("resumenYearSelect").onchange=function(){ resumenYear=this.value; renderResumenView(); };
+  // v7.3.1: Year ya no aparece en el header de Market Report (PDF) — guard, mismo criterio que los 2
+  // selects de "Tool Usage" más abajo (solo existen en la sub-vista KPI's).
+  const yearSel=document.getElementById("resumenYearSelect");
+  if(yearSel) yearSel.onchange=function(){ resumenYear=this.value; renderResumenView(); };
   document.getElementById("resumenMarketSelect").onchange=function(){ resumenMarket=this.value; renderResumenView(); };
   // v7.3.0: estos 2 selects solo existen dentro del bloque "Tool Usage", que ya no se renderiza en la
   // sub-vista Market Report (PDF) — guard, si no `getElementById(...).onchange=` truena sobre `null`.
@@ -6729,20 +6741,15 @@ function renderMarketReportHtml(){
       <p>Select a Market above to generate its report — a Market Report is built for one Market at a time (optionally narrowed further with Submarket).</p>
     </div>`;
   }
-  return `<div class="mkt-report-toolbar">
-      <button type="button" class="btn" id="mktReportPrintBtn">🖨️ Print / Save as PDF</button>
-    </div>
-    <div class="mkt-report-pages" id="mktReportPages">
+  // v7.3.1: el botón "Print / PDF" ya no vive aquí — pasó al header (#resumenHeaderBar, junto a Units/
+  // Market/Submarket, pedido explícito del usuario), ver renderResumenView().
+  return `<div class="mkt-report-pages" id="mktReportPages">
       ${mktBuildCoverPage()}
       ${mktBuildTxSummaryPage()}
       ${mktBuildTxDetailPage()}
       ${mktBuildAvailSummaryPage()}
       ${mktBuildAvailDetailPage()}
     </div>`;
-}
-function wireMarketReportEvents(){
-  const btn=document.getElementById("mktReportPrintBtn");
-  if(btn) btn.onclick=doMarketReportPrint;
 }
 function doMarketReportPrint(){
   document.body.classList.add("printing-mktreport");

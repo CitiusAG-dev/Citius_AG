@@ -217,7 +217,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      3er hijo (entre sidebar y main) hace que se "recorte" desde arriba (empieza más abajo) pero se siga
      estirando hasta el fondo real de la hoja, sin necesitar position:absolute. El margin-top se calibró
      midiendo dónde cae de verdad la línea bajo el título (ver mkt-cover-title/titleblock). */
-  .mkt-cover-accent{flex:0 0 10px;background:var(--accent);margin-top:188px}
+  /* v7.3.26, pedido explícito del usuario: recuadro amarillo un poco más ancho (10px -> 15px) y ~10px más
+     alto (margin-top 188px -> 178px, sube el borde superior — el inferior sigue pegado al fondo de la hoja
+     por el stretch de flex, igual que antes). */
+  .mkt-cover-accent{flex:0 0 15px;background:var(--accent);margin-top:178px}
   /* v7.3.8, pedido explícito del usuario: la línea dorada pasa de .mkt-cover-title (display:inline-block,
      solo tan ancha como el texto) a .mkt-cover-titleblock (bloque normal, tan ancho como el panel gris menos
      su padding) — "que se extienda hasta donde termina el panel gris" — y bastante más delgada (3px -> 1px). */
@@ -267,8 +270,11 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      abajo"), no centrada contra todo el alto de la línea de texto. */
   /* v7.3.19, pedido explícito del usuario: un poco más de aire entre el título del tile y su contenido
      (margin-bottom 4px -> 8px) — se veía "muy pegado" arriba. */
+  /* v7.3.26, pedido explícito del usuario: un poco más de aire entre el título de cada sección (Market,
+     Absorption, Significant Transactions, Availability — todas comparten esta clase) y su contenido
+     (margin-bottom 8px -> 12px). */
   .mkt-box-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;
-                  margin-bottom:8px;color:#404040;flex:0 0 auto;display:flex;align-items:flex-end;gap:8px}
+                  margin-bottom:12px;color:#404040;flex:0 0 auto;display:flex;align-items:flex-end;gap:8px}
   .mkt-box-title::after{content:"";flex:1;height:1px;background:#404040;min-width:0;margin-bottom:2px}
   /* v7.3.2, ajuste de layout tras comparar contra el PDF de referencia: Absorption/Significant Transactions
      se dejan a su alto NATURAL (flex:0 0 auto) — antes `flex:1` los estiraba a la altura completa de la

@@ -183,11 +183,23 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
             box-sizing:border-box;overflow:hidden;font-size:11px;border-top:2px dashed var(--line);margin-top:28px;padding-top:28px}
   .mkt-page:first-child{border-top:none;margin-top:0;padding-top:0}
   .mkt-cover-page{display:flex}
-  .mkt-cover-sidebar{flex:0 0 27%;background:#4a4a4a;color:#fff;padding:34px 26px;display:flex;flex-direction:column;justify-content:flex-end}
-  .mkt-cover-title{margin:0 0 6px;font-size:34px;font-weight:400;font-family:Georgia,'Times New Roman',serif;
+  /* v7.3.4, pedido explícito del usuario (con imagen de referencia): #767676, más angosto (27% -> 22%), el
+     bloque de título arriba y el de equipo abajo (space-between, antes solo flex-end apilaba todo abajo).
+     Fuentes: 'Dala Moa'/'Unitext' YA están cargadas en la app vía @font-face (mismas que usa el módulo de
+     Presentación, ver DECK_LOGO_SRC/.deck-header h2 arriba) — se reusan tal cual en vez de Georgia/sans-serif
+     genéricos. Pedido explícito: Dala Moa SOLO para el nombre del Mercado y los nombres del equipo; el resto
+     (subtítulo, trimestre, cargo/dirección/teléfono, el sitio web) en Unitext. */
+  .mkt-cover-sidebar{flex:0 0 22%;background:#767676;color:#fff;padding:30px 22px;display:flex;flex-direction:column;justify-content:space-between}
+  .mkt-cover-title{margin:0 0 6px;font-size:30px;font-weight:400;font-family:'Dala Moa',Georgia,serif;
                     border-bottom:3px solid var(--accent);display:inline-block;padding-bottom:8px}
-  .mkt-cover-subtitle{font-size:14px;font-weight:300;margin-top:14px}
-  .mkt-cover-year{font-size:14px;font-weight:300;opacity:.85}
+  .mkt-cover-subtitle{font-size:13px;font-weight:300;margin-top:12px;font-family:'Unitext',Arial,sans-serif}
+  .mkt-cover-year{font-size:13px;font-weight:300;opacity:.85;font-family:'Unitext',Arial,sans-serif}
+  .mkt-cover-team{display:flex;flex-direction:column;gap:16px}
+  .mkt-cover-person-name{font-size:17px;font-family:'Dala Moa',Georgia,serif;margin-bottom:2px}
+  .mkt-cover-person-role{font-size:11px;font-weight:700;font-family:'Unitext',Arial,sans-serif}
+  .mkt-cover-person-addr{font-size:10.5px;font-weight:300;opacity:.9;font-family:'Unitext',Arial,sans-serif;line-height:1.4}
+  .mkt-cover-person-phone{font-size:10.5px;font-weight:300;opacity:.9;font-family:'Unitext',Arial,sans-serif}
+  .mkt-cover-website{font-size:11px;font-weight:700;font-family:'Unitext',Arial,sans-serif;margin-top:4px}
   .mkt-cover-main{flex:1;padding:14px 22px 16px;overflow:hidden;display:flex;flex-direction:column;min-height:0}
   .mkt-cover-logo-row{flex:0 0 auto;display:flex;justify-content:flex-end;margin-bottom:2px}
   .mkt-cover-logo{width:118px}
@@ -6484,6 +6496,24 @@ function renderResumenView(){
    horizontal), así que no hace falta el sistema de "un @page con nombre por grupo" que sí necesita
    Presentación (ese tiene 5 tipos de hoja con proporciones distintas) — un solo `@page{size:11in 8.5in}`
    fijo en el CSS (ver más abajo) alcanza. */
+/* "3Q 2026" de la portada — v7.3.4, pedido explícito del usuario. No hay (todavía) un selector de trimestre
+   propio en Market Report (se quitó el de Year del header, ver v7.3.1) — se calcula: el trimestre MÁS
+   RECIENTE de `resumenYear` que ya tenga alguna transacción Gross capturada; si el año no tiene ninguna
+   (típico si `resumenYear` es el año en curso y apenas empieza), cae al trimestre calendario REAL de hoy si
+   `resumenYear` es el año actual, o si no, "4Q" (se asume un año ya cerrado). */
+function mktCurrentQuarterLabel(){
+  const yearStart=`${resumenYear}-01-01`, yearEnd=`${resumenYear}-12-31`;
+  const quartersWithData=new Set();
+  (state.TRANSACCIONES||[]).forEach(r=>{
+    if(!resumenMarketMatches(r,"TRANSACCIONES")||!ciEq(r.ABSORPTION_TYPE,"Gross")) return;
+    if(r.TRANSACTION_DATE<yearStart||r.TRANSACTION_DATE>yearEnd) return;
+    const q=quarterOfDate(r.TRANSACTION_DATE);
+    if(q) quartersWithData.add(q);
+  });
+  if(quartersWithData.size) return Math.max(...quartersWithData)+"Q";
+  if(String(resumenYear)===String(new Date().getFullYear())) return Math.floor(new Date().getMonth()/3)+1+"Q";
+  return "4Q";
+}
 function quarterOfDate(dateStr){
   const m=/^\d{4}-(\d{2})/.exec(String(dateStr||""));
   if(!m) return null;
@@ -6603,12 +6633,29 @@ function mktBuildCoverPage(){
   const sigTxRows=sigTx.length?sigTx.map(t=>`<tr><td>${escapeHtml(t.tenant)}</td><td>${escapeHtml(t.buildingType)}</td><td>${escapeHtml(t.dealType)}</td><td class="num-cell">${num(resumenAreaVal(t.areaSF))} ${resumenAreaUnitLabel()}</td></tr>`).join("")
     : `<tr><td colspan="4" class="mkt-empty">No transactions.</td></tr>`;
   const marketLabel=resumenMarket||"All Markets";
+  // v7.3.4, pedido explícito del usuario: bloque de equipo al pie del panel — por ahora FIJO para las 2
+  // personas (Idalia Gardea siempre va primero; más adelante será dinámica por Mercado, un panel de "Cover
+  // Data" como el que ya existe en Presentación — pedido explícito: "el control para hacerlo dinámico lo
+  // veremos luego"). Abigail Rodriguez es fija siempre, no se pidió que cambie.
+  const mktTeamHtml=[
+    {name:"Idalia Gardea", role:"Market Intel Analyst"},
+    {name:"Abigail Rodriguez", role:"Market Intel Director", phone:"T +52 81 8368 2000"}
+  ].map(p=>`<div class="mkt-cover-person">
+      <div class="mkt-cover-person-name">${escapeHtml(p.name)}</div>
+      <div class="mkt-cover-person-role">${escapeHtml(p.role)}</div>
+      <div class="mkt-cover-person-addr">Equus 335<br>Ave. Ricardo Margáin #335<br>Col. Valle del Campestre, SPGG, NL..</div>
+      ${p.phone?`<div class="mkt-cover-person-phone">${escapeHtml(p.phone)}</div>`:""}
+    </div>`).join("");
   return `<div class="mkt-page mkt-cover-page">
     <div class="mkt-cover-sidebar">
       <div>
         <h1 class="mkt-cover-title">${escapeHtml(marketLabel)}</h1>
         <div class="mkt-cover-subtitle">Industrial Market Report</div>
-        <div class="mkt-cover-year">${escapeHtml(resumenYear)}</div>
+        <div class="mkt-cover-year">${mktCurrentQuarterLabel()} ${escapeHtml(resumenYear)}</div>
+      </div>
+      <div class="mkt-cover-team">
+        ${mktTeamHtml}
+        <div class="mkt-cover-website">CitiusAG.com</div>
       </div>
     </div>
     <div class="mkt-cover-main">

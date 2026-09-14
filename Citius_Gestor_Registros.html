@@ -1891,6 +1891,14 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
             </div>
             <p class="map-hint" id="recalcGeoIdsResult"></p>
           </div>
+          <div class="files-card">
+            <h5>Update Location catalog (one-time migration)</h5>
+            <p class="map-hint">If you renamed Markets/Submarkets and reassigned their IDs in a new copy of LISTAS_CAMPOS.xlsx (keeping the old ID_REGION/ID_STATE/ID_MERCADO/ID_SUBMERCADO columns as reference), use this once to carry those renames over to Properties/Parks/Land/Offices already captured — matched by the old ID, not by name, so renamed markets are found correctly. It then leaves that file linked as your Configuration file, same as linking it directly. Doesn't affect Last Modified.</p>
+            <div class="settings-actions">
+              <button class="btn ghost" id="migrateLocationCatalogBtn">Upload updated catalog…</button>
+            </div>
+            <p class="map-hint" id="migrateLocationCatalogResult"></p>
+          </div>
         </div>
       </div>
       <div class="tablewrap fieldconfig-panel" id="fieldConfigPanel" style="display:none">
@@ -2659,12 +2667,23 @@ const CASCADE_HEADER_ALIASES={
    para que el catálogo cargue), estas columnas de ID son OPCIONALES — si no están, el catálogo sigue
    funcionando igual que antes (cascada por nombre), solo que sin IDs. */
 const CASCADE_ID_KEY={REGION:"REGION_ID", STATE:"STATE_ID", MARKET:"MARKET_ID", SUBMARKET:"SUBMARKET_ID"};
+/* v7.2.0, pedido explícito del usuario: cuando migró el catálogo de Ubicación (ver
+   applyLocationCatalogMigration() más abajo) agregó columnas COLUMN1..COLUMN4 con los IDs NUEVOS
+   (REG_00001/EST_00002/MER_00043/SUB_00010, junto a los viejos ID_REGION/ID_STATE/ID_MERCADO/ID_SUBMERCADO
+   que se conservan solo como referencia). Van PRIMERO en la lista de alias a propósito — findHeaderIndex()
+   de abajo prueba los alias EN ORDEN y usa el primero que encuentre, así que si un catálogo trae ambos
+   (como el que se sube en la migración), gana el nuevo; el catálogo viejo (sin COLUMN1..4) sigue cayendo
+   en el alias legado exactamente igual que siempre. */
 const CASCADE_ID_HEADER_ALIASES={
-  REGION:["ID_REGION"],
-  STATE:["ID_STATE"],
-  MARKET:["ID_MERCADO"],
-  SUBMARKET:["ID_SUBMERCADO"]
+  REGION:["COLUMN1","ID_REGION"],
+  STATE:["COLUMN2","ID_STATE"],
+  MARKET:["COLUMN3","ID_MERCADO"],
+  SUBMARKET:["COLUMN4","ID_SUBMERCADO"]
 };
+function findHeaderIndex(header, aliases){
+  for(const alias of aliases){ const idx=header.indexOf(alias); if(idx>=0) return idx; }
+  return -1;
+}
 /* Reads the CATALOGO_UBICACION sheet (if present) and replaces cascadeCatalog with what it finds; returns true if it changed anything */
 function loadCascadeCatalogFromSheet(wb){
   const sheetName=wb.SheetNames.find(n=>n.toUpperCase()==="CATALOGO_UBICACION");
@@ -2680,7 +2699,7 @@ function loadCascadeCatalogFromSheet(wb){
   if(Object.values(ci).some(i=>i<0)) return false;
   const ciId={};
   for(const key of CASCADE_ORDER){
-    ciId[key]=header.findIndex(h=>CASCADE_ID_HEADER_ALIASES[key].includes(h));
+    ciId[key]=findHeaderIndex(header, CASCADE_ID_HEADER_ALIASES[key]);
   }
   const rows=[];
   for(let r=1;r<aoa.length;r++){
@@ -2833,10 +2852,11 @@ function syncGeoIdFields(){
    backfill masivo de REGION_ID/STATE_ID/MARKET_ID/SUBMARKET_ID sobre TODOS los registros ya existentes de
    Propiedades/Parques/Terrenos/Oficinas (los nuevos ya se llenan solos al capturar, ver syncGeoIdFields()).
    Muta `state[ent]` DIRECTO (nunca pasa por la ficha/#mBody) y guarda con el mismo mecanismo de saveState()
-   pero escribiendo AMBOS archivos si están vinculados (el principal Y el de Terrenos, que es aparte) — a
-   propósito NO llama a saveState() tal cual (esa solo escribe el archivo de `current`, y aquí puede
-   tocarse tanto Propiedades/Parques/Oficinas como Terrenos en la misma pasada). Confirmado con el usuario:
-   NO actualiza Last Modified — es metadata de backend, no una edición real del registro. */
+   — a propósito NO llama a saveState() tal cual (esa solo escribe el archivo de `current`, y aquí puede
+   tocarse Propiedades/Parques/Oficinas Y Terrenos en la misma pasada). Confirmado con el usuario:
+   NO actualiza Last Modified — es metadata de backend, no una edición real del registro.
+   v6.5.10: Terrenos ya no tiene un archivo aparte (ver el comentario grande junto a loadFromWorkbook()) —
+   un solo fileHandle cubre las 7 entidades, así que ya no hace falta escribir "los 2 archivos". */
 function recalcAllGeoIds(){
   if(!cascadeCatalog.length){ toast("Link the Location catalog (CATALOGO_UBICACION) first","err"); return; }
   let touched=0, scanned=0;
@@ -2860,6 +2880,85 @@ function recalcAllGeoIds(){
   const resultEl=document.getElementById("recalcGeoIdsResult");
   if(resultEl) resultEl.textContent=msg;
   toast(msg, touched?"ok":"");
+}
+/* v7.2.0, pedido explícito del usuario: migró el catálogo CATALOGO_UBICACION a mano en una copia de
+   LISTAS_CAMPOS.xlsx — renombró Mercados/Submercados (ej. "Acuña" pasó a ser Submercado bajo el Mercado
+   "Coahuila") y les asignó IDs nuevos con formato REG_00001/EST_00002/MER_00043/SUB_00010 (columnas
+   COLUMN1..COLUMN4 en el archivo, una por cada nivel de CASCADE_ORDER), conservando a propósito
+   ID_REGION/ID_STATE/ID_MERCADO/ID_SUBMERCADO (los IDs VIEJOS) como columnas de referencia adicionales.
+   Intentar reconciliar por NOMBRE falla en los renglones renombrados (el nombre viejo ya no existe en
+   ningún renglón del catálogo nuevo). Confirmado con el usuario, verificado en los 2504 renglones reales:
+   ID_SUBMERCADO viejo es una llave 1-a-1 perfecta entre el catálogo viejo y el nuevo (0 colisiones, 0
+   huérfanos) — mucho más confiable. Esta función lee esas columnas directo del archivo nuevo (sin pasar por
+   loadCascadeCatalogFromSheet, que con la prioridad COLUMN1..4 de CASCADE_ID_HEADER_ALIASES ya no expone el
+   ID viejo) para poder cruzar: por cada registro ya capturado, resuelve su ID_SUBMERCADO viejo contra el
+   catálogo ACTIVO ahora mismo (igual que recalcAllGeoIds), lo busca en este cruce, y hereda el nombre +
+   el ID nuevo de los 4 niveles. Devuelve null si el archivo no tiene la forma esperada (visto desde afuera
+   como "no lo reconozco", igual que loadFromWorkbook/loadConfigFromWorkbook). */
+function parseLocationCatalogCrosswalk(wb){
+  const sheetName=wb.SheetNames.find(n=>n.toUpperCase()==="CATALOGO_UBICACION");
+  if(!sheetName) return null;
+  const aoa=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1,defval:"",blankrows:false});
+  if(aoa.length<2) return null;
+  const header=aoa[0].map(h=>String(h||"").trim().toUpperCase());
+  const LEGACY_ID_HEADERS={REGION:"ID_REGION", STATE:"ID_STATE", MARKET:"ID_MERCADO", SUBMARKET:"ID_SUBMERCADO"};
+  const NEW_ID_HEADERS={REGION:"COLUMN1", STATE:"COLUMN2", MARKET:"COLUMN3", SUBMARKET:"COLUMN4"};
+  const ci={}, ciOldId={}, ciNewId={};
+  for(const key of CASCADE_ORDER){
+    ci[key]=header.findIndex(h=>CASCADE_HEADER_ALIASES[key].includes(h));
+    ciOldId[key]=header.indexOf(LEGACY_ID_HEADERS[key]);
+    ciNewId[key]=header.indexOf(NEW_ID_HEADERS[key]);
+  }
+  if(Object.values(ci).some(i=>i<0)) return null; // no trae Región/Estado/Mercado/Submercado — no lo reconozco
+  if(ciOldId.SUBMARKET<0) return null; // sin ID_SUBMERCADO (el viejo) no hay con qué cruzar
+  const hasNewIds=CASCADE_ORDER.every(key=>ciNewId[key]>=0);
+  const byOldSubmarketId=new Map();
+  for(let r=1;r<aoa.length;r++){
+    const row=aoa[r];
+    const oldSubId=String(row[ciOldId.SUBMARKET]||"").trim();
+    if(!oldSubId) continue;
+    const entry={};
+    CASCADE_ORDER.forEach(key=>{
+      entry[key]=String(row[ci[key]]||"").trim();
+      const idIdx=hasNewIds?ciNewId[key]:ciOldId[key];
+      entry[CASCADE_ID_KEY[key]]=idIdx>=0?String(row[idIdx]||"").trim():"";
+    });
+    byOldSubmarketId.set(oldSubId, entry);
+  }
+  return {byOldSubmarketId, hasNewIds, rowCount:aoa.length-1};
+}
+/* Aplica el cruce de arriba a Propiedades/Parques/Terrenos/Oficinas (mismo alcance que recalcAllGeoIds —
+   Espacios/Transacciones no tienen los 4 IDs ocultos, ver GEO_ID_FIELD_KEYS) y deja el catálogo nuevo como
+   el activo (equivalente a vincularlo a mano en Configuración > Archivo de Configuración — de hecho reusa
+   loadConfigFromWorkbook() y deja `wb` como el configFileHandle vinculado, ver el botón más abajo, para que
+   quede exactamente como si el usuario lo hubiera vinculado ahí directamente). Como recalcAllGeoIds, NO
+   toca Last Modified. */
+async function applyLocationCatalogMigration(wb){
+  if(!cascadeCatalog.length){ toast("Link the current Location catalog first (Data Excel or Configuration file)","err"); return null; }
+  const crosswalk=parseLocationCatalogCrosswalk(wb);
+  if(!crosswalk){ toast("I didn't recognize that file's Location catalog columns (need Region/State/Market/Submarket and the old ID_SUBMERCADO column).","err"); return null; }
+  let touched=0, scanned=0, unresolved=0;
+  ["PROPIEDADES","PARKS","LAND","OFICINAS"].forEach(ent=>{
+    (state[ent]||[]).forEach(rec=>{
+      scanned++;
+      const oldIds=resolveGeoIds(key=>String(rec[key]||"").trim());
+      const entry=oldIds.SUBMARKET_ID?crosswalk.byOldSubmarketId.get(oldIds.SUBMARKET_ID):null;
+      if(!entry){ unresolved++; return; }
+      let changed=false;
+      CASCADE_ORDER.forEach(key=>{
+        if(String(rec[key]||"")!==entry[key]){ rec[key]=entry[key]; changed=true; }
+        const idKey=CASCADE_ID_KEY[key];
+        if(String(rec[idKey]||"")!==entry[idKey]){ rec[idKey]=entry[idKey]; changed=true; }
+      });
+      if(changed) touched++;
+    });
+  });
+  await loadConfigFromWorkbook(wb); // deja el catálogo (y Listas/Campos si venían en el mismo archivo) como el activo
+  invalidateSubmarketToMarketCache();
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){}
+  if(fileHandle) writeToFile();
+  renderTable();
+  return {scanned, touched, unresolved};
 }
 /* Transacciones: al capturar/editar el MAPPING_CODE, trae PROPERTY_NAME y la ubicación (Región/Estado/
    Mercado/Submercado) de la Propiedad correspondiente — pura conveniencia de captura, los campos quedan
@@ -12891,6 +12990,29 @@ document.getElementById("unlinkFileBtn").onclick=async()=>{
   toast("Data Excel unlinked and local data erased.","ok");
 };
 document.getElementById("recalcGeoIdsBtn").onclick=recalcAllGeoIds;
+document.getElementById("migrateLocationCatalogBtn").onclick=async()=>{
+  if(!FSA){ toast("Your browser doesn't support this. Use Chrome or Edge.","err"); return; }
+  try{
+    const [h]=await window.showOpenFilePicker({types:[{description:"Excel",accept:{"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":[".xlsx",".xls"]}}]});
+    if(!await ensurePermission(h,"readwrite")){ toast("Permission denied","err"); return; }
+    const file=await h.getFile();
+    const wb=XLSX.read(await file.arrayBuffer(),{type:"array",cellFormula:false,cellHTML:false});
+    const preview=parseLocationCatalogCrosswalk(wb);
+    if(!preview){
+      toast("I didn't recognize that file's Location catalog columns (need Region/State/Market/Submarket and the old ID_SUBMERCADO column).","err");
+      return;
+    }
+    if(!confirm(`This will update the Region/State/Market/Submarket of already-captured Properties/Parks/Land/Offices records (matched by their old Location ID) and leave "${h.name}" linked as your Configuration file from now on. Continue?`)) return;
+    const result=await applyLocationCatalogMigration(wb);
+    if(!result) return;
+    configFileHandle=h; lastKnownConfigModTime=file.lastModified; await saveConfigHandle(h); setConfigFileChip();
+    renderFieldConfigView(); renderListsNav();
+    const msg=`${result.touched} of ${result.scanned} record(s) updated to the new catalog`+(result.unresolved?`; ${result.unresolved} couldn't be matched and were left as-is.`:".");
+    const resultEl=document.getElementById("migrateLocationCatalogResult");
+    if(resultEl) resultEl.textContent=msg;
+    toast(msg, result.touched?"ok":"");
+  }catch(e){ if(e.name!=="AbortError") toast("Error: "+e.message,"err"); }
+};
 
 /* ==== Reconnect a remembered file (read only; needs a user gesture for permission) ==== */
 document.getElementById("reconnectBtn").onclick=async()=>{

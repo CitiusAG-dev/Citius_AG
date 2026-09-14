@@ -217,7 +217,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      3er hijo (entre sidebar y main) hace que se "recorte" desde arriba (empieza más abajo) pero se siga
      estirando hasta el fondo real de la hoja, sin necesitar position:absolute. El margin-top se calibró
      midiendo dónde cae de verdad la línea bajo el título (ver mkt-cover-title/titleblock). */
-  .mkt-cover-accent{flex:0 0 7px;background:var(--accent);margin-top:208px}
+  .mkt-cover-accent{flex:0 0 10px;background:var(--accent);margin-top:188px}
   /* v7.3.8, pedido explícito del usuario: la línea dorada pasa de .mkt-cover-title (display:inline-block,
      solo tan ancha como el texto) a .mkt-cover-titleblock (bloque normal, tan ancho como el panel gris menos
      su padding) — "que se extienda hasta donde termina el panel gris" — y bastante más delgada (3px -> 1px). */
@@ -227,7 +227,8 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      bloque normal (no inline-block), así que ocupa el ancho completo disponible (hasta donde termina el
      panel gris), igual que antes. Nombre del Mercado también más grande (30px -> 34px). */
   .mkt-cover-titleblock{padding-left:14px}
-  .mkt-cover-title{margin:0;font-size:34px;font-weight:400;font-family:'Dala Moa',Georgia,serif;
+  /* v7.3.23, pedido explícito del usuario: nombre del Mercado un poco más grande todavía (34px -> 38px). */
+  .mkt-cover-title{margin:0;font-size:38px;font-weight:400;font-family:'Dala Moa',Georgia,serif;
                     border-bottom:1px solid var(--accent);padding-bottom:8px}
   /* v7.3.10, pedido explícito del usuario: bold real (font-weight:700 — Unitext SÍ tiene un @font-face de
      ese peso cargado, ver el comentario grande de 'Dala Moa'/'Unitext' más arriba — nada de negrita
@@ -235,7 +236,8 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-cover-subtitle{font-size:17px;font-weight:300;margin-top:6px;font-family:'Unitext',Arial,sans-serif}
   .mkt-cover-year{font-size:13px;font-weight:300;opacity:.85;font-family:'Unitext',Arial,sans-serif}
   .mkt-cover-team{display:flex;flex-direction:column;gap:16px;text-align:right}
-  .mkt-cover-person-name{font-size:27px;font-family:'Dala Moa',Georgia,serif;margin-bottom:2px}
+  /* v7.3.23, pedido explícito del usuario: nombres de Idalia/Abigail un poco más grandes (27px -> 31px). */
+  .mkt-cover-person-name{font-size:31px;font-family:'Dala Moa',Georgia,serif;margin-bottom:2px}
   .mkt-cover-person-role{font-size:13px;font-weight:700;font-family:'Unitext',Arial,sans-serif}
   .mkt-cover-person-addr{font-size:12.5px;font-weight:300;opacity:.9;font-family:'Unitext',Arial,sans-serif;line-height:1.4}
   .mkt-cover-person-phone{font-size:12.5px;font-weight:300;opacity:.9;font-family:'Unitext',Arial,sans-serif}
@@ -308,12 +310,11 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-table-plain{font-size:11px}
   .mkt-table-plain td{border-bottom:1px dotted var(--line);padding:4.5px 0}
   .mkt-table-plain tr:last-child td{border-bottom:none}
-  /* Significant Transactions (portada) — su propia clase, aparte de .mkt-box .mkt-table genérico (ese
-     también lo usan las tablas compactas de las páginas 2/4, ya ajustadas para caber en una sola hoja física
-     al imprimir — aflojarlas de más ahí reintroduciría el bug de páginas de más, ver v7.3.3). */
-  .mkt-box .mkt-sigtx-table{font-size:10px}
-  .mkt-box .mkt-sigtx-table th{padding:5px 8px;font-size:8.5px}
-  .mkt-box .mkt-sigtx-table td{padding:6px 8px}
+  /* v7.3.23, pedido explícito del usuario: Significant Transactions (portada) con el MISMO diseño que las
+     tablas de Absorption — antes tenía su propia clase .mkt-sigtx-table con estilo distinto; ahora reusa
+     .mkt-absorption-table directamente (ver ese bloque más abajo: header gris #e6e6e6, sin líneas divisorias
+     en el header, línea vertical entre columnas, sin borde en el último renglón). .mkt-sigtx-table se deja en
+     el HTML solo como gancho identificador, sin reglas propias — ya no aplica ninguna. */
   .mkt-box .mkt-table{font-size:8.5px}
   .mkt-box .mkt-table th{padding:2.5px 4px;font-size:7.5px}
   .mkt-box .mkt-table td{padding:2px 4px}
@@ -326,7 +327,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      especificidad para las dos, el orden en la hoja de estilos decide el empate; puesto antes, el
      font-size:8.5px de `.mkt-table` genérico le ganaba silenciosamente a este 9.5px (bug real reportado por
      el usuario: "el tamaño de letra... no lo veo igual" entre Market y Absorption). */
-  .mkt-box .mkt-table-plain{font-size:9.5px}
+  .mkt-box .mkt-table-plain{font-size:9px}
   .mkt-box .mkt-table-plain td{padding:6px 10px}
   .mkt-box .mkt-table-plain td:first-child{border-right:1px solid var(--line)}
   .mkt-box .mkt-table-plain tr.mkt-row-strong td{font-weight:700}
@@ -348,10 +349,13 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      celda-etiqueta (GROSS / el <th colspan> de Negative-Net) alineada a la izquierda (el resto de headers de
      Gross, 1Q-YTD, se quedan centrados), y sin línea al final de cada tabla (border-bottom del último
      renglón, la fila de Total). */
-  .mkt-box .mkt-absorption-table{font-size:9.5px;table-layout:fixed;width:100%}
+  /* v7.3.22, pedido explícito del usuario: letra de los DATOS un poco más chica (9.5px -> 9px — los headers
+     se quedan igual, tienen su propio font-size:9.5px explícito, no heredan de esta base) y filas un poco
+     menos altas todavía (padding vertical 3px -> 2px) para que la tabla se vea más compacta. */
+  .mkt-box .mkt-absorption-table{font-size:9px;table-layout:fixed;width:100%}
   .mkt-box .mkt-absorption-table th{background:#e6e6e6;padding:3px 8px;font-size:9.5px;color:#404040;text-align:center}
   .mkt-box .mkt-absorption-table th.mkt-absorption-th-label{text-align:left}
-  .mkt-box .mkt-absorption-table td{padding:3px 8px;border-right:1px solid var(--line)}
+  .mkt-box .mkt-absorption-table td{padding:2px 8px;border-right:1px solid var(--line)}
   .mkt-box .mkt-absorption-table td:last-child{border-right:none}
   .mkt-box .mkt-absorption-table tr.mkt-total-row td{background:transparent}
   .mkt-box .mkt-absorption-table tr:last-child td{border-bottom:none}
@@ -6735,7 +6739,10 @@ function mktAbsorptionTableHtml(firstColLabel, firstColSuffix, showQuarterHeader
     const ytd=vals.reduce((a,b)=>a+b,0);
     vals.forEach((v,i)=>colTotals[i]+=v);
     colTotals[4]+=ytd;
-    rows+=`<tr><td>${escapeHtml(sm)}</td>${vals.map(v=>`<td class="num-cell">${fmt(v)}</td>`).join("")}<td class="num-cell"><b>${fmt(ytd)} ${unitLbl}</b></td></tr>`;
+    // v7.3.23, pedido explícito del usuario: la columna YTD ya NO va en negritas en cada renglón de
+    // submercado — solo el renglón de Total (mkt-total-row, negritas por CSS general, ver .mkt-total-row
+    // más abajo) se queda en negritas, como ya lo tenemos en esa fila.
+    rows+=`<tr><td>${escapeHtml(sm)}</td>${vals.map(v=>`<td class="num-cell">${fmt(v)}</td>`).join("")}<td class="num-cell">${fmt(ytd)} ${unitLbl}</td></tr>`;
   });
   rows+=`<tr class="mkt-total-row"><td></td>${colTotals.slice(0,4).map(v=>`<td class="num-cell">${fmt(v)}</td>`).join("")}<td class="num-cell">${fmt(colTotals[4])} ${unitLbl}</td></tr>`;
   // v7.3.19, bug real reportado por el usuario (con captura): con las 5 celdas del header VACÍAS (Negative/
@@ -6881,7 +6888,7 @@ function mktBuildCoverPage(){
           </div>
           <div class="mkt-box mkt-box-sigtx">
             <div class="mkt-box-title">Significant Transactions</div>
-            <table class="mkt-table mkt-sigtx-table"><thead><tr><th>Tenant/Buyer</th><th>Building Type</th><th>Transaction</th><th>Area</th></tr></thead><tbody>${sigTxRows}</tbody></table>
+            <table class="mkt-table mkt-sigtx-table mkt-absorption-table"><colgroup><col style="width:34%"><col style="width:22%"><col style="width:20%"><col style="width:24%"></colgroup><thead><tr><th class="mkt-absorption-th-label">Tenant/Buyer</th><th>Building Type</th><th>Transaction</th><th>Area</th></tr></thead><tbody>${sigTxRows}</tbody></table>
           </div>
         </div>
       </div>

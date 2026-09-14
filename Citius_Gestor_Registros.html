@@ -178,8 +178,19 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      páginas de un vistazo — se oculta al imprimir. */
   .mkt-report-outer{padding:24px 0}
   .mkt-report-placeholder{max-width:520px;margin:60px auto;text-align:center;color:var(--muted);font-size:14px}
-  .mkt-report-pages{display:flex;flex-direction:column;align-items:center}
-  .mkt-page{background:#fff;color:#404040;width:100%;max-width:950px;aspect-ratio:11/8.5;
+  /* v7.3.11, bug real notado por el usuario ("la vista previa no es la misma que la impresión") — antes
+     .mkt-page achicaba solo el CONTENEDOR (max-width:950px) para el preview en pantalla, pero el texto/
+     padding de adentro siguen en px fijos, sin escalar junto con él — a un ancho de contenedor MÁS ANGOSTO
+     que el real de impresión (11in = 1056px), todo se ve proporcionalmente más apretado en pantalla que lo
+     que después sale impreso (que sí usa el ancho real completo). Mismo bug de fondo que ya resolvió
+     Presentación para su propio preview (ver `.pres-pages{zoom:.75}` + `pagesEl.style.zoom="1"` antes de
+     imprimir, en doPresPrint()) — se copia ese mismo mecanismo: `.mkt-page` vive SIEMPRE a su tamaño físico
+     real (1056px = 11in), y es `.mkt-report-pages` quien se encoge con `zoom` para el preview en pantalla —
+     un zoom encoge TODO proporcionalmente (texto incluido), a diferencia de max-width en el contenedor, así
+     que el preview es una miniatura fiel en vez de un layout distinto. doMarketReportPrint() quita el zoom
+     (vuelve a 1) justo antes de imprimir, igual que Presentación. */
+  .mkt-report-pages{display:flex;flex-direction:column;align-items:center;zoom:.9}
+  .mkt-page{background:#fff;color:#404040;width:100%;max-width:1056px;aspect-ratio:11/8.5;
             box-sizing:border-box;overflow:hidden;font-size:11px;border-top:2px dashed var(--line);margin-top:28px;padding-top:28px}
   .mkt-page:first-child{border-top:none;margin-top:0;padding-top:0}
   /* v7.3.5, pedido explícito del usuario: height:100% — .mkt-cover-page es hijo directo de .mkt-page (alto
@@ -6917,6 +6928,11 @@ function renderMarketReportHtml(){
 }
 function doMarketReportPrint(){
   document.body.classList.add("printing-mktreport");
+  // v7.3.11: quita el zoom del preview en pantalla (ver .mkt-report-pages) para imprimir siempre al tamaño
+  // real, sin importar el zoom elegido para verlo cómodo en pantalla — mismo patrón que
+  // pagesEl.style.zoom="1" en doPresPrint() (Presentación).
+  const pagesEl=document.getElementById("mktReportPages");
+  if(pagesEl) pagesEl.style.zoom="1";
   // Mismo mecanismo que preparePrintPageSize() de Presentación (ver ahí) para evitar que un @page dinámico
   // viejo de OTRO módulo se quede pisando el tamaño — su propio #dynamicPrintPageSize nunca se borra
   // después de usarse, se queda vivo en <head>. Las 5 páginas del reporte SIEMPRE miden lo mismo (Carta
@@ -6933,6 +6949,7 @@ function doMarketReportPrint(){
   document.title=`${marketLabel} Market Report ${resumenYear}`;
   window.print();
   document.title=originalTitle;
+  if(pagesEl) pagesEl.style.zoom="";
   document.body.classList.remove("printing-mktreport");
 }
 /* Checklist flotante del filtro de Submercado (v6.5.21, pedido explícito del usuario) — mismo look visual

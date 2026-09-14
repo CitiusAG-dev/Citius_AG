@@ -6780,7 +6780,10 @@ function mktAbsorptionTableHtml(firstColLabel, firstColSuffix, showQuarterHeader
     : `<th colspan="6" class="mkt-absorption-th-label">${labelHtml}</th>`;
   // v7.3.20, pedido explícito del usuario: columna de Submarket ~8px más angosta (28% -> 25% de la tabla),
   // el espacio sobrante se reparte entre las otras 5 columnas (14.4% -> 15% cada una: 25+15*5=100%).
-  const colgroupHtml=`<colgroup><col style="width:25%"><col style="width:15%"><col style="width:15%"><col style="width:15%"><col style="width:15%"><col style="width:15%"></colgroup>`;
+  // v7.3.29, pedido explícito del usuario: al menos 5px más angosta todavía (25% -> 23.75%, ~5.3px con el
+  // ancho real de la tabla a tamaño de impresión, ~427px), repartido entre las otras 5 columnas
+  // (15% -> 15.25% cada una: 23.75+15.25*5=100%).
+  const colgroupHtml=`<colgroup><col style="width:23.75%"><col style="width:15.25%"><col style="width:15.25%"><col style="width:15.25%"><col style="width:15.25%"><col style="width:15.25%"></colgroup>`;
   return `<table class="mkt-table mkt-absorption-table">${colgroupHtml}<thead><tr>${headerCells}</tr></thead><tbody>${rows}</tbody></table>`;
 }
 function mktMatrixTableHtml(rowCategories, computeFn, opts){

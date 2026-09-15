@@ -543,9 +543,11 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      que los valores de una dona se vean pegados a los de la de al lado, más que el gap entre panels de arriba.
      v7.3.5x (otra pasada): el usuario vio el resultado y pidió más ancho todavía ("tengo más espacio") —
      150 -> 190px (el panel real mide ~233px a tamaño de impresión con 4 donas por fila, así que sigue
-     dejando aire de sobra a los lados y frente al gap de 24px entre donas). */
-  .mkt-donut-row .mkt-donut-legend{gap:0px 8px;margin-top:3px;max-width:190px;margin-left:auto;margin-right:auto}
-  .mkt-donut-row .mkt-donut-legend-item{font-size:7.5px;gap:4px;line-height:1.1}
+     dejando aire de sobra a los lados y frente al gap de 24px entre donas).
+     v7.3.5x (otra pasada): 8px más a cada lado (190 -> 206px) y la letra un punto más grande (7.5 -> 8.5px),
+     pedido explícito del usuario ("tenemos más espacio"). */
+  .mkt-donut-row .mkt-donut-legend{gap:0px 8px;margin-top:3px;max-width:206px;margin-left:auto;margin-right:auto}
+  .mkt-donut-row .mkt-donut-legend-item{font-size:8.5px;gap:4px;line-height:1.1}
   .mkt-donut-row .mkt-donut-legend-swatch{width:6px;height:6px}
   .mkt-donut-arc{cursor:default}
   .mkt-donut-out-label{font-size:14px;font-weight:700;fill:#1a1a1a}
@@ -7283,34 +7285,61 @@ function mktBuildTxSummaryPage(){
     </div>
   </div>`;
 }
+/* v7.3.5x, pedido explícito del usuario: las tablas de detalle (Completed Transactions/Available Inventory)
+   mostraban TODOS los registros del año en una sola .mkt-page — con Mercados grandes, overflow:hidden
+   recortaba las últimas filas (nunca llegaban a imprimirse, no era solo un tema visual). Ahora se paginan de
+   verdad: cada "línea" (separador de submercado, fila de dato, fila de Total) se cuenta, y cada 30 líneas se
+   corta a una hoja nueva — 30 + el renglón de header de la tabla = 31, el número que el usuario calibró a
+   mano contando cuántas líneas caben de verdad en una hoja Carta horizontal a este tamaño de letra. Cada
+   hoja nueva repite el mismo encabezado de página (mktPageHeaderHtml) y el mismo header de columnas. */
+const MKT_DETAIL_LINES_PER_PAGE=30;
+function mktPaginateDetailPages(pageTitle, theadHtml, bodyLineRows){
+  const chunks=[];
+  for(let i=0;i<bodyLineRows.length;i+=MKT_DETAIL_LINES_PER_PAGE) chunks.push(bodyLineRows.slice(i,i+MKT_DETAIL_LINES_PER_PAGE));
+  return chunks.map(chunk=>`<div class="mkt-page">
+    ${mktPageHeaderHtml(pageTitle)}
+    <div class="mkt-page-body">
+      <table class="mkt-table mkt-detail-table">
+        <thead>${theadHtml}</thead>
+        <tbody>${chunk.join("")}</tbody>
+      </table>
+    </div>
+  </div>`).join("");
+}
 /* ==== Página 3: Completed Transactions — detalle (una fila por transacción, agrupado por Submercado) ==== */
 function mktBuildTxDetailPage(){
   const subs=resumenSubmarkets();
   const yearStart=`${resumenYear}-01-01`, yearEnd=`${resumenYear}-12-31`;
   const num=v=>Math.round(v).toLocaleString("en-US");
-  let bodyHtml="", grandTotalSF=0;
+  const theadHtml=`<tr><th>Submarket</th><th>Tenant/Buyer</th><th>Developer</th><th>Location</th><th>Area (${resumenAreaUnitLabel()})</th><th>Building Type</th><th>Q</th><th>Trans</th></tr>`;
+  let lines=[], grandTotalSF=0;
   subs.forEach(sm=>{
     const rows=(state.TRANSACCIONES||[]).filter(r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd);
     if(!rows.length) return;
-    bodyHtml+=`<tr class="mkt-group-row"><td colspan="7">▼ ${escapeHtml(sm.toUpperCase())}</td></tr>`;
+    // v7.3.5x, bug real reportado por el usuario (con captura): colspan=7 dejaba SIN celda la 8va columna
+    // (Trans) en este renglón — como .mkt-group-row pinta gris vía `td{background:#eee}`, esa columna sin
+    // <td> no tenía nada que pintar y se veía blanca en vez de gris, en TODOS los separadores de submercado.
+    lines.push(`<tr class="mkt-group-row"><td colspan="8">▼ ${escapeHtml(sm.toUpperCase())}</td></tr>`);
     rows.slice().sort((a,b)=>String(a.TRANSACTION_DATE||"").localeCompare(String(b.TRANSACTION_DATE||""))).forEach(r=>{
       const areaSF=areaValueInSF(r,"TRANSACTION_AREA");
       grandTotalSF+=areaSF;
       const q=quarterOfDate(r.TRANSACTION_DATE);
-      bodyHtml+=`<tr><td>${escapeHtml(sm)}</td><td>${escapeHtml(r.TENANT_BUYER_USER||"Confidential")}</td><td>${escapeHtml(r.DEVELOPER||"")}</td><td>${escapeHtml(r.PARK_NAME||r.PROPERTY_NAME||"")}</td><td class="num-cell">${num(resumenAreaVal(areaSF))}</td><td>${escapeHtml(r.BUILDING_TYPE||"")}</td><td class="mkt-center">${q?q+"Q":"—"}</td><td>${escapeHtml(r.TRANSACCION_TYPE||"")}</td></tr>`;
+      lines.push(`<tr><td>${escapeHtml(sm)}</td><td>${escapeHtml(r.TENANT_BUYER_USER||"Confidential")}</td><td>${escapeHtml(r.DEVELOPER||"")}</td><td>${escapeHtml(r.PARK_NAME||r.PROPERTY_NAME||"")}</td><td class="num-cell">${num(resumenAreaVal(areaSF))}</td><td>${escapeHtml(r.BUILDING_TYPE||"")}</td><td class="mkt-center">${q?q+"Q":"—"}</td><td>${escapeHtml(r.TRANSACCION_TYPE||"")}</td></tr>`);
     });
   });
-  if(!bodyHtml) bodyHtml=`<tr><td colspan="8" class="mkt-empty">No transactions.</td></tr>`;
-  return `<div class="mkt-page">
-    ${mktPageHeaderHtml("Completed Transactions — Detail")}
-    <div class="mkt-page-body">
-      <table class="mkt-table mkt-detail-table">
-        <thead><tr><th>Submarket</th><th>Tenant/Buyer</th><th>Developer</th><th>Location</th><th>Area (${resumenAreaUnitLabel()})</th><th>Building Type</th><th>Q</th><th>Trans</th></tr></thead>
-        <tbody>${bodyHtml}</tbody>
-        <tfoot><tr class="mkt-total-row"><td colspan="4">TOTAL:</td><td class="num-cell">${num(resumenAreaVal(grandTotalSF))} ${resumenAreaUnitLabel()}</td><td colspan="3"></td></tr></tfoot>
-      </table>
-    </div>
-  </div>`;
+  if(!lines.length){
+    return `<div class="mkt-page">
+      ${mktPageHeaderHtml("Completed Transactions — Detail")}
+      <div class="mkt-page-body">
+        <table class="mkt-table mkt-detail-table">
+          <thead>${theadHtml}</thead>
+          <tbody><tr><td colspan="8" class="mkt-empty">No transactions.</td></tr></tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+  lines.push(`<tr class="mkt-total-row"><td colspan="4">TOTAL:</td><td class="num-cell">${num(resumenAreaVal(grandTotalSF))} ${resumenAreaUnitLabel()}</td><td colspan="3"></td></tr>`);
+  return mktPaginateDetailPages("Completed Transactions — Detail", theadHtml, lines);
 }
 /* ==== Página 4: Available Inventory — resumen (matriz por Submercado + 4 donas) ==== */
 function mktBuildAvailSummaryPage(){
@@ -7358,37 +7387,40 @@ function mktBuildAvailSummaryPage(){
 function mktBuildAvailDetailPage(){
   const subs=resumenSubmarkets();
   const num=v=>Math.round(v).toLocaleString("en-US");
-  let bodyHtml="", grandTotalSF=0;
+  const theadHtml=`<tr><th>Name</th><th>Developer</th><th>Location</th><th>Size (${resumenAreaUnitLabel()})</th><th>Occupied</th><th>Available</th><th>Clear Height</th><th>Status</th><th>Class</th><th>$/${resumenAreaUnitLabel()}/Mo</th></tr>`;
+  let lines=[], grandTotalSF=0;
   subs.forEach(sm=>{
     const rows=(state.PROPIEDADES||[]).filter(r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B"))&&ciEq(r.MARKET_STATUS,"Available"));
     if(!rows.length) return;
     const submarketTotal=rows.reduce((a,r)=>a+areaValueInSF(r,"AVAILABLE_AREA_VALUE"),0);
-    bodyHtml+=`<tr class="mkt-group-row"><td colspan="9">▼ ${escapeHtml(sm.toUpperCase())}</td><td class="num-cell">${num(resumenAreaVal(submarketTotal))}</td></tr>`;
+    lines.push(`<tr class="mkt-group-row"><td colspan="9">▼ ${escapeHtml(sm.toUpperCase())}</td><td class="num-cell">${num(resumenAreaVal(submarketTotal))}</td></tr>`);
     rows.forEach(r=>{
       const availSF=areaValueInSF(r,"AVAILABLE_AREA_VALUE");
       grandTotalSF+=availSF;
       const rate=r.ASKING_RATE_VALUE?`${/usd/i.test(r.ASKING_RATE_UNIT||"")?"US":"MX"} $ ${Number(r.ASKING_RATE_VALUE).toFixed(2)}`:"UR";
-      bodyHtml+=`<tr><td>${escapeHtml(r.PROPERTY_NAME||r.MAPPING_CODE||"")}</td><td>${escapeHtml(r.DEVELOPER||"")}</td><td>${escapeHtml(r.ADDRESS||"")}</td>
+      lines.push(`<tr><td>${escapeHtml(r.PROPERTY_NAME||r.MAPPING_CODE||"")}</td><td>${escapeHtml(r.DEVELOPER||"")}</td><td>${escapeHtml(r.ADDRESS||"")}</td>
         <td class="num-cell">${num(resumenAreaVal(areaValueInSF(r,"LEASABLE_AREA_GLA_VALUE")))}</td>
         <td class="num-cell">${num(resumenAreaVal(areaValueInSF(r,"OCCUPIED_AREA_VALUE")))}</td>
         <td class="num-cell">${num(resumenAreaVal(availSF))}</td>
         <td class="mkt-center">${r.MIN_CLEAR_HEIGHT_VALUE||"—"}</td>
         <td class="mkt-center">${escapeHtml(r.STATUS||"—")}</td>
         <td class="mkt-center">${escapeHtml(r.CLASSIFICATION||"—")}</td>
-        <td class="num-cell">${rate}</td></tr>`;
+        <td class="num-cell">${rate}</td></tr>`);
     });
   });
-  if(!bodyHtml) bodyHtml=`<tr><td colspan="10" class="mkt-empty">No available inventory.</td></tr>`;
-  return `<div class="mkt-page">
-    ${mktPageHeaderHtml("Available Inventory — Detail")}
-    <div class="mkt-page-body">
-      <table class="mkt-table mkt-detail-table">
-        <thead><tr><th>Name</th><th>Developer</th><th>Location</th><th>Size (${resumenAreaUnitLabel()})</th><th>Occupied</th><th>Available</th><th>Clear Height</th><th>Status</th><th>Class</th><th>$/${resumenAreaUnitLabel()}/Mo</th></tr></thead>
-        <tbody>${bodyHtml}</tbody>
-        <tfoot><tr class="mkt-total-row"><td colspan="5">TOTAL:</td><td class="num-cell">${num(resumenAreaVal(grandTotalSF))} ${resumenAreaUnitLabel()}</td><td colspan="4"></td></tr></tfoot>
-      </table>
-    </div>
-  </div>`;
+  if(!lines.length){
+    return `<div class="mkt-page">
+      ${mktPageHeaderHtml("Available Inventory — Detail")}
+      <div class="mkt-page-body">
+        <table class="mkt-table mkt-detail-table">
+          <thead>${theadHtml}</thead>
+          <tbody><tr><td colspan="10" class="mkt-empty">No available inventory.</td></tr></tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+  lines.push(`<tr class="mkt-total-row"><td colspan="5">TOTAL:</td><td class="num-cell">${num(resumenAreaVal(grandTotalSF))} ${resumenAreaUnitLabel()}</td><td colspan="4"></td></tr>`);
+  return mktPaginateDetailPages("Available Inventory — Detail", theadHtml, lines);
 }
 function renderMarketReportHtml(){
   if(!resumenMarket){

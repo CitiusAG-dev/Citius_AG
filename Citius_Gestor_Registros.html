@@ -269,6 +269,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      #404040 (ver .mkt-page de arriba — cascada hacia abajo; los pocos colores fijos que lo pisaban, como
      este título, se actualizan también en vez de dejarlos peleando contra la cascada). */
   .mkt-box{border:none;border-radius:6px;padding:7px 9px;background:#fff;min-width:0}
+  /* v7.3.5x: en páginas 2/4 (más ajustadas de espacio vertical, ver .mkt-page-body de arriba) el padding
+     vertical de cada caja baja un poco (7px -> 4px arriba/abajo, el horizontal no cambia). */
+  .mkt-page-body .mkt-box{padding-top:4px;padding-bottom:4px}
   /* v7.3.13, pedido explícito del usuario (con imagen de referencia): la línea ya no va DEBAJO de todo el
      título (border-bottom, ancho completo del tile) — va SEGUIDA del texto, en la misma línea/renglón, como
      "MARKET ────────". Un ::after con flex:1 rellena el resto del ancho disponible; color de la línea = color
@@ -405,13 +408,22 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      selector más específico basta para no afectar a la portada. */
   .mkt-page-body .mkt-box .mkt-absorption-table td{padding:1px 8px}
   /* v7.3.5x, pedido explícito del usuario: letra del header un punto más chica, mismo alcance de arriba
-     (solo páginas 2/4, sin tocar la portada). */
-  .mkt-page-body .mkt-box .mkt-absorption-table th{font-size:8.5px}
+     (solo páginas 2/4, sin tocar la portada). El padding vertical del header también baja un poco (3px ->
+     2px, mismo alcance) — recupera espacio vertical para que las donas más grandes + su leyenda (ver más
+     abajo) quepan sin desbordar la página en "Available Inventory" (5 tablas, la más ajustada de las 2). */
+  .mkt-page-body .mkt-box .mkt-absorption-table th{font-size:8.5px;padding:2px 8px}
   /* v7.3.31, pedido explícito del usuario (con captura): quita el padding-right "de seguridad" solo en la
      columna YTD (que trae el sufijo de unidad, ej. " SF", y por eso es la más ancha de texto) para que el
      dato pueda usar todo el ancho real de la columna sin desbordarse hacia la izquierda (ver el comentario
      grande en mktAbsorptionTableHtml). */
   .mkt-box .mkt-absorption-table td.mkt-absorption-td-ytd{padding-right:2px}
+  /* v7.3.5x, pedido explícito del usuario: las columnas de submercado y Total de las tablas "matriz"
+     (páginas 2/4) deben quedar repartidas EXACTAMENTE igual (ver mktMatrixTableHtml, ya no le da más
+     ancho a la columna Total) — como red de seguridad contra el desbordamiento con montos muy grandes
+     (mismo bug que YTD en Absorption), esta columna puede pasar a una 2da línea en vez de desbordarse
+     hacia un lado (white-space:normal, sobre el nowrap genérico de `th,td` de arriba en el archivo). Solo
+     esta columna, no toda la tabla — las demás siguen en una sola línea. */
+  .mkt-page-body .mkt-box .mkt-absorption-table td.mkt-absorption-td-ytd{white-space:normal}
   .mkt-box .mkt-absorption-table td:last-child{border-right:none}
   .mkt-box .mkt-absorption-table tr.mkt-total-row td{background:transparent}
   .mkt-box .mkt-absorption-table tr:last-child td{border-bottom:none}
@@ -457,8 +469,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-page-website{position:absolute;right:0;bottom:0;font-size:11px;color:#7f7f7f}
   /* v7.3.5x, pedido explícito del usuario: isotipo del header (páginas 2-5) 40px a la izquierda (antes
      pegado al borde derecho vía margin-left:auto — margin-right:40px reserva ese espacio a su derecha,
-     empujándolo 40px hacia la izquierda desde ahí) y 30% más grande (26px -> 34px, 26*1.3=33.8). */
-  .mkt-page-logo{width:34px;height:34px;object-fit:contain;margin-left:auto;margin-right:40px}
+     empujándolo 40px hacia la izquierda desde ahí) y 30% más grande (26px -> 34px, 26*1.3=33.8).
+     v7.3.5x, pedido explícito del usuario: un poco más grande todavía (34px -> 40px). */
+  .mkt-page-logo{width:40px;height:40px;object-fit:contain;margin-left:auto;margin-right:40px}
   /* v7.3.3, bug real reportado por el usuario ("no me imprime todas las hojas") — parte del mismo arreglo:
      una vez que se destrabó el recorte de #resumenView/#resumenScrollArea (ver arriba), esta página SÍ medía
      más alto que una hoja Carta horizontal real (11x8.5in) — las 4 tablas + fila de donas juntas no cabían,
@@ -470,12 +483,27 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      computar el ancho de la página distinto al de la vista interactiva). En vez de perseguir esa divergencia,
      se deja fijo en 1 columna siempre — que es, de cualquier forma, cómo el usuario quiere verlas — así
      preview e impresión quedan idénticos por diseño, no por casualidad de a qué ancho caiga cada media query. */
-  .mkt-page-body{padding:0 26px 10px;display:grid;grid-template-columns:1fr;gap:10px}
+  /* v7.3.5x, pedido explícito del usuario: el contenido empieza al menos 20px más abajo del título/línea
+     del header (antes padding-top:0, muy pegado). El gap entre bloques baja de 10px a 7px en la misma
+     pasada: agrandar las donas + agregar su leyenda de abajo (ver .mkt-donut-svg/.mkt-donut-legend más abajo)
+     le quitó a la hoja el margen de sobra que tenía, y con 5 tablas (hoja "Available Inventory") + la fila de
+     donas ya no cabían las 5 páginas en Page.printToPDF (verificado con el caso de esfuerzo de 9
+     submercados) — recortar el gap recupera ese espacio sin tocar la altura de ningún renglón de tabla. */
+  .mkt-page-body{padding:20px 26px 10px;display:grid;grid-template-columns:1fr;gap:6px}
   .mkt-page-body>.mkt-table.mkt-detail-table{grid-column:1/-1}
   .mkt-donut-row{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between}
   .mkt-donut-panel{flex:1;min-width:140px;text-align:center}
   .mkt-donut-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px}
-  .mkt-donut-svg{width:100%;max-width:130px;overflow:visible}
+  /* v7.3.5x, pedido explícito del usuario: donas de páginas 2/4 más grandes (130 -> 145px) con leyenda
+     inferior a 2 columnas (como la de Availability en portada) en vez de etiquetas afuera del anillo —
+     la leyenda propia de esta fila va más compacta (letra/swatch/separación más chicos) que la de portada
+     porque aquí caben 4 donas por renglón en vez de 1, y porque la altura de la página es fija (Carta
+     horizontal) — verificado con Page.printToPDF (caso de esfuerzo: 9 submercados) que las 5 páginas del
+     reporte no se recorten ni generen una 6ta hoja. */
+  .mkt-donut-svg{width:100%;max-width:145px;overflow:visible}
+  .mkt-donut-row .mkt-donut-legend{gap:0px 8px;margin-top:3px}
+  .mkt-donut-row .mkt-donut-legend-item{font-size:7.5px;gap:4px;line-height:1.1}
+  .mkt-donut-row .mkt-donut-legend-swatch{width:6px;height:6px}
   .mkt-donut-arc{cursor:default}
   .mkt-donut-out-label{font-size:9px;font-weight:700;fill:#1a1a1a}
   /* v7.3.19, pedido explícito del usuario: línea punteada del anillo a cada etiqueta */
@@ -7012,18 +7040,14 @@ function mktMatrixTableHtml(rowCategories, computeFn, opts){
   // mismo número de submercados), así quedan idénticas al apilarse.
   // v7.3.37, pedido explícito del usuario: 1ra columna ~40px más angosta (22% -> 18%, ~39.4px con el ancho
   // real de la tabla a tamaño de impresión, ~986px), repartido entre las demás columnas (78% -> 82%).
-  // v7.3.5x, bug real reportado por el usuario (con captura, mismo desbordamiento que ya se corrigió en
-  // YTD de Absorption v7.3.31): la columna "Total" final lleva el sufijo de unidad (ej. " SF") y con
-  // muchos submercados/montos grandes se desbordaba igual que ahí — se le suman TOTAL_EXTRA_PCT puntos
-  // porcentuales de ancho, tomados en partes iguales de las columnas de submercado (la fórmula sigue
-  // sumando exactamente 82% sin importar cuántos submercados haya). mkt-absorption-td-ytd (reusada de
-  // Absorption) le quita el padding-right "de seguridad" a esa misma columna.
-  const n=subs.length;
-  const TOTAL_EXTRA_PCT=5;
-  const baseShare=82/(n+1);
-  const subColPct=(baseShare-TOTAL_EXTRA_PCT/n).toFixed(3);
-  const totalColPct=(baseShare+TOTAL_EXTRA_PCT).toFixed(3);
-  const colgroupHtml=`<colgroup><col style="width:18%">${subs.map(()=>`<col style="width:${subColPct}%">`).join("")}<col style="width:${totalColPct}%"></colgroup>`;
+  // v7.3.5x, corrige el intento anterior (le daba más ancho a "Total" para evitar que se desbordara, pero
+  // el usuario prefiere que las columnas de submercado y Total queden REPARTIDAS EXACTAMENTE IGUAL, sin
+  // que ninguna se vea más ancha que las demás) — el desbordamiento de montos grandes se resuelve distinto:
+  // .mkt-absorption-td-ytd (reusada de Absorption) ya le quita el padding-right "de seguridad" a esa
+  // columna, y además ahora puede pasar a una 2da línea (white-space:normal, ver CSS) en vez de
+  // desbordarse hacia un lado — con datos normales nunca se nota, solo en montos muy grandes.
+  const dataColPct=(82/(subs.length+1)).toFixed(3);
+  const colgroupHtml=`<colgroup><col style="width:18%">${subs.map(()=>`<col style="width:${dataColPct}%">`).join("")}<col style="width:${dataColPct}%"></colgroup>`;
   return `<table class="mkt-table mkt-absorption-table">${colgroupHtml}<thead><tr>${headerCells}</tr></thead><tbody>${bodyRows}${totalRow}</tbody></table>`;
 }
 /* Top N transacciones (por "Transaction Area") del año/filtro activo — "Significant Transactions" de la
@@ -7188,10 +7212,10 @@ function mktBuildTxSummaryPage(){
       <div class="mkt-box">${typeTable}</div>
       <div class="mkt-box">${dealTable}</div>
       <div class="mkt-donut-row">
-        ${mktDonutHtml("Quarter", quarterDonutData, resumenAreaUnitLabel())}
-        ${mktDonutHtml("Count", countDonutData, "")}
-        ${mktDonutHtml("Type", typeDonutData, resumenAreaUnitLabel())}
-        ${mktDonutHtml("Deal", dealDonutData, resumenAreaUnitLabel())}
+        ${mktDonutHtml("Quarter", quarterDonutData, resumenAreaUnitLabel(), 30, undefined, true)}
+        ${mktDonutHtml("Count", countDonutData, "", 30, undefined, true)}
+        ${mktDonutHtml("Type", typeDonutData, resumenAreaUnitLabel(), 30, undefined, true)}
+        ${mktDonutHtml("Deal", dealDonutData, resumenAreaUnitLabel(), 30, undefined, true)}
       </div>
     </div>
   </div>`;
@@ -7259,10 +7283,10 @@ function mktBuildAvailSummaryPage(){
       <div class="mkt-box">${statusTable}</div>
       <div class="mkt-box">${genTable}</div>
       <div class="mkt-donut-row">
-        ${mktDonutHtml("Class", classDonutData, resumenAreaUnitLabel())}
-        ${mktDonutHtml("Count", countDonutData, "")}
-        ${mktDonutHtml("Status", statusDonutData, resumenAreaUnitLabel())}
-        ${mktDonutHtml("Generation", genDonutData, resumenAreaUnitLabel())}
+        ${mktDonutHtml("Class", classDonutData, resumenAreaUnitLabel(), 30, undefined, true)}
+        ${mktDonutHtml("Count", countDonutData, "", 30, undefined, true)}
+        ${mktDonutHtml("Status", statusDonutData, resumenAreaUnitLabel(), 30, undefined, true)}
+        ${mktDonutHtml("Generation", genDonutData, resumenAreaUnitLabel(), 30, undefined, true)}
       </div>
     </div>
   </div>`;

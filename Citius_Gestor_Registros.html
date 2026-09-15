@@ -467,6 +467,14 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-donut-leader{stroke:#9aa0a6;stroke-width:1;stroke-dasharray:2,2}
   .mkt-donut-out-pct{font-size:9px;fill:var(--muted)}
   .mkt-donut-empty{color:var(--muted);font-size:10px;font-style:italic}
+  /* v7.3.44, pedido explícito del usuario: leyenda de 2 columnas debajo de la dona de Availability (ver
+     legendBelow en mktDonutHtml) — reemplaza las etiquetas junto al anillo, así nunca se encima sin
+     importar cuántas categorías haya. */
+  .mkt-donut-legend{display:grid;grid-template-columns:1fr 1fr;gap:3px 14px;margin-top:6px;text-align:left}
+  .mkt-donut-legend-item{display:flex;align-items:center;gap:6px;font-size:11px;min-width:0}
+  .mkt-donut-legend-swatch{width:9px;height:9px;border-radius:2px;flex:0 0 auto}
+  .mkt-donut-legend-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#1a1a1a}
+  .mkt-donut-legend-pct{flex:0 0 auto;color:var(--muted);font-variant-numeric:tabular-nums}
   /* "Tool Usage" — gráfica de barras al fondo de Resumen. `.resumen-usage-header` reemplaza el
      margin-top:48px de `.resumen-section-title` de siempre (aquí puesto en 0 desde el HTML) por el margen
      del contenedor, para poder alinear el título+nota a la izquierda con los 2 selectores (Documento/
@@ -6759,7 +6767,15 @@ function mktMeasureTextWidth(text, fontPx, weight){
   _mktMeasureCtx.font=`${weight||700} ${fontPx}px Arial, Helvetica, sans-serif`;
   return _mktMeasureCtx.measureText(text).width;
 }
-function mktDonutHtml(title, data, unitLabel, strokeWidth, labelFontSize){
+/* v7.3.44, pedido explícito del usuario (con captura, Availability con 9 submercados): en vez de seguir
+   empujando etiquetas a anillos más lejanos cuando se encimaban (v7.3.35), Availability pasa a tener una
+   LEYENDA de 2 columnas debajo de la dona (color + nombre + %, para TODAS las categorías, confirmado con el
+   usuario vía AskUserQuestion) en vez de las etiquetas pegadas al anillo — un legend list nunca se encima,
+   sin importar cuántas categorías haya. El anillo mismo NO cambia (cada rebanada sigue con su color/
+   proporción real, sin fusionar nada en "Others" — también confirmado). Solo Availability lo usa (6to
+   argumento opcional `legendBelow`); las 8 donas compactas de páginas 2/4 siguen con etiquetas junto al
+   anillo, sin cambio. */
+function mktDonutHtml(title, data, unitLabel, strokeWidth, labelFontSize, legendBelow){
   const fmt=v=>Math.round(v).toLocaleString("en-US");
   const filtered=data.filter(d=>d.value>0);
   const total=filtered.reduce((a,d)=>a+d.value,0);
@@ -6809,40 +6825,48 @@ function mktDonutHtml(title, data, unitLabel, strokeWidth, labelFontSize){
   });
   // Coloca las etiquetas en orden angular — así una rebanada chica "atrapada" entre 2 grandes se resuelve
   // contra sus vecinas reales, no contra el orden arbitrario en que vienen los datos.
-  const TIER_STEP=Math.max(16, LBL_R*0.16);
-  const MAX_TIERS=6;
-  const rectFor=(cx,cy,anchor,w,h)=>{
-    const x0=anchor==="start"?cx:anchor==="end"?cx-w:cx-w/2;
-    return {x0, x1:x0+w, y0:cy-h/2, y1:cy+h/2};
-  };
-  const overlaps=(a,b)=>a.x0<b.x1 && a.x1>b.x0 && a.y0<b.y1 && a.y1>b.y0;
-  const placedRects=[];
-  [...items.keys()].sort((a,b)=>items[a].midAngle-items[b].midAngle).forEach(idx=>{
-    const it=items[idx];
-    let rect=null;
-    for(let tier=0; tier<MAX_TIERS; tier++){
-      const r=LBL_R+tier*TIER_STEP;
-      const lx=CX+r*it.cos, ly=CY+r*it.sin;
-      const candidate=rectFor(lx,ly,it.anchor,it.boxW,it.boxH);
-      if(tier===MAX_TIERS-1 || !placedRects.some(p=>overlaps(candidate,p))){
-        it.lx=lx; it.ly=ly; it.finalR=r; rect=candidate; break;
+  // v7.3.44: con legendBelow no hace falta ninguno de estos cálculos (no hay etiquetas junto al anillo).
+  if(!legendBelow){
+    const TIER_STEP=Math.max(16, LBL_R*0.16);
+    const MAX_TIERS=6;
+    const rectFor=(cx,cy,anchor,w,h)=>{
+      const x0=anchor==="start"?cx:anchor==="end"?cx-w:cx-w/2;
+      return {x0, x1:x0+w, y0:cy-h/2, y1:cy+h/2};
+    };
+    const overlaps=(a,b)=>a.x0<b.x1 && a.x1>b.x0 && a.y0<b.y1 && a.y1>b.y0;
+    const placedRects=[];
+    [...items.keys()].sort((a,b)=>items[a].midAngle-items[b].midAngle).forEach(idx=>{
+      const it=items[idx];
+      let rect=null;
+      for(let tier=0; tier<MAX_TIERS; tier++){
+        const r=LBL_R+tier*TIER_STEP;
+        const lx=CX+r*it.cos, ly=CY+r*it.sin;
+        const candidate=rectFor(lx,ly,it.anchor,it.boxW,it.boxH);
+        if(tier===MAX_TIERS-1 || !placedRects.some(p=>overlaps(candidate,p))){
+          it.lx=lx; it.ly=ly; it.finalR=r; rect=candidate; break;
+        }
       }
-    }
-    placedRects.push(rect);
-  });
-  let arcsHtml="", labelsHtml="", leadersHtml="";
+      placedRects.push(rect);
+    });
+  }
+  let arcsHtml="", labelsHtml="", leadersHtml="", legendHtml="";
   items.forEach(it=>{
     arcsHtml+=`<circle class="mkt-donut-arc" cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="${it.s.color}"
       stroke-width="${SW}" stroke-dasharray="${it.drawLen.toFixed(3)} ${(CIRC-it.drawLen).toFixed(3)}"
       transform="rotate(${it.rotate} ${CX} ${CY})"><title>${escapeHtml(it.s.label)}: ${fmt(it.s.value)}${unitLabel?" "+unitLabel:""} (${it.pct.toFixed(1)}%)</title></circle>`;
-    const leaderR2=it.finalR-13;
-    leadersHtml+=`<line class="mkt-donut-leader" x1="${(CX+LEADER_R1*it.cos).toFixed(1)}" y1="${(CY+LEADER_R1*it.sin).toFixed(1)}" x2="${(CX+leaderR2*it.cos).toFixed(1)}" y2="${(CY+leaderR2*it.sin).toFixed(1)}"/>`;
-    labelsHtml+=`<text class="mkt-donut-out-label" x="${it.lx.toFixed(1)}" y="${(it.ly-4).toFixed(1)}" text-anchor="${it.anchor}">${escapeHtml(it.s.label)}</text>
-      <text class="mkt-donut-out-pct" x="${it.lx.toFixed(1)}" y="${(it.ly+11).toFixed(1)}" text-anchor="${it.anchor}">${it.pctText}</text>`;
+    if(legendBelow){
+      legendHtml+=`<div class="mkt-donut-legend-item"><span class="mkt-donut-legend-swatch" style="background:${it.s.color}"></span><span class="mkt-donut-legend-label">${escapeHtml(it.s.label)}</span><span class="mkt-donut-legend-pct">${it.pctText}</span></div>`;
+    }else{
+      const leaderR2=it.finalR-13;
+      leadersHtml+=`<line class="mkt-donut-leader" x1="${(CX+LEADER_R1*it.cos).toFixed(1)}" y1="${(CY+LEADER_R1*it.sin).toFixed(1)}" x2="${(CX+leaderR2*it.cos).toFixed(1)}" y2="${(CY+leaderR2*it.sin).toFixed(1)}"/>`;
+      labelsHtml+=`<text class="mkt-donut-out-label" x="${it.lx.toFixed(1)}" y="${(it.ly-4).toFixed(1)}" text-anchor="${it.anchor}">${escapeHtml(it.s.label)}</text>
+        <text class="mkt-donut-out-pct" x="${it.lx.toFixed(1)}" y="${(it.ly+11).toFixed(1)}" text-anchor="${it.anchor}">${it.pctText}</text>`;
+    }
   });
   return `<div class="mkt-donut-panel">
     <div class="mkt-donut-title">${escapeHtml(title)}</div>
     <svg class="mkt-donut-svg" viewBox="0 0 320 320" role="img" aria-label="${escapeAttr(title)}">${arcsHtml}${leadersHtml}${labelsHtml}</svg>
+    ${legendBelow?`<div class="mkt-donut-legend">${legendHtml}</div>`:""}
   </div>`;
 }
 /* Tabla "matriz": filas = categorías (ej. Quarter, o un rango de tamaño), columnas = Submercado + Total —
@@ -7034,7 +7058,7 @@ function mktBuildCoverPage(){
           </div>
           <div class="mkt-box mkt-box-avail">
             <div class="mkt-box-title">Availability</div>
-            ${mktDonutHtml("", resumenAvailabilityBySubmarket().map(d=>({label:d.submarket.toUpperCase(), value:d.value})), resumenAreaUnitLabel(), 40, 12)}
+            ${mktDonutHtml("", resumenAvailabilityBySubmarket().map(d=>({label:d.submarket.toUpperCase(), value:d.value})), resumenAreaUnitLabel(), 40, 12, true)}
           </div>
         </div>
         <div class="mkt-cover-col">

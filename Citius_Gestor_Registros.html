@@ -283,7 +283,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      (margin-bottom 8px -> 12px). */
   .mkt-box-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;
                   margin-bottom:12px;color:#404040;flex:0 0 auto;display:flex;align-items:flex-end;gap:8px}
-  .mkt-box-title::after{content:"";flex:1;height:1px;background:#404040;min-width:0;margin-bottom:2px}
+  /* v7.3.43, pedido explícito del usuario: color de la línea junto a los títulos de sección de la portada
+     (Market/Absorption/Availability/Significant Transactions) — #404040 -> #a1a1a1. */
+  .mkt-box-title::after{content:"";flex:1;height:1px;background:#a1a1a1;min-width:0;margin-bottom:2px}
   /* v7.3.2, ajuste de layout tras comparar contra el PDF de referencia: Absorption/Significant Transactions
      se dejan a su alto NATURAL (flex:0 0 auto) — antes `flex:1` los estiraba a la altura completa de la
      columna, y como su contenido real es mucho más corto que eso, cada una de las 3 tablas (Gross/Negative/
@@ -417,19 +419,29 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      v7.3.39, corrige v7.3.38 (pedido explícito del usuario): la línea va ENTRE el nombre del Mercado y el
      subtítulo (border-bottom en .mkt-page-title mismo, no en todo el bloque izquierdo) — igual que en la
      portada, donde la línea separa el título del subtítulo/trimestre que sigue, no encierra a los dos. */
-  /* v7.3.42, pedido explícito del usuario: el header empieza 15px más abajo (padding-top 14px -> 29px). */
-  .mkt-page-header{display:flex;align-items:center;padding:29px 26px 6px;margin-bottom:8px}
+  /* v7.3.42, pedido explícito del usuario: el header empieza 15px más abajo (padding-top 14px -> 29px).
+     v7.3.43, pedido explícito del usuario: 5px más arriba todavía (padding-top 29px -> 24px). */
+  .mkt-page-header{display:flex;align-items:center;padding:24px 26px 6px;margin-bottom:8px}
   /* v7.3.40, pedido explícito del usuario: línea al menos 100px más larga (74% -> 84%, ~100px con el ancho
      real del header a tamaño de impresión, ~1005px). */
   .mkt-page-header-left{flex:0 0 84%;position:relative}
   .mkt-page-title{margin:0;font-size:38px;font-weight:400;font-family:'Dala Moa',Georgia,serif;color:#7f7f7f;
-                    border-bottom:1px solid var(--accent);padding-bottom:4px}
+                    border-bottom:1px solid var(--accent);padding-bottom:4px;position:relative}
   /* v7.3.41, pedido explícito del usuario: un poco más grande (11px -> 13px). */
   .mkt-page-subtitle{font-size:13px;color:#7f7f7f;margin-top:4px}
   /* v7.3.42, pedido explícito del usuario: el trimestre/año y la página web ya no van junto al isotipo —
-     se posicionan (position:absolute, relativo a .mkt-page-header-left) justo en el extremo derecho de la
-     línea dorada, el año/trimestre ARRIBA de la línea y la página web ABAJO. */
-  .mkt-page-year{position:absolute;right:0;top:0;font-size:13px;font-weight:700;color:#404040}
+     se posicionan justo en el extremo derecho de la línea dorada, el año/trimestre ARRIBA de la línea y la
+     página web ABAJO.
+     v7.3.43, corrige v7.3.42 (pedido explícito del usuario): el año quedaba muy arriba (position:absolute
+     relativo a .mkt-page-header-left, top:0 — el borde superior de TODO el bloque, muy por encima del
+     texto real del título). Ahora es relativo a .mkt-page-title mismo, con bottom:4px (el mismo
+     padding-bottom del título) — queda pegado justo arriba de la línea, a la altura del nombre del
+     Mercado, en vez del borde superior del bloque. */
+  /* font-family explícito: .mkt-page-year vive DENTRO de .mkt-page-title (para anclar bien el
+     position:absolute, ver comentario arriba) y sin esto heredaría 'Dala Moa' (la tipografía cursiva del
+     título), no el sans-serif normal que se ve en el resto de la app. */
+  .mkt-page-year{position:absolute;right:0;bottom:4px;font-size:13px;font-weight:700;color:#404040;
+                   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
   .mkt-page-website{position:absolute;right:0;bottom:0;font-size:11px;color:#7f7f7f}
   .mkt-page-logo{width:26px;height:26px;object-fit:contain;margin-left:auto}
   /* v7.3.3, bug real reportado por el usuario ("no me imprime todas las hojas") — parte del mismo arreglo:
@@ -7052,8 +7064,7 @@ function mktPageHeaderHtml(subtitle){
   const marketLabel=resumenMarket||"All Markets";
   return `<div class="mkt-page-header">
     <div class="mkt-page-header-left">
-      <h2 class="mkt-page-title">${escapeHtml(marketLabel)}</h2>
-      <div class="mkt-page-year">${mktCurrentQuarterLabel()} ${escapeHtml(resumenYear)}</div>
+      <h2 class="mkt-page-title">${escapeHtml(marketLabel)}<span class="mkt-page-year">${mktCurrentQuarterLabel()} ${escapeHtml(resumenYear)}</span></h2>
       <div class="mkt-page-subtitle">${escapeHtml(subtitle)}</div>
       <div class="mkt-page-website">CitiusAG.com</div>
     </div>

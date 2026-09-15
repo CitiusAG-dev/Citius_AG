@@ -404,6 +404,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      ancestro que solo envuelve a las tablas de páginas 2/4 (la portada usa .mkt-cover-main), así que un
      selector más específico basta para no afectar a la portada. */
   .mkt-page-body .mkt-box .mkt-absorption-table td{padding:1px 8px}
+  /* v7.3.5x, pedido explícito del usuario: letra del header un punto más chica, mismo alcance de arriba
+     (solo páginas 2/4, sin tocar la portada). */
+  .mkt-page-body .mkt-box .mkt-absorption-table th{font-size:8.5px}
   /* v7.3.31, pedido explícito del usuario (con captura): quita el padding-right "de seguridad" solo en la
      columna YTD (que trae el sufijo de unidad, ej. " SF", y por eso es la más ancha de texto) para que el
      dato pueda usar todo el ancho real de la columna sin desbordarse hacia la izquierda (ver el comentario
@@ -452,7 +455,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-page-year{position:absolute;right:0;bottom:4px;font-size:13px;font-weight:700;color:#767676;
                    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
   .mkt-page-website{position:absolute;right:0;bottom:0;font-size:11px;color:#7f7f7f}
-  .mkt-page-logo{width:26px;height:26px;object-fit:contain;margin-left:auto}
+  /* v7.3.5x, pedido explícito del usuario: isotipo del header (páginas 2-5) 40px a la izquierda (antes
+     pegado al borde derecho vía margin-left:auto — margin-right:40px reserva ese espacio a su derecha,
+     empujándolo 40px hacia la izquierda desde ahí) y 30% más grande (26px -> 34px, 26*1.3=33.8). */
+  .mkt-page-logo{width:34px;height:34px;object-fit:contain;margin-left:auto;margin-right:40px}
   /* v7.3.3, bug real reportado por el usuario ("no me imprime todas las hojas") — parte del mismo arreglo:
      una vez que se destrabó el recorte de #resumenView/#resumenScrollArea (ver arriba), esta página SÍ medía
      más alto que una hoja Carta horizontal real (11x8.5in) — las 4 tablas + fila de donas juntas no cabían,
@@ -6996,15 +7002,28 @@ function mktMatrixTableHtml(rowCategories, computeFn, opts){
   const unitSfx=opts.unitSuffix?` ${opts.unitSuffix}`:"";
   const headerCells=`<th class="mkt-absorption-th-label">${escapeHtml(opts.tableLabel||"")}</th>`
     +subs.map(sm=>`<th>${escapeHtml(sm.toUpperCase())}</th>`).join("")+`<th>TOTAL</th>`;
-  const bodyRows=rows.map(r=>`<tr><td>${escapeHtml(r.label)}</td>${r.vals.map(v=>`<td class="num-cell">${fmt(v)}</td>`).join("")}<td class="num-cell">${fmt(r.total)}${unitSfx}</td></tr>`).join("");
-  const totalRow=`<tr class="mkt-total-row"><td>${escapeHtml(opts.totalRowLabel||"Total")}</td>${colTotals.map(v=>`<td class="num-cell">${fmt(v)}${unitSfx}</td>`).join("")}<td class="num-cell">${fmt(grandTotal)}${unitSfx}</td></tr>`;
+  const bodyRows=rows.map(r=>`<tr><td>${escapeHtml(r.label)}</td>${r.vals.map(v=>`<td class="num-cell">${fmt(v)}</td>`).join("")}<td class="num-cell mkt-absorption-td-ytd">${fmt(r.total)}${unitSfx}</td></tr>`).join("");
+  // v7.3.5x, bug real reportado por el usuario (con captura, "como pasaba en las de absorción"): el
+  // renglón de Total repetía la unidad (ej. "SF") en CADA columna de submercado, no solo en la última —
+  // ahora solo la columna "Total" final la lleva, igual que ya hacen los renglones normales de arriba.
+  const totalRow=`<tr class="mkt-total-row"><td>${escapeHtml(opts.totalRowLabel||"Total")}</td>${colTotals.map(v=>`<td class="num-cell">${fmt(v)}</td>`).join("")}<td class="num-cell mkt-absorption-td-ytd">${fmt(grandTotal)}${unitSfx}</td></tr>`;
   // Ancho fijo: 1ra columna (etiqueta de fila, ej. "Q1"/"Spec to Suit") más ancha, el resto (submercados +
   // Total) se reparten el resto por igual — igual fórmula en las 4 tablas de la página (todas comparten el
   // mismo número de submercados), así quedan idénticas al apilarse.
   // v7.3.37, pedido explícito del usuario: 1ra columna ~40px más angosta (22% -> 18%, ~39.4px con el ancho
   // real de la tabla a tamaño de impresión, ~986px), repartido entre las demás columnas (78% -> 82%).
-  const dataColPct=(82/(subs.length+1)).toFixed(3);
-  const colgroupHtml=`<colgroup><col style="width:18%">${subs.map(()=>`<col style="width:${dataColPct}%">`).join("")}<col style="width:${dataColPct}%"></colgroup>`;
+  // v7.3.5x, bug real reportado por el usuario (con captura, mismo desbordamiento que ya se corrigió en
+  // YTD de Absorption v7.3.31): la columna "Total" final lleva el sufijo de unidad (ej. " SF") y con
+  // muchos submercados/montos grandes se desbordaba igual que ahí — se le suman TOTAL_EXTRA_PCT puntos
+  // porcentuales de ancho, tomados en partes iguales de las columnas de submercado (la fórmula sigue
+  // sumando exactamente 82% sin importar cuántos submercados haya). mkt-absorption-td-ytd (reusada de
+  // Absorption) le quita el padding-right "de seguridad" a esa misma columna.
+  const n=subs.length;
+  const TOTAL_EXTRA_PCT=5;
+  const baseShare=82/(n+1);
+  const subColPct=(baseShare-TOTAL_EXTRA_PCT/n).toFixed(3);
+  const totalColPct=(baseShare+TOTAL_EXTRA_PCT).toFixed(3);
+  const colgroupHtml=`<colgroup><col style="width:18%">${subs.map(()=>`<col style="width:${subColPct}%">`).join("")}<col style="width:${totalColPct}%"></colgroup>`;
   return `<table class="mkt-table mkt-absorption-table">${colgroupHtml}<thead><tr>${headerCells}</tr></thead><tbody>${bodyRows}${totalRow}</tbody></table>`;
 }
 /* Top N transacciones (por "Transaction Area") del año/filtro activo — "Significant Transactions" de la

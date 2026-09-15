@@ -397,6 +397,13 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-box .mkt-absorption-table th{background:#e6e6e6;padding:3px 8px;font-size:9.5px;color:#404040;text-align:center;white-space:normal;line-height:1.25}
   .mkt-box .mkt-absorption-table th.mkt-absorption-th-label{text-align:left}
   .mkt-box .mkt-absorption-table td{padding:2px 8px;border-right:1px solid var(--line)}
+  /* v7.3.5x, pedido explícito del usuario: filas un poco menos altas SOLO en las tablas "matriz" de las
+     páginas 2/4 (Completed Transactions/Building Count/Building Type/Deal, Available Inventory/Class/
+     Building Count/Status/Generation — ver mktMatrixTableHtml) — sin tocar las de la portada (Absorption/
+     Significant Transactions), que comparten la misma clase .mkt-absorption-table. .mkt-page-body es el
+     ancestro que solo envuelve a las tablas de páginas 2/4 (la portada usa .mkt-cover-main), así que un
+     selector más específico basta para no afectar a la portada. */
+  .mkt-page-body .mkt-box .mkt-absorption-table td{padding:1px 8px}
   /* v7.3.31, pedido explícito del usuario (con captura): quita el padding-right "de seguridad" solo en la
      columna YTD (que trae el sufijo de unidad, ej. " SF", y por eso es la más ancha de texto) para que el
      dato pueda usar todo el ancho real de la columna sin desbordarse hacia la izquierda (ver el comentario
@@ -7143,7 +7150,9 @@ function mktBuildTxSummaryPage(){
   const typeTable=mktMatrixTableHtml(typeCategories,
     (sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.BUILDING_TYPE,type)&&txGross(r)),
     {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:"Building Type"});
-  const dealCategories=resumenFieldListValues("TRANSACCIONES","TRANSACCION_TYPE").map(t=>({key:t,label:t}));
+  // v7.3.5x, pedido explícito del usuario: solo Lease/Sublease/Sale en vez de TODAS las categorías
+  // configuradas en la lista (antes también salían Sale & Leaseback/Confidential/Renewal/etc.).
+  const dealCategories=["Lease","Sublease","Sale"].map(t=>({key:t,label:t}));
   const dealTable=mktMatrixTableHtml(dealCategories,
     (sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,type)&&txGross(r)),
     {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:"Deal"});

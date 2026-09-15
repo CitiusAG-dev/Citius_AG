@@ -519,8 +519,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      leyenda no hace falta tanto anillo (no hay etiquetas que acomodar alrededor), así que baja un poco
      (220 -> 140px) a pedido explícito del usuario ("un poco más pequeña"). SW/margin-top negativo escalan
      de vuelta a juego.
-     v7.3.5x (otra pasada): 15% más grande (140 -> 161px), pedido explícito del usuario. */
-  .mkt-donut-svg{width:100%;max-width:161px;overflow:visible;margin-top:-16px}
+     v7.3.5x (otra pasada): 15% más grande (140 -> 161px), pedido explícito del usuario.
+     v7.3.5x (otra pasada): 10% más grande todavía (161 -> 177px), pedido explícito del usuario. */
+  .mkt-donut-svg{width:100%;max-width:177px;overflow:visible;margin-top:-18px}
   /* v7.3.5x: la leyenda ya NO ocupa el ancho completo del panel (antes 100% vía bloque normal) — un
      max-width propio + margin auto la centra dentro de su panel, dejando aire real a los lados sin importar
      el ancho que le toque al panel (que crece con el ancho de la página) — esto es lo que de verdad resuelve
@@ -7257,10 +7258,10 @@ function mktBuildTxSummaryPage(){
            en false) en vez de la leyenda inferior de la ronda anterior — sliceOutline (7mo argumento) se deja
            en true, el contorno gris claro no depende de qué modo de etiqueta se use. -->
       <div class="mkt-donut-row">
-        ${mktDonutHtml("Quarter", quarterDonutData, resumenAreaUnitLabel(), 34, undefined, true, true)}
-        ${mktDonutHtml("Count", countDonutData, "", 34, undefined, true, true)}
-        ${mktDonutHtml("Type", typeDonutData, resumenAreaUnitLabel(), 34, undefined, true, true)}
-        ${mktDonutHtml("Deal", dealDonutData, resumenAreaUnitLabel(), 34, undefined, true, true)}
+        ${mktDonutHtml("Quarter", quarterDonutData, resumenAreaUnitLabel(), 37, undefined, true, true)}
+        ${mktDonutHtml("Count", countDonutData, "", 37, undefined, true, true)}
+        ${mktDonutHtml("Type", typeDonutData, resumenAreaUnitLabel(), 37, undefined, true, true)}
+        ${mktDonutHtml("Deal", dealDonutData, resumenAreaUnitLabel(), 37, undefined, true, true)}
       </div>
     </div>
   </div>`;
@@ -7328,10 +7329,10 @@ function mktBuildAvailSummaryPage(){
       <div class="mkt-box">${statusTable}</div>
       <div class="mkt-box">${genTable}</div>
       <div class="mkt-donut-row">
-        ${mktDonutHtml("Class", classDonutData, resumenAreaUnitLabel(), 34, undefined, true, true)}
-        ${mktDonutHtml("Count", countDonutData, "", 34, undefined, true, true)}
-        ${mktDonutHtml("Status", statusDonutData, resumenAreaUnitLabel(), 34, undefined, true, true)}
-        ${mktDonutHtml("Generation", genDonutData, resumenAreaUnitLabel(), 34, undefined, true, true)}
+        ${mktDonutHtml("Class", classDonutData, resumenAreaUnitLabel(), 37, undefined, true, true)}
+        ${mktDonutHtml("Count", countDonutData, "", 37, undefined, true, true)}
+        ${mktDonutHtml("Status", statusDonutData, resumenAreaUnitLabel(), 37, undefined, true, true)}
+        ${mktDonutHtml("Generation", genDonutData, resumenAreaUnitLabel(), 37, undefined, true, true)}
       </div>
     </div>
   </div>`;

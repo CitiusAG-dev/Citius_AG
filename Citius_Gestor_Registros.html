@@ -988,6 +988,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
                       animation:colFilterIn .12s ease-out}
   .pres-design-panel label{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--txt);cursor:pointer;user-select:none}
   .pres-design-panel input{cursor:pointer}
+  /* Market Report reusa .pres-design-panel pero es más ancho — sus labels son más largos ("Completed
+     Transactions — Detail") que los de Presentación ("Layout", "Gallery"). */
+  #mktDesignPanel{width:230px}
   .deck-page.cover-page{padding:0;overflow:hidden;aspect-ratio:1652/1269;position:relative}
   .cover-page img{width:100%;height:100%;object-fit:cover;display:block}
   /* Posición/tamaño ajustados en v3.32.0 a pedido del usuario, comparando contra una captura real de la
@@ -6518,6 +6521,88 @@ function resumenUsageChartHtml(data){
 }
 let resumenYear=String(new Date().getFullYear());
 let resumenMarket="";
+/* Market Report — "Design" (qué secciones incluir, mismo patrón que presShowState de Presentación) y
+   "Cover Data" (nombre del analista + trimestre de portada, mismo patrón que presCoverInfo) — persistidos en
+   localStorage, pedido explícito del usuario. */
+const MKT_SHOW_KEY="citius_mkt_report_show_v1";
+function loadMktShowState(){
+  const defaults={cover:true, txSummary:true, txDetail:true, availSummary:true, availDetail:true};
+  try{ const s=localStorage.getItem(MKT_SHOW_KEY); if(s) return {...defaults, ...JSON.parse(s)}; }catch(e){}
+  return defaults;
+}
+function saveMktShowState(){ try{ localStorage.setItem(MKT_SHOW_KEY, JSON.stringify(mktShowState)); }catch(e){} }
+let mktShowState=loadMktShowState();
+const MKT_COVER_KEY="citius_mkt_report_cover_v1";
+function loadMktCoverInfo(){
+  const defaults={analystName:"", quarter:""};
+  try{ const s=localStorage.getItem(MKT_COVER_KEY); if(s) return {...defaults, ...JSON.parse(s)}; }catch(e){}
+  return defaults;
+}
+function saveMktCoverInfo(){ try{ localStorage.setItem(MKT_COVER_KEY, JSON.stringify(mktCoverInfo)); }catch(e){} }
+let mktCoverInfo=loadMktCoverInfo();
+/* Panel "Design" del Market Report — reusa closeAllPresDesignPanels/onDocMouseDownForPresDesignPanel (más
+   abajo, ya genéricas por id) pero con su propia función de apertura (no togglePresDesignPanel) porque el
+   panel es más ancho que el de Presentación (labels más largos, ej. "Completed Transactions — Detail") — ver
+   #mktDesignPanel en el CSS. */
+function toggleMktDesignPanel(evt){
+  evt.stopPropagation();
+  const panel=document.getElementById("mktDesignPanel");
+  const wasOpen=panel.style.display!=="none" && panel.style.display!=="";
+  closeAllPresDesignPanels();
+  if(wasOpen) return;
+  const btn=document.getElementById("mktDesignBtn");
+  const r=btn.getBoundingClientRect();
+  panel.style.display="flex";
+  panel.style.left=Math.max(8, Math.min(r.left, window.innerWidth-8-230))+"px";
+  panel.style.top=(r.bottom+8)+"px";
+  document.addEventListener("mousedown", onDocMouseDownForPresDesignPanel, true);
+}
+/* Panel "Cover Data" del Market Report — mismo patrón que toggleCoverEditPanel (Presentación de Propiedades)
+   pero mucho más chico: solo 2 campos, sin validación de obligatorios (no bloquea Print/PDF si quedan
+   vacíos, a diferencia de Presentación — el reporte ya funciona bien con los valores automáticos de
+   siempre). */
+function closeMktCoverEditPanel(){
+  const el=document.getElementById("mktCoverEditPanel");
+  if(el) el.remove();
+  document.removeEventListener("mousedown", onDocMouseDownForMktCoverEditPanel, true);
+}
+function onDocMouseDownForMktCoverEditPanel(e){
+  const el=document.getElementById("mktCoverEditPanel");
+  if(el && !el.contains(e.target) && !e.target.closest("#mktCoverEditBtn")) closeMktCoverEditPanel();
+}
+function toggleMktCoverEditPanel(evt){
+  if(evt) evt.stopPropagation();
+  const alreadyOpen=!!document.getElementById("mktCoverEditPanel");
+  closeMktCoverEditPanel();
+  if(alreadyOpen) return;
+  const btn=document.getElementById("mktCoverEditBtn");
+  const el=document.createElement("div");
+  el.id="mktCoverEditPanel";
+  el.className="columns-panel cover-edit-panel";
+  el.innerHTML=`
+    <div class="columns-panel-head">
+      <h5>Cover Data</h5>
+      <button type="button" class="x" onclick="closeMktCoverEditPanel()">&times;</button>
+    </div>
+    <div class="field"><label>Analyst name</label><input type="text" id="mktCoverEditAnalyst" placeholder="Idalia Gardea" value="${escapeAttr(mktCoverInfo.analystName||"")}"></div>
+    <div class="field"><label>Quarter (cover + page headers)</label><input type="text" id="mktCoverEditQuarter" placeholder="${escapeAttr(mktCurrentQuarterLabel())} (auto)" value="${escapeAttr(mktCoverInfo.quarter||"")}"></div>
+    <p class="map-hint" style="margin:2px 0 0">Leave Quarter blank to keep it automatic (based on the data / today's date).</p>`;
+  document.body.appendChild(el);
+  const r=btn.getBoundingClientRect();
+  el.style.left=Math.max(8, Math.min(r.left, window.innerWidth-8-300))+"px";
+  el.style.top=(r.bottom+8)+"px";
+  document.getElementById("mktCoverEditAnalyst").oninput=(e)=>{
+    mktCoverInfo.analystName=e.target.value;
+    saveMktCoverInfo();
+    renderResumenView();
+  };
+  document.getElementById("mktCoverEditQuarter").oninput=(e)=>{
+    mktCoverInfo.quarter=e.target.value;
+    saveMktCoverInfo();
+    renderResumenView();
+  };
+  setTimeout(()=>document.addEventListener("mousedown", onDocMouseDownForMktCoverEditPanel, true), 0);
+}
 /* v6.5.21, pedido explícito del usuario ("filtro adicional... al lado derecho de Market, que sean los
    Submercados"): a diferencia de Market (un solo valor, "" = Todos), este es de SELECCIÓN MÚLTIPLE — un
    Set de nombres de submercado en minúsculas ("" / vacío = sin filtro = Todos, igual criterio que Market).
@@ -6767,12 +6852,44 @@ function renderResumenView(){
           <select id="resumenYearSelect">${yearOptionsHtml}</select>
         </div>`}
         ${isMarketReport ? `
+        <div class="pres-design-anchor">
+          <button type="button" class="btn ghost" id="mktDesignBtn" title="Choose which sections are included in the report" onclick="toggleMktDesignPanel(event)">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-3px"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>Design
+          </button>
+          <div class="pres-design-panel" id="mktDesignPanel">
+            <label><input type="checkbox" id="mktShowCover"> Cover</label>
+            <label><input type="checkbox" id="mktShowTxSummary"> Completed Transactions</label>
+            <label><input type="checkbox" id="mktShowTxDetail"> Completed Transactions — Detail</label>
+            <label><input type="checkbox" id="mktShowAvailSummary"> Available Inventory</label>
+            <label><input type="checkbox" id="mktShowAvailDetail"> Available Inventory — Detail</label>
+          </div>
+        </div>
+        <button type="button" class="btn ghost" id="mktCoverEditBtn" title="Edit the cover's analyst name and quarter label">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-3px"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="M15 5l4 4"/></svg>Cover data</button>
         <button class="btn ghost" id="mktReportPrintBtn" ${resumenMarket?"":"disabled"}>
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-3px"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print / PDF</button>` : ""}
       </div>
     </div>
   `;
-  if(isMarketReport) document.getElementById("mktReportPrintBtn").onclick=doMarketReportPrint;
+  if(isMarketReport){
+    document.getElementById("mktReportPrintBtn").onclick=doMarketReportPrint;
+    const mktShowCoverEl=document.getElementById("mktShowCover");
+    const mktShowTxSummaryEl=document.getElementById("mktShowTxSummary");
+    const mktShowTxDetailEl=document.getElementById("mktShowTxDetail");
+    const mktShowAvailSummaryEl=document.getElementById("mktShowAvailSummary");
+    const mktShowAvailDetailEl=document.getElementById("mktShowAvailDetail");
+    mktShowCoverEl.checked=mktShowState.cover;
+    mktShowTxSummaryEl.checked=mktShowState.txSummary;
+    mktShowTxDetailEl.checked=mktShowState.txDetail;
+    mktShowAvailSummaryEl.checked=mktShowState.availSummary;
+    mktShowAvailDetailEl.checked=mktShowState.availDetail;
+    mktShowCoverEl.onchange=()=>{ mktShowState.cover=mktShowCoverEl.checked; saveMktShowState(); renderResumenView(); };
+    mktShowTxSummaryEl.onchange=()=>{ mktShowState.txSummary=mktShowTxSummaryEl.checked; saveMktShowState(); renderResumenView(); };
+    mktShowTxDetailEl.onchange=()=>{ mktShowState.txDetail=mktShowTxDetailEl.checked; saveMktShowState(); renderResumenView(); };
+    mktShowAvailSummaryEl.onchange=()=>{ mktShowState.availSummary=mktShowAvailSummaryEl.checked; saveMktShowState(); renderResumenView(); };
+    mktShowAvailDetailEl.onchange=()=>{ mktShowState.availDetail=mktShowAvailDetailEl.checked; saveMktShowState(); renderResumenView(); };
+    document.getElementById("mktCoverEditBtn").onclick=toggleMktCoverEditPanel;
+  }
   const el=document.getElementById("resumenContent");
   // v7.3.0, pedido explícito del usuario: Summary se divide en 2 sub-vistas (ver toggleResumenMenu) — KPI's
   // es EXACTAMENTE lo de siempre (nada de lo de arriba se tocó); Market Report (PDF) es contenido nuevo del
@@ -6841,8 +6958,11 @@ function renderResumenView(){
    propio en Market Report (se quitó el de Year del header, ver v7.3.1) — se calcula: el trimestre MÁS
    RECIENTE de `resumenYear` que ya tenga alguna transacción Gross capturada; si el año no tiene ninguna
    (típico si `resumenYear` es el año en curso y apenas empieza), cae al trimestre calendario REAL de hoy si
-   `resumenYear` es el año actual, o si no, "4Q" (se asume un año ya cerrado). */
+   `resumenYear` es el año actual, o si no, "4Q" (se asume un año ya cerrado).
+   v7.3.5x, pedido explícito del usuario: ahora se puede pisar a mano desde Cover Data (mktCoverInfo.quarter)
+   — vacío/no puesto sigue calculándose automático como siempre. */
 function mktCurrentQuarterLabel(){
+  if(mktCoverInfo.quarter) return mktCoverInfo.quarter;
   const yearStart=`${resumenYear}-01-01`, yearEnd=`${resumenYear}-12-31`;
   const quartersWithData=new Set();
   (state.TRANSACCIONES||[]).forEach(r=>{
@@ -7176,8 +7296,10 @@ function mktBuildCoverPage(){
   // personas (Idalia Gardea siempre va primero; más adelante será dinámica por Mercado, un panel de "Cover
   // Data" como el que ya existe en Presentación — pedido explícito: "el control para hacerlo dinámico lo
   // veremos luego"). Abigail Rodriguez es fija siempre, no se pidió que cambie.
+  // v7.3.5x, pedido explícito del usuario: el nombre del analista ya se puede pisar desde Cover Data
+  // (mktCoverInfo.analystName) — vacío sigue mostrando "Idalia Gardea" como antes.
   const mktTeamHtml=[
-    {name:"Idalia Gardea", role:"Market Intel Analyst"},
+    {name:mktCoverInfo.analystName||"Idalia Gardea", role:"Market Intel Analyst"},
     {name:"Abigail Rodriguez", role:"Market Intel Director", phone:"T +52 81 8368 2000"}
   ].map(p=>`<div class="mkt-cover-person">
       <div class="mkt-cover-person-name">${escapeHtml(p.name)}</div>
@@ -7437,12 +7559,15 @@ function renderMarketReportHtml(){
   }
   // v7.3.1: el botón "Print / PDF" ya no vive aquí — pasó al header (#resumenHeaderBar, junto a Units/
   // Market/Submarket, pedido explícito del usuario), ver renderResumenView().
+  // v7.3.5x, pedido explícito del usuario: cada sección se puede prender/apagar desde el panel "Design"
+  // (mktShowState, mismo patrón que presShowState de Presentación) — con las 5 apagadas el reporte queda
+  // vacío (no se fuerza ninguna mínima), el usuario ve el resultado en pantalla antes de imprimir.
   return `<div class="mkt-report-pages" id="mktReportPages">
-      ${mktBuildCoverPage()}
-      ${mktBuildTxSummaryPage()}
-      ${mktBuildTxDetailPage()}
-      ${mktBuildAvailSummaryPage()}
-      ${mktBuildAvailDetailPage()}
+      ${mktShowState.cover ? mktBuildCoverPage() : ""}
+      ${mktShowState.txSummary ? mktBuildTxSummaryPage() : ""}
+      ${mktShowState.txDetail ? mktBuildTxDetailPage() : ""}
+      ${mktShowState.availSummary ? mktBuildAvailSummaryPage() : ""}
+      ${mktShowState.availDetail ? mktBuildAvailDetailPage() : ""}
     </div>`;
 }
 function doMarketReportPrint(){

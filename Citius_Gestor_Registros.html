@@ -1962,7 +1962,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.0.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.1.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -4642,6 +4642,13 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.1.0", date:"2026-09-15", items:[
+    "Spaces: 3 new fields — Transaction Available (Lease/Sublease/Sale/Sale & Leaseback), and Maintenance Additional Spot Price (value + currency).",
+    "Market Report (PDF), Completed Transactions/Available Inventory pages: the \"Deal\" table now only shows Lease/Sublease/Sale; smaller row height and header text; the circular logo moved and enlarged; the pie charts are bigger with a 2-column legend below (values sorted largest to smallest) instead of crowded labels around the ring, with a subtle outline on each slice; the Total column no longer overflows with very large numbers; table columns are evenly sized.",
+    "Market Report (PDF) cover page: fixed the Significant Transactions table getting cut off for Markets with a lot of data (the whole layout moved up to make room); the logo moved up; \"Building Type\" column shortened to \"Type\" so it fits on one line.",
+    "Market Report (PDF): fixed a real bug where the gray submarket-separator row in Completed Transactions — Detail showed a white gap in its last column instead of solid gray.",
+    "Market Report (PDF): Completed Transactions — Detail and Available Inventory — Detail now paginate for real — Markets with many records continue onto additional pages (same page header and table columns repeated) instead of the extra rows being silently cut off."
+  ]},
   {version:"8.0.0", date:"2026-09-15", items:[
     "New \"Market Report (PDF)\" under Summary — a 5-page print-ready report for one Market (Cover with Market/Absorption/Availability/Significant Transactions, Completed Transactions summary + detail, Available Inventory summary + detail), styled to match the reference PDF branding. Print/PDF button works the same as the Presentation reports.",
     "Fixed: the \"Records modified per day\" chart at the bottom of Summary could undercount activity if a file had both an old and a new header for the same date column (e.g. after moving/renaming columns by hand in Excel) — it now reads either one correctly.",

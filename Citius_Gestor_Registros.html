@@ -254,15 +254,21 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-cover-person-addr{font-size:12.5px;font-weight:300;opacity:.9;font-family:'Unitext',Arial,sans-serif;line-height:1.4}
   .mkt-cover-person-phone{font-size:12.5px;font-weight:300;opacity:.9;font-family:'Unitext',Arial,sans-serif}
   .mkt-cover-website{font-size:13px;font-weight:700;font-family:'Unitext',Arial,sans-serif;margin-top:4px}
-  .mkt-cover-main{flex:1;padding:14px 22px 16px;overflow:hidden;display:flex;flex-direction:column;min-height:0}
-  .mkt-cover-logo-row{flex:0 0 auto;display:flex;justify-content:flex-end;margin-bottom:2px;margin-top:8px}
+  /* v7.3.5x, bug real reportado por el usuario (con captura, portada de Monterrey): la tabla de Significant
+     Transactions no alcanzaba a mostrarse completa (overflow:hidden la recortaba) — su columna (Absorption +
+     Significant Transactions, ambas a su alto natural, ver flex:0 0 auto más abajo) es más alta que el
+     espacio disponible en algunos Mercados. El logo y el padding de arriba de .mkt-cover-main se recortan
+     para recuperar ese espacio: sube el logo (pedido explícito del usuario) y empuja todo lo demás hacia
+     arriba en la misma cascada. */
+  .mkt-cover-main{flex:1;padding:2px 22px 4px;overflow:hidden;display:flex;flex-direction:column;min-height:0}
+  .mkt-cover-logo-row{flex:0 0 auto;display:flex;justify-content:flex-end;margin-bottom:0;margin-top:0}
   /* v7.3.6: Logotipo.png (icono + wordmark, 2202x844) es mucho más ancho que el isotipo circular de antes —
      se ensancha el contenedor para que se vea a buen tamaño sin quedar chiquito ni distorsionado (el <img>
      no tiene height fijo, escala proporcional). */
   .mkt-cover-logo{width:280px}
   .mkt-cover-logo img{width:100%;display:block}
   .mkt-cover-grid{display:flex;gap:10px;flex:1;min-height:0}
-  .mkt-cover-col{flex:1;display:flex;flex-direction:column;gap:8px;min-height:0}
+  .mkt-cover-col{flex:1;display:flex;flex-direction:column;gap:6px;min-height:0}
   .mkt-cover-col:last-child{flex:1.6}
   /* v7.3.9, pedido explícito del usuario: sin borde alrededor de cada "tile" (antes border:1px solid), título
      de cada tile más grande (9.5px -> 13px), y el color de texto base de TODO el reporte pasa de #1a1a1a a
@@ -283,9 +289,12 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      (margin-bottom 4px -> 8px) — se veía "muy pegado" arriba. */
   /* v7.3.26, pedido explícito del usuario: un poco más de aire entre el título de cada sección (Market,
      Absorption, Significant Transactions, Availability — todas comparten esta clase) y su contenido
-     (margin-bottom 8px -> 12px). */
+     (margin-bottom 8px -> 12px).
+     v7.3.5x: recortado un poco (12 -> 9px) como parte del ajuste para que Significant Transactions no se
+     recorte (ver .mkt-cover-main más arriba) — necesita un poco más de margen de sobra del que dejaba solo
+     con el logo/padding. */
   .mkt-box-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;
-                  margin-bottom:12px;color:#404040;flex:0 0 auto;display:flex;align-items:flex-end;gap:8px}
+                  margin-bottom:9px;color:#404040;flex:0 0 auto;display:flex;align-items:flex-end;gap:8px}
   /* v7.3.43, pedido explícito del usuario: color de la línea junto a los títulos de sección de la portada
      (Market/Absorption/Availability/Significant Transactions) — #404040 -> #a1a1a1. */
   .mkt-box-title::after{content:"";flex:1;height:1px;background:#a1a1a1;min-width:0;margin-bottom:2px}
@@ -304,7 +313,8 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      recortado). overflow:visible en los 2 ejes sí evita el recorte — confirmado con Page.printToPDF que la
      dona (con min-height:0 en el padre) no empuja el alto de la columna ni cambia el conteo de páginas. */
   .mkt-box-avail{flex:1;min-height:0;display:flex;flex-direction:column;overflow:visible}
-  .mkt-box-absorption>div:not(.mkt-box-title){display:flex;flex-direction:column;gap:4px}
+  /* v7.3.5x: 4 -> 2px, mismo ajuste de espacio de sobra para Significant Transactions (ver .mkt-cover-main). */
+  .mkt-box-absorption>div:not(.mkt-box-title){display:flex;flex-direction:column;gap:2px}
   /* Reusa resumenQuarterTableHtml()/resumenAvailabilityDonutHtml() TAL CUAL (mismo HTML que ya genera KPI's,
      ver mktBuildCoverPage) — pero acá necesita verse como una tabla de reporte impreso compacta, no como una
      tarjeta de dashboard: se sobreescribe su estilo SOLO dentro de `.mkt-box` (KPI's no se toca). */
@@ -7201,7 +7211,9 @@ function mktBuildCoverPage(){
           </div>
           <div class="mkt-box mkt-box-sigtx">
             <div class="mkt-box-title">Significant Transactions</div>
-            <table class="mkt-table mkt-sigtx-table mkt-absorption-table"><colgroup><col style="width:34%"><col style="width:22%"><col style="width:20%"><col style="width:24%"></colgroup><thead><tr><th class="mkt-absorption-th-label">Tenant/Buyer</th><th>Building Type</th><th>Transaction</th><th>Area</th></tr></thead><tbody>${sigTxRows}</tbody></table>
+            <!-- v7.3.5x, pedido explícito del usuario: header "Building Type" -> "Type" para que quepa en una
+                 sola línea (antes se partía en 2 renglones dentro del header). -->
+            <table class="mkt-table mkt-sigtx-table mkt-absorption-table"><colgroup><col style="width:34%"><col style="width:22%"><col style="width:20%"><col style="width:24%"></colgroup><thead><tr><th class="mkt-absorption-th-label">Tenant/Buyer</th><th>Type</th><th>Transaction</th><th>Area</th></tr></thead><tbody>${sigTxRows}</tbody></table>
           </div>
         </div>
       </div>

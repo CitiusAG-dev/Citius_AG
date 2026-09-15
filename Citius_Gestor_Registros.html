@@ -1968,7 +1968,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.1.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.2.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -4648,6 +4648,14 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.2.0", date:"2026-09-15", items:[
+    "Market Report (PDF): new \"Design\" button — a checklist to turn each section of the report on/off (Cover, Completed Transactions, Completed Transactions — Detail, Available Inventory, Available Inventory — Detail), same idea as the Presentation decks' Design panel.",
+    "Market Report (PDF): new \"Cover data\" button — set the analyst's name (was always \"Idalia Gardea\") and override the quarter shown on the cover and page headers (was always automatic); both remember your last values.",
+    "Market Report (PDF): the report's Year is no longer hidden/automatic — the same Year selector from Summary's KPI's view now also shows here, so you can pick it by hand.",
+    "Market Report (PDF), Available Inventory — Detail: fixed the \"$/SF/Mo\" column not converting values captured in a different unit (e.g. MXN/m²) — it now shows the correctly converted rate like the rest of the report; also removed the per-submarket subtotal from the gray separator row (was showing next to the submarket name).",
+    "Market Report (PDF), Completed Transactions — Detail: now only lists Lease/Sublease/Sale transactions (previously showed every transaction type), matching the \"Deal\" table on the summary page.",
+    "Market Report (PDF): moved the \"Design\"/\"Cover data\" buttons to the left of the toolbar, and widened the \"Design\" checklist so its longer section names fit on one line."
+  ]},
   {version:"8.1.0", date:"2026-09-15", items:[
     "Spaces: 3 new fields — Transaction Available (Lease/Sublease/Sale/Sale & Leaseback), and Maintenance Additional Spot Price (value + currency).",
     "Market Report (PDF), Completed Transactions/Available Inventory pages: the \"Deal\" table now only shows Lease/Sublease/Sale; smaller row height and header text; the circular logo moved and enlarged; the pie charts are bigger with a 2-column legend below (values sorted largest to smallest) instead of crowded labels around the ring, with a subtle outline on each slice; the Total column no longer overflows with very large numbers; table columns are evenly sized.",

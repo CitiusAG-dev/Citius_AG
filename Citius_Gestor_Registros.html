@@ -417,19 +417,21 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      v7.3.39, corrige v7.3.38 (pedido explícito del usuario): la línea va ENTRE el nombre del Mercado y el
      subtítulo (border-bottom en .mkt-page-title mismo, no en todo el bloque izquierdo) — igual que en la
      portada, donde la línea separa el título del subtítulo/trimestre que sigue, no encierra a los dos. */
-  .mkt-page-header{display:flex;align-items:center;padding:14px 26px 6px;margin-bottom:8px}
+  /* v7.3.42, pedido explícito del usuario: el header empieza 15px más abajo (padding-top 14px -> 29px). */
+  .mkt-page-header{display:flex;align-items:center;padding:29px 26px 6px;margin-bottom:8px}
   /* v7.3.40, pedido explícito del usuario: línea al menos 100px más larga (74% -> 84%, ~100px con el ancho
      real del header a tamaño de impresión, ~1005px). */
-  .mkt-page-header-left{flex:0 0 84%}
+  .mkt-page-header-left{flex:0 0 84%;position:relative}
   .mkt-page-title{margin:0;font-size:38px;font-weight:400;font-family:'Dala Moa',Georgia,serif;color:#7f7f7f;
                     border-bottom:1px solid var(--accent);padding-bottom:4px}
   /* v7.3.41, pedido explícito del usuario: un poco más grande (11px -> 13px). */
   .mkt-page-subtitle{font-size:13px;color:#7f7f7f;margin-top:4px}
-  .mkt-page-header-right{display:flex;align-items:center;gap:10px;margin-left:auto}
-  .mkt-page-header-right-text{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
-  .mkt-page-year{font-size:13px;font-weight:700;color:#404040}
-  .mkt-page-website{font-size:11px;color:#7f7f7f}
-  .mkt-page-logo{width:26px;height:26px;object-fit:contain}
+  /* v7.3.42, pedido explícito del usuario: el trimestre/año y la página web ya no van junto al isotipo —
+     se posicionan (position:absolute, relativo a .mkt-page-header-left) justo en el extremo derecho de la
+     línea dorada, el año/trimestre ARRIBA de la línea y la página web ABAJO. */
+  .mkt-page-year{position:absolute;right:0;top:0;font-size:13px;font-weight:700;color:#404040}
+  .mkt-page-website{position:absolute;right:0;bottom:0;font-size:11px;color:#7f7f7f}
+  .mkt-page-logo{width:26px;height:26px;object-fit:contain;margin-left:auto}
   /* v7.3.3, bug real reportado por el usuario ("no me imprime todas las hojas") — parte del mismo arreglo:
      una vez que se destrabó el recorte de #resumenView/#resumenScrollArea (ver arriba), esta página SÍ medía
      más alto que una hoja Carta horizontal real (11x8.5in) — las 4 tablas + fila de donas juntas no cabían,
@@ -7051,15 +7053,11 @@ function mktPageHeaderHtml(subtitle){
   return `<div class="mkt-page-header">
     <div class="mkt-page-header-left">
       <h2 class="mkt-page-title">${escapeHtml(marketLabel)}</h2>
+      <div class="mkt-page-year">${mktCurrentQuarterLabel()} ${escapeHtml(resumenYear)}</div>
       <div class="mkt-page-subtitle">${escapeHtml(subtitle)}</div>
+      <div class="mkt-page-website">CitiusAG.com</div>
     </div>
-    <div class="mkt-page-header-right">
-      <div class="mkt-page-header-right-text">
-        <div class="mkt-page-year">${mktCurrentQuarterLabel()} ${escapeHtml(resumenYear)}</div>
-        <div class="mkt-page-website">CitiusAG.com</div>
-      </div>
-      <img class="mkt-page-logo" src="${DECK_LOGO_SRC}" alt="Citius AG">
-    </div>
+    <img class="mkt-page-logo" src="${DECK_LOGO_SRC}" alt="Citius AG">
   </div>`;
 }
 /* ==== Página 2: Completed Transactions — resumen (matriz por Submercado + 4 donas) ==== */

@@ -491,7 +491,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      submercados) — recortar el gap recupera ese espacio sin tocar la altura de ningún renglón de tabla. */
   .mkt-page-body{padding:20px 26px 10px;display:grid;grid-template-columns:1fr;gap:6px}
   .mkt-page-body>.mkt-table.mkt-detail-table{grid-column:1/-1}
-  .mkt-donut-row{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between}
+  /* v7.3.5x, pedido explícito del usuario: un poco más de espacio entre la última tabla y el título de la
+     fila de donas (margin-top propio, aparte del gap de 6px de .mkt-page-body de arriba, que sigue igual
+     para no separar más las tablas entre sí) — y otro poco más de espacio ENTRE cada dona (gap 8px -> 16px). */
+  .mkt-donut-row{grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between;margin-top:10px}
   .mkt-donut-panel{flex:1;min-width:140px;text-align:center}
   .mkt-donut-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px}
   /* v7.3.5x, pedido explícito del usuario: donas de páginas 2/4 más grandes (130 -> 145px) con leyenda
@@ -499,8 +502,12 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      la leyenda propia de esta fila va más compacta (letra/swatch/separación más chicos) que la de portada
      porque aquí caben 4 donas por renglón en vez de 1, y porque la altura de la página es fija (Carta
      horizontal) — verificado con Page.printToPDF (caso de esfuerzo: 9 submercados) que las 5 páginas del
-     reporte no se recorten ni generen una 6ta hoja. */
-  .mkt-donut-svg{width:100%;max-width:145px;overflow:visible}
+     reporte no se recorten ni generen una 6ta hoja.
+     v7.3.5x (2da pasada): el anillo dibujado (ver mktDonutHtml, CX/CY/R/SW) deja un margen en blanco arriba
+     DENTRO del propio <svg> (su viewBox es cuadrado, 320×320, pero el anillo no llega hasta el borde) — un
+     margin-top negativo aquí "sube" el gráfico dentro de ese espacio en blanco, acercándolo al título, sin
+     tocar la geometría del anillo ni las etiquetas. */
+  .mkt-donut-svg{width:100%;max-width:145px;overflow:visible;margin-top:-14px}
   .mkt-donut-row .mkt-donut-legend{gap:0px 8px;margin-top:3px}
   .mkt-donut-row .mkt-donut-legend-item{font-size:7.5px;gap:4px;line-height:1.1}
   .mkt-donut-row .mkt-donut-legend-swatch{width:6px;height:6px}
@@ -7226,11 +7233,14 @@ function mktBuildTxSummaryPage(){
       <div class="mkt-box">${countTable}</div>
       <div class="mkt-box">${typeTable}</div>
       <div class="mkt-box">${dealTable}</div>
+      <!-- v7.3.5x, pedido explícito del usuario ("probar"): vuelve a data labels junto al anillo (legendBelow
+           en false) en vez de la leyenda inferior de la ronda anterior — sliceOutline (7mo argumento) se deja
+           en true, el contorno gris claro no depende de qué modo de etiqueta se use. -->
       <div class="mkt-donut-row">
-        ${mktDonutHtml("Quarter", quarterDonutData, resumenAreaUnitLabel(), 30, undefined, true, true)}
-        ${mktDonutHtml("Count", countDonutData, "", 30, undefined, true, true)}
-        ${mktDonutHtml("Type", typeDonutData, resumenAreaUnitLabel(), 30, undefined, true, true)}
-        ${mktDonutHtml("Deal", dealDonutData, resumenAreaUnitLabel(), 30, undefined, true, true)}
+        ${mktDonutHtml("Quarter", quarterDonutData, resumenAreaUnitLabel(), 30, undefined, false, true)}
+        ${mktDonutHtml("Count", countDonutData, "", 30, undefined, false, true)}
+        ${mktDonutHtml("Type", typeDonutData, resumenAreaUnitLabel(), 30, undefined, false, true)}
+        ${mktDonutHtml("Deal", dealDonutData, resumenAreaUnitLabel(), 30, undefined, false, true)}
       </div>
     </div>
   </div>`;
@@ -7298,10 +7308,10 @@ function mktBuildAvailSummaryPage(){
       <div class="mkt-box">${statusTable}</div>
       <div class="mkt-box">${genTable}</div>
       <div class="mkt-donut-row">
-        ${mktDonutHtml("Class", classDonutData, resumenAreaUnitLabel(), 30, undefined, true, true)}
-        ${mktDonutHtml("Count", countDonutData, "", 30, undefined, true, true)}
-        ${mktDonutHtml("Status", statusDonutData, resumenAreaUnitLabel(), 30, undefined, true, true)}
-        ${mktDonutHtml("Generation", genDonutData, resumenAreaUnitLabel(), 30, undefined, true, true)}
+        ${mktDonutHtml("Class", classDonutData, resumenAreaUnitLabel(), 30, undefined, false, true)}
+        ${mktDonutHtml("Count", countDonutData, "", 30, undefined, false, true)}
+        ${mktDonutHtml("Status", statusDonutData, resumenAreaUnitLabel(), 30, undefined, false, true)}
+        ${mktDonutHtml("Generation", genDonutData, resumenAreaUnitLabel(), 30, undefined, false, true)}
       </div>
     </div>
   </div>`;

@@ -190,14 +190,8 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      que el preview es una miniatura fiel en vez de un layout distinto. doMarketReportPrint() quita el zoom
      (vuelve a 1) justo antes de imprimir, igual que Presentación. */
   .mkt-report-pages{display:flex;flex-direction:column;align-items:center;zoom:.9}
-  /* v7.3.5x, pedido explícito del usuario: display:flex column — necesario para que .mkt-page-body (más
-     abajo) pueda ocupar TODO el alto restante de la página (flex:1) en vez de solo el alto de su contenido,
-     y así la fila de donas pueda anclarse siempre a la misma posición (ver .mkt-donut-spacer) sin importar
-     cuántas filas traigan las tablas de arriba. No afecta a la portada (.mkt-cover-page, único hijo directo
-     ahí, ya usaba height:100% — sigue funcionando igual dentro de un padre flex). */
   .mkt-page{background:#fff;color:#404040;width:100%;max-width:1056px;aspect-ratio:11/8.5;
-            box-sizing:border-box;overflow:hidden;font-size:11px;border-top:2px dashed var(--line);margin-top:28px;padding-top:28px;
-            display:flex;flex-direction:column}
+            box-sizing:border-box;overflow:hidden;font-size:11px;border-top:2px dashed var(--line);margin-top:28px;padding-top:28px}
   .mkt-page:first-child{border-top:none;margin-top:0;padding-top:0}
   /* v7.3.5, pedido explícito del usuario: height:100% — .mkt-cover-page es hijo directo de .mkt-page (alto
      fijo vía aspect-ratio), pero sin altura propia explícita solo tomaba el alto de SU contenido, no el de
@@ -495,20 +489,12 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      le quitó a la hoja el margen de sobra que tenía, y con 5 tablas (hoja "Available Inventory") + la fila de
      donas ya no cabían las 5 páginas en Page.printToPDF (verificado con el caso de esfuerzo de 9
      submercados) — recortar el gap recupera ese espacio sin tocar la altura de ningún renglón de tabla. */
-  /* v7.3.5x, pedido explícito del usuario: pasa de grid a flex column + flex:1 (ocupa TODO el alto restante
-     de la página, ver .mkt-page de arriba) — necesario para el ancla de posición fija de la fila de donas
-     (.mkt-donut-spacer más abajo). El <div class="mkt-donut-spacer"> que va ANTES de .mkt-donut-row en el
-     HTML (ver mktBuildTxSummaryPage/mktBuildAvailSummaryPage) es el único hijo con flex-grow — absorbe todo
-     el espacio libre que dejen las tablas de arriba, empujando la fila de donas siempre a la MISMA posición
-     (pegada al fondo de la página), sin importar cuántas filas traiga cada tabla. Páginas 3/5 (solo 1 tabla
-     de detalle, sin fila de donas ni spacer) no cambian visualmente — antes ese espacio de sobra quedaba
-     dentro de .mkt-page (que ya tenía alto fijo); ahora queda dentro de .mkt-page-body, mismo resultado. */
-  .mkt-page-body{padding:20px 26px 10px;display:flex;flex-direction:column;gap:6px;flex:1;min-height:0}
-  .mkt-donut-spacer{flex:1 1 auto;min-height:0}
+  .mkt-page-body{padding:20px 26px 10px;display:grid;grid-template-columns:1fr;gap:6px}
+  .mkt-page-body>.mkt-table.mkt-detail-table{grid-column:1/-1}
   /* v7.3.5x, pedido explícito del usuario: un poco más de espacio entre la última tabla y el título de la
      fila de donas (margin-top propio, aparte del gap de 6px de .mkt-page-body de arriba, que sigue igual
      para no separar más las tablas entre sí) — y otro poco más de espacio ENTRE cada dona (gap 8px -> 16px). */
-  .mkt-donut-row{display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between;margin-top:10px;flex:0 0 auto}
+  .mkt-donut-row{grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between;margin-top:10px}
   .mkt-donut-panel{flex:1;min-width:140px;text-align:center}
   .mkt-donut-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px}
   /* v7.3.5x, pedido explícito del usuario: donas de páginas 2/4 más grandes (130 -> 145px) con leyenda
@@ -520,20 +506,16 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      v7.3.5x (2da pasada): el anillo dibujado (ver mktDonutHtml, CX/CY/R/SW) deja un margen en blanco arriba
      DENTRO del propio <svg> (su viewBox es cuadrado, 320×320, pero el anillo no llega hasta el borde) — un
      margin-top negativo aquí "sube" el gráfico dentro de ese espacio en blanco, acercándolo al título, sin
-     tocar la geometría del anillo ni las etiquetas.
-     v7.3.5x (3ra pasada), pedido explícito del usuario: donas y letra de las etiquetas aún más grandes
-     (145 -> 175px; ver también labelFontSize=11 en las llamadas a mktDonutHtml y .mkt-donut-out-label/
-     -out-pct más abajo, subidas de 9 a 11px a juego). El margin-top negativo de arriba escala en la misma
-     proporción (-14 -> -17px) porque el margen en blanco del <svg> crece con el tamaño del anillo. */
-  .mkt-donut-svg{width:100%;max-width:175px;overflow:visible;margin-top:-17px}
+     tocar la geometría del anillo ni las etiquetas. */
+  .mkt-donut-svg{width:100%;max-width:145px;overflow:visible;margin-top:-14px}
   .mkt-donut-row .mkt-donut-legend{gap:0px 8px;margin-top:3px}
   .mkt-donut-row .mkt-donut-legend-item{font-size:7.5px;gap:4px;line-height:1.1}
   .mkt-donut-row .mkt-donut-legend-swatch{width:6px;height:6px}
   .mkt-donut-arc{cursor:default}
-  .mkt-donut-out-label{font-size:11px;font-weight:700;fill:#1a1a1a}
+  .mkt-donut-out-label{font-size:9px;font-weight:700;fill:#1a1a1a}
   /* v7.3.19, pedido explícito del usuario: línea punteada del anillo a cada etiqueta */
   .mkt-donut-leader{stroke:#9aa0a6;stroke-width:1;stroke-dasharray:2,2}
-  .mkt-donut-out-pct{font-size:11px;fill:var(--muted)}
+  .mkt-donut-out-pct{font-size:9px;fill:var(--muted)}
   .mkt-donut-empty{color:var(--muted);font-size:10px;font-style:italic}
   /* v7.3.44, pedido explícito del usuario: leyenda de 2 columnas debajo de la dona de Availability (ver
      legendBelow en mktDonutHtml) — reemplaza las etiquetas junto al anillo, así nunca se encima sin
@@ -7254,14 +7236,11 @@ function mktBuildTxSummaryPage(){
       <!-- v7.3.5x, pedido explícito del usuario ("probar"): vuelve a data labels junto al anillo (legendBelow
            en false) en vez de la leyenda inferior de la ronda anterior — sliceOutline (7mo argumento) se deja
            en true, el contorno gris claro no depende de qué modo de etiqueta se use. -->
-      <!-- v7.3.5x, pedido explícito del usuario: posición fija de la fila de donas, sin importar cuánto
-           espacio ocupen las tablas de arriba — ver .mkt-donut-spacer/.mkt-page-body en el CSS. -->
-      <div class="mkt-donut-spacer"></div>
       <div class="mkt-donut-row">
-        ${mktDonutHtml("Quarter", quarterDonutData, resumenAreaUnitLabel(), 34, 11, false, true)}
-        ${mktDonutHtml("Count", countDonutData, "", 34, 11, false, true)}
-        ${mktDonutHtml("Type", typeDonutData, resumenAreaUnitLabel(), 34, 11, false, true)}
-        ${mktDonutHtml("Deal", dealDonutData, resumenAreaUnitLabel(), 34, 11, false, true)}
+        ${mktDonutHtml("Quarter", quarterDonutData, resumenAreaUnitLabel(), 30, undefined, false, true)}
+        ${mktDonutHtml("Count", countDonutData, "", 30, undefined, false, true)}
+        ${mktDonutHtml("Type", typeDonutData, resumenAreaUnitLabel(), 30, undefined, false, true)}
+        ${mktDonutHtml("Deal", dealDonutData, resumenAreaUnitLabel(), 30, undefined, false, true)}
       </div>
     </div>
   </div>`;
@@ -7328,12 +7307,11 @@ function mktBuildAvailSummaryPage(){
       <div class="mkt-box">${countTable}</div>
       <div class="mkt-box">${statusTable}</div>
       <div class="mkt-box">${genTable}</div>
-      <div class="mkt-donut-spacer"></div>
       <div class="mkt-donut-row">
-        ${mktDonutHtml("Class", classDonutData, resumenAreaUnitLabel(), 34, 11, false, true)}
-        ${mktDonutHtml("Count", countDonutData, "", 34, 11, false, true)}
-        ${mktDonutHtml("Status", statusDonutData, resumenAreaUnitLabel(), 34, 11, false, true)}
-        ${mktDonutHtml("Generation", genDonutData, resumenAreaUnitLabel(), 34, 11, false, true)}
+        ${mktDonutHtml("Class", classDonutData, resumenAreaUnitLabel(), 30, undefined, false, true)}
+        ${mktDonutHtml("Count", countDonutData, "", 30, undefined, false, true)}
+        ${mktDonutHtml("Status", statusDonutData, resumenAreaUnitLabel(), 30, undefined, false, true)}
+        ${mktDonutHtml("Generation", genDonutData, resumenAreaUnitLabel(), 30, undefined, false, true)}
       </div>
     </div>
   </div>`;

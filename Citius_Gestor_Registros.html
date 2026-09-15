@@ -990,7 +990,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .pres-design-panel input{cursor:pointer}
   /* Market Report reusa .pres-design-panel pero es más ancho — sus labels son más largos ("Completed
      Transactions — Detail") que los de Presentación ("Layout", "Gallery"). */
-  #mktDesignPanel{width:230px}
+  /* v7.3.5x, pedido explícito del usuario: aún más ancho (230 -> 300px) — "Completed Transactions — Detail"
+     seguía partiéndose a 2 líneas, se quiere todo en una sola. */
+  #mktDesignPanel{width:300px}
+  #mktDesignPanel label{white-space:nowrap}
   .deck-page.cover-page{padding:0;overflow:hidden;aspect-ratio:1652/1269;position:relative}
   .cover-page img{width:100%;height:100%;object-fit:cover;display:block}
   /* Posición/tamaño ajustados en v3.32.0 a pedido del usuario, comparando contra una captura real de la
@@ -6553,7 +6556,7 @@ function toggleMktDesignPanel(evt){
   const btn=document.getElementById("mktDesignBtn");
   const r=btn.getBoundingClientRect();
   panel.style.display="flex";
-  panel.style.left=Math.max(8, Math.min(r.left, window.innerWidth-8-230))+"px";
+  panel.style.left=Math.max(8, Math.min(r.left, window.innerWidth-8-300))+"px";
   panel.style.top=(r.bottom+8)+"px";
   document.addEventListener("mousedown", onDocMouseDownForPresDesignPanel, true);
 }
@@ -6828,6 +6831,21 @@ function renderResumenView(){
   document.getElementById("resumenHeaderBar").innerHTML=`
     <div class="resumen-header">
       <div class="resumen-header-controls">
+        ${isMarketReport ? `
+        <div class="pres-design-anchor">
+          <button type="button" class="btn ghost" id="mktDesignBtn" title="Choose which sections are included in the report" onclick="toggleMktDesignPanel(event)">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-3px"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>Design
+          </button>
+          <div class="pres-design-panel" id="mktDesignPanel">
+            <label><input type="checkbox" id="mktShowCover"> Cover</label>
+            <label><input type="checkbox" id="mktShowTxSummary"> Completed Transactions</label>
+            <label><input type="checkbox" id="mktShowTxDetail"> Completed Transactions — Detail</label>
+            <label><input type="checkbox" id="mktShowAvailSummary"> Available Inventory</label>
+            <label><input type="checkbox" id="mktShowAvailDetail"> Available Inventory — Detail</label>
+          </div>
+        </div>
+        <button type="button" class="btn ghost" id="mktCoverEditBtn" title="Edit the cover's analyst name and quarter label">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-3px"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="M15 5l4 4"/></svg>Cover data</button>` : ""}
         <div class="resumen-year-select">
           <label for="resumenUnitSelect">Units</label>
           <select id="resumenUnitSelect">
@@ -6846,26 +6864,14 @@ function renderResumenView(){
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:4px;vertical-align:-2px"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
         </div>
-        ${isMarketReport ? "" : `
+        <!-- v7.3.5x, pedido explícito del usuario: el año del reporte (Market Report) ya no queda oculto/
+             automático — este mismo selector de siempre ahora también se muestra ahí, así queda a mano
+             igual que en KPI's. -->
         <div class="resumen-year-select">
           <label for="resumenYearSelect">Year (transactions)</label>
           <select id="resumenYearSelect">${yearOptionsHtml}</select>
-        </div>`}
-        ${isMarketReport ? `
-        <div class="pres-design-anchor">
-          <button type="button" class="btn ghost" id="mktDesignBtn" title="Choose which sections are included in the report" onclick="toggleMktDesignPanel(event)">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-3px"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>Design
-          </button>
-          <div class="pres-design-panel" id="mktDesignPanel">
-            <label><input type="checkbox" id="mktShowCover"> Cover</label>
-            <label><input type="checkbox" id="mktShowTxSummary"> Completed Transactions</label>
-            <label><input type="checkbox" id="mktShowTxDetail"> Completed Transactions — Detail</label>
-            <label><input type="checkbox" id="mktShowAvailSummary"> Available Inventory</label>
-            <label><input type="checkbox" id="mktShowAvailDetail"> Available Inventory — Detail</label>
-          </div>
         </div>
-        <button type="button" class="btn ghost" id="mktCoverEditBtn" title="Edit the cover's analyst name and quarter label">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-3px"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="M15 5l4 4"/></svg>Cover data</button>
+        ${isMarketReport ? `
         <button class="btn ghost" id="mktReportPrintBtn" ${resumenMarket?"":"disabled"}>
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-3px"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print / PDF</button>` : ""}
       </div>
@@ -6931,8 +6937,8 @@ function renderResumenView(){
     ${resumenUsageChartHtml(usageData)}
   `;
   document.getElementById("resumenUnitSelect").onchange=function(){ resumenUnit=this.value; renderResumenView(); };
-  // v7.3.1: Year ya no aparece en el header de Market Report (PDF) — guard, mismo criterio que los 2
-  // selects de "Tool Usage" más abajo (solo existen en la sub-vista KPI's).
+  // v7.3.5x: Year ahora aparece en ambas sub-vistas (KPI's y Market Report), pedido explícito del usuario —
+  // el guard se deja de cualquier forma, no estorba.
   const yearSel=document.getElementById("resumenYearSelect");
   if(yearSel) yearSel.onchange=function(){ resumenYear=this.value; renderResumenView(); };
   document.getElementById("resumenMarketSelect").onchange=function(){ resumenMarket=this.value; renderResumenView(); };
@@ -7443,7 +7449,9 @@ function mktBuildTxDetailPage(){
   const theadHtml=`<tr><th>Submarket</th><th>Tenant/Buyer</th><th>Developer</th><th>Location</th><th>Area (${resumenAreaUnitLabel()})</th><th>Building Type</th><th>Q</th><th>Trans</th></tr>`;
   let lines=[], grandTotalSF=0;
   subs.forEach(sm=>{
-    const rows=(state.TRANSACCIONES||[]).filter(r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd);
+    // v7.3.5x, pedido explícito del usuario: solo Lease/Sublease/Sale (antes salían todos los tipos, ej.
+    // Renewal/Confidential) — mismo criterio ya usado en la tabla "Deal" de la página 2 (dealCategories).
+    const rows=(state.TRANSACCIONES||[]).filter(r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd&&["Lease","Sublease","Sale"].some(t=>ciEq(r.TRANSACCION_TYPE,t)));
     if(!rows.length) return;
     // v7.3.5x, bug real reportado por el usuario (con captura): colspan=7 dejaba SIN celda la 8va columna
     // (Trans) en este renglón — como .mkt-group-row pinta gris vía `td{background:#eee}`, esa columna sin
@@ -7521,12 +7529,17 @@ function mktBuildAvailDetailPage(){
   subs.forEach(sm=>{
     const rows=(state.PROPIEDADES||[]).filter(r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B"))&&ciEq(r.MARKET_STATUS,"Available"));
     if(!rows.length) return;
-    const submarketTotal=rows.reduce((a,r)=>a+areaValueInSF(r,"AVAILABLE_AREA_VALUE"),0);
-    lines.push(`<tr class="mkt-group-row"><td colspan="9">▼ ${escapeHtml(sm.toUpperCase())}</td><td class="num-cell">${num(resumenAreaVal(submarketTotal))}</td></tr>`);
+    // v7.3.5x, pedido explícito del usuario: ya no lleva el total del submercado en la misma línea del
+    // separador (colspan ahora cubre las 10 columnas completas, antes 9 + una celda de total aparte).
+    lines.push(`<tr class="mkt-group-row"><td colspan="10">▼ ${escapeHtml(sm.toUpperCase())}</td></tr>`);
     rows.forEach(r=>{
       const availSF=areaValueInSF(r,"AVAILABLE_AREA_VALUE");
       grandTotalSF+=availSF;
-      const rate=r.ASKING_RATE_VALUE?`${/usd/i.test(r.ASKING_RATE_UNIT||"")?"US":"MX"} $ ${Number(r.ASKING_RATE_VALUE).toFixed(2)}`:"UR";
+      // v7.3.5x, bug real reportado por el usuario: usaba r.ASKING_RATE_VALUE crudo sin convertir según la
+      // unidad capturada (ej. MXN/m² se mostraba tal cual bajo un header "$/SF/Mo") — ahora normaliza igual
+      // que el resto del reporte (askingRateValueInSF + resumenRateVal, mismo criterio que money() en la
+      // portada).
+      const rate=r.ASKING_RATE_VALUE?`${/usd/i.test(r.ASKING_RATE_UNIT||"")?"US":"MX"} $ ${resumenRateVal(askingRateValueInSF(r)).toFixed(2)}`:"UR";
       lines.push(`<tr><td>${escapeHtml(r.PROPERTY_NAME||r.MAPPING_CODE||"")}</td><td>${escapeHtml(r.DEVELOPER||"")}</td><td>${escapeHtml(r.ADDRESS||"")}</td>
         <td class="num-cell">${num(resumenAreaVal(areaValueInSF(r,"LEASABLE_AREA_GLA_VALUE")))}</td>
         <td class="num-cell">${num(resumenAreaVal(areaValueInSF(r,"OCCUPIED_AREA_VALUE")))}</td>

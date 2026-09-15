@@ -1876,7 +1876,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v7.2.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.0.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -4556,6 +4556,12 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.0.0", date:"2026-09-15", items:[
+    "New \"Market Report (PDF)\" under Summary — a 5-page print-ready report for one Market (Cover with Market/Absorption/Availability/Significant Transactions, Completed Transactions summary + detail, Available Inventory summary + detail), styled to match the reference PDF branding. Print/PDF button works the same as the Presentation reports.",
+    "Fixed: the \"Records modified per day\" chart at the bottom of Summary could undercount activity if a file had both an old and a new header for the same date column (e.g. after moving/renaming columns by hand in Excel) — it now reads either one correctly.",
+    "Fixed a real bug (found while working on the above, not previously reported): a couple of Parks-only calculated fields could, in rare cases, accidentally make a same-named field in another table (Properties/Offices) show up as read-only — those checks are now correctly scoped to Parks only.",
+    "Continued standardizing field names that mean the same thing across tables (previous batches: CLASS/ADRESS/GEOJSON variants, then ID/Name fields, Property Type, Developer, Last Modified/Last Update) — this batch covers about 20 more fields across Buildings/Parks/Land/Offices/Spaces: year built, available/occupied area, clear height, minimum divisible, water/gas/telecom/electrical capacity fields, amenities, HVAC, and asking/sale price fields. Existing data and Excel files keep working automatically (old headers are recognized and quietly corrected the next time that file is saved)."
+  ]},
   {version:"7.2.0", date:"2026-09-14", items:[
     "Settings > Files: new \"Update Location catalog (one-time migration)\" — if you renamed Markets/Submarkets and reassigned their IDs in a new copy of LISTAS_CAMPOS.xlsx (keeping the old ID_REGION/ID_STATE/ID_MERCADO/ID_SUBMERCADO columns as reference), upload it here to carry those renames over to already-captured Properties/Parks/Land/Offices/Transactions — matched by the old Location ID, not by name, so renamed markets are found correctly. Leaves that file linked as your Configuration file afterward, same as linking it directly.",
     "Transactions now also carry the 4 hidden Location IDs (Region/State/Market/Submarket) that Buildings/Parks/Land/Offices already had — filled in automatically from the linked record, and covered by \"Fill in Location IDs…\" and the new catalog migration above.",

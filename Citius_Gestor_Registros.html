@@ -506,16 +506,24 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      v7.3.5x (2da pasada): el anillo dibujado (ver mktDonutHtml, CX/CY/R/SW) deja un margen en blanco arriba
      DENTRO del propio <svg> (su viewBox es cuadrado, 320×320, pero el anillo no llega hasta el borde) — un
      margin-top negativo aquí "sube" el gráfico dentro de ese espacio en blanco, acercándolo al título, sin
-     tocar la geometría del anillo ni las etiquetas. */
-  .mkt-donut-svg{width:100%;max-width:145px;overflow:visible;margin-top:-14px}
+     tocar la geometría del anillo ni las etiquetas.
+     v7.3.5x (nueva pasada, sin tocar .mkt-page/portada esta vez — ver la lección revertida antes): pedido
+     explícito del usuario, "al menos 75% más grande". No cabe literal con las 4 donas en una sola fila (el
+     ancho de columna real a tamaño de impresión es ~235px, ver panelWidth medido) — el usuario, ya avisado
+     de esa limitación, eligió quedarse con las 4 en una fila y llegar lo más grande posible (145 -> 220px,
+     ~52%) en vez de pasar a una cuadrícula 2x2. El resto de valores (SW del anillo, tamaño de etiqueta,
+     margin-top negativo) escalan en la misma proporción. Verificado con el caso de esfuerzo de 9
+     submercados (la página más ajustada, "Available Inventory") que las 5 páginas del reporte siguen
+     cabiendo exactas en Page.printToPDF. */
+  .mkt-donut-svg{width:100%;max-width:220px;overflow:visible;margin-top:-21px}
   .mkt-donut-row .mkt-donut-legend{gap:0px 8px;margin-top:3px}
   .mkt-donut-row .mkt-donut-legend-item{font-size:7.5px;gap:4px;line-height:1.1}
   .mkt-donut-row .mkt-donut-legend-swatch{width:6px;height:6px}
   .mkt-donut-arc{cursor:default}
-  .mkt-donut-out-label{font-size:9px;font-weight:700;fill:#1a1a1a}
+  .mkt-donut-out-label{font-size:14px;font-weight:700;fill:#1a1a1a}
   /* v7.3.19, pedido explícito del usuario: línea punteada del anillo a cada etiqueta */
   .mkt-donut-leader{stroke:#9aa0a6;stroke-width:1;stroke-dasharray:2,2}
-  .mkt-donut-out-pct{font-size:9px;fill:var(--muted)}
+  .mkt-donut-out-pct{font-size:14px;fill:var(--muted)}
   .mkt-donut-empty{color:var(--muted);font-size:10px;font-style:italic}
   /* v7.3.44, pedido explícito del usuario: leyenda de 2 columnas debajo de la dona de Availability (ver
      legendBelow en mktDonutHtml) — reemplaza las etiquetas junto al anillo, así nunca se encima sin
@@ -7237,10 +7245,10 @@ function mktBuildTxSummaryPage(){
            en false) en vez de la leyenda inferior de la ronda anterior — sliceOutline (7mo argumento) se deja
            en true, el contorno gris claro no depende de qué modo de etiqueta se use. -->
       <div class="mkt-donut-row">
-        ${mktDonutHtml("Quarter", quarterDonutData, resumenAreaUnitLabel(), 30, undefined, false, true)}
-        ${mktDonutHtml("Count", countDonutData, "", 30, undefined, false, true)}
-        ${mktDonutHtml("Type", typeDonutData, resumenAreaUnitLabel(), 30, undefined, false, true)}
-        ${mktDonutHtml("Deal", dealDonutData, resumenAreaUnitLabel(), 30, undefined, false, true)}
+        ${mktDonutHtml("Quarter", quarterDonutData, resumenAreaUnitLabel(), 45, 14, false, true)}
+        ${mktDonutHtml("Count", countDonutData, "", 45, 14, false, true)}
+        ${mktDonutHtml("Type", typeDonutData, resumenAreaUnitLabel(), 45, 14, false, true)}
+        ${mktDonutHtml("Deal", dealDonutData, resumenAreaUnitLabel(), 45, 14, false, true)}
       </div>
     </div>
   </div>`;
@@ -7308,10 +7316,10 @@ function mktBuildAvailSummaryPage(){
       <div class="mkt-box">${statusTable}</div>
       <div class="mkt-box">${genTable}</div>
       <div class="mkt-donut-row">
-        ${mktDonutHtml("Class", classDonutData, resumenAreaUnitLabel(), 30, undefined, false, true)}
-        ${mktDonutHtml("Count", countDonutData, "", 30, undefined, false, true)}
-        ${mktDonutHtml("Status", statusDonutData, resumenAreaUnitLabel(), 30, undefined, false, true)}
-        ${mktDonutHtml("Generation", genDonutData, resumenAreaUnitLabel(), 30, undefined, false, true)}
+        ${mktDonutHtml("Class", classDonutData, resumenAreaUnitLabel(), 45, 14, false, true)}
+        ${mktDonutHtml("Count", countDonutData, "", 45, 14, false, true)}
+        ${mktDonutHtml("Status", statusDonutData, resumenAreaUnitLabel(), 45, 14, false, true)}
+        ${mktDonutHtml("Generation", genDonutData, resumenAreaUnitLabel(), 45, 14, false, true)}
       </div>
     </div>
   </div>`;

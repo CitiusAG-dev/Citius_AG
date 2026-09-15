@@ -6840,7 +6840,7 @@ function mktMeasureTextWidth(text, fontPx, weight){
    proporción real, sin fusionar nada en "Others" — también confirmado). Solo Availability lo usa (6to
    argumento opcional `legendBelow`); las 8 donas compactas de páginas 2/4 siguen con etiquetas junto al
    anillo, sin cambio. */
-function mktDonutHtml(title, data, unitLabel, strokeWidth, labelFontSize, legendBelow){
+function mktDonutHtml(title, data, unitLabel, strokeWidth, labelFontSize, legendBelow, sliceOutline){
   const fmt=v=>Math.round(v).toLocaleString("en-US");
   const filtered=data.filter(d=>d.value>0);
   const total=filtered.reduce((a,d)=>a+d.value,0);
@@ -6915,7 +6915,19 @@ function mktDonutHtml(title, data, unitLabel, strokeWidth, labelFontSize, legend
     });
   }
   let arcsHtml="", labelsHtml="", leadersHtml="";
+  // v7.3.5x, pedido explícito del usuario: contorno gris claro alrededor de cada slice, SOLO en las donas de
+  // páginas 2 en adelante (7mo argumento opcional `sliceOutline` — Availability, portada, no lo pasa y sigue
+  // sin contorno). Como el anillo se dibuja con `stroke-dasharray` sobre un <circle> (no hay borde real que
+  // pintar por segmento, ver el comentario de GAP más arriba), el contorno se logra con un 2do <circle>
+  // idéntico DEBAJO del de color, mismo largo/rotación, pero más ancho (SW + 2×OUTLINE_W) y en gris claro —
+  // ese excedente asoma por igual a ambos lados del anillo de color, como una línea fina.
   items.forEach(it=>{
+    if(sliceOutline){
+      const OUTLINE_W=1.4;
+      arcsHtml+=`<circle class="mkt-donut-arc-outline" cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="#d6d6d6"
+        stroke-width="${SW+OUTLINE_W*2}" stroke-dasharray="${it.drawLen.toFixed(3)} ${(CIRC-it.drawLen).toFixed(3)}"
+        transform="rotate(${it.rotate} ${CX} ${CY})"/>`;
+    }
     arcsHtml+=`<circle class="mkt-donut-arc" cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="${it.s.color}"
       stroke-width="${SW}" stroke-dasharray="${it.drawLen.toFixed(3)} ${(CIRC-it.drawLen).toFixed(3)}"
       transform="rotate(${it.rotate} ${CX} ${CY})"><title>${escapeHtml(it.s.label)}: ${fmt(it.s.value)}${unitLabel?" "+unitLabel:""} (${it.pct.toFixed(1)}%)</title></circle>`;
@@ -7046,8 +7058,11 @@ function mktMatrixTableHtml(rowCategories, computeFn, opts){
   // .mkt-absorption-td-ytd (reusada de Absorption) ya le quita el padding-right "de seguridad" a esa
   // columna, y además ahora puede pasar a una 2da línea (white-space:normal, ver CSS) en vez de
   // desbordarse hacia un lado — con datos normales nunca se nota, solo en montos muy grandes.
-  const dataColPct=(82/(subs.length+1)).toFixed(3);
-  const colgroupHtml=`<colgroup><col style="width:18%">${subs.map(()=>`<col style="width:${dataColPct}%">`).join("")}<col style="width:${dataColPct}%"></colgroup>`;
+  // v7.3.5x, pedido explícito del usuario: la 1ra columna baja al menos un 10% más angosta (18% -> 16%, una
+  // reducción relativa de ~11%), y ese espacio liberado se reparte entre TODAS las demás columnas (submercados
+  // + Total), que siguen exactamente iguales entre sí (82% -> 84%).
+  const dataColPct=(84/(subs.length+1)).toFixed(3);
+  const colgroupHtml=`<colgroup><col style="width:16%">${subs.map(()=>`<col style="width:${dataColPct}%">`).join("")}<col style="width:${dataColPct}%"></colgroup>`;
   return `<table class="mkt-table mkt-absorption-table">${colgroupHtml}<thead><tr>${headerCells}</tr></thead><tbody>${bodyRows}${totalRow}</tbody></table>`;
 }
 /* Top N transacciones (por "Transaction Area") del año/filtro activo — "Significant Transactions" de la
@@ -7212,10 +7227,10 @@ function mktBuildTxSummaryPage(){
       <div class="mkt-box">${typeTable}</div>
       <div class="mkt-box">${dealTable}</div>
       <div class="mkt-donut-row">
-        ${mktDonutHtml("Quarter", quarterDonutData, resumenAreaUnitLabel(), 30, undefined, true)}
-        ${mktDonutHtml("Count", countDonutData, "", 30, undefined, true)}
-        ${mktDonutHtml("Type", typeDonutData, resumenAreaUnitLabel(), 30, undefined, true)}
-        ${mktDonutHtml("Deal", dealDonutData, resumenAreaUnitLabel(), 30, undefined, true)}
+        ${mktDonutHtml("Quarter", quarterDonutData, resumenAreaUnitLabel(), 30, undefined, true, true)}
+        ${mktDonutHtml("Count", countDonutData, "", 30, undefined, true, true)}
+        ${mktDonutHtml("Type", typeDonutData, resumenAreaUnitLabel(), 30, undefined, true, true)}
+        ${mktDonutHtml("Deal", dealDonutData, resumenAreaUnitLabel(), 30, undefined, true, true)}
       </div>
     </div>
   </div>`;
@@ -7283,10 +7298,10 @@ function mktBuildAvailSummaryPage(){
       <div class="mkt-box">${statusTable}</div>
       <div class="mkt-box">${genTable}</div>
       <div class="mkt-donut-row">
-        ${mktDonutHtml("Class", classDonutData, resumenAreaUnitLabel(), 30, undefined, true)}
-        ${mktDonutHtml("Count", countDonutData, "", 30, undefined, true)}
-        ${mktDonutHtml("Status", statusDonutData, resumenAreaUnitLabel(), 30, undefined, true)}
-        ${mktDonutHtml("Generation", genDonutData, resumenAreaUnitLabel(), 30, undefined, true)}
+        ${mktDonutHtml("Class", classDonutData, resumenAreaUnitLabel(), 30, undefined, true, true)}
+        ${mktDonutHtml("Count", countDonutData, "", 30, undefined, true, true)}
+        ${mktDonutHtml("Status", statusDonutData, resumenAreaUnitLabel(), 30, undefined, true, true)}
+        ${mktDonutHtml("Generation", genDonutData, resumenAreaUnitLabel(), 30, undefined, true, true)}
       </div>
     </div>
   </div>`;

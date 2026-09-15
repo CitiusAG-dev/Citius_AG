@@ -420,8 +420,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      subtítulo (border-bottom en .mkt-page-title mismo, no en todo el bloque izquierdo) — igual que en la
      portada, donde la línea separa el título del subtítulo/trimestre que sigue, no encierra a los dos. */
   /* v7.3.42, pedido explícito del usuario: el header empieza 15px más abajo (padding-top 14px -> 29px).
-     v7.3.43, pedido explícito del usuario: 5px más arriba todavía (padding-top 29px -> 24px). */
-  .mkt-page-header{display:flex;align-items:center;padding:24px 26px 6px;margin-bottom:8px}
+     v7.3.43, pedido explícito del usuario: 5px más arriba todavía (padding-top 29px -> 24px).
+     v7.3.45, pedido explícito del usuario: 10px más arriba todavía (padding-top 24px -> 14px). */
+  .mkt-page-header{display:flex;align-items:center;padding:14px 26px 6px;margin-bottom:8px}
   /* v7.3.40, pedido explícito del usuario: línea al menos 100px más larga (74% -> 84%, ~100px con el ancho
      real del header a tamaño de impresión, ~1005px). */
   .mkt-page-header-left{flex:0 0 84%;position:relative}
@@ -440,7 +441,8 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   /* font-family explícito: .mkt-page-year vive DENTRO de .mkt-page-title (para anclar bien el
      position:absolute, ver comentario arriba) y sin esto heredaría 'Dala Moa' (la tipografía cursiva del
      título), no el sans-serif normal que se ve en el resto de la app. */
-  .mkt-page-year{position:absolute;right:0;bottom:4px;font-size:13px;font-weight:700;color:#404040;
+  /* v7.3.45, pedido explícito del usuario: color #404040 -> #767676. */
+  .mkt-page-year{position:absolute;right:0;bottom:4px;font-size:13px;font-weight:700;color:#767676;
                    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
   .mkt-page-website{position:absolute;right:0;bottom:0;font-size:11px;color:#7f7f7f}
   .mkt-page-logo{width:26px;height:26px;object-fit:contain;margin-left:auto}
@@ -470,8 +472,12 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   /* v7.3.44, pedido explícito del usuario: leyenda de 2 columnas debajo de la dona de Availability (ver
      legendBelow en mktDonutHtml) — reemplaza las etiquetas junto al anillo, así nunca se encima sin
      importar cuántas categorías haya. */
-  .mkt-donut-legend{display:grid;grid-template-columns:1fr 1fr;gap:3px 14px;margin-top:6px;text-align:left}
-  .mkt-donut-legend-item{display:flex;align-items:center;gap:6px;font-size:11px;min-width:0}
+  /* v7.3.45, pedido explícito del usuario: orden de mayor a menor, llenando primero la columna 1 completa y
+     luego la columna 2 (grid-auto-flow:column — el HTML ya viene ordenado desc. y con grid-template-rows
+     puesto inline según cuántos renglones necesite, ver mktDonutHtml/legendBelow). */
+  .mkt-donut-legend{display:grid;grid-template-columns:1fr 1fr;grid-auto-flow:column;gap:3px 14px;margin-top:6px;text-align:left}
+  /* v7.3.45, pedido explícito del usuario: letra más chica (11px -> 9.5px). */
+  .mkt-donut-legend-item{display:flex;align-items:center;gap:6px;font-size:9.5px;min-width:0}
   .mkt-donut-legend-swatch{width:9px;height:9px;border-radius:2px;flex:0 0 auto}
   .mkt-donut-legend-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#1a1a1a}
   .mkt-donut-legend-pct{flex:0 0 auto;color:var(--muted);font-variant-numeric:tabular-nums}
@@ -6849,24 +6855,33 @@ function mktDonutHtml(title, data, unitLabel, strokeWidth, labelFontSize, legend
       placedRects.push(rect);
     });
   }
-  let arcsHtml="", labelsHtml="", leadersHtml="", legendHtml="";
+  let arcsHtml="", labelsHtml="", leadersHtml="";
   items.forEach(it=>{
     arcsHtml+=`<circle class="mkt-donut-arc" cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="${it.s.color}"
       stroke-width="${SW}" stroke-dasharray="${it.drawLen.toFixed(3)} ${(CIRC-it.drawLen).toFixed(3)}"
       transform="rotate(${it.rotate} ${CX} ${CY})"><title>${escapeHtml(it.s.label)}: ${fmt(it.s.value)}${unitLabel?" "+unitLabel:""} (${it.pct.toFixed(1)}%)</title></circle>`;
-    if(legendBelow){
-      legendHtml+=`<div class="mkt-donut-legend-item"><span class="mkt-donut-legend-swatch" style="background:${it.s.color}"></span><span class="mkt-donut-legend-label">${escapeHtml(it.s.label)}</span><span class="mkt-donut-legend-pct">${it.pctText}</span></div>`;
-    }else{
+    if(!legendBelow){
       const leaderR2=it.finalR-13;
       leadersHtml+=`<line class="mkt-donut-leader" x1="${(CX+LEADER_R1*it.cos).toFixed(1)}" y1="${(CY+LEADER_R1*it.sin).toFixed(1)}" x2="${(CX+leaderR2*it.cos).toFixed(1)}" y2="${(CY+leaderR2*it.sin).toFixed(1)}"/>`;
       labelsHtml+=`<text class="mkt-donut-out-label" x="${it.lx.toFixed(1)}" y="${(it.ly-4).toFixed(1)}" text-anchor="${it.anchor}">${escapeHtml(it.s.label)}</text>
         <text class="mkt-donut-out-pct" x="${it.lx.toFixed(1)}" y="${(it.ly+11).toFixed(1)}" text-anchor="${it.anchor}">${it.pctText}</text>`;
     }
   });
+  let legendHtml="";
+  if(legendBelow){
+    // v7.3.45, pedido explícito del usuario: la leyenda va de MAYOR a MENOR (orden propio, aparte del orden
+    // angular que usan los arcos — no se toca cómo se dibuja el anillo), llenando primero toda la columna 1
+    // y luego la columna 2 (grid-auto-flow:column en el CSS necesita saber cuántos renglones tiene cada
+    // columna de antemano — rowCount, puesto inline — para repartir los ítems así en vez de intercalarlos).
+    const sorted=[...items].sort((a,b)=>b.s.value-a.s.value);
+    const rowCount=Math.ceil(sorted.length/2);
+    legendHtml=sorted.map(it=>`<div class="mkt-donut-legend-item"><span class="mkt-donut-legend-swatch" style="background:${it.s.color}"></span><span class="mkt-donut-legend-label">${escapeHtml(it.s.label)}</span><span class="mkt-donut-legend-pct">${it.pctText}</span></div>`).join("");
+    legendHtml=`<div class="mkt-donut-legend" style="grid-template-rows:repeat(${rowCount},auto)">${legendHtml}</div>`;
+  }
   return `<div class="mkt-donut-panel">
     <div class="mkt-donut-title">${escapeHtml(title)}</div>
     <svg class="mkt-donut-svg" viewBox="0 0 320 320" role="img" aria-label="${escapeAttr(title)}">${arcsHtml}${leadersHtml}${labelsHtml}</svg>
-    ${legendBelow?`<div class="mkt-donut-legend">${legendHtml}</div>`:""}
+    ${legendHtml}
   </div>`;
 }
 /* Tabla "matriz": filas = categorías (ej. Quarter, o un rango de tamaño), columnas = Submercado + Total —

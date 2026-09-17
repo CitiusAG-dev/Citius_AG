@@ -1516,9 +1516,18 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   /* Market Report (PDF) — v7.3.0, mismo criterio que body.printing-deck de arriba (aplicado vía JS por
      doMarketReportPrint(), no solo dentro de @media print, mismo motivo: no hay measure-before-print que
      dependa de esto como en Presentación, pero mantiene la misma convención por consistencia). */
+  /* v7.3.5x, bug real reportado por el usuario (con capturas, "aparece cuando estoy en la vista
+     consolidada"): #consolidatedBanner (aviso azul de Modo Consolidado, hermano de #wrap, ANTES de todo el
+     contenido del reporte) se hace visible con display:block al activar ese modo — el `body *{visibility:
+     hidden}` genérico de @media print lo oculta visualmente, pero visibility:hidden NO le quita el espacio
+     que ocupa (a diferencia de display:none, que sí). Ese hueco reservado (~65px) quedaba empujando las 5
+     páginas del reporte hacia abajo, y ese sobrante no cabía en ninguna — se derramaba en una 6ta hoja casi
+     en blanco. Mismo mecanismo ya resuelto antes para .mkt-report-outer (ver más abajo), ahora también para
+     este banner — se agrega a la misma lista de display:none de aquí arriba. */
   body.printing-mktreport header.topbar,
   body.printing-mktreport .sidebar,
-  body.printing-mktreport #resumenHeaderBar{display:none}
+  body.printing-mktreport #resumenHeaderBar,
+  body.printing-mktreport #consolidatedBanner{display:none}
   body.printing-mktreport .main{margin-left:0}
   body.printing-mktreport #mktReportPages{width:100%}
   /* v7.3.3, bug real reportado por el usuario: "solo imprime lo que veo en pantalla" — a diferencia de

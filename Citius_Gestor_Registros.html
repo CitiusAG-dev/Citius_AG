@@ -9629,6 +9629,35 @@ function loadMapBasemapPref(){
 function saveMapBasemapPrefLocal(){ try{ localStorage.setItem(MAP_BASEMAP_PREF_KEY, JSON.stringify(mapBasemapPref)); }catch(e){} }
 let mapBasemapPref=loadMapBasemapPref();
 let currentBasemapLayers=[];
+/* v7.3.5x, pedido explícito del usuario ("quiero probar el mapa nuevo en las presentaciones, sin afectar
+   nada"): factoriza la mitad de setMapBasemap() (la que arma la capa `gl` de Mapbox) en su propia función,
+   para poder REUSARLA tal cual en el mapa de la presentación de Propiedades (ver renderPresMap más abajo)
+   sin duplicar el estilo/token en 2 lugares — un cambio futuro de estilo en Mapbox Studio (o de token) solo
+   se actualiza en MAP_BASEMAPS, arriba, y se refleja solo en ambos lugares. Regresa la capa GL creada; quien
+   la use debe liberar su contexto WebGL explícitamente al destruirla (ver el comentario de "liberar el
+   contexto WebGL" más abajo, en setMapBasemap) — L.Map.remove()/removeLayer() no siempre lo libera solo. */
+function addCitiusMapboxLayer(leafletMap){
+  const cfg=MAP_BASEMAPS.find(b=>b.key==="citiusMapbox");
+  const glLayer=L.mapboxGL({style:cfg.gl.style, accessToken:cfg.gl.accessToken, attribution:cfg.gl.attribution}).addTo(leafletMap);
+  /* Mapbox GL JS no aplica automáticamente el "config" guardado de un estilo Standard (colores/tema
+     personalizados en Studio, dentro de imports[].config) al cargar el estilo por URL — solo lo trae
+     como dato disponible; hay que reinyectarlo explícitamente vía setConfigProperty. Se reintenta en
+     varios eventos del ciclo de carga (confirmado necesario en pruebas manuales) y se lee dinámicamente
+     del propio estilo (no hardcodeado) para que futuros ajustes en Mapbox Studio se reflejen solos. */
+  const glMap=glLayer.getMapboxMap();
+  if(glMap){
+    const applyStandardConfig=function(){
+      (glMap.getStyle().imports||[]).forEach(function(imp){
+        if(!imp.config) return;
+        Object.keys(imp.config).forEach(function(k){ try{ glMap.setConfigProperty(imp.id, k, imp.config[k]); }catch(e){} });
+      });
+    };
+    glMap.on("style.load", applyStandardConfig);
+    glMap.once("load", applyStandardConfig);
+    glMap.once("idle", applyStandardConfig);
+  }
+  return glLayer;
+}
 let currentBasemapGL=null; // capa mapbox-gl-leaflet activa (basemap tipo `gl`), separada de currentBasemapLayers
 function setMapBasemap(key){
   currentBasemapLayers.forEach(l=>allPolyMap.removeLayer(l));
@@ -9641,24 +9670,7 @@ function setMapBasemap(key){
   }
   const cfg=MAP_BASEMAPS.find(b=>b.key===key) || MAP_BASEMAPS[0];
   if(cfg.gl){
-    currentBasemapGL=L.mapboxGL({style:cfg.gl.style, accessToken:cfg.gl.accessToken, attribution:cfg.gl.attribution}).addTo(allPolyMap);
-    /* Mapbox GL JS no aplica automáticamente el "config" guardado de un estilo Standard (colores/tema
-       personalizados en Studio, dentro de imports[].config) al cargar el estilo por URL — solo lo trae
-       como dato disponible; hay que reinyectarlo explícitamente vía setConfigProperty. Se reintenta en
-       varios eventos del ciclo de carga (confirmado necesario en pruebas manuales) y se lee dinámicamente
-       del propio estilo (no hardcodeado) para que futuros ajustes en Mapbox Studio se reflejen solos. */
-    const glMap=currentBasemapGL.getMapboxMap();
-    if(glMap){
-      const applyStandardConfig=function(){
-        (glMap.getStyle().imports||[]).forEach(function(imp){
-          if(!imp.config) return;
-          Object.keys(imp.config).forEach(function(k){ try{ glMap.setConfigProperty(imp.id, k, imp.config[k]); }catch(e){} });
-        });
-      };
-      glMap.on("style.load", applyStandardConfig);
-      glMap.once("load", applyStandardConfig);
-      glMap.once("idle", applyStandardConfig);
-    }
+    currentBasemapGL=addCitiusMapboxLayer(allPolyMap);
   }else{
     currentBasemapLayers=cfg.layers.map(l=>L.tileLayer(l.url,{maxZoom:19, attribution:l.attribution, subdomains:l.subdomains||"abc"}).addTo(allPolyMap));
   }
@@ -12125,6 +12137,18 @@ function toggleCoverEditBroker(v, checked){
 }
 document.getElementById("presCoverEditBtn").onclick=toggleCoverEditPanel;
 let presMapInstance=null;
+let presMapGL=null; // capa mapbox-gl-leaflet activa en este mapa (ver addCitiusMapboxLayer/disposePresMapGL)
+/* v7.3.5x: este mapa se destruye y se vuelve a crear en CADA render de la presentación de Propiedades
+   (cambia la selección, Confidencial, etc.) — mucho más seguido que un cambio de basemap manual en la
+   pestaña Mapa — así que hace falta el mismo cuidado de liberar el contexto WebGL que ya tiene
+   setMapBasemap() al alternar basemaps (ver el comentario de "liberar el contexto WebGL" ahí), aquí
+   factorizado en su propia función porque hay 2 lugares que destruyen `presMapInstance`. */
+function disposePresMapGL(){
+  if(!presMapGL) return;
+  const glMap=presMapGL.getMapboxMap && presMapGL.getMapboxMap();
+  if(glMap) try{ glMap.remove(); }catch(e){}
+  presMapGL=null;
+}
 function buildCoverPageHtml(){
   const monthYear=(presCoverInfo.monthYear||"").trim();
   const m2=(presCoverInfo.m2||"").trim();
@@ -12147,10 +12171,16 @@ function buildClosingPageHtml(imgSrc){
 function buildMapPageHtml(list, logoSrc){
   const withCoords=list.filter(r=>r.LATITUDE!=null && r.LATITUDE!=="" && r.LONGITUDE!=null && r.LONGITUDE!=="");
   const missing=list.length-withCoords.length;
+  // v7.3.5x, pedido explícito del usuario ("probar el mapa nuevo en Propiedades, sin afectar nada más"):
+  // PILOTO — este mapa (Propiedades/Buildings) pasa del basemap CARTO Voyager fijo de siempre al mismo
+  // estilo Mapbox de la pestaña Mapa (ver renderPresMap/addCitiusMapboxLayer). Land y Oficinas SIGUEN en
+  // CARTO por ahora, sin tocar, hasta confirmar con una impresión/exportación real de este piloto. El
+  // crédito cambia de "OpenStreetMap/CARTO" a "Mapbox/OpenStreetMap" — requerido por los términos de uso de
+  // Mapbox al mostrar su estilo, igual que ya se hacía con la llave gratuita de CARTO (ver CARTO_API_KEY).
   return `<div class="deck-page map-page">
     <div class="map-page-canvas" id="presMapCanvas"></div>
     <div class="map-page-badge"><img src="${logoSrc}"><h2>Location Map</h2></div>
-    <div class="map-page-attribution">&copy; OpenStreetMap &copy; CARTO</div>
+    <div class="map-page-attribution">&copy; Mapbox &copy; OpenStreetMap contributors</div>
     ${missing?`<p class="deck-note">*${missing} propiedad(es) sin latitud/longitud capturada no se muestran en el mapa.</p>`:""}
   </div>`;
 }
@@ -12180,7 +12210,7 @@ function declutterMapPins(map, markerData){
   }
 }
 function renderPresMap(list){
-  if(presMapInstance){ presMapInstance.remove(); presMapInstance=null; }
+  if(presMapInstance){ disposePresMapGL(); presMapInstance.remove(); presMapInstance=null; }
   const canvas=document.getElementById("presMapCanvas");
   if(!canvas) return;
   const pts=[];
@@ -12190,9 +12220,11 @@ function renderPresMap(list){
     pts.push({lat,lng,num:i+1,rec});
   });
   presMapInstance=L.map(canvas,{zoomControl:false,attributionControl:false,zoomSnap:0.25,zoomDelta:0.25,wheelPxPerZoomLevel:200});
-  L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=${CARTO_API_KEY}`,{
-    maxZoom:16, subdomains:'abcd'
-  }).addTo(presMapInstance);
+  // v7.3.5x, pedido explícito del usuario ("probar el mapa nuevo en Propiedades, sin afectar nada más"):
+  // PILOTO — antes CARTO Voyager fijo (ver buildMapPageHtml), ahora el mismo basemap "Citius (Mapbox)" de
+  // la pestaña Mapa (mismo estilo/token, ver MAP_BASEMAPS/addCitiusMapboxLayer). Land y Oficinas siguen en
+  // CARTO por ahora — este cambio es SOLO de esta presentación, no toca setMapBasemap ni la pestaña Mapa.
+  presMapGL=addCitiusMapboxLayer(presMapInstance);
   const markerData=[];
   pts.forEach(p=>{
     const mapsUrl=`https://www.google.com/maps?q=${encodeURIComponent(p.lat)},${encodeURIComponent(p.lng)}`;
@@ -12210,7 +12242,10 @@ function renderPresMap(list){
   // Ahora se recalcula en cada `zoomend` — declutterMapPins() ya recalcula siempre desde las coordenadas
   // REALES guardadas en `markerData` (nunca desde una posición ya desplazada), así que repetirlo en cada
   // zoom es seguro: no se van "corriendo" con el tiempo.
-  presMapInstance.on("zoomend", ()=>declutterMapPins(presMapInstance, markerData));
+  presMapInstance.on("zoomend", ()=>{
+    declutterMapPins(presMapInstance, markerData);
+    resyncPresMapGL();
+  });
   setTimeout(()=>{
     presMapInstance.invalidateSize();
     if(pts.length){
@@ -12219,7 +12254,20 @@ function renderPresMap(list){
       presMapInstance.setView([25.5,-100.9], 11, {animate:false});
     }
     declutterMapPins(presMapInstance, markerData);
+    // v7.3.5x: bug conocido de mapbox-gl-leaflet@0.0.16 (ver issues #143/#45 del repo mapbox/mapbox-gl-
+    // leaflet) — su resincronización automática del canvas de Mapbox GL depende de un ciclo interno
+    // (evento `resize` -> `_transitionEnd` -> `jumpTo` -> `moveend` -> `_zoomEnd`/`_update`) encadenado con
+    // requestAnimationFrame; al llamar invalidateSize() y fitBounds()/setView({animate:false}) en el mismo
+    // tick, ese ciclo puede quedar a medio camino y el canvas se queda con el tamaño/posición viejos (el
+    // "espacio gris" a la derecha/abajo del mapa que reportó el usuario). Se fuerza aquí, con un pequeño
+    // retraso extra para correr DESPUÉS de cualquier ciclo interno pendiente, el mismo `_update()` que la
+    // librería usa internamente para reajustar tamaño/posición del canvas — resync "de respaldo".
+    setTimeout(resyncPresMapGL, 100);
   },50);
+}
+function resyncPresMapGL(){
+  if(!presMapGL) return;
+  try{ presMapGL._update(); }catch(e){}
 }
 /* ==== Layout (spec sheet 1 página por propiedad) — v3.41.0 ====
    Nueva opción del deck de Propiedades, entre "Tabla" y "Cierre": a diferencia de "Tabla" (hasta 6
@@ -12415,7 +12463,7 @@ function renderPresentationView(){
   // contenedor, buscan .deck-page globalmente).
   document.getElementById("landPresPages").innerHTML="";
   document.getElementById("officePresPages").innerHTML="";
-  if(presMapInstance){ presMapInstance.remove(); presMapInstance=null; }
+  if(presMapInstance){ disposePresMapGL(); presMapInstance.remove(); presMapInstance=null; }
   presLayoutMapInstances.forEach(m=>{ try{ m.remove(); }catch(e){} }); presLayoutMapInstances=[];
   if(!list.length){
     pagesEl.innerHTML=`<div class="filters-empty">You haven't marked any properties for the presentation yet.<br>Open a Buildings record and turn on "Use in presentation".</div>`;

@@ -588,7 +588,15 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      `fieldHelpIconHtml` — un `<div>` posicionado absoluto que se muestra con `:hover`, sin nada de JS,
      instantáneo en vez del retraso del `title` nativo), y toda la COLUMNA del día (no solo el pixel visible
      de la barra) es el área de hover — un día con 0 actividad casi no tiene barra visible, así que hacer
-     hoverable solo esos pocos px habría sido igual de "no se ve nada" que antes. */
+     hoverable solo esos pocos px habría sido igual de "no se ve nada" que antes.
+     v7.3.5x, bug real reportado por el usuario ("está súper pegado, a veces se empalman los datos de la
+     columna con esta información"): a pesar de lo que dice el párrafo de arriba, `.resumen-usage-header`
+     nunca tuvo una regla CSS propia (quedaba en `display:block` normal, título/nota y los 2 selectores cada
+     uno en su propio renglón, no en la misma fila) — y sin margen propio, quedaba pegado (0px) contra la
+     gráfica de abajo. Con una barra alta (su valor cerca del máximo del eje Y), el data label que va arriba
+     de esa barra terminaba encimado contra los selectores de Documento/Periodo. Se agrega el margen que
+     faltaba. */
+  .resumen-usage-header{margin-bottom:18px}
   .resumen-usage-chart{display:grid;grid-template-columns:34px 1fr;grid-template-rows:200px 22px;column-gap:8px}
   .resumen-usage-yaxis{grid-column:1;grid-row:1;position:relative}
   .resumen-usage-yaxis span{position:absolute;right:4px;transform:translateY(-50%);font-size:9.5px;
@@ -623,6 +631,20 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .resumen-usage-tip::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);
                              border:5px solid transparent;border-top-color:var(--txt)}
   .resumen-usage-bar-col:hover .resumen-usage-tip{opacity:1}
+  /* v7.3.5x, bug real reportado por el usuario (con Modo Consolidado, 11 archivos — el tooltip más ancho
+     que de costumbre): centrado siempre sobre la barra, el tooltip de las últimas columnas (las más
+     recientes, pegadas al borde derecho de la pantalla) se salía del viewport — no solo quedaba cortado,
+     sino que el desborde (nada lo recortaba) hacía crecer el documento y aparecía scroll horizontal en TODA
+     la página, que de cualquier forma no ayudaba a verlo completo (el tooltip sigue centrado en la misma
+     posición relativa a su barra sin importar cuánto se scrollee). Para las últimas 2 columnas del rango de
+     días, el tooltip ancla su borde DERECHO al de la barra (crece hacia la izquierda) en vez de quedar
+     centrado; para las primeras 2, ancla su borde IZQUIERDO (por si acaso — en la práctica el borde
+     izquierdo de la gráfica rara vez queda tan pegado al borde de la pantalla como el derecho). La flechita
+     (`::after`) se mueve junto con el ancla para seguir señalando la barra real, no el centro del tooltip. */
+  .resumen-usage-bar-col:nth-last-child(-n+2) .resumen-usage-tip{left:auto;right:0;transform:none}
+  .resumen-usage-bar-col:nth-last-child(-n+2) .resumen-usage-tip::after{left:auto;right:10px;transform:none}
+  .resumen-usage-bar-col:nth-child(-n+2) .resumen-usage-tip{left:0;transform:none}
+  .resumen-usage-bar-col:nth-child(-n+2) .resumen-usage-tip::after{left:10px}
   /* v7.3.5x, pedido explícito del usuario: al pasar el mouse, el desglose de esa barra por archivo de
      origen (mismo criterio que ya usa el filtro "Document" de esta sección, recordSourceDoc) — solo se
      agrega cuando hay MÁS DE 1 archivo distinto ese día (con 1 solo archivo, que es el caso normal fuera de

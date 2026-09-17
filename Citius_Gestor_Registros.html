@@ -9638,7 +9638,12 @@ let currentBasemapLayers=[];
    contexto WebGL" más abajo, en setMapBasemap) — L.Map.remove()/removeLayer() no siempre lo libera solo. */
 function addCitiusMapboxLayer(leafletMap){
   const cfg=MAP_BASEMAPS.find(b=>b.key==="citiusMapbox");
-  const glLayer=L.mapboxGL({style:cfg.gl.style, accessToken:cfg.gl.accessToken, attribution:cfg.gl.attribution}).addTo(leafletMap);
+  // v7.3.5x: por defecto WebGL borra su buffer despues de cada frame (optimizacion del navegador) — el
+  // motor de impresion/PDF de Chrome toma un snapshot que llega vacio si el canvas no se creo con
+  // preserveDrawingBuffer:true (fijo desde la creacion, no se puede activar despues). Sin esto el mapa se
+  // ve bien en pantalla pero sale como un recuadro gris vacio al imprimir/exportar — confirmado como el
+  // mismo problema reportado en mapbox/mapbox-gl-leaflet#79 y documentado por Mapbox para exportar/imprimir.
+  const glLayer=L.mapboxGL({style:cfg.gl.style, accessToken:cfg.gl.accessToken, attribution:cfg.gl.attribution, preserveDrawingBuffer:true}).addTo(leafletMap);
   /* Mapbox GL JS no aplica automáticamente el "config" guardado de un estilo Standard (colores/tema
      personalizados en Studio, dentro de imports[].config) al cargar el estilo por URL — solo lo trae
      como dato disponible; hay que reinyectarlo explícitamente vía setConfigProperty. Se reintenta en

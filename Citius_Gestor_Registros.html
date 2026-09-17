@@ -7640,11 +7640,12 @@ function doMarketReportPrint(){
   const originalTitle=document.title;
   // Chrome usa document.title como nombre por defecto del PDF al "Guardar como PDF".
   // v7.3.5x, pedido explícito del usuario: el nombre incluye el trimestre —
-  // "[MERCADO] - Market Report [Q - YYYY]", ej. "Monterrey - Market Report 3Q - 2026". El trimestre sale de
-  // "Cover Data" (manual); si está vacío, se omite junto con su guion para no dejar " - 2026" colgando.
+  // "[MERCADO] - Market Report [Q AAAA]", ej. "Monterrey - Market Report 3Q 2026" (Q y año separados por un
+  // solo espacio, mismo formato que mktQuarterYearLabel()). El trimestre sale de "Cover Data" (manual); si
+  // está vacío, mktQuarterYearLabel() ya se salta el espacio de más y deja solo el año.
   const marketLabel=(resumenMarket||"Market").replace(/[\\/:*?"<>|]/g,"-");
-  const q=mktCurrentQuarterLabel().replace(/[\\/:*?"<>|]/g,"-");
-  document.title=`${marketLabel} - Market Report ${q?`${q} - `:""}${resumenYear}`;
+  const qy=mktQuarterYearLabel().replace(/[\\/:*?"<>|]/g,"-");
+  document.title=`${marketLabel} - Market Report ${qy}`;
   window.print();
   document.title=originalTitle;
   if(pagesEl) pagesEl.style.zoom="";

@@ -1996,7 +1996,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.3.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.4.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -4676,6 +4676,10 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.4.0", date:"2026-09-17", items:[
+    "Market Report (PDF): fixed a real print bug — in Consolidated mode, the blue \"Consolidated mode active\" banner stayed invisible but still reserved its on-screen height on the printed page, which could push a near-blank extra page onto the end of the PDF. The banner is now fully removed (not just hidden) while printing.",
+    "Market Report (PDF): removed the light gray outline around each pie-chart slice on the Completed Transactions and Available Inventory pages, to match the plain look of the Availability chart on the cover."
+  ]},
   {version:"8.3.0", date:"2026-09-17", items:[
     "Market Report (PDF): the \"Design\"/\"Cover data\" buttons moved to the left of the toolbar, with the rest of the controls (Units/Market/Submarket/Year/Print) pushed to the right.",
     "Market Report (PDF): the \"Design\" checklist no longer closes itself every time you check/uncheck a section — it now stays open, same for \"Cover data\" while you type.",

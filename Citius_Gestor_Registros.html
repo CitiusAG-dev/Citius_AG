@@ -7171,12 +7171,15 @@ function mktDonutHtml(title, data, unitLabel, strokeWidth, labelFontSize, legend
     });
   }
   let arcsHtml="", labelsHtml="", leadersHtml="";
-  // v7.3.5x, pedido explícito del usuario: contorno gris claro alrededor de cada slice, SOLO en las donas de
-  // páginas 2 en adelante (7mo argumento opcional `sliceOutline` — Availability, portada, no lo pasa y sigue
-  // sin contorno). Como el anillo se dibuja con `stroke-dasharray` sobre un <circle> (no hay borde real que
-  // pintar por segmento, ver el comentario de GAP más arriba), el contorno se logra con un 2do <circle>
-  // idéntico DEBAJO del de color, mismo largo/rotación, pero más ancho (SW + 2×OUTLINE_W) y en gris claro —
-  // ese excedente asoma por igual a ambos lados del anillo de color, como una línea fina.
+  // v7.3.5x: contorno gris claro alrededor de cada slice (7mo argumento opcional `sliceOutline`) — pedido
+  // explícito del usuario en su momento SOLO para las donas de páginas 2 en adelante (Availability, portada,
+  // nunca lo pasó); revertido después ("con zoom a 400% noté ese contorno... quiero que no lo tenga, igual
+  // que la de la portada") — ninguna llamada actual pasa `true`, así que hoy ninguna dona lo dibuja, pero se
+  // deja el mecanismo por si se vuelve a pedir. Cuando SÍ se activa: como el anillo se dibuja con
+  // `stroke-dasharray` sobre un <circle> (no hay borde real que pintar por segmento, ver el comentario de
+  // GAP más arriba), el contorno se logra con un 2do <circle> idéntico DEBAJO del de color, mismo largo/
+  // rotación, pero más ancho (SW + 2×OUTLINE_W) y en gris claro — ese excedente asoma por igual a ambos
+  // lados del anillo de color, como una línea fina.
   items.forEach(it=>{
     if(sliceOutline){
       const OUTLINE_W=1.4;
@@ -7488,17 +7491,17 @@ function mktBuildTxSummaryPage(){
       <div class="mkt-box">${countTable}</div>
       <div class="mkt-box">${typeTable}</div>
       <div class="mkt-box">${dealTable}</div>
-      <!-- v7.3.5x, pedido explícito del usuario ("probar"): vuelve a data labels junto al anillo (legendBelow
-           en false) en vez de la leyenda inferior de la ronda anterior — sliceOutline (7mo argumento) se deja
-           en true, el contorno gris claro no depende de qué modo de etiqueta se use. -->
+      <!-- v7.3.5x: leyenda inferior (legendBelow=true, 6to argumento) en vez de etiquetas junto al anillo.
+           v7.3.5x, pedido explícito del usuario (con zoom a 400%, notó el contorno gris de cada slice —
+           al revés que la portada, que NO lo tiene): sliceOutline (7mo argumento) pasa a false. -->
       <div class="mkt-donut-row">
-        ${mktDonutHtml("Quarter", quarterDonutData, resumenAreaUnitLabel(), 37, undefined, true, true)}
+        ${mktDonutHtml("Quarter", quarterDonutData, resumenAreaUnitLabel(), 37, undefined, true, false)}
         <!-- v7.3.5x, pedido explícito del usuario: título de esta dona "Count" -> "Size" (sus categorías
              son rangos de tamaño, bucketCategories — el título de la tabla arriba se queda igual,
              "Building Count", solo se renombra la dona). -->
-        ${mktDonutHtml("Size", countDonutData, "", 37, undefined, true, true)}
-        ${mktDonutHtml("Type", typeDonutData, resumenAreaUnitLabel(), 37, undefined, true, true)}
-        ${mktDonutHtml("Deal", dealDonutData, resumenAreaUnitLabel(), 37, undefined, true, true)}
+        ${mktDonutHtml("Size", countDonutData, "", 37, undefined, true, false)}
+        ${mktDonutHtml("Type", typeDonutData, resumenAreaUnitLabel(), 37, undefined, true, false)}
+        ${mktDonutHtml("Deal", dealDonutData, resumenAreaUnitLabel(), 37, undefined, true, false)}
       </div>
     </div>
   </div>`;
@@ -7595,12 +7598,12 @@ function mktBuildAvailSummaryPage(){
       <div class="mkt-box">${statusTable}</div>
       <div class="mkt-box">${genTable}</div>
       <div class="mkt-donut-row">
-        ${mktDonutHtml("Class", classDonutData, resumenAreaUnitLabel(), 37, undefined, true, true)}
+        ${mktDonutHtml("Class", classDonutData, resumenAreaUnitLabel(), 37, undefined, true, false)}
         <!-- v7.3.5x, pedido explícito del usuario: título de esta dona "Count" -> "Size" (mismo criterio
              que la de Completed Transactions, sus categorías también son rangos de tamaño). -->
-        ${mktDonutHtml("Size", countDonutData, "", 37, undefined, true, true)}
-        ${mktDonutHtml("Status", statusDonutData, resumenAreaUnitLabel(), 37, undefined, true, true)}
-        ${mktDonutHtml("Generation", genDonutData, resumenAreaUnitLabel(), 37, undefined, true, true)}
+        ${mktDonutHtml("Size", countDonutData, "", 37, undefined, true, false)}
+        ${mktDonutHtml("Status", statusDonutData, resumenAreaUnitLabel(), 37, undefined, true, false)}
+        ${mktDonutHtml("Generation", genDonutData, resumenAreaUnitLabel(), 37, undefined, true, false)}
       </div>
     </div>
   </div>`;

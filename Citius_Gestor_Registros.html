@@ -7472,7 +7472,10 @@ function mktBuildTxSummaryPage(){
            en true, el contorno gris claro no depende de qué modo de etiqueta se use. -->
       <div class="mkt-donut-row">
         ${mktDonutHtml("Quarter", quarterDonutData, resumenAreaUnitLabel(), 37, undefined, true, true)}
-        ${mktDonutHtml("Count", countDonutData, "", 37, undefined, true, true)}
+        <!-- v7.3.5x, pedido explícito del usuario: título de esta dona "Count" -> "Size" (sus categorías
+             son rangos de tamaño, bucketCategories — el título de la tabla arriba se queda igual,
+             "Building Count", solo se renombra la dona). -->
+        ${mktDonutHtml("Size", countDonutData, "", 37, undefined, true, true)}
         ${mktDonutHtml("Type", typeDonutData, resumenAreaUnitLabel(), 37, undefined, true, true)}
         ${mktDonutHtml("Deal", dealDonutData, resumenAreaUnitLabel(), 37, undefined, true, true)}
       </div>
@@ -7572,7 +7575,9 @@ function mktBuildAvailSummaryPage(){
       <div class="mkt-box">${genTable}</div>
       <div class="mkt-donut-row">
         ${mktDonutHtml("Class", classDonutData, resumenAreaUnitLabel(), 37, undefined, true, true)}
-        ${mktDonutHtml("Count", countDonutData, "", 37, undefined, true, true)}
+        <!-- v7.3.5x, pedido explícito del usuario: título de esta dona "Count" -> "Size" (mismo criterio
+             que la de Completed Transactions, sus categorías también son rangos de tamaño). -->
+        ${mktDonutHtml("Size", countDonutData, "", 37, undefined, true, true)}
         ${mktDonutHtml("Status", statusDonutData, resumenAreaUnitLabel(), 37, undefined, true, true)}
         ${mktDonutHtml("Generation", genDonutData, resumenAreaUnitLabel(), 37, undefined, true, true)}
       </div>

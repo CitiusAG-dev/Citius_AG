@@ -2035,7 +2035,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.4.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.5.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -4715,6 +4715,10 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.5.0", date:"2026-09-17", items:[
+    "Summary > KPI's, \"Tool Usage\" chart: now looks like a real bar chart (gap between bars, instead of touching like a histogram); days with no activity no longer draw a faint gray bar; each bar shows its count as a data label on top; and hovering a bar now also breaks its count down by source file (only shown when more than one file had activity that day).",
+    "Summary > KPI's, \"Tool Usage\" chart: fixed the hover tooltip running off the right edge of the screen (and causing an unwanted horizontal scrollbar) for the most recent day's bar — it now flips to grow leftward near either edge; also added breathing room between the Document/Period selectors and the chart below them."
+  ]},
   {version:"8.4.0", date:"2026-09-17", items:[
     "Market Report (PDF): fixed a real print bug — in Consolidated mode, the blue \"Consolidated mode active\" banner stayed invisible but still reserved its on-screen height on the printed page, which could push a near-blank extra page onto the end of the PDF. The banner is now fully removed (not just hidden) while printing.",
     "Market Report (PDF): removed the light gray outline around each pie-chart slice on the Completed Transactions and Available Inventory pages, to match the plain look of the Availability chart on the cover."

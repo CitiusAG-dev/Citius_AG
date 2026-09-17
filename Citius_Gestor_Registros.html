@@ -588,7 +588,15 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      `fieldHelpIconHtml` — un `<div>` posicionado absoluto que se muestra con `:hover`, sin nada de JS,
      instantáneo en vez del retraso del `title` nativo), y toda la COLUMNA del día (no solo el pixel visible
      de la barra) es el área de hover — un día con 0 actividad casi no tiene barra visible, así que hacer
-     hoverable solo esos pocos px habría sido igual de "no se ve nada" que antes. */
+     hoverable solo esos pocos px habría sido igual de "no se ve nada" que antes.
+     v7.3.5x, bug real reportado por el usuario ("está súper pegado, a veces se empalman los datos de la
+     columna con esta información"): a pesar de lo que dice el párrafo de arriba, `.resumen-usage-header`
+     nunca tuvo una regla CSS propia (quedaba en `display:block` normal, título/nota y los 2 selectores cada
+     uno en su propio renglón, no en la misma fila) — y sin margen propio, quedaba pegado (0px) contra la
+     gráfica de abajo. Con una barra alta (su valor cerca del máximo del eje Y), el data label que va arriba
+     de esa barra terminaba encimado contra los selectores de Documento/Periodo. Se agrega el margen que
+     faltaba. */
+  .resumen-usage-header{margin-bottom:18px}
   .resumen-usage-chart{display:grid;grid-template-columns:34px 1fr;grid-template-rows:200px 22px;column-gap:8px}
   .resumen-usage-yaxis{grid-column:1;grid-row:1;position:relative}
   .resumen-usage-yaxis span{position:absolute;right:4px;transform:translateY(-50%);font-size:9.5px;
@@ -596,15 +604,26 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .resumen-usage-plot{grid-column:2;grid-row:1;position:relative;border-left:1px solid var(--line);
                        border-bottom:1px solid var(--line)}
   .resumen-usage-gridline{position:absolute;left:0;right:0;border-top:1px dashed var(--line)}
-  .resumen-usage-bars{position:absolute;inset:0;display:flex;align-items:flex-end;padding:0 2px}
+  /* v7.3.5x, pedido explícito del usuario: se ve más como una gráfica de barras real (con aire entre cada
+     una) en vez de un histograma (barras pegadas) — gap entre columnas. */
+  .resumen-usage-bars{position:absolute;inset:0;display:flex;align-items:flex-end;padding:0 2px;gap:3px}
   .resumen-usage-bar-col{flex:1 1 0;min-width:2px;height:100%;display:flex;align-items:flex-end;
                           position:relative;border-radius:3px 3px 0 0}
   .resumen-usage-bar-col:hover{background:rgba(0,0,0,.035)}
   .resumen-usage-bar{width:100%;background:var(--accent);border-radius:2px 2px 0 0;position:relative;
                       transition:background .12s}
-  .resumen-usage-bar.empty{background:var(--line)}
   .resumen-usage-bar-col:hover .resumen-usage-bar{background:var(--accent-2)}
-  .resumen-usage-bar-col:hover .resumen-usage-bar.empty{background:var(--muted)}
+  /* v7.3.5x, pedido explícito del usuario ("veo unas columnas de fondo gris claro, quítalo"): antes un día
+     sin actividad SÍ dibujaba una barra visible (2% de alto, en gris `var(--line)`) solo para que hubiera
+     algo qué "agarrar" con el mouse — eso es justo lo que se veía como columnas grises de fondo, sobre todo
+     con varios días sin actividad seguidos. Ya no hace falta: toda la COLUMNA (`.resumen-usage-bar-col`,
+     100% de alto) sigue siendo el área de hover sin importar qué tan alta (o nula) sea la barra adentro —
+     un día vacío ahora es SIN barra visible (0% de alto, ver resumenUsageChartHtml), y el tooltip con
+     "0 records" sigue apareciendo igual al pasar el mouse por esa columna. */
+  .resumen-usage-bar-value{position:absolute;bottom:calc(100% + 3px);left:50%;transform:translateX(-50%);
+                            font-size:8.5px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums;
+                            white-space:nowrap}
+  .resumen-usage-bar-col:hover .resumen-usage-bar-value{opacity:0}
   .resumen-usage-tip{position:absolute;bottom:calc(100% + 9px);left:50%;transform:translateX(-50%);
                       background:var(--txt);color:#fff;font-size:11px;line-height:1.45;padding:6px 10px;
                       border-radius:6px;white-space:nowrap;text-align:center;opacity:0;pointer-events:none;
@@ -612,6 +631,26 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .resumen-usage-tip::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);
                              border:5px solid transparent;border-top-color:var(--txt)}
   .resumen-usage-bar-col:hover .resumen-usage-tip{opacity:1}
+  /* v7.3.5x, bug real reportado por el usuario (con Modo Consolidado, 11 archivos — el tooltip más ancho
+     que de costumbre): centrado siempre sobre la barra, el tooltip de las últimas columnas (las más
+     recientes, pegadas al borde derecho de la pantalla) se salía del viewport — no solo quedaba cortado,
+     sino que el desborde (nada lo recortaba) hacía crecer el documento y aparecía scroll horizontal en TODA
+     la página, que de cualquier forma no ayudaba a verlo completo (el tooltip sigue centrado en la misma
+     posición relativa a su barra sin importar cuánto se scrollee). Para las últimas 2 columnas del rango de
+     días, el tooltip ancla su borde DERECHO al de la barra (crece hacia la izquierda) en vez de quedar
+     centrado; para las primeras 2, ancla su borde IZQUIERDO (por si acaso — en la práctica el borde
+     izquierdo de la gráfica rara vez queda tan pegado al borde de la pantalla como el derecho). La flechita
+     (`::after`) se mueve junto con el ancla para seguir señalando la barra real, no el centro del tooltip. */
+  .resumen-usage-bar-col:nth-last-child(-n+2) .resumen-usage-tip{left:auto;right:0;transform:none}
+  .resumen-usage-bar-col:nth-last-child(-n+2) .resumen-usage-tip::after{left:auto;right:10px;transform:none}
+  .resumen-usage-bar-col:nth-child(-n+2) .resumen-usage-tip{left:0;transform:none}
+  .resumen-usage-bar-col:nth-child(-n+2) .resumen-usage-tip::after{left:10px}
+  /* v7.3.5x, pedido explícito del usuario: al pasar el mouse, el desglose de esa barra por archivo de
+     origen (mismo criterio que ya usa el filtro "Document" de esta sección, recordSourceDoc) — solo se
+     agrega cuando hay MÁS DE 1 archivo distinto ese día (con 1 solo archivo, que es el caso normal fuera de
+     Modo Consolidado, repetir el mismo nombre sería puro ruido redundante contra el total de arriba). */
+  .resumen-usage-tip-divider{border-top:1px solid rgba(255,255,255,.25);margin:5px 0 4px}
+  .resumen-usage-tip-doc{display:flex;justify-content:space-between;gap:10px;text-align:left}
   .resumen-usage-xaxis{grid-column:2;grid-row:2;position:relative}
   .resumen-usage-xaxis span{position:absolute;top:0;transform:translateX(-50%);font-size:9.5px;
                              color:var(--muted);white-space:nowrap}
@@ -1996,7 +2035,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.4.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.5.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -4676,6 +4715,10 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.5.0", date:"2026-09-17", items:[
+    "Summary > KPI's, \"Tool Usage\" chart: now looks like a real bar chart (gap between bars, instead of touching like a histogram); days with no activity no longer draw a faint gray bar; each bar shows its count as a data label on top; and hovering a bar now also breaks its count down by source file (only shown when more than one file had activity that day).",
+    "Summary > KPI's, \"Tool Usage\" chart: fixed the hover tooltip running off the right edge of the screen (and causing an unwanted horizontal scrollbar) for the most recent day's bar — it now flips to grow leftward near either edge; also added breathing room between the Document/Period selectors and the chart below them."
+  ]},
   {version:"8.4.0", date:"2026-09-17", items:[
     "Market Report (PDF): fixed a real print bug — in Consolidated mode, the blue \"Consolidated mode active\" banner stayed invisible but still reserved its on-screen height on the printed page, which could push a near-blank extra page onto the end of the PDF. The banner is now fully removed (not just hidden) while printing.",
     "Market Report (PDF): removed the light gray outline around each pie-chart slice on the Completed Transactions and Available Inventory pages, to match the plain look of the Availability chart on the cover."
@@ -6503,14 +6546,18 @@ function resumenUsageDocsAvailable(){
    — con 0 cuando ningún registro se modificó ese día (línea de tiempo continua, no solo los días con
    actividad, para que la gráfica refleje huecos reales de inactividad). `docFilter` vacío = todos los
    documentos. */
+/* v7.3.5x, pedido explícito del usuario: además del total por día, ahora también arma el desglose por
+   archivo de origen (`byDoc`, mismo criterio que recordSourceDoc/resumenUsageDocsAvailable ya usan para el
+   filtro "Document" de esta sección) — para poder mostrarlo en el tooltip de cada barra. */
 function resumenUsageData(days, docFilter){
   const today=new Date(); today.setHours(0,0,0,0);
   const counts=new Map();
+  const byDoc=new Map();
   const dates=[];
   for(let i=days-1;i>=0;i--){
     const d=new Date(today); d.setDate(d.getDate()-i);
     const iso=d.toISOString().slice(0,10);
-    counts.set(iso,0); dates.push(iso);
+    counts.set(iso,0); byDoc.set(iso,new Map()); dates.push(iso);
   }
   const minIso=dates[0];
   RESUMEN_USAGE_ENTITIES.forEach(ent=>{
@@ -6521,10 +6568,18 @@ function resumenUsageData(days, docFilter){
       const raw=r.LAST_MODIFIED||r.LAST_UPDATE;
       const m=/^(\d{4}-\d{2}-\d{2})/.exec(String(raw||""));
       if(!m || m[1]<minIso) return;
-      if(counts.has(m[1])) counts.set(m[1], counts.get(m[1])+1);
+      if(counts.has(m[1])){
+        counts.set(m[1], counts.get(m[1])+1);
+        const doc=recordSourceDoc(ent,r);
+        const dayDocs=byDoc.get(m[1]);
+        dayDocs.set(doc, (dayDocs.get(doc)||0)+1);
+      }
     });
   });
-  return dates.map(iso=>({iso, count:counts.get(iso)}));
+  return dates.map(iso=>({
+    iso, count:counts.get(iso),
+    byDoc:[...byDoc.get(iso).entries()].sort((a,b)=>b[1]-a[1])
+  }));
 }
 /* Gráfica de barras CSS puro (sin librería — esta app nunca cargó ninguna de charting).
    Índices de barra donde va una etiqueta del eje X, repartidos parejo (siempre incluye la 1ra y la
@@ -6548,12 +6603,20 @@ function resumenUsageChartHtml(data){
   const labelIdx=new Set(resumenUsageLabelIndices(n, maxLabels));
   const bars=data.map(d=>{
     const hasData=d.count>0;
-    const pct=hasData?Math.max(4,Math.round((d.count/max)*100)):2;
+    // v7.3.5x: un día sin actividad ya no dibuja ninguna barra (0%, antes 2% en gris — ver el comentario
+    // grande en el CSS) — la columna entera sigue siendo el área de hover sin importar esto.
+    const pct=hasData?Math.max(4,Math.round((d.count/max)*100)):0;
     const dt=new Date(d.iso+"T00:00:00");
     const fullLabel=dt.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric",year:"numeric"});
+    // v7.3.5x: desglose por archivo dentro del tooltip — solo si hubo MÁS de 1 archivo distinto ese día
+    // (con 1 solo, repetirlo sería puro ruido redundante contra el total de arriba).
+    const breakdownHtml=d.byDoc.length>1
+      ? `<div class="resumen-usage-tip-divider"></div>`+d.byDoc.map(([doc,c])=>`<div class="resumen-usage-tip-doc"><span>${escapeHtml(doc)}</span><strong>${c}</strong></div>`).join("")
+      : "";
     return `<div class="resumen-usage-bar-col">
-      <div class="resumen-usage-bar${hasData?"":" empty"}" style="height:${pct}%">
-        <div class="resumen-usage-tip"><strong>${d.count}</strong> record${d.count===1?"":"s"}<br>${escapeHtml(fullLabel)}</div>
+      <div class="resumen-usage-bar" style="height:${pct}%">
+        ${hasData?`<div class="resumen-usage-bar-value">${d.count}</div>`:""}
+        <div class="resumen-usage-tip"><strong>${d.count}</strong> record${d.count===1?"":"s"}<br>${escapeHtml(fullLabel)}${breakdownHtml}</div>
       </div>
     </div>`;
   }).join("");

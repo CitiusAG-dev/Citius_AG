@@ -6587,10 +6587,17 @@ function toggleMktDesignPanel(evt){
   panel.style.top=(r.bottom+8)+"px";
   document.addEventListener("mousedown", onDocMouseDownForPresDesignPanel, true);
 }
-/* Panel "Cover Data" del Market Report — mismo patrón que toggleCoverEditPanel (Presentación de Propiedades)
-   pero mucho más chico: solo 2 campos, sin validación de obligatorios (no bloquea Print/PDF si quedan
-   vacíos, a diferencia de Presentación — el reporte ya funciona bien con los valores automáticos de
-   siempre). */
+/* Campos obligatorios de Cover Data — v7.3.5x, pedido explícito del usuario ("como lo hace en Presentación"):
+   ya no se puede imprimir/exportar con Analyst name o Quarter vacíos. Mismo mecanismo genérico ya usado por
+   Presentación (missingCoverDataFields/refreshCoverDataErrors, ver más abajo en el archivo), reutilizado tal
+   cual con el objeto de estado y el mapa de ids propios de Market Report. */
+const MKT_COVER_REQUIRED_FIELDS=[
+  {key:"analystName", label:"Analyst name"},
+  {key:"quarter", label:"Quarter"}
+];
+const MKT_COVER_IDS_MAP={analystName:"mktCoverEditAnalyst", quarter:"mktCoverEditQuarter"};
+/* Panel "Cover Data" del Market Report — mismo patrón que toggleCoverEditPanel (Presentación de Propiedades),
+   ahora también en la validación de obligatorios (antes de esto solo eran 2 campos opcionales). */
 function closeMktCoverEditPanel(){
   const el=document.getElementById("mktCoverEditPanel");
   if(el) el.remove();
@@ -6623,7 +6630,7 @@ function toggleMktCoverEditPanel(evt){
     </div>
     <div class="field"><label>Analyst name</label><input type="text" id="mktCoverEditAnalyst" placeholder="Name shown on the cover" value="${escapeAttr(mktCoverInfo.analystName||"")}"></div>
     <div class="field"><label>Quarter (cover + page headers)</label><input type="text" id="mktCoverEditQuarter" placeholder="3Q" value="${escapeAttr(mktCoverInfo.quarter||"")}"></div>
-    <p class="map-hint" style="margin:2px 0 0">Both are blank until you fill them in — nothing is pre-filled or auto-calculated. The Quarter also feeds the PDF file name.</p>`;
+    <p class="map-hint" style="margin:2px 0 0">Both are required before printing/exporting — nothing is pre-filled or auto-calculated. The Quarter also feeds the PDF file name.</p>`;
   document.body.appendChild(el);
   const r=btn.getBoundingClientRect();
   el.style.left=Math.max(8, Math.min(r.left, window.innerWidth-8-300))+"px";
@@ -6635,12 +6642,18 @@ function toggleMktCoverEditPanel(evt){
     mktCoverInfo.analystName=e.target.value;
     saveMktCoverInfo();
     renderMktReportContentOnly();
+    refreshCoverDataErrors(mktCoverInfo, MKT_COVER_REQUIRED_FIELDS, MKT_COVER_IDS_MAP);
   };
   document.getElementById("mktCoverEditQuarter").oninput=(e)=>{
     mktCoverInfo.quarter=e.target.value;
     saveMktCoverInfo();
     renderMktReportContentOnly();
+    refreshCoverDataErrors(mktCoverInfo, MKT_COVER_REQUIRED_FIELDS, MKT_COVER_IDS_MAP);
   };
+  // Borde rojo de "obligatorio vacío" desde que se abre, no solo tras un intento fallido de imprimir —
+  // mismo criterio que el resto de Cover Data en la app (Presentación) y que markEmptyRequiredFields() en
+  // la ficha de registros.
+  refreshCoverDataErrors(mktCoverInfo, MKT_COVER_REQUIRED_FIELDS, MKT_COVER_IDS_MAP);
   setTimeout(()=>document.addEventListener("mousedown", onDocMouseDownForMktCoverEditPanel, true), 0);
 }
 /* v6.5.21, pedido explícito del usuario ("filtro adicional... al lado derecho de Market, que sean los
@@ -6915,7 +6928,17 @@ function renderResumenView(){
     </div>
   `;
   if(isMarketReport){
-    document.getElementById("mktReportPrintBtn").onclick=doMarketReportPrint;
+    // v7.3.5x, pedido explícito del usuario ("como lo hace en Presentación"): no imprimir/exportar si falta
+    // Analyst name o Quarter — abre Cover Data (con los campos faltantes ya en rojo) en vez de solo avisar,
+    // mismo patrón que presPrintBtn.onclick.
+    document.getElementById("mktReportPrintBtn").onclick=()=>{
+      if(missingCoverDataFields(mktCoverInfo, MKT_COVER_REQUIRED_FIELDS).length){
+        toast("Complete Cover Data before printing/exporting","err");
+        closeMktCoverEditPanel(); toggleMktCoverEditPanel();
+        return;
+      }
+      doMarketReportPrint();
+    };
     const mktShowCoverEl=document.getElementById("mktShowCover");
     const mktShowTxSummaryEl=document.getElementById("mktShowTxSummary");
     const mktShowTxDetailEl=document.getElementById("mktShowTxDetail");

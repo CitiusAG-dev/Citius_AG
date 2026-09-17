@@ -1987,7 +1987,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.2.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.3.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -4667,6 +4667,18 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.3.0", date:"2026-09-17", items:[
+    "Market Report (PDF): the \"Design\"/\"Cover data\" buttons moved to the left of the toolbar, with the rest of the controls (Units/Market/Submarket/Year/Print) pushed to the right.",
+    "Market Report (PDF): the \"Design\" checklist no longer closes itself every time you check/uncheck a section — it now stays open, same for \"Cover data\" while you type.",
+    "Market Report (PDF): fixed a real print bug that could leave a trailing blank page — every page forced a page-break after itself, relying on the last page to correctly suppress its own; that structure is now inverted (a page-break before each page except the first) so there's never a break left over after the last one.",
+    "Market Report (PDF): the pie chart legends no longer re-sort themselves largest-to-smallest — they now follow the same order as the table above them (and the ring itself).",
+    "Market Report (PDF), Cover Data: Analyst name and Quarter no longer come pre-filled (\"Idalia Gardea\" / an auto-calculated quarter) — both start blank, and are now required before printing/exporting (same validation Presentation already had for its Cover Data), with the missing field(s) highlighted in red.",
+    "Market Report (PDF), Available Inventory — Detail: the \"Location\" column now shows the Park name (was the address).",
+    "Market Report (PDF): headers are now centered on the Completed Transactions and Available Inventory detail tables.",
+    "Market Report (PDF): the exported file name now includes the quarter — e.g. \"Monterrey - Market Report 3Q 2026\".",
+    "Market Report (PDF): renamed the \"Count\" pie chart to \"Size\" on the Completed Transactions and Available Inventory pages (its categories are size ranges, not a plain count).",
+    "Map: updated the Citius (Mapbox) basemap to the current Mapbox Studio style."
+  ]},
   {version:"8.2.0", date:"2026-09-15", items:[
     "Market Report (PDF): new \"Design\" button — a checklist to turn each section of the report on/off (Cover, Completed Transactions, Completed Transactions — Detail, Available Inventory, Available Inventory — Detail), same idea as the Presentation decks' Design panel.",
     "Market Report (PDF): new \"Cover data\" button — set the analyst's name (was always \"Idalia Gardea\") and override the quarter shown on the cover and page headers (was always automatic); both remember your last values.",

@@ -110,6 +110,13 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
                    flex-shrink:0;background:var(--panel);border-bottom:1px solid var(--line);
                    padding:16px 28px}
   .resumen-header-controls{display:flex;align-items:center;gap:20px}
+  /* v7.3.5x, pedido explícito del usuario ("está muy pegadas todas las opciones de arriba"): en Market
+     Report, Design/Cover data se van al extremo IZQUIERDO y el resto (Units/Market/Submarket/Year/Print)
+     se queda a la derecha, con el hueco en medio. .resumen-header es flex-end con un solo hijo, así que
+     basta con que ese hijo ocupe todo el ancho (flex:1) y que el último botón del grupo izquierdo empuje
+     al resto con margin-right:auto. */
+  .resumen-header-controls.mkt-report-controls{flex:1}
+  .resumen-header-controls.mkt-report-controls #mktCoverEditBtn{margin-right:auto}
   .resumen-year-select{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
   .resumen-year-select select{border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:13px;
                                color:var(--txt);background:var(--panel);cursor:pointer}
@@ -445,7 +452,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-total-row td{background:var(--panel-2);font-weight:700;border-top:1.5px solid var(--txt)}
   .mkt-group-row td{background:#eee;font-weight:700;text-transform:uppercase;font-size:10px;letter-spacing:.3px}
   .mkt-detail-table{font-size:10px}
-  .mkt-detail-table th{position:static}
+  /* v7.3.5x, pedido explícito del usuario: headers centrados en las tablas de detalle (Completed
+     Transactions / Available Inventory) — las celdas de datos NO se tocan (siguen a la izquierda, o a la
+     derecha las numéricas vía .num-cell). */
+  .mkt-detail-table th{position:static;text-align:center}
   .mkt-empty{color:var(--muted);font-style:italic;padding:8px 0;text-align:center}
   /* v7.3.38, pedido explícito del usuario (con imagen de referencia): el header de las páginas 2-5 pasa a
      parecerse al de la portada — nombre del Mercado con la misma tipografía/tamaño que .mkt-cover-title
@@ -1458,9 +1468,18 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
        alto fijo, algún redondeo lo deja unos px más alto de lo que el @page físico permite. height:8.5in
        (unidad absoluta, funciona igual dentro o fuera de @media print) es la medida que de verdad importa —
        se agrega SIN quitar aspect-ratio (por si acaso, no estorba). */
-    .mkt-page{page-break-after:always;page-break-inside:avoid;max-width:none;width:100%;height:8.5in;
+    /* v7.3.5x, bug real reportado por el usuario ("al seleccionar un mercado y darle a imprimir me sale una
+       hoja en blanco"): antes cada .mkt-page forzaba un salto DESPUÉS de sí misma (page-break-after:always)
+       y se confiaba en `:last-child` para quitárselo a la última. Ese salto final de más es una causa
+       conocida de hoja en blanco al final, y NO se puede reproducir con Page.printToPDF (headless no lo
+       suprime igual que el diálogo de impresión real de Chrome — ya documentado en este proyecto con el
+       mismo síntoma en Presentación), así que en vez de seguir dependiendo de esa supresión se le da la
+       vuelta al planteamiento: el salto ahora va ANTES de cada página MENOS la primera
+       (`.mkt-page + .mkt-page`). Así nunca existe un salto después de la última página — no hay nada que
+       suprimir, y el resultado es idéntico: N páginas, N-1 saltos entre ellas. */
+    .mkt-page{page-break-inside:avoid;max-width:none;width:100%;height:8.5in;
                border-top:none;margin-top:0;padding-top:0}
-    .mkt-page:last-child{page-break-after:auto}
+    .mkt-page + .mkt-page{page-break-before:always}
     /* Prueba (v3.32.3): quitar la sombra del pin SOLO al imprimir/exportar PDF — Vista Previa de macOS
        muestra un recuadro gris alrededor de cada pin en el PDF exportado (Chrome/Acrobat lo ven bien); la
        sospecha es que Chrome rasteriza el pin (cuadrado rotado 45° + border-radius + box-shadow no tiene
@@ -1968,7 +1987,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.2.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.3.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -4648,6 +4667,18 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.3.0", date:"2026-09-17", items:[
+    "Market Report (PDF): the \"Design\"/\"Cover data\" buttons moved to the left of the toolbar, with the rest of the controls (Units/Market/Submarket/Year/Print) pushed to the right.",
+    "Market Report (PDF): the \"Design\" checklist no longer closes itself every time you check/uncheck a section — it now stays open, same for \"Cover data\" while you type.",
+    "Market Report (PDF): fixed a real print bug that could leave a trailing blank page — every page forced a page-break after itself, relying on the last page to correctly suppress its own; that structure is now inverted (a page-break before each page except the first) so there's never a break left over after the last one.",
+    "Market Report (PDF): the pie chart legends no longer re-sort themselves largest-to-smallest — they now follow the same order as the table above them (and the ring itself).",
+    "Market Report (PDF), Cover Data: Analyst name and Quarter no longer come pre-filled (\"Idalia Gardea\" / an auto-calculated quarter) — both start blank, and are now required before printing/exporting (same validation Presentation already had for its Cover Data), with the missing field(s) highlighted in red.",
+    "Market Report (PDF), Available Inventory — Detail: the \"Location\" column now shows the Park name (was the address).",
+    "Market Report (PDF): headers are now centered on the Completed Transactions and Available Inventory detail tables.",
+    "Market Report (PDF): the exported file name now includes the quarter — e.g. \"Monterrey - Market Report 3Q 2026\".",
+    "Market Report (PDF): renamed the \"Count\" pie chart to \"Size\" on the Completed Transactions and Available Inventory pages (its categories are size ranges, not a plain count).",
+    "Map: updated the Citius (Mapbox) basemap to the current Mapbox Studio style."
+  ]},
   {version:"8.2.0", date:"2026-09-15", items:[
     "Market Report (PDF): new \"Design\" button — a checklist to turn each section of the report on/off (Cover, Completed Transactions, Completed Transactions — Detail, Available Inventory, Available Inventory — Detail), same idea as the Presentation decks' Design panel.",
     "Market Report (PDF): new \"Cover data\" button — set the analyst's name (was always \"Idalia Gardea\") and override the quarter shown on the cover and page headers (was always automatic); both remember your last values.",
@@ -6568,10 +6599,17 @@ function toggleMktDesignPanel(evt){
   panel.style.top=(r.bottom+8)+"px";
   document.addEventListener("mousedown", onDocMouseDownForPresDesignPanel, true);
 }
-/* Panel "Cover Data" del Market Report — mismo patrón que toggleCoverEditPanel (Presentación de Propiedades)
-   pero mucho más chico: solo 2 campos, sin validación de obligatorios (no bloquea Print/PDF si quedan
-   vacíos, a diferencia de Presentación — el reporte ya funciona bien con los valores automáticos de
-   siempre). */
+/* Campos obligatorios de Cover Data — v7.3.5x, pedido explícito del usuario ("como lo hace en Presentación"):
+   ya no se puede imprimir/exportar con Analyst name o Quarter vacíos. Mismo mecanismo genérico ya usado por
+   Presentación (missingCoverDataFields/refreshCoverDataErrors, ver más abajo en el archivo), reutilizado tal
+   cual con el objeto de estado y el mapa de ids propios de Market Report. */
+const MKT_COVER_REQUIRED_FIELDS=[
+  {key:"analystName", label:"Analyst name"},
+  {key:"quarter", label:"Quarter"}
+];
+const MKT_COVER_IDS_MAP={analystName:"mktCoverEditAnalyst", quarter:"mktCoverEditQuarter"};
+/* Panel "Cover Data" del Market Report — mismo patrón que toggleCoverEditPanel (Presentación de Propiedades),
+   ahora también en la validación de obligatorios (antes de esto solo eran 2 campos opcionales). */
 function closeMktCoverEditPanel(){
   const el=document.getElementById("mktCoverEditPanel");
   if(el) el.remove();
@@ -6580,6 +6618,13 @@ function closeMktCoverEditPanel(){
 function onDocMouseDownForMktCoverEditPanel(e){
   const el=document.getElementById("mktCoverEditPanel");
   if(el && !el.contains(e.target) && !e.target.closest("#mktCoverEditBtn")) closeMktCoverEditPanel();
+}
+/* Redibuja SOLO el contenido del reporte (#resumenContent), sin tocar #resumenHeaderBar — así los paneles
+   flotantes que viven en el header ("Design") no se destruyen, y el cursor/foco de los inputs de "Cover
+   Data" no se pierde al escribir. Ver el comentario en los handlers de mktShowState/mktCoverInfo. */
+function renderMktReportContentOnly(){
+  const el=document.getElementById("resumenContent");
+  if(el) el.innerHTML=renderMarketReportHtml();
 }
 function toggleMktCoverEditPanel(evt){
   if(evt) evt.stopPropagation();
@@ -6595,23 +6640,32 @@ function toggleMktCoverEditPanel(evt){
       <h5>Cover Data</h5>
       <button type="button" class="x" onclick="closeMktCoverEditPanel()">&times;</button>
     </div>
-    <div class="field"><label>Analyst name</label><input type="text" id="mktCoverEditAnalyst" placeholder="Idalia Gardea" value="${escapeAttr(mktCoverInfo.analystName||"")}"></div>
-    <div class="field"><label>Quarter (cover + page headers)</label><input type="text" id="mktCoverEditQuarter" placeholder="${escapeAttr(mktCurrentQuarterLabel())} (auto)" value="${escapeAttr(mktCoverInfo.quarter||"")}"></div>
-    <p class="map-hint" style="margin:2px 0 0">Leave Quarter blank to keep it automatic (based on the data / today's date).</p>`;
+    <div class="field"><label>Analyst name</label><input type="text" id="mktCoverEditAnalyst" placeholder="Name shown on the cover" value="${escapeAttr(mktCoverInfo.analystName||"")}"></div>
+    <div class="field"><label>Quarter (cover + page headers)</label><input type="text" id="mktCoverEditQuarter" placeholder="3Q" value="${escapeAttr(mktCoverInfo.quarter||"")}"></div>
+    <p class="map-hint" style="margin:2px 0 0">Both are required before printing/exporting — nothing is pre-filled or auto-calculated. The Quarter also feeds the PDF file name.</p>`;
   document.body.appendChild(el);
   const r=btn.getBoundingClientRect();
   el.style.left=Math.max(8, Math.min(r.left, window.innerWidth-8-300))+"px";
   el.style.top=(r.bottom+8)+"px";
+  // renderMktReportContentOnly() en vez de renderResumenView(): este panel se ancla a un botón que vive en
+  // #resumenHeaderBar, así que redibujar el header completo en cada tecla reemplazaba ese botón bajo el
+  // panel abierto (ver el mismo cambio en los checkboxes de "Design").
   document.getElementById("mktCoverEditAnalyst").oninput=(e)=>{
     mktCoverInfo.analystName=e.target.value;
     saveMktCoverInfo();
-    renderResumenView();
+    renderMktReportContentOnly();
+    refreshCoverDataErrors(mktCoverInfo, MKT_COVER_REQUIRED_FIELDS, MKT_COVER_IDS_MAP);
   };
   document.getElementById("mktCoverEditQuarter").oninput=(e)=>{
     mktCoverInfo.quarter=e.target.value;
     saveMktCoverInfo();
-    renderResumenView();
+    renderMktReportContentOnly();
+    refreshCoverDataErrors(mktCoverInfo, MKT_COVER_REQUIRED_FIELDS, MKT_COVER_IDS_MAP);
   };
+  // Borde rojo de "obligatorio vacío" desde que se abre, no solo tras un intento fallido de imprimir —
+  // mismo criterio que el resto de Cover Data en la app (Presentación) y que markEmptyRequiredFields() en
+  // la ficha de registros.
+  refreshCoverDataErrors(mktCoverInfo, MKT_COVER_REQUIRED_FIELDS, MKT_COVER_IDS_MAP);
   setTimeout(()=>document.addEventListener("mousedown", onDocMouseDownForMktCoverEditPanel, true), 0);
 }
 /* v6.5.21, pedido explícito del usuario ("filtro adicional... al lado derecho de Market, que sean los
@@ -6838,7 +6892,7 @@ function renderResumenView(){
   const isMarketReport=resumenSection==="market_report";
   document.getElementById("resumenHeaderBar").innerHTML=`
     <div class="resumen-header">
-      <div class="resumen-header-controls">
+      <div class="resumen-header-controls${isMarketReport?" mkt-report-controls":""}">
         ${isMarketReport ? `
         <div class="pres-design-anchor">
           <button type="button" class="btn ghost" id="mktDesignBtn" title="Choose which sections are included in the report" onclick="toggleMktDesignPanel(event)">
@@ -6886,7 +6940,17 @@ function renderResumenView(){
     </div>
   `;
   if(isMarketReport){
-    document.getElementById("mktReportPrintBtn").onclick=doMarketReportPrint;
+    // v7.3.5x, pedido explícito del usuario ("como lo hace en Presentación"): no imprimir/exportar si falta
+    // Analyst name o Quarter — abre Cover Data (con los campos faltantes ya en rojo) en vez de solo avisar,
+    // mismo patrón que presPrintBtn.onclick.
+    document.getElementById("mktReportPrintBtn").onclick=()=>{
+      if(missingCoverDataFields(mktCoverInfo, MKT_COVER_REQUIRED_FIELDS).length){
+        toast("Complete Cover Data before printing/exporting","err");
+        closeMktCoverEditPanel(); toggleMktCoverEditPanel();
+        return;
+      }
+      doMarketReportPrint();
+    };
     const mktShowCoverEl=document.getElementById("mktShowCover");
     const mktShowTxSummaryEl=document.getElementById("mktShowTxSummary");
     const mktShowTxDetailEl=document.getElementById("mktShowTxDetail");
@@ -6897,11 +6961,15 @@ function renderResumenView(){
     mktShowTxDetailEl.checked=mktShowState.txDetail;
     mktShowAvailSummaryEl.checked=mktShowState.availSummary;
     mktShowAvailDetailEl.checked=mktShowState.availDetail;
-    mktShowCoverEl.onchange=()=>{ mktShowState.cover=mktShowCoverEl.checked; saveMktShowState(); renderResumenView(); };
-    mktShowTxSummaryEl.onchange=()=>{ mktShowState.txSummary=mktShowTxSummaryEl.checked; saveMktShowState(); renderResumenView(); };
-    mktShowTxDetailEl.onchange=()=>{ mktShowState.txDetail=mktShowTxDetailEl.checked; saveMktShowState(); renderResumenView(); };
-    mktShowAvailSummaryEl.onchange=()=>{ mktShowState.availSummary=mktShowAvailSummaryEl.checked; saveMktShowState(); renderResumenView(); };
-    mktShowAvailDetailEl.onchange=()=>{ mktShowState.availDetail=mktShowAvailDetailEl.checked; saveMktShowState(); renderResumenView(); };
+    // v7.3.5x, pedido explícito del usuario ("se oculta cada vez que le doy click"): estos handlers ya NO
+    // llaman a renderResumenView() — esa función reconstruye el innerHTML de #resumenHeaderBar completo, y
+    // el panel "Design" vive DENTRO de ese header, así que se destruía (= se cerraba) en cada clic. Nada del
+    // header depende de mktShowState, así que basta con volver a dibujar solo el contenido del reporte.
+    mktShowCoverEl.onchange=()=>{ mktShowState.cover=mktShowCoverEl.checked; saveMktShowState(); renderMktReportContentOnly(); };
+    mktShowTxSummaryEl.onchange=()=>{ mktShowState.txSummary=mktShowTxSummaryEl.checked; saveMktShowState(); renderMktReportContentOnly(); };
+    mktShowTxDetailEl.onchange=()=>{ mktShowState.txDetail=mktShowTxDetailEl.checked; saveMktShowState(); renderMktReportContentOnly(); };
+    mktShowAvailSummaryEl.onchange=()=>{ mktShowState.availSummary=mktShowAvailSummaryEl.checked; saveMktShowState(); renderMktReportContentOnly(); };
+    mktShowAvailDetailEl.onchange=()=>{ mktShowState.availDetail=mktShowAvailDetailEl.checked; saveMktShowState(); renderMktReportContentOnly(); };
     document.getElementById("mktCoverEditBtn").onclick=toggleMktCoverEditPanel;
   }
   const el=document.getElementById("resumenContent");
@@ -6968,26 +7036,19 @@ function renderResumenView(){
    horizontal), así que no hace falta el sistema de "un @page con nombre por grupo" que sí necesita
    Presentación (ese tiene 5 tipos de hoja con proporciones distintas) — un solo `@page{size:11in 8.5in}`
    fijo en el CSS (ver más abajo) alcanza. */
-/* "3Q 2026" de la portada — v7.3.4, pedido explícito del usuario. No hay (todavía) un selector de trimestre
-   propio en Market Report (se quitó el de Year del header, ver v7.3.1) — se calcula: el trimestre MÁS
-   RECIENTE de `resumenYear` que ya tenga alguna transacción Gross capturada; si el año no tiene ninguna
-   (típico si `resumenYear` es el año en curso y apenas empieza), cae al trimestre calendario REAL de hoy si
-   `resumenYear` es el año actual, o si no, "4Q" (se asume un año ya cerrado).
-   v7.3.5x, pedido explícito del usuario: ahora se puede pisar a mano desde Cover Data (mktCoverInfo.quarter)
-   — vacío/no puesto sigue calculándose automático como siempre. */
+/* "3Q" de la portada/headers — v7.3.4 lo calculaba automático (el trimestre más reciente con transacciones
+   Gross capturadas, con varios fallbacks por fecha).
+   v7.3.5x, pedido explícito del usuario ("que el dato de Q3 no venga pre-llenado"): ya NO se calcula nada —
+   el trimestre es 100% manual, se escribe en el panel "Cover Data" (mktCoverInfo.quarter) y queda vacío
+   mientras no se llene. Se conserva como función (en vez de leer mktCoverInfo.quarter directo en cada uso)
+   porque son 3 lugares distintos los que lo consumen: portada, header de páginas 2+ y el nombre del PDF. */
 function mktCurrentQuarterLabel(){
-  if(mktCoverInfo.quarter) return mktCoverInfo.quarter;
-  const yearStart=`${resumenYear}-01-01`, yearEnd=`${resumenYear}-12-31`;
-  const quartersWithData=new Set();
-  (state.TRANSACCIONES||[]).forEach(r=>{
-    if(!resumenMarketMatches(r,"TRANSACCIONES")||!ciEq(r.ABSORPTION_TYPE,"Gross")) return;
-    if(r.TRANSACTION_DATE<yearStart||r.TRANSACTION_DATE>yearEnd) return;
-    const q=quarterOfDate(r.TRANSACTION_DATE);
-    if(q) quartersWithData.add(q);
-  });
-  if(quartersWithData.size) return Math.max(...quartersWithData)+"Q";
-  if(String(resumenYear)===String(new Date().getFullYear())) return Math.floor(new Date().getMonth()/3)+1+"Q";
-  return "4Q";
+  return String(mktCoverInfo.quarter||"").trim();
+}
+/* "3Q 2026" / "2026" — une trimestre + año saltándose el trimestre si está vacío (si no, quedaría un espacio
+   suelto al principio de la etiqueta). */
+function mktQuarterYearLabel(){
+  return [mktCurrentQuarterLabel(), String(resumenYear)].filter(Boolean).join(" ");
 }
 function quarterOfDate(dateStr){
   const m=/^\d{4}-(\d{2})/.exec(String(dateStr||""));
@@ -7126,11 +7187,14 @@ function mktDonutHtml(title, data, unitLabel, strokeWidth, labelFontSize, legend
   });
   let legendHtml="";
   if(legendBelow){
-    // v7.3.45, pedido explícito del usuario: la leyenda va de MAYOR a MENOR (orden propio, aparte del orden
-    // angular que usan los arcos — no se toca cómo se dibuja el anillo), llenando primero toda la columna 1
-    // y luego la columna 2 (grid-auto-flow:column en el CSS necesita saber cuántos renglones tiene cada
-    // columna de antemano — rowCount, puesto inline — para repartir los ítems así en vez de intercalarlos).
-    const sorted=[...items].sort((a,b)=>b.s.value-a.s.value);
+    // v7.3.45: la leyenda iba de MAYOR a MENOR, con su propio orden aparte del de los arcos.
+    // v7.3.5x, pedido explícito del usuario ("ordenar los datos del pie y leyendas de acuerdo al orden de
+    // las tablas"): ya NO se reordena — se respeta el orden en que vienen los datos, que es exactamente el
+    // mismo con el que se arma la tabla de arriba (Q1..Q4, Class A/B, rangos de tamaño, etc.) y también el
+    // que usan los arcos del anillo, así que leyenda, anillo y tabla coinciden renglón por renglón.
+    // Sigue llenando primero toda la columna 1 y luego la 2 (grid-auto-flow:column en el CSS necesita saber
+    // cuántos renglones tiene cada columna de antemano — rowCount, puesto inline).
+    const sorted=items;
     const rowCount=Math.ceil(sorted.length/2);
     legendHtml=sorted.map(it=>`<div class="mkt-donut-legend-item"><span class="mkt-donut-legend-swatch" style="background:${it.s.color}"></span><span class="mkt-donut-legend-label">${escapeHtml(it.s.label)}</span><span class="mkt-donut-legend-pct">${it.pctText}</span></div>`).join("");
     legendHtml=`<div class="mkt-donut-legend" style="grid-template-rows:repeat(${rowCount},auto)">${legendHtml}</div>`;
@@ -7306,16 +7370,15 @@ function mktBuildCoverPage(){
   const sigTxRows=sigTx.length?sigTx.map(t=>`<tr><td>${escapeHtml(t.tenant)}</td><td>${escapeHtml(t.buildingType)}</td><td>${escapeHtml(t.dealType)}</td><td class="num-cell">${num(resumenAreaVal(t.areaSF))} ${resumenAreaUnitLabel()}</td></tr>`).join("")
     : `<tr><td colspan="4" class="mkt-empty">No transactions.</td></tr>`;
   const marketLabel=resumenMarket||"All Markets";
-  // v7.3.4, pedido explícito del usuario: bloque de equipo al pie del panel — por ahora FIJO para las 2
-  // personas (Idalia Gardea siempre va primero; más adelante será dinámica por Mercado, un panel de "Cover
-  // Data" como el que ya existe en Presentación — pedido explícito: "el control para hacerlo dinámico lo
-  // veremos luego"). Abigail Rodriguez es fija siempre, no se pidió que cambie.
-  // v7.3.5x, pedido explícito del usuario: el nombre del analista ya se puede pisar desde Cover Data
-  // (mktCoverInfo.analystName) — vacío sigue mostrando "Idalia Gardea" como antes.
+  // v7.3.4: bloque de equipo al pie del panel. Abigail Rodriguez es fija siempre, no se pidió que cambie.
+  // v7.3.5x, pedido explícito del usuario ("que el nombre de Idalia Gardea no venga pre-llenado"): el
+  // analista ya NO tiene nombre por defecto — sale del panel "Cover Data" (mktCoverInfo.analystName) y,
+  // mientras esté vacío, su bloque completo (nombre + puesto + dirección) simplemente no se dibuja, en vez
+  // de dejar un puesto/dirección colgando bajo un nombre en blanco.
   const mktTeamHtml=[
-    {name:mktCoverInfo.analystName||"Idalia Gardea", role:"Market Intel Analyst"},
+    {name:String(mktCoverInfo.analystName||"").trim(), role:"Market Intel Analyst"},
     {name:"Abigail Rodriguez", role:"Market Intel Director", phone:"T +52 81 8368 2000"}
-  ].map(p=>`<div class="mkt-cover-person">
+  ].filter(p=>p.name).map(p=>`<div class="mkt-cover-person">
       <div class="mkt-cover-person-name">${escapeHtml(p.name)}</div>
       <div class="mkt-cover-person-role">${escapeHtml(p.role)}</div>
       <div class="mkt-cover-person-addr">Equus 335<br>Ave. Ricardo Margáin #335<br>Col. Valle del Campestre, SPGG, NL..</div>
@@ -7326,7 +7389,7 @@ function mktBuildCoverPage(){
       <div class="mkt-cover-titleblock">
         <h1 class="mkt-cover-title">${escapeHtml(marketLabel)}</h1>
         <div class="mkt-cover-subtitle">Industrial Market Report</div>
-        <div class="mkt-cover-year">${mktCurrentQuarterLabel()} ${escapeHtml(resumenYear)}</div>
+        <div class="mkt-cover-year">${escapeHtml(mktQuarterYearLabel())}</div>
       </div>
       <div class="mkt-cover-team">
         ${mktTeamHtml}
@@ -7376,7 +7439,7 @@ function mktPageHeaderHtml(subtitle){
   const marketLabel=resumenMarket||"All Markets";
   return `<div class="mkt-page-header">
     <div class="mkt-page-header-left">
-      <h2 class="mkt-page-title">${escapeHtml(marketLabel)}<span class="mkt-page-year">${mktCurrentQuarterLabel()} ${escapeHtml(resumenYear)}</span></h2>
+      <h2 class="mkt-page-title">${escapeHtml(marketLabel)}<span class="mkt-page-year">${escapeHtml(mktQuarterYearLabel())}</span></h2>
       <div class="mkt-page-subtitle">${escapeHtml(subtitle)}</div>
       <div class="mkt-page-website">CitiusAG.com</div>
     </div>
@@ -7421,7 +7484,10 @@ function mktBuildTxSummaryPage(){
            en true, el contorno gris claro no depende de qué modo de etiqueta se use. -->
       <div class="mkt-donut-row">
         ${mktDonutHtml("Quarter", quarterDonutData, resumenAreaUnitLabel(), 37, undefined, true, true)}
-        ${mktDonutHtml("Count", countDonutData, "", 37, undefined, true, true)}
+        <!-- v7.3.5x, pedido explícito del usuario: título de esta dona "Count" -> "Size" (sus categorías
+             son rangos de tamaño, bucketCategories — el título de la tabla arriba se queda igual,
+             "Building Count", solo se renombra la dona). -->
+        ${mktDonutHtml("Size", countDonutData, "", 37, undefined, true, true)}
         ${mktDonutHtml("Type", typeDonutData, resumenAreaUnitLabel(), 37, undefined, true, true)}
         ${mktDonutHtml("Deal", dealDonutData, resumenAreaUnitLabel(), 37, undefined, true, true)}
       </div>
@@ -7521,7 +7587,9 @@ function mktBuildAvailSummaryPage(){
       <div class="mkt-box">${genTable}</div>
       <div class="mkt-donut-row">
         ${mktDonutHtml("Class", classDonutData, resumenAreaUnitLabel(), 37, undefined, true, true)}
-        ${mktDonutHtml("Count", countDonutData, "", 37, undefined, true, true)}
+        <!-- v7.3.5x, pedido explícito del usuario: título de esta dona "Count" -> "Size" (mismo criterio
+             que la de Completed Transactions, sus categorías también son rangos de tamaño). -->
+        ${mktDonutHtml("Size", countDonutData, "", 37, undefined, true, true)}
         ${mktDonutHtml("Status", statusDonutData, resumenAreaUnitLabel(), 37, undefined, true, true)}
         ${mktDonutHtml("Generation", genDonutData, resumenAreaUnitLabel(), 37, undefined, true, true)}
       </div>
@@ -7548,7 +7616,7 @@ function mktBuildAvailDetailPage(){
       // que el resto del reporte (askingRateValueInSF + resumenRateVal, mismo criterio que money() en la
       // portada).
       const rate=r.ASKING_RATE_VALUE?`${/usd/i.test(r.ASKING_RATE_UNIT||"")?"US":"MX"} $ ${resumenRateVal(askingRateValueInSF(r)).toFixed(2)}`:"UR";
-      lines.push(`<tr><td>${escapeHtml(r.PROPERTY_NAME||r.MAPPING_CODE||"")}</td><td>${escapeHtml(r.DEVELOPER||"")}</td><td>${escapeHtml(r.ADDRESS||"")}</td>
+      lines.push(`<tr><td>${escapeHtml(r.PROPERTY_NAME||r.MAPPING_CODE||"")}</td><td>${escapeHtml(r.DEVELOPER||"")}</td><td>${escapeHtml(r.PARK_NAME||"")}</td>
         <td class="num-cell">${num(resumenAreaVal(areaValueInSF(r,"LEASABLE_AREA_GLA_VALUE")))}</td>
         <td class="num-cell">${num(resumenAreaVal(areaValueInSF(r,"OCCUPIED_AREA_VALUE")))}</td>
         <td class="num-cell">${num(resumenAreaVal(availSF))}</td>
@@ -7610,8 +7678,14 @@ function doMarketReportPrint(){
   styleEl.textContent=`@page{size:11in 8.5in;margin:0}`;
   document.head.appendChild(styleEl);
   const originalTitle=document.title;
+  // Chrome usa document.title como nombre por defecto del PDF al "Guardar como PDF".
+  // v7.3.5x, pedido explícito del usuario: el nombre incluye el trimestre —
+  // "[MERCADO] - Market Report [Q AAAA]", ej. "Monterrey - Market Report 3Q 2026" (Q y año separados por un
+  // solo espacio, mismo formato que mktQuarterYearLabel()). El trimestre sale de "Cover Data" (manual); si
+  // está vacío, mktQuarterYearLabel() ya se salta el espacio de más y deja solo el año.
   const marketLabel=(resumenMarket||"Market").replace(/[\\/:*?"<>|]/g,"-");
-  document.title=`${marketLabel} Market Report ${resumenYear}`;
+  const qy=mktQuarterYearLabel().replace(/[\\/:*?"<>|]/g,"-");
+  document.title=`${marketLabel} - Market Report ${qy}`;
   window.print();
   document.title=originalTitle;
   if(pagesEl) pagesEl.style.zoom="";
@@ -9452,7 +9526,7 @@ const MAP_BASEMAPS=[
      como los demás basemaps, sino `gl` — se renderiza vectorialmente vía Mapbox GL JS (ver el caso
      especial en setMapBasemap más abajo). */
   {key:"citiusMapbox", label:"Citius (Mapbox)", gl:{
-    style:"mapbox://styles/citiusag/cmnp9hetd008s01sga4jxhlfo",
+    style:"mapbox://styles/citiusag/cmtuani2f005w01qn06ey1737",
     accessToken:"pk.eyJ1IjoiY2l0aXVzYWciLCJhIjoiY21ucDh6OTF6MTRibjJzb25qd2ltcjhlYyJ9.LvtTn6DeoONC0MNlU1ACVw",
     attribution:'&copy; Mapbox &copy; OpenStreetMap contributors'
   }}

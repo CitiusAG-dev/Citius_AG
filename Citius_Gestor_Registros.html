@@ -925,7 +925,19 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   button.btn.icon-only:hover{color:var(--red);border-color:var(--red);background:rgba(226,72,61,.08)}
   .tablewrap{flex:1;min-height:0;overflow:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel)}
   /* v3.45.1: pie de paginación de la tabla, pegado siempre al fondo visible aunque haya scroll (miles de filas) */
-  #tablePagination{display:flex;align-items:center;justify-content:center;gap:14px;padding:10px;position:sticky;bottom:0;background:var(--panel);border-top:1px solid var(--line)}
+  #tablePagination{position:sticky;bottom:0;background:var(--panel);border-top:1px solid var(--line)}
+  /* v7.3.5x, bug real reportado por el usuario: con más columnas (tabla más ancha que el área visible,
+     scroll horizontal), esta barra necesita 2 anchos distintos a la vez — su FONDO/BORDE debe cubrir todo
+     el ancho real de la tabla (si no, se ve "cortada"/angosta contra una tabla ahora más ancha, el bug
+     reportado), pero sus CONTROLES (Previous/Showing/Next) deben seguir viéndose SIEMPRE dentro de lo que
+     el usuario tiene scrolleado a la vista en cada momento (si solo centráramos el contenido dentro del
+     nuevo ancho completo de la tabla, con la tabla sin scrollear los botones quedarían fuera de pantalla,
+     a la derecha — confirmado con pruebas). `#tablePagination` (afuera, ver más abajo dónde JS le fija su
+     ancho al de la tabla) resuelve el fondo/borde; este wrapper interno hace el segundo truco, un patrón
+     CSS conocido para "contenido centrado que se re-posiciona con el scroll horizontal, dentro de un
+     contenedor más ancho que la pantalla": sticky con `left:0;right:0` + `width:max-content;margin:0 auto`
+     mantiene los botones siempre centrados en la porción VISIBLE del scroll, no en el ancho total. */
+  .table-pagination-inner{position:sticky;left:0;right:0;width:max-content;margin:0 auto;display:flex;align-items:center;gap:14px;padding:10px}
   .filter-sidebar{width:260px;flex-shrink:0;overflow-y:auto;background:var(--panel);border:1px solid var(--line);
     border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:12px}
   .filter-sidebar-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -5769,9 +5781,9 @@ function tablePaginationHtml(totalRows, totalPages){
   const p=tablePage[current]||1;
   if(totalPages<=1) return "";
   const start=(p-1)*TABLE_PAGE_SIZE+1, end=Math.min(totalRows, p*TABLE_PAGE_SIZE);
-  return `<button type="button" class="btn ghost" style="padding:5px 12px" onclick="goToTablePage(-1)" ${p<=1?"disabled":""}>‹ Previous</button>
+  return `<div class="table-pagination-inner"><button type="button" class="btn ghost" style="padding:5px 12px" onclick="goToTablePage(-1)" ${p<=1?"disabled":""}>‹ Previous</button>
     <span style="font-size:12.5px;color:var(--muted)">Showing ${start}–${end} of ${totalRows} · Page ${p} of ${totalPages}</span>
-    <button type="button" class="btn ghost" style="padding:5px 12px" onclick="goToTablePage(1)" ${p>=totalPages?"disabled":""}>Next ›</button>`;
+    <button type="button" class="btn ghost" style="padding:5px 12px" onclick="goToTablePage(1)" ${p>=totalPages?"disabled":""}>Next ›</button></div>`;
 }
 let parkDerivedCacheSig=null;
 // v3.45.10: string plano (NO un objeto por entidad) — el thead es un ÚNICO elemento del DOM compartido por
@@ -5854,7 +5866,22 @@ function renderTable(){
   if(paginationEl){
     const html=tablePaginationHtml(rows.length, totalPages);
     paginationEl.innerHTML=html;
-    paginationEl.style.display=html?"flex":"none";
+    paginationEl.style.display=html?"block":"none"; // "block": el flex ahora vive en .table-pagination-inner (ver CSS)
+    // v7.3.5x, bug real reportado por el usuario: el pie de paginación (ancho `auto` de siempre) no crecía
+    // con la tabla al agregar más columnas — a diferencia de <table>, un <div> normal NO hereda el ancho de
+    // scroll de su contenedor `overflow:auto` (.tablewrap), solo el ancho "de layout" (el visible, sin
+    // scroll) — así que se quedaba anclado al ancho viejo mientras la tabla, ahora más ancha, necesitaba
+    // scroll horizontal para verse completa. Se fija un ancho explícito en px SOLO cuando la tabla es
+    // realmente más ancha que el área visible (mismo criterio: igualarlo al ancho real de la tabla,
+    // tbl.offsetWidth, que ya refleja todas las columnas actuales); si la tabla cabe completa se deja en
+    // "auto" como siempre, para no perder la respuesta fluida a un resize de ventana en el caso normal.
+    // NOTA: hacer esto solo (ancho completo) sin el wrapper `.table-pagination-inner` (ver CSS) saca los
+    // botones fuera de pantalla si la tabla no está scrolleada hasta el centro — confirmado con pruebas
+    // antes de publicar; el wrapper interno es lo que los mantiene centrados en la porción visible.
+    const tbl=document.getElementById("tbl");
+    const wrapEl=document.querySelector(".tablewrap");
+    if(html && tbl && wrapEl && tbl.offsetWidth>wrapEl.clientWidth) paginationEl.style.width=tbl.offsetWidth+"px";
+    else paginationEl.style.width="";
   }
   if(rows.length===0){
     tbody.innerHTML=`<tr><td colspan="${cols.length+3+(showSelect?1:0)}"><div class="empty">No records yet. Use <b>+ New record</b> to add one.</div></td></tr>`;

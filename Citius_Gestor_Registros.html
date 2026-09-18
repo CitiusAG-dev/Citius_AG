@@ -12770,17 +12770,43 @@ function doPresPrint(){
   document.body.classList.add("printing-deck"); // misma condición de layout para medir e imprimir (ver CSS)
   pagesEl.style.zoom="1"; // measure/print at true size, regardless of the on-screen preview zoom
   preparePrintPageSize();
-  // Chrome usa document.title como nombre sugerido en su diálogo "Guardar como PDF" — se cambia justo
-  // antes de imprimir y se restaura justo después (window.print() es síncrono/bloqueante en Chrome
-  // mientras el diálogo de impresión del sistema está abierto, así que esto nunca queda visible en la
-  // pestaña del navegador ni afecta nada más).
-  const originalTitle=document.title;
-  document.title=buildPresPdfFilename();
-  window.print();
-  document.title=originalTitle;
-  pagesEl.style.zoom="";
-  document.querySelectorAll(".deck-page.cover-page,.deck-page.map-page,.deck-page.layout-page,.deck-page.list-page,.deck-page.galeria-page").forEach(p=>{ p.style.height=""; p.style.width=""; }); // deshace el tamaño fijo puesto por preparePrintPageSize(), solo era para imprimir
-  document.body.classList.remove("printing-deck");
+  if(presMapInstance) presMapInstance.invalidateSize();
+  resyncPresMapGL();
+  // v7.3.5x, bug real reportado por el usuario ("el mapa sale en gris la 1ra vez que imprimo, si cancelo y
+  // vuelvo a imprimir ya sale bien"): pagesEl.style.zoom="1" (arriba) redimensiona el <canvas> de Mapbox GL
+  // (vía invalidateSize()/resyncPresMapGL()) — pero redimensionar un canvas WebGL invalida/limpia su
+  // contenido pintado, y window.print() es SÍNCRONO/bloqueante, así que corría inmediatamente después, sin
+  // darle al navegador ninguna oportunidad de pintar un frame nuevo en el canvas recién redimensionado —
+  // de ahí el recuadro gris con los pines (elementos HTML aparte, no parte del canvas) flotando encima de
+  // nada. El 2do intento salía bien porque el canvas ya había quedado pintado correctamente por el 1er
+  // intento (el diálogo de impresión, aunque se cancele, le da tiempo al navegador de renderizar de fondo).
+  // Fix: esperar el evento `idle` de Mapbox GL (la señal propia de la librería de "ya terminé de pintar
+  // este frame") antes de llamar a window.print() — con un timeout de respaldo por si 'idle' no llegara
+  // a tiempo (ej. estilo aún cargando algún tile), para no dejar la impresión colgada indefinidamente.
+  let printed=false;
+  const proceedToPrint=()=>{
+    if(printed) return;
+    printed=true;
+    // Chrome usa document.title como nombre sugerido en su diálogo "Guardar como PDF" — se cambia justo
+    // antes de imprimir y se restaura justo después (window.print() es síncrono/bloqueante en Chrome
+    // mientras el diálogo de impresión del sistema está abierto, así que esto nunca queda visible en la
+    // pestaña del navegador ni afecta nada más).
+    const originalTitle=document.title;
+    document.title=buildPresPdfFilename();
+    window.print();
+    document.title=originalTitle;
+    pagesEl.style.zoom="";
+    document.querySelectorAll(".deck-page.cover-page,.deck-page.map-page,.deck-page.layout-page,.deck-page.list-page,.deck-page.galeria-page").forEach(p=>{ p.style.height=""; p.style.width=""; }); // deshace el tamaño fijo puesto por preparePrintPageSize(), solo era para imprimir
+    document.body.classList.remove("printing-deck");
+  };
+  const glMapForPrint=presMapGL && presMapGL.getMapboxMap && presMapGL.getMapboxMap();
+  if(glMapForPrint){
+    try{ glMapForPrint.triggerRepaint(); }catch(e){}
+    glMapForPrint.once("idle", proceedToPrint);
+    setTimeout(proceedToPrint, 400);
+  } else {
+    proceedToPrint();
+  }
 }
 document.getElementById("presPrintBtn").onclick=()=>{
   // v6.4.0, pedido explícito del usuario: no generar si falta algún dato de "Cover Data" — abre el panel

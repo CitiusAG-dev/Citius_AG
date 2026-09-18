@@ -2262,13 +2262,13 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <div class="map-basemap-select unit-view-select" title="Map style">
           <label for="mapBasemapSelect">View</label>
           <select id="mapBasemapSelect">
+            <option value="citiusMapbox">Citius (Mapbox)</option>
             <option value="satellite">Satellite</option>
             <option value="voyager">Light streets</option>
             <option value="streets">Streets</option>
             <option value="topo">Topographic</option>
             <option value="gray">Grayscale</option>
             <option value="dark">Dark</option>
-            <option value="citiusMapbox">Citius (Mapbox)</option>
           </select>
         </div>
         <div class="map-basemap-select unit-view-select" title="Show the captured polygons or a pin per location (Properties/Parks/Land)">
@@ -9627,6 +9627,21 @@ function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<
    renderLandPresMap/renderPresMap). */
 const CARTO_API_KEY="cb1_27u5_1_0ca828c66af6369ed78173e5";
 const MAP_BASEMAPS=[
+  /* v7.3.5x, pedido explícito del usuario ("que esté siempre primero y preseleccionado el nuevo mapa de
+     Citius AG"): movido al PRIMER lugar del arreglo — además de fijar el orden del <select> (que en HTML
+     tiene sus <option> en este mismo orden, ver #mapBasemapSelect), esto también lo vuelve el default de
+     MAP_BASEMAPS[0] (fallback de setMapBasemap() si algún día una key guardada no calzara con ninguno).
+     El PRESELECCIONADO real (primera vez, sin preferencia guardada en localStorage) lo fija
+     loadMapBasemapPref() más abajo. Estilo personalizado de Mapbox diseñado por el usuario para Citius.
+     Token público de la cuenta citiusag — si algún día se rota, solo hay que actualizar el valor
+     `accessToken` aquí. Este estilo es Mapbox Standard (v3, con `imports`/colores configurables) y por eso
+     NO usa `layers` (tiles raster) como los demás basemaps, sino `gl` — se renderiza vectorialmente vía
+     Mapbox GL JS (ver el caso especial en setMapBasemap más abajo). */
+  {key:"citiusMapbox", label:"Citius (Mapbox)", gl:{
+    style:"mapbox://styles/citiusag/cmtuani2f005w01qn06ey1737",
+    accessToken:"pk.eyJ1IjoiY2l0aXVzYWciLCJhIjoiY21ucDh6OTF6MTRibjJzb25qd2ltcjhlYyJ9.LvtTn6DeoONC0MNlU1ACVw",
+    attribution:'&copy; Mapbox &copy; OpenStreetMap contributors'
+  }},
   {key:"satellite", label:"Satellite", layers:[
     {url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution:'Tiles &copy; Esri'},
     {url:'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', attribution:'Labels &copy; Esri'}
@@ -9647,17 +9662,7 @@ const MAP_BASEMAPS=[
   {key:"dark", label:"Dark", layers:[
     {url:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', attribution:'Tiles &copy; Esri'},
     {url:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', attribution:'Labels &copy; Esri'}
-  ]},
-  /* Estilo personalizado de Mapbox diseñado por el usuario para Citius. Token público de la cuenta
-     citiusag — si algún día se rota, solo hay que actualizar el valor `accessToken` aquí. Este estilo es
-     Mapbox Standard (v3, con `imports`/colores configurables) y por eso NO usa `layers` (tiles raster)
-     como los demás basemaps, sino `gl` — se renderiza vectorialmente vía Mapbox GL JS (ver el caso
-     especial en setMapBasemap más abajo). */
-  {key:"citiusMapbox", label:"Citius (Mapbox)", gl:{
-    style:"mapbox://styles/citiusag/cmtuani2f005w01qn06ey1737",
-    accessToken:"pk.eyJ1IjoiY2l0aXVzYWciLCJhIjoiY21ucDh6OTF6MTRibjJzb25qd2ltcjhlYyJ9.LvtTn6DeoONC0MNlU1ACVw",
-    attribution:'&copy; Mapbox &copy; OpenStreetMap contributors'
-  }}
+  ]}
 ];
 /* ==== Modo de visualización del Mapa: Polígonos (default, forma real capturada) o Pines (un punto en
    LATITUDE/LONGITUDE por registro) — v3.25.0. Un pin se dibuja para cualquier registro con coordenadas
@@ -9673,7 +9678,10 @@ let mapDisplayMode=loadMapDisplayMode();
 const MAP_BASEMAP_PREF_KEY="citius_map_basemap_pref_v1";
 function loadMapBasemapPref(){
   try{ const s=localStorage.getItem(MAP_BASEMAP_PREF_KEY); if(s) return JSON.parse(s); }catch(e){}
-  return "satellite";
+  // v7.3.5x, pedido explícito del usuario: preseleccionado por default (antes "satellite") — solo aplica
+  // la primera vez, sin preferencia guardada aún; quien ya tenga una guardada (aunque sea "satellite")
+  // conserva la suya, esto no la pisa.
+  return "citiusMapbox";
 }
 function saveMapBasemapPrefLocal(){ try{ localStorage.setItem(MAP_BASEMAP_PREF_KEY, JSON.stringify(mapBasemapPref)); }catch(e){} }
 let mapBasemapPref=loadMapBasemapPref();

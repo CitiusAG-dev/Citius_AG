@@ -12143,6 +12143,8 @@ function toggleCoverEditBroker(v, checked){
 document.getElementById("presCoverEditBtn").onclick=toggleCoverEditPanel;
 let presMapInstance=null;
 let presMapGL=null; // capa mapbox-gl-leaflet activa en este mapa (ver addCitiusMapboxLayer/disposePresMapGL)
+let presMapZoomFixTimer=null; // pendingId del setTimeout que revierte el truco de zoom/visibility de renderPresMap
+let presMapZoomFixPendingUndo=null; // la función de revertir de ese timer pendiente, si hay uno (ver renderPresMap)
 /* v7.3.5x: este mapa se destruye y se vuelve a crear en CADA render de la presentación de Propiedades
    (cambia la selección, Confidencial, etc.) — mucho más seguido que un cambio de basemap manual en la
    pestaña Mapa — así que hace falta el mismo cuidado de liberar el contexto WebGL que ya tiene
@@ -12214,10 +12216,44 @@ function declutterMapPins(map, markerData){
     });
   }
 }
+/* v7.3.5x: causa raíz REAL del espacio gris/pines desfasados, encontrada con un repro aislado corrido con
+   Playwright (medí getBoundingClientRect() real del <canvas> de Mapbox GL vs. su contenedor — los 3 intentos
+   anteriores basados solo en leer código fuente de las librerías no la encontraron). El mapa vive dentro de
+   `#presPages`, que tiene `zoom:.75` en CSS (vista previa en pantalla, ver `.pres-pages`) — Mapbox GL mide el
+   tamaño de su contenedor con getBoundingClientRect() (que YA viene con el zoom del ancestro aplicado, ej.
+   1416px lógicos → 1062px visibles con zoom:.75) y usa ese valor YA-ESCALADO tal cual para fijar el ancho/
+   alto CSS de su propio <canvas> — pero como el canvas está DENTRO del mismo ancestro con zoom, ese valor se
+   vuelve a escalar por el mismo .75 al pintarlo, dejando el canvas visualmente más chico que su contenedor
+   por ese mismo factor (~75% del ancho/alto — exactamente el hueco gris a la derecha/abajo reportado). Por
+   eso NINGÚN resync (`_update()`, `_zoomEnd()`, ni `glMap.resize()` llamado directo, los 3 probados) lo
+   arregla: cada uno vuelve a medir con el mismo getBoundingClientRect() ya contaminado por el zoom y repite
+   el mismo resultado incorrecto — no es una carrera de eventos, es un resultado consistente y repetible
+   mientras el zoom del ancestro sea distinto de 1. Coincide con lo que encontró el usuario probando: al
+   abrir Print/PDF, `doPresPrint()` pone `#presPages.style.zoom="1"` ANTES de imprimir — con zoom:1 ya no hay
+   nada que compensar, Mapbox GL mide bien, y esa corrección queda "pegada" al <canvas> aunque el zoom vuelva
+   a .75 después (por eso el 2do intento salía bien). Este mismo truco se aplica ahora automáticamente en
+   cada render, escopado SOLO a esta tarjeta del mapa (no a toda `#presPages`, para no mover el resto de la
+   vista previa) y con `visibility:hidden` mientras dura, para que el salto de tamaño no se alcance a ver. */
 function renderPresMap(list){
   if(presMapInstance){ disposePresMapGL(); presMapInstance.remove(); presMapInstance=null; }
+  // por si un render anterior dejó pendiente su propio revert del truco de zoom/visibility de abajo — se
+  // ejecuta YA (no solo se cancela el timer) para no arrancar este render con el zoom/visibility ya tocados
+  clearTimeout(presMapZoomFixTimer);
+  if(presMapZoomFixPendingUndo){ presMapZoomFixPendingUndo(); presMapZoomFixPendingUndo=null; }
   const canvas=document.getElementById("presMapCanvas");
   if(!canvas) return;
+  const mapCardEl=canvas.closest(".map-page");
+  // OJO: el zoom hay que leerlo de #presPages (quien tiene la regla CSS `.pres-pages{zoom:.75}`), NO de
+  // mapCardEl — getComputedStyle().zoom de un descendiente sin su propia regla `zoom` devuelve "1" (el
+  // zoom de un ancestro no se "hereda" como valor computado, aunque su EFECTO visual sí se acumule).
+  const pagesElForZoom=document.getElementById("presPages");
+  const ancestorZoom=pagesElForZoom ? (parseFloat(getComputedStyle(pagesElForZoom).zoom))||1 : 1;
+  let undoMapCardZoomFix=()=>{};
+  if(mapCardEl && ancestorZoom!==1){
+    mapCardEl.style.visibility="hidden";
+    mapCardEl.style.zoom=String(1/ancestorZoom);
+    undoMapCardZoomFix=()=>{ mapCardEl.style.zoom=""; mapCardEl.style.visibility=""; };
+  }
   const pts=[];
   list.forEach((rec,i)=>{
     const lat=Number(rec.LATITUDE), lng=Number(rec.LONGITUDE);
@@ -12272,19 +12308,15 @@ function renderPresMap(list){
       presMapInstance.setView([25.5,-100.9], 11, {animate:false});
     }
     declutterMapPins(presMapInstance, markerData);
-    // v7.3.5x: bug conocido de mapbox-gl-leaflet@0.0.16 (ver issues #143/#45 del repo mapbox/mapbox-gl-
-    // leaflet) — su resincronización automática del canvas de Mapbox GL depende de un ciclo interno
-    // (evento `resize` -> `_transitionEnd` -> deja el <canvas> con un CSS transform temporal -> `jumpTo` ->
-    // `moveend` -> recién ahí `_zoomEnd()` quita ese transform y llama `_update()`) encadenado con
-    // requestAnimationFrame; al llamar invalidateSize() y fitBounds()/setView({animate:false}) en el mismo
-    // tick, ese `moveend` puede no completarse nunca y el <canvas> se queda con el transform temporal
-    // puesto — se ve como el mapa "encogido"/desplazado, con espacio gris a la derecha/abajo (confirmado
-    // con pruebas del usuario: el mismo mapa se ve bien solo, después, tras abrir e cancelar el diálogo de
-    // impresión del navegador — ese viaje redondo fuerza al navegador a completar el ciclo de resize
-    // pendiente). Se fuerza aquí, con un pequeño retraso extra para correr DESPUÉS de cualquier ciclo
-    // interno pendiente, el mismo `_zoomEnd()` que usa la librería para esa resincronización — a diferencia
-    // de `_update()` solo, `_zoomEnd()` SÍ quita el CSS transform que puede haber quedado pegado.
-    setTimeout(resyncPresMapGL, 100);
+    // Resync de respaldo (no es el fix principal — ver el comentario grande arriba de renderPresMap sobre
+    // el truco de zoom/visibility, que es lo que corrige el espacio gris de raíz). Se deja por las dudas
+    // ante algún otro desajuste menor del canvas tras el fitBounds/setView de arriba.
+    presMapZoomFixPendingUndo=undoMapCardZoomFix;
+    presMapZoomFixTimer=setTimeout(()=>{
+      resyncPresMapGL();
+      undoMapCardZoomFix();
+      presMapZoomFixPendingUndo=null;
+    }, 100);
   },50);
 }
 function resyncPresMapGL(){

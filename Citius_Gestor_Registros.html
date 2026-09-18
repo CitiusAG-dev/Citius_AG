@@ -6761,6 +6761,22 @@ let resumenUnit="imperial";
 function resumenAreaUnitLabel(){ return resumenUnit==="metric" ? UNIT_CONVERSIONS.SF_M2.metric : UNIT_CONVERSIONS.SF_M2.imperial; }
 function resumenAreaVal(sf){ return resumenUnit==="metric" ? sf*UNIT_CONVERSIONS.SF_M2.toMetric : sf; }
 function resumenRateVal(vPerSF){ return resumenUnit==="metric" ? vPerSF/UNIT_CONVERSIONS.SF_M2.toMetric : vPerSF; }
+/* v7.3.5x, bug real reportado por el usuario: la columna "Clear Height" del Market Report (Available
+   Inventory — Detail) mostraba MIN_CLEAR_HEIGHT_VALUE crudo, sin convertir según la unidad capturada
+   (MIN_CLEAR_HEIGHT_UNIT, lista FT_M) ni según el selector Imperial/Metric del reporte — un edificio
+   capturado en "m" se mostraba con el número de metros tal cual bajo un header sin unidad. Mismo criterio
+   que areaValueInSF/resumenAreaVal (normaliza a una unidad base — aquí "ft" — y de ahí convierte a la
+   unidad de vista elegida), pero para FT_M en vez de SF_M2. No se redondea a entero (a diferencia de
+   resumenAreaVal) porque Clear Height es un valor chico donde 2 decimales sí importan (ver el mismo
+   criterio ya usado para unitClass "LONG" en presValueFor/convertCellForView, que tampoco lo redondea). */
+function resumenHeightUnitLabel(){ return resumenUnit==="metric" ? UNIT_CONVERSIONS.FT_M.metric : UNIT_CONVERSIONS.FT_M.imperial; }
+function heightValueInFt(row, valueKey){
+  const raw=Number(row[valueKey])||0;
+  const unitKey=valueKey.endsWith("_VALUE") ? valueKey.slice(0,-6)+"_UNIT" : null;
+  const unit=unitKey ? row[unitKey] : null;
+  return ciEq(unit,"m") ? raw/UNIT_CONVERSIONS.FT_M.toMetric : raw;
+}
+function resumenHeightVal(ft){ return round2(resumenUnit==="metric" ? ft*UNIT_CONVERSIONS.FT_M.toMetric : ft); }
 /* Normaliza "Asking Rate" a base SF sin importar si se capturó en USD/SF o USD/m² — mismo criterio que
    areaValueInSF (todo Resumen normaliza a SF internamente), reusando convertRateUnit() (misma conversión
    que ya usa la vista Métrico/Imperial de la tabla principal para este mismo tipo de campo). */
@@ -7610,7 +7626,14 @@ function mktBuildTxDetailPage(){
     // (Trans) en este renglón — como .mkt-group-row pinta gris vía `td{background:#eee}`, esa columna sin
     // <td> no tenía nada que pintar y se veía blanca en vez de gris, en TODOS los separadores de submercado.
     lines.push(`<tr class="mkt-group-row"><td colspan="8">▼ ${escapeHtml(sm.toUpperCase())}</td></tr>`);
-    rows.slice().sort((a,b)=>String(a.TRANSACTION_DATE||"").localeCompare(String(b.TRANSACTION_DATE||""))).forEach(r=>{
+    // v7.3.5x, pedido explícito del usuario: orden Submarket (el agrupado de arriba) -> Q -> Developer
+    // (antes solo por fecha completa, que ordenaba por Q pero sin desempatar por Developer dentro del
+    // mismo trimestre).
+    rows.slice().sort((a,b)=>{
+      const qa=quarterOfDate(a.TRANSACTION_DATE)||0, qb=quarterOfDate(b.TRANSACTION_DATE)||0;
+      if(qa!==qb) return qa-qb;
+      return String(a.DEVELOPER||"").localeCompare(String(b.DEVELOPER||""));
+    }).forEach(r=>{
       const areaSF=areaValueInSF(r,"TRANSACTION_AREA");
       grandTotalSF+=areaSF;
       const q=quarterOfDate(r.TRANSACTION_DATE);
@@ -7679,7 +7702,7 @@ function mktBuildAvailSummaryPage(){
 function mktBuildAvailDetailPage(){
   const subs=resumenSubmarkets();
   const num=v=>Math.round(v).toLocaleString("en-US");
-  const theadHtml=`<tr><th>Name</th><th>Developer</th><th>Location</th><th>Size (${resumenAreaUnitLabel()})</th><th>Occupied</th><th>Available</th><th>Clear Height</th><th>Status</th><th>Class</th><th>$/${resumenAreaUnitLabel()}/Mo</th></tr>`;
+  const theadHtml=`<tr><th>Name</th><th>Developer</th><th>Location</th><th>Size (${resumenAreaUnitLabel()})</th><th>Occupied</th><th>Available</th><th>Clear Height (${resumenHeightUnitLabel()})</th><th>Status</th><th>Class</th><th>$/${resumenAreaUnitLabel()}/Mo</th></tr>`;
   let lines=[], grandTotalSF=0;
   subs.forEach(sm=>{
     const rows=(state.PROPIEDADES||[]).filter(r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B"))&&ciEq(r.MARKET_STATUS,"Available"));
@@ -7687,7 +7710,8 @@ function mktBuildAvailDetailPage(){
     // v7.3.5x, pedido explícito del usuario: ya no lleva el total del submercado en la misma línea del
     // separador (colspan ahora cubre las 10 columnas completas, antes 9 + una celda de total aparte).
     lines.push(`<tr class="mkt-group-row"><td colspan="10">▼ ${escapeHtml(sm.toUpperCase())}</td></tr>`);
-    rows.forEach(r=>{
+    // v7.3.5x, pedido explícito del usuario: orden Submarket (el agrupado de arriba) -> Developer.
+    rows.slice().sort((a,b)=>String(a.DEVELOPER||"").localeCompare(String(b.DEVELOPER||""))).forEach(r=>{
       const availSF=areaValueInSF(r,"AVAILABLE_AREA_VALUE");
       grandTotalSF+=availSF;
       // v7.3.5x, bug real reportado por el usuario: usaba r.ASKING_RATE_VALUE crudo sin convertir según la
@@ -7699,7 +7723,7 @@ function mktBuildAvailDetailPage(){
         <td class="num-cell">${num(resumenAreaVal(areaValueInSF(r,"LEASABLE_AREA_GLA_VALUE")))}</td>
         <td class="num-cell">${num(resumenAreaVal(areaValueInSF(r,"OCCUPIED_AREA_VALUE")))}</td>
         <td class="num-cell">${num(resumenAreaVal(availSF))}</td>
-        <td class="mkt-center">${r.MIN_CLEAR_HEIGHT_VALUE||"—"}</td>
+        <td class="mkt-center">${r.MIN_CLEAR_HEIGHT_VALUE!=null&&r.MIN_CLEAR_HEIGHT_VALUE!==""?fmtNum(resumenHeightVal(heightValueInFt(r,"MIN_CLEAR_HEIGHT_VALUE"))):"—"}</td>
         <td class="mkt-center">${escapeHtml(r.STATUS||"—")}</td>
         <td class="mkt-center">${escapeHtml(r.CLASSIFICATION||"—")}</td>
         <td class="num-cell">${rate}</td></tr>`);

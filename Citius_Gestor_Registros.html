@@ -2053,7 +2053,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.6.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.6.1</div>
     </nav>
   </aside>
   <div class="main">
@@ -4733,6 +4733,9 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.6.1", date:"2026-09-18", items:[
+    "Map: \"Citius (Mapbox)\" is now the first option in the View selector and the default the first time you open the Map tab (was \"Satellite\")."
+  ]},
   {version:"8.6.0", date:"2026-09-18", items:[
     "Presentation maps (Properties, Land, Offices): switched the basemap from CARTO to Mapbox (same \"Citius (Mapbox)\" style as the Map tab). Along the way, fixed two real rendering bugs this change first introduced: the map not filling its card in the on-screen preview, and the map printing/exporting blank on the first Print/PDF attempt (both caused by how Mapbox's canvas interacts with the on-screen preview's zoom and with the resize that happens right before printing).",
     "Presentation (Properties/Land/Offices): fixed a real print bug — in Consolidated mode, the blue \"Consolidated mode active\" banner stayed invisible but still reserved its on-screen height while printing, which could push a blank page onto the start of the PDF (same bug already fixed for the Market Report, now also fixed here).",

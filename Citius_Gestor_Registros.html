@@ -12224,7 +12224,20 @@ function renderPresMap(list){
     if(!isFinite(lat)||!isFinite(lng)) return;
     pts.push({lat,lng,num:i+1,rec});
   });
-  presMapInstance=L.map(canvas,{zoomControl:false,attributionControl:false,zoomSnap:0.25,zoomDelta:0.25,wheelPxPerZoomLevel:200});
+  // v7.3.5x: se le da un centro/zoom inicial a L.map() (antes se creaba sin ninguno) — causa raíz real
+  // del espacio gris/pines desfasados, encontrada con las pruebas del usuario (se autocorregía tras
+  // abrir y cancelar el diálogo de impresión). Sin centro/zoom inicial, Leaflet considera el mapa "sin
+  // cargar" (`_loaded=false`) y DIFIERE el `onAdd()` de cualquier capa agregada (incluida la de Mapbox
+  // GL) hasta su evento `load` — que Leaflet dispara DENTRO del primer fitBounds()/setView() de más abajo,
+  // DESPUÉS de que ese mismo fitBounds ya disparó zoomstart/zoomend. O sea: la capa de Mapbox GL terminaba
+  // enterándose tarde — sus listeners de `move`/`zoomend` (los que la mantienen sincronizada en tamaño y
+  // posición con Leaflet, ver addCitiusMapboxLayer/mapbox-gl-leaflet) se registraban DESPUÉS del único
+  // evento que debían atender, dejando su <canvas> mal medido/desincronizado desde el primer frame — y
+  // eso mismo explica el desfase de pines (dependen de la misma sincronización). Con un centro/zoom ya
+  // puesto aquí, el mapa ya está "cargado" cuando se agrega la capa (línea de abajo), sus listeners quedan
+  // registrados a tiempo, y el fitBounds()/setView() real (más abajo) pasa a ser un cambio de vista
+  // normal — el mismo camino que ya funciona bien en la pestaña Mapa (cuyo mapa nunca se crea sin vista).
+  presMapInstance=L.map(canvas,{zoomControl:false,attributionControl:false,zoomSnap:0.25,zoomDelta:0.25,wheelPxPerZoomLevel:200,center:[25.5,-100.9],zoom:11});
   // v7.3.5x, pedido explícito del usuario ("probar el mapa nuevo en Propiedades, sin afectar nada más"):
   // PILOTO — antes CARTO Voyager fijo (ver buildMapPageHtml), ahora el mismo basemap "Citius (Mapbox)" de
   // la pestaña Mapa (mismo estilo/token, ver MAP_BASEMAPS/addCitiusMapboxLayer). Land y Oficinas siguen en

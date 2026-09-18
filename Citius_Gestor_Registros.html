@@ -1171,6 +1171,14 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .office-map-legend-list{margin:0;padding-left:20px;font-size:17px;color:rgba(255,255,255,.94)}
   .office-map-legend-list li{margin-bottom:5px}
   .office-map-page .office-map-note{left:16px;right:calc(24% + 16px)}
+  /* v7.3.5x: crédito de Mapbox (requerido por sus términos de uso al mostrar su estilo, mismo criterio ya
+     usado en `.map-page-attribution` de Propiedades/Land) — este diseño no tiene esa esquina genérica
+     (banner blanco arriba + banner amarillo a la derecha en vez del badge flotante), así que se agrega su
+     propia esquina inferior derecha del área del mapa (antes de donde arranca `.office-map-legend`, sin
+     encimarse con ella). */
+  .office-map-attribution{position:absolute;bottom:8px;right:calc(24% + 8px);z-index:1000;
+                           background:rgba(255,255,255,.85);padding:3px 8px;border-radius:4px;
+                           font-size:9px;color:#888;font-family:'Unitext',sans-serif}
   body.printing-deck .deck-page.office-map-page{padding:0}
   /* Página de detalle de Opción (v4.4.0 en construcción) — foto+tabla arriba, plano+tabla abajo (página 1)
      o 4 fotos (página 2), referencia visual del usuario. Usa la clase `.deck-page` de siempre (padding
@@ -1379,7 +1387,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      adentro (sin importar qué z-index interno use Leaflet) queda contenido como una sola capa en el lugar
      que le toca en el documento, nunca por encima de un modal/popover que esté más arriba en la página. */
   .layout-photo,.layout-aerial{min-height:220px;background:#eee;overflow:hidden;position:relative;z-index:0}
-  .layout-photo img{width:100%;height:100%;object-fit:cover;display:block}
+  /* v7.3.5x, pedido explícito del usuario: la foto de fachada se recortaba centrada (object-position 50%
+     50%, el default) — ahora ancla el recorte al borde DERECHO (queda fuera la izquierda), pedido para que
+     siempre se vea completo ese lado del edificio. */
+  .layout-photo img{width:100%;height:100%;object-fit:cover;object-position:right center;display:block}
   .layout-photo .image-placeholder,.layout-aerial .image-placeholder,.layout-plan .image-placeholder{
     width:100%;height:100%;min-height:220px;display:flex;align-items:center;justify-content:center;
     font-size:11px;color:#6b7480;text-align:center;padding:6px;box-sizing:border-box}
@@ -1534,7 +1545,14 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      pantalla normal, antes de que el navegador entre a modo impresión), y el tamaño de página calculado
      quedaría chico frente al tamaño real ya impreso. Con esta clase, medición e impresión ven el mismo layout. */
   body.printing-deck header.topbar,
-  body.printing-deck .pres-sidebar{display:none}
+  body.printing-deck .pres-sidebar,
+  /* v7.3.5x, bug real reportado por el usuario ("hoja blanca al inicio" al imprimir una Presentación en
+     Modo Consolidado): mismo mecanismo ya resuelto para el Market Report más abajo (#consolidatedBanner
+     nunca tenía este display:none aquí) — el `body *{visibility:hidden}` genérico de @media print lo
+     esconde visualmente pero no le quita el espacio que ocupa (visibility, a diferencia de display:none),
+     y ese hueco reservado (~65px, ANTES de #wrap/.pres-main en el DOM) empujaba toda la 1ra página del
+     deck hacia abajo, dejando una hoja casi en blanco al inicio. */
+  body.printing-deck #consolidatedBanner{display:none}
   body.printing-deck .main{margin-left:0}
   body.printing-deck .pres-main{padding:10px 1px 1px 13px} /* top right bottom left */
   body.printing-deck #presPages,
@@ -2035,7 +2053,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.5.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.6.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -4715,6 +4733,13 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.6.0", date:"2026-09-18", items:[
+    "Presentation maps (Properties, Land, Offices): switched the basemap from CARTO to Mapbox (same \"Citius (Mapbox)\" style as the Map tab). Along the way, fixed two real rendering bugs this change first introduced: the map not filling its card in the on-screen preview, and the map printing/exporting blank on the first Print/PDF attempt (both caused by how Mapbox's canvas interacts with the on-screen preview's zoom and with the resize that happens right before printing).",
+    "Presentation (Properties/Land/Offices): fixed a real print bug — in Consolidated mode, the blue \"Consolidated mode active\" banner stayed invisible but still reserved its on-screen height while printing, which could push a blank page onto the start of the PDF (same bug already fixed for the Market Report, now also fixed here).",
+    "Presentation, Layout page: the building's facade photo now crops from the left instead of the center, so the right side of the building is always fully shown.",
+    "Market Report (PDF), Completed Transactions — Detail: rows within each Submarket now sort by Quarter then Developer (previously sorted by date only, with no tiebreaker).",
+    "Market Report (PDF), Available Inventory — Detail: rows within each Submarket now sort by Developer (previously unsorted); fixed a real bug where the Clear Height column showed the raw captured value without converting it to the selected Imperial/Metric unit."
+  ]},
   {version:"8.5.0", date:"2026-09-17", items:[
     "Summary > KPI's, \"Tool Usage\" chart: now looks like a real bar chart (gap between bars, instead of touching like a histogram); days with no activity no longer draw a faint gray bar; each bar shows its count as a data label on top; and hovering a bar now also breaks its count down by source file (only shown when more than one file had activity that day).",
     "Summary > KPI's, \"Tool Usage\" chart: fixed the hover tooltip running off the right edge of the screen (and causing an unwanted horizontal scrollbar) for the most recent day's bar — it now flips to grow leftward near either edge; also added breathing room between the Document/Period selectors and the chart below them."
@@ -6761,6 +6786,22 @@ let resumenUnit="imperial";
 function resumenAreaUnitLabel(){ return resumenUnit==="metric" ? UNIT_CONVERSIONS.SF_M2.metric : UNIT_CONVERSIONS.SF_M2.imperial; }
 function resumenAreaVal(sf){ return resumenUnit==="metric" ? sf*UNIT_CONVERSIONS.SF_M2.toMetric : sf; }
 function resumenRateVal(vPerSF){ return resumenUnit==="metric" ? vPerSF/UNIT_CONVERSIONS.SF_M2.toMetric : vPerSF; }
+/* v7.3.5x, bug real reportado por el usuario: la columna "Clear Height" del Market Report (Available
+   Inventory — Detail) mostraba MIN_CLEAR_HEIGHT_VALUE crudo, sin convertir según la unidad capturada
+   (MIN_CLEAR_HEIGHT_UNIT, lista FT_M) ni según el selector Imperial/Metric del reporte — un edificio
+   capturado en "m" se mostraba con el número de metros tal cual bajo un header sin unidad. Mismo criterio
+   que areaValueInSF/resumenAreaVal (normaliza a una unidad base — aquí "ft" — y de ahí convierte a la
+   unidad de vista elegida), pero para FT_M en vez de SF_M2. No se redondea a entero (a diferencia de
+   resumenAreaVal) porque Clear Height es un valor chico donde 2 decimales sí importan (ver el mismo
+   criterio ya usado para unitClass "LONG" en presValueFor/convertCellForView, que tampoco lo redondea). */
+function resumenHeightUnitLabel(){ return resumenUnit==="metric" ? UNIT_CONVERSIONS.FT_M.metric : UNIT_CONVERSIONS.FT_M.imperial; }
+function heightValueInFt(row, valueKey){
+  const raw=Number(row[valueKey])||0;
+  const unitKey=valueKey.endsWith("_VALUE") ? valueKey.slice(0,-6)+"_UNIT" : null;
+  const unit=unitKey ? row[unitKey] : null;
+  return ciEq(unit,"m") ? raw/UNIT_CONVERSIONS.FT_M.toMetric : raw;
+}
+function resumenHeightVal(ft){ return round2(resumenUnit==="metric" ? ft*UNIT_CONVERSIONS.FT_M.toMetric : ft); }
 /* Normaliza "Asking Rate" a base SF sin importar si se capturó en USD/SF o USD/m² — mismo criterio que
    areaValueInSF (todo Resumen normaliza a SF internamente), reusando convertRateUnit() (misma conversión
    que ya usa la vista Métrico/Imperial de la tabla principal para este mismo tipo de campo). */
@@ -7610,7 +7651,14 @@ function mktBuildTxDetailPage(){
     // (Trans) en este renglón — como .mkt-group-row pinta gris vía `td{background:#eee}`, esa columna sin
     // <td> no tenía nada que pintar y se veía blanca en vez de gris, en TODOS los separadores de submercado.
     lines.push(`<tr class="mkt-group-row"><td colspan="8">▼ ${escapeHtml(sm.toUpperCase())}</td></tr>`);
-    rows.slice().sort((a,b)=>String(a.TRANSACTION_DATE||"").localeCompare(String(b.TRANSACTION_DATE||""))).forEach(r=>{
+    // v7.3.5x, pedido explícito del usuario: orden Submarket (el agrupado de arriba) -> Q -> Developer
+    // (antes solo por fecha completa, que ordenaba por Q pero sin desempatar por Developer dentro del
+    // mismo trimestre).
+    rows.slice().sort((a,b)=>{
+      const qa=quarterOfDate(a.TRANSACTION_DATE)||0, qb=quarterOfDate(b.TRANSACTION_DATE)||0;
+      if(qa!==qb) return qa-qb;
+      return String(a.DEVELOPER||"").localeCompare(String(b.DEVELOPER||""));
+    }).forEach(r=>{
       const areaSF=areaValueInSF(r,"TRANSACTION_AREA");
       grandTotalSF+=areaSF;
       const q=quarterOfDate(r.TRANSACTION_DATE);
@@ -7679,7 +7727,7 @@ function mktBuildAvailSummaryPage(){
 function mktBuildAvailDetailPage(){
   const subs=resumenSubmarkets();
   const num=v=>Math.round(v).toLocaleString("en-US");
-  const theadHtml=`<tr><th>Name</th><th>Developer</th><th>Location</th><th>Size (${resumenAreaUnitLabel()})</th><th>Occupied</th><th>Available</th><th>Clear Height</th><th>Status</th><th>Class</th><th>$/${resumenAreaUnitLabel()}/Mo</th></tr>`;
+  const theadHtml=`<tr><th>Name</th><th>Developer</th><th>Location</th><th>Size (${resumenAreaUnitLabel()})</th><th>Occupied</th><th>Available</th><th>Clear Height (${resumenHeightUnitLabel()})</th><th>Status</th><th>Class</th><th>$/${resumenAreaUnitLabel()}/Mo</th></tr>`;
   let lines=[], grandTotalSF=0;
   subs.forEach(sm=>{
     const rows=(state.PROPIEDADES||[]).filter(r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B"))&&ciEq(r.MARKET_STATUS,"Available"));
@@ -7687,7 +7735,8 @@ function mktBuildAvailDetailPage(){
     // v7.3.5x, pedido explícito del usuario: ya no lleva el total del submercado en la misma línea del
     // separador (colspan ahora cubre las 10 columnas completas, antes 9 + una celda de total aparte).
     lines.push(`<tr class="mkt-group-row"><td colspan="10">▼ ${escapeHtml(sm.toUpperCase())}</td></tr>`);
-    rows.forEach(r=>{
+    // v7.3.5x, pedido explícito del usuario: orden Submarket (el agrupado de arriba) -> Developer.
+    rows.slice().sort((a,b)=>String(a.DEVELOPER||"").localeCompare(String(b.DEVELOPER||""))).forEach(r=>{
       const availSF=areaValueInSF(r,"AVAILABLE_AREA_VALUE");
       grandTotalSF+=availSF;
       // v7.3.5x, bug real reportado por el usuario: usaba r.ASKING_RATE_VALUE crudo sin convertir según la
@@ -7699,7 +7748,7 @@ function mktBuildAvailDetailPage(){
         <td class="num-cell">${num(resumenAreaVal(areaValueInSF(r,"LEASABLE_AREA_GLA_VALUE")))}</td>
         <td class="num-cell">${num(resumenAreaVal(areaValueInSF(r,"OCCUPIED_AREA_VALUE")))}</td>
         <td class="num-cell">${num(resumenAreaVal(availSF))}</td>
-        <td class="mkt-center">${r.MIN_CLEAR_HEIGHT_VALUE||"—"}</td>
+        <td class="mkt-center">${r.MIN_CLEAR_HEIGHT_VALUE!=null&&r.MIN_CLEAR_HEIGHT_VALUE!==""?fmtNum(resumenHeightVal(heightValueInFt(r,"MIN_CLEAR_HEIGHT_VALUE"))):"—"}</td>
         <td class="mkt-center">${escapeHtml(r.STATUS||"—")}</td>
         <td class="mkt-center">${escapeHtml(r.CLASSIFICATION||"—")}</td>
         <td class="num-cell">${rate}</td></tr>`);
@@ -9629,6 +9678,40 @@ function loadMapBasemapPref(){
 function saveMapBasemapPrefLocal(){ try{ localStorage.setItem(MAP_BASEMAP_PREF_KEY, JSON.stringify(mapBasemapPref)); }catch(e){} }
 let mapBasemapPref=loadMapBasemapPref();
 let currentBasemapLayers=[];
+/* v7.3.5x, pedido explícito del usuario ("quiero probar el mapa nuevo en las presentaciones, sin afectar
+   nada"): factoriza la mitad de setMapBasemap() (la que arma la capa `gl` de Mapbox) en su propia función,
+   para poder REUSARLA tal cual en el mapa de la presentación de Propiedades (ver renderPresMap más abajo)
+   sin duplicar el estilo/token en 2 lugares — un cambio futuro de estilo en Mapbox Studio (o de token) solo
+   se actualiza en MAP_BASEMAPS, arriba, y se refleja solo en ambos lugares. Regresa la capa GL creada; quien
+   la use debe liberar su contexto WebGL explícitamente al destruirla (ver el comentario de "liberar el
+   contexto WebGL" más abajo, en setMapBasemap) — L.Map.remove()/removeLayer() no siempre lo libera solo. */
+function addCitiusMapboxLayer(leafletMap){
+  const cfg=MAP_BASEMAPS.find(b=>b.key==="citiusMapbox");
+  // v7.3.5x: por defecto WebGL borra su buffer despues de cada frame (optimizacion del navegador) — el
+  // motor de impresion/PDF de Chrome toma un snapshot que llega vacio si el canvas no se creo con
+  // preserveDrawingBuffer:true (fijo desde la creacion, no se puede activar despues). Sin esto el mapa se
+  // ve bien en pantalla pero sale como un recuadro gris vacio al imprimir/exportar — confirmado como el
+  // mismo problema reportado en mapbox/mapbox-gl-leaflet#79 y documentado por Mapbox para exportar/imprimir.
+  const glLayer=L.mapboxGL({style:cfg.gl.style, accessToken:cfg.gl.accessToken, attribution:cfg.gl.attribution, preserveDrawingBuffer:true}).addTo(leafletMap);
+  /* Mapbox GL JS no aplica automáticamente el "config" guardado de un estilo Standard (colores/tema
+     personalizados en Studio, dentro de imports[].config) al cargar el estilo por URL — solo lo trae
+     como dato disponible; hay que reinyectarlo explícitamente vía setConfigProperty. Se reintenta en
+     varios eventos del ciclo de carga (confirmado necesario en pruebas manuales) y se lee dinámicamente
+     del propio estilo (no hardcodeado) para que futuros ajustes en Mapbox Studio se reflejen solos. */
+  const glMap=glLayer.getMapboxMap();
+  if(glMap){
+    const applyStandardConfig=function(){
+      (glMap.getStyle().imports||[]).forEach(function(imp){
+        if(!imp.config) return;
+        Object.keys(imp.config).forEach(function(k){ try{ glMap.setConfigProperty(imp.id, k, imp.config[k]); }catch(e){} });
+      });
+    };
+    glMap.on("style.load", applyStandardConfig);
+    glMap.once("load", applyStandardConfig);
+    glMap.once("idle", applyStandardConfig);
+  }
+  return glLayer;
+}
 let currentBasemapGL=null; // capa mapbox-gl-leaflet activa (basemap tipo `gl`), separada de currentBasemapLayers
 function setMapBasemap(key){
   currentBasemapLayers.forEach(l=>allPolyMap.removeLayer(l));
@@ -9641,24 +9724,7 @@ function setMapBasemap(key){
   }
   const cfg=MAP_BASEMAPS.find(b=>b.key===key) || MAP_BASEMAPS[0];
   if(cfg.gl){
-    currentBasemapGL=L.mapboxGL({style:cfg.gl.style, accessToken:cfg.gl.accessToken, attribution:cfg.gl.attribution}).addTo(allPolyMap);
-    /* Mapbox GL JS no aplica automáticamente el "config" guardado de un estilo Standard (colores/tema
-       personalizados en Studio, dentro de imports[].config) al cargar el estilo por URL — solo lo trae
-       como dato disponible; hay que reinyectarlo explícitamente vía setConfigProperty. Se reintenta en
-       varios eventos del ciclo de carga (confirmado necesario en pruebas manuales) y se lee dinámicamente
-       del propio estilo (no hardcodeado) para que futuros ajustes en Mapbox Studio se reflejen solos. */
-    const glMap=currentBasemapGL.getMapboxMap();
-    if(glMap){
-      const applyStandardConfig=function(){
-        (glMap.getStyle().imports||[]).forEach(function(imp){
-          if(!imp.config) return;
-          Object.keys(imp.config).forEach(function(k){ try{ glMap.setConfigProperty(imp.id, k, imp.config[k]); }catch(e){} });
-        });
-      };
-      glMap.on("style.load", applyStandardConfig);
-      glMap.once("load", applyStandardConfig);
-      glMap.once("idle", applyStandardConfig);
-    }
+    currentBasemapGL=addCitiusMapboxLayer(allPolyMap);
   }else{
     currentBasemapLayers=cfg.layers.map(l=>L.tileLayer(l.url,{maxZoom:19, attribution:l.attribution, subdomains:l.subdomains||"abc"}).addTo(allPolyMap));
   }
@@ -11278,35 +11344,65 @@ function buildLandCoverPageHtml(){
   return `<div class="deck-page cover-page"><img src="${COVER_IMAGE_SRC}" alt="Cover">${overlay}</div>`;
 }
 /* ==== Mapa de la Presentación de Terrenos (v3.38.0) — mismo patrón exacto que buildMapPageHtml/
-   renderPresMap de Propiedades (pines numerados sobre CARTO Voyager, decluttering de pines superpuestos vía
+   renderPresMap de Propiedades (pines numerados, decluttering de pines superpuestos vía
    declutterMapPins(), 100% reutilizada tal cual — no depende de ninguna entidad). Instancia de Leaflet
    propia (`landPresMapInstance`, canvas `#landPresMapCanvas`) para no pisar `presMapInstance` si algún día
-   ambos decks llegan a coexistir en el DOM al mismo tiempo. */
+   ambos decks llegan a coexistir en el DOM al mismo tiempo.
+   v7.3.5x, pedido explícito del usuario ("cambiar el mapa también para la presentación de Land"): pasa del
+   basemap CARTO Voyager fijo al mismo basemap Mapbox ya usado en la presentación de Propiedades (piloto
+   confirmado por el usuario) — mismas 3 correcciones ya encontradas ahí, replicadas aquí tal cual:
+   (1) centro/zoom inicial en L.map() para que la capa de Mapbox GL no se agregue a un mapa "sin cargar"
+   (ver el comentario grande en renderPresMap sobre onAdd() diferido), (2) preserveDrawingBuffer:true (via
+   addCitiusMapboxLayer) para que no salga en blanco al imprimir, (3) el truco de zoom/visibility escopado
+   a la tarjeta del mapa para que el canvas de Mapbox GL no quede desincronizado del zoom:.75 de la vista
+   previa (#landPresPages, no #presPages — ver el mismo comentario grande de renderPresMap). */
 function buildLandMapPageHtml(list, logoSrc){
   const withCoords=list.filter(r=>r.LATITUDE!=null && r.LATITUDE!=="" && r.LONGITUDE!=null && r.LONGITUDE!=="");
   const missing=list.length-withCoords.length;
   return `<div class="deck-page map-page">
     <div class="map-page-canvas" id="landPresMapCanvas"></div>
     <div class="map-page-badge"><img src="${logoSrc}"><h2>Location Map</h2></div>
-    <div class="map-page-attribution">&copy; OpenStreetMap &copy; CARTO</div>
+    <div class="map-page-attribution">&copy; Mapbox &copy; OpenStreetMap contributors</div>
     ${missing?`<p class="deck-note">*${missing} terreno(s) sin latitud/longitud capturada no se muestran en el mapa.</p>`:""}
   </div>`;
 }
 let landPresMapInstance=null;
+let landPresMapGL=null; // capa mapbox-gl-leaflet activa en este mapa (ver addCitiusMapboxLayer/disposeLandPresMapGL)
+let landPresMapZoomFixTimer=null; // pendingId del setTimeout que revierte el truco de zoom/visibility de renderLandPresMap
+let landPresMapZoomFixPendingUndo=null; // la función de revertir de ese timer pendiente, si hay uno
+function disposeLandPresMapGL(){
+  if(!landPresMapGL) return;
+  const glMap=landPresMapGL.getMapboxMap && landPresMapGL.getMapboxMap();
+  if(glMap) try{ glMap.remove(); }catch(e){}
+  landPresMapGL=null;
+}
+function resyncLandPresMapGL(){
+  if(!landPresMapGL) return;
+  try{ landPresMapGL._zoomEnd(); }catch(e){}
+}
 function renderLandPresMap(list){
-  if(landPresMapInstance){ landPresMapInstance.remove(); landPresMapInstance=null; }
+  if(landPresMapInstance){ disposeLandPresMapGL(); landPresMapInstance.remove(); landPresMapInstance=null; }
+  clearTimeout(landPresMapZoomFixTimer);
+  if(landPresMapZoomFixPendingUndo){ landPresMapZoomFixPendingUndo(); landPresMapZoomFixPendingUndo=null; }
   const canvas=document.getElementById("landPresMapCanvas");
   if(!canvas) return;
+  const mapCardEl=canvas.closest(".map-page");
+  const pagesElForZoom=document.getElementById("landPresPages");
+  const ancestorZoom=pagesElForZoom ? (parseFloat(getComputedStyle(pagesElForZoom).zoom))||1 : 1;
+  let undoMapCardZoomFix=()=>{};
+  if(mapCardEl && ancestorZoom!==1){
+    mapCardEl.style.visibility="hidden";
+    mapCardEl.style.zoom=String(1/ancestorZoom);
+    undoMapCardZoomFix=()=>{ mapCardEl.style.zoom=""; mapCardEl.style.visibility=""; };
+  }
   const pts=[];
   list.forEach((rec,i)=>{
     const lat=Number(rec.LATITUDE), lng=Number(rec.LONGITUDE);
     if(!isFinite(lat)||!isFinite(lng)) return;
     pts.push({lat,lng,num:i+1,rec});
   });
-  landPresMapInstance=L.map(canvas,{zoomControl:false,attributionControl:false,zoomSnap:0.25,zoomDelta:0.25,wheelPxPerZoomLevel:200});
-  L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=${CARTO_API_KEY}`,{
-    maxZoom:16, subdomains:'abcd'
-  }).addTo(landPresMapInstance);
+  landPresMapInstance=L.map(canvas,{zoomControl:false,attributionControl:false,zoomSnap:0.25,zoomDelta:0.25,wheelPxPerZoomLevel:200,center:[25.5,-100.9],zoom:11});
+  landPresMapGL=addCitiusMapboxLayer(landPresMapInstance);
   const markerData=[];
   pts.forEach(p=>{
     const mapsUrl=`https://www.google.com/maps?q=${encodeURIComponent(p.lat)},${encodeURIComponent(p.lng)}`;
@@ -11317,7 +11413,10 @@ function renderLandPresMap(list){
   // v3.44.3, pedido explícito del usuario: mismo fix que renderPresMap() — declutterMapPins() se recalcula
   // en cada `zoomend`, no solo en el fitBounds() inicial, para que los pines no vuelvan a amontonarse si el
   // usuario aleja más el zoom a mano.
-  landPresMapInstance.on("zoomend", ()=>declutterMapPins(landPresMapInstance, markerData));
+  landPresMapInstance.on("zoomend", ()=>{
+    declutterMapPins(landPresMapInstance, markerData);
+    resyncLandPresMapGL();
+  });
   setTimeout(()=>{
     landPresMapInstance.invalidateSize();
     if(pts.length){
@@ -11326,6 +11425,12 @@ function renderLandPresMap(list){
       landPresMapInstance.setView([25.5,-100.9], 11, {animate:false});
     }
     declutterMapPins(landPresMapInstance, markerData);
+    landPresMapZoomFixPendingUndo=undoMapCardZoomFix;
+    landPresMapZoomFixTimer=setTimeout(()=>{
+      resyncLandPresMapGL();
+      undoMapCardZoomFix();
+      landPresMapZoomFixPendingUndo=null;
+    }, 100);
   },50);
 }
 const LAND_PRES_SHOW_KEY="citius_land_pres_show_v1";
@@ -11385,7 +11490,7 @@ function renderLandPresentationView(){
   const pagesEl=document.getElementById("landPresPages");
   document.getElementById("presPages").innerHTML="";
   document.getElementById("officePresPages").innerHTML="";
-  if(landPresMapInstance){ landPresMapInstance.remove(); landPresMapInstance=null; }
+  if(landPresMapInstance){ disposeLandPresMapGL(); landPresMapInstance.remove(); landPresMapInstance=null; }
   landDeckMapInstances.forEach(m=>{ try{ m.remove(); }catch(e){} }); landDeckMapInstances=[];
   if(!list.length){
     pagesEl.innerHTML=`<div class="filters-empty">You haven't marked any land parcels for the presentation yet.<br>Open a Land record and turn on "Use in presentation".</div>`;
@@ -11595,6 +11700,7 @@ function buildOfficeMapPageHtml(grouped, unresolvedCount){
       <h2 class="office-map-title">${escapeHtml(market||"Location Map")}</h2>
     </div>
     <div class="office-map-canvas" id="officePresMapCanvas"></div>
+    <div class="office-map-attribution">&copy; Mapbox &copy; OpenStreetMap contributors</div>
     <div class="office-map-legend"><div class="office-map-legend-inner">${legendHtml}</div></div>
     ${missing||unresolvedCount?`<p class="deck-note office-map-note">${[
       missing?`*${missing} oficina(s) sin latitud/longitud capturada no se muestran en el mapa.`:"",
@@ -11603,22 +11709,46 @@ function buildOfficeMapPageHtml(grouped, unresolvedCount){
   </div>`;
 }
 let officePresMapInstance=null;
+// v7.3.5x, mismo cambio a Mapbox ya hecho en Propiedades/Land (ver el comentario grande en
+// renderPresMap/renderLandPresMap sobre las 3 correcciones necesarias) — variables/funciones análogas.
+let officePresMapGL=null;
+let officePresMapZoomFixTimer=null;
+let officePresMapZoomFixPendingUndo=null;
+function disposeOfficePresMapGL(){
+  if(!officePresMapGL) return;
+  const glMap=officePresMapGL.getMapboxMap && officePresMapGL.getMapboxMap();
+  if(glMap) try{ glMap.remove(); }catch(e){}
+  officePresMapGL=null;
+}
+function resyncOfficePresMapGL(){
+  if(!officePresMapGL) return;
+  try{ officePresMapGL._zoomEnd(); }catch(e){}
+}
 /* `list` aquí es SIEMPRE `grouped.ordered` (ver arriba) — nunca la lista cruda de
    officePresBuildingList(), para que los números de pin calcen 1:1 con la leyenda del banner amarillo. */
 function renderOfficePresMap(list){
-  if(officePresMapInstance){ officePresMapInstance.remove(); officePresMapInstance=null; }
+  if(officePresMapInstance){ disposeOfficePresMapGL(); officePresMapInstance.remove(); officePresMapInstance=null; }
+  clearTimeout(officePresMapZoomFixTimer);
+  if(officePresMapZoomFixPendingUndo){ officePresMapZoomFixPendingUndo(); officePresMapZoomFixPendingUndo=null; }
   const canvas=document.getElementById("officePresMapCanvas");
   if(!canvas) return;
+  const mapCardEl=canvas.closest(".map-page");
+  const pagesElForZoom=document.getElementById("officePresPages");
+  const ancestorZoom=pagesElForZoom ? (parseFloat(getComputedStyle(pagesElForZoom).zoom))||1 : 1;
+  let undoMapCardZoomFix=()=>{};
+  if(mapCardEl && ancestorZoom!==1){
+    mapCardEl.style.visibility="hidden";
+    mapCardEl.style.zoom=String(1/ancestorZoom);
+    undoMapCardZoomFix=()=>{ mapCardEl.style.zoom=""; mapCardEl.style.visibility=""; };
+  }
   const pts=[];
   list.forEach((rec,i)=>{
     const lat=Number(rec.LATITUDE), lng=Number(rec.LONGITUDE);
     if(!isFinite(lat)||!isFinite(lng)) return;
     pts.push({lat,lng,num:i+1,rec});
   });
-  officePresMapInstance=L.map(canvas,{zoomControl:false,attributionControl:false,zoomSnap:0.25,zoomDelta:0.25,wheelPxPerZoomLevel:200});
-  L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=${CARTO_API_KEY}`,{
-    maxZoom:16, subdomains:'abcd'
-  }).addTo(officePresMapInstance);
+  officePresMapInstance=L.map(canvas,{zoomControl:false,attributionControl:false,zoomSnap:0.25,zoomDelta:0.25,wheelPxPerZoomLevel:200,center:[25.5,-100.9],zoom:11});
+  officePresMapGL=addCitiusMapboxLayer(officePresMapInstance);
   const markerData=[];
   pts.forEach(p=>{
     const mapsUrl=`https://www.google.com/maps?q=${encodeURIComponent(p.lat)},${encodeURIComponent(p.lng)}`;
@@ -11626,7 +11756,10 @@ function renderOfficePresMap(list){
     const marker=L.marker([p.lat,p.lng],{icon}).bindPopup(escapeHtml(p.rec.PROPERTY_NAME||p.rec.MAPPING_CODE||"")).addTo(officePresMapInstance);
     markerData.push({marker, lat:p.lat, lng:p.lng});
   });
-  officePresMapInstance.on("zoomend", ()=>declutterMapPins(officePresMapInstance, markerData));
+  officePresMapInstance.on("zoomend", ()=>{
+    declutterMapPins(officePresMapInstance, markerData);
+    resyncOfficePresMapGL();
+  });
   setTimeout(()=>{
     officePresMapInstance.invalidateSize();
     if(pts.length){
@@ -11635,6 +11768,12 @@ function renderOfficePresMap(list){
       officePresMapInstance.setView([25.5,-100.9], 11, {animate:false});
     }
     declutterMapPins(officePresMapInstance, markerData);
+    officePresMapZoomFixPendingUndo=undoMapCardZoomFix;
+    officePresMapZoomFixTimer=setTimeout(()=>{
+      resyncOfficePresMapGL();
+      undoMapCardZoomFix();
+      officePresMapZoomFixPendingUndo=null;
+    }, 100);
   },50);
 }
 // v4.4.0: se agrega `options` (la página de detalle + fotos por Opción, ver más abajo) al default.
@@ -11922,7 +12061,7 @@ async function renderOfficePresentationView(){
   const pagesEl=document.getElementById("officePresPages");
   document.getElementById("presPages").innerHTML="";
   document.getElementById("landPresPages").innerHTML="";
-  if(officePresMapInstance){ officePresMapInstance.remove(); officePresMapInstance=null; }
+  if(officePresMapInstance){ disposeOfficePresMapGL(); officePresMapInstance.remove(); officePresMapInstance=null; }
   if(!officePresOptions.length){
     pagesEl.innerHTML=`<div class="filters-empty">You haven't built any presentation options yet.<br>Go to Spaces, check the floors you want to offer, then use "Add Group" or "Add Individually".</div>`;
     return;
@@ -11960,13 +12099,30 @@ function doOfficePresPrint(){
   document.body.classList.add("printing-deck");
   pagesEl.style.zoom="1";
   preparePrintPageSize();
-  const originalTitle=document.title;
-  document.title=buildOfficePresPdfFilename();
-  window.print();
-  document.title=originalTitle;
-  pagesEl.style.zoom="";
-  document.querySelectorAll(".deck-page.cover-page,.deck-page.map-page,.deck-page.layout-page,.deck-page.list-page,.deck-page.galeria-page").forEach(p=>{ p.style.height=""; p.style.width=""; });
-  document.body.classList.remove("printing-deck");
+  if(officePresMapInstance) officePresMapInstance.invalidateSize();
+  resyncOfficePresMapGL();
+  // v7.3.5x: mismo fix que doPresPrint()/doLandPresPrint() (ver el comentario grande en doPresPrint) —
+  // espera el evento `idle` de Mapbox GL antes de imprimir, con un timeout de respaldo.
+  let printed=false;
+  const proceedToPrint=()=>{
+    if(printed) return;
+    printed=true;
+    const originalTitle=document.title;
+    document.title=buildOfficePresPdfFilename();
+    window.print();
+    document.title=originalTitle;
+    pagesEl.style.zoom="";
+    document.querySelectorAll(".deck-page.cover-page,.deck-page.map-page,.deck-page.layout-page,.deck-page.list-page,.deck-page.galeria-page").forEach(p=>{ p.style.height=""; p.style.width=""; });
+    document.body.classList.remove("printing-deck");
+  };
+  const glMapForPrint=officePresMapGL && officePresMapGL.getMapboxMap && officePresMapGL.getMapboxMap();
+  if(glMapForPrint){
+    try{ glMapForPrint.triggerRepaint(); }catch(e){}
+    glMapForPrint.once("idle", proceedToPrint);
+    setTimeout(proceedToPrint, 400);
+  } else {
+    proceedToPrint();
+  }
 }
 document.getElementById("officePresPrintBtn").onclick=()=>{
   // v6.4.0, pedido explícito del usuario: no generar si falta algún dato de "Cover Data" — abre el panel
@@ -12125,6 +12281,20 @@ function toggleCoverEditBroker(v, checked){
 }
 document.getElementById("presCoverEditBtn").onclick=toggleCoverEditPanel;
 let presMapInstance=null;
+let presMapGL=null; // capa mapbox-gl-leaflet activa en este mapa (ver addCitiusMapboxLayer/disposePresMapGL)
+let presMapZoomFixTimer=null; // pendingId del setTimeout que revierte el truco de zoom/visibility de renderPresMap
+let presMapZoomFixPendingUndo=null; // la función de revertir de ese timer pendiente, si hay uno (ver renderPresMap)
+/* v7.3.5x: este mapa se destruye y se vuelve a crear en CADA render de la presentación de Propiedades
+   (cambia la selección, Confidencial, etc.) — mucho más seguido que un cambio de basemap manual en la
+   pestaña Mapa — así que hace falta el mismo cuidado de liberar el contexto WebGL que ya tiene
+   setMapBasemap() al alternar basemaps (ver el comentario de "liberar el contexto WebGL" ahí), aquí
+   factorizado en su propia función porque hay 2 lugares que destruyen `presMapInstance`. */
+function disposePresMapGL(){
+  if(!presMapGL) return;
+  const glMap=presMapGL.getMapboxMap && presMapGL.getMapboxMap();
+  if(glMap) try{ glMap.remove(); }catch(e){}
+  presMapGL=null;
+}
 function buildCoverPageHtml(){
   const monthYear=(presCoverInfo.monthYear||"").trim();
   const m2=(presCoverInfo.m2||"").trim();
@@ -12147,10 +12317,16 @@ function buildClosingPageHtml(imgSrc){
 function buildMapPageHtml(list, logoSrc){
   const withCoords=list.filter(r=>r.LATITUDE!=null && r.LATITUDE!=="" && r.LONGITUDE!=null && r.LONGITUDE!=="");
   const missing=list.length-withCoords.length;
+  // v7.3.5x, pedido explícito del usuario ("probar el mapa nuevo en Propiedades, sin afectar nada más"):
+  // PILOTO — este mapa (Propiedades/Buildings) pasa del basemap CARTO Voyager fijo de siempre al mismo
+  // estilo Mapbox de la pestaña Mapa (ver renderPresMap/addCitiusMapboxLayer). Land y Oficinas SIGUEN en
+  // CARTO por ahora, sin tocar, hasta confirmar con una impresión/exportación real de este piloto. El
+  // crédito cambia de "OpenStreetMap/CARTO" a "Mapbox/OpenStreetMap" — requerido por los términos de uso de
+  // Mapbox al mostrar su estilo, igual que ya se hacía con la llave gratuita de CARTO (ver CARTO_API_KEY).
   return `<div class="deck-page map-page">
     <div class="map-page-canvas" id="presMapCanvas"></div>
     <div class="map-page-badge"><img src="${logoSrc}"><h2>Location Map</h2></div>
-    <div class="map-page-attribution">&copy; OpenStreetMap &copy; CARTO</div>
+    <div class="map-page-attribution">&copy; Mapbox &copy; OpenStreetMap contributors</div>
     ${missing?`<p class="deck-note">*${missing} propiedad(es) sin latitud/longitud capturada no se muestran en el mapa.</p>`:""}
   </div>`;
 }
@@ -12179,20 +12355,69 @@ function declutterMapPins(map, markerData){
     });
   }
 }
+/* v7.3.5x: causa raíz REAL del espacio gris/pines desfasados, encontrada con un repro aislado corrido con
+   Playwright (medí getBoundingClientRect() real del <canvas> de Mapbox GL vs. su contenedor — los 3 intentos
+   anteriores basados solo en leer código fuente de las librerías no la encontraron). El mapa vive dentro de
+   `#presPages`, que tiene `zoom:.75` en CSS (vista previa en pantalla, ver `.pres-pages`) — Mapbox GL mide el
+   tamaño de su contenedor con getBoundingClientRect() (que YA viene con el zoom del ancestro aplicado, ej.
+   1416px lógicos → 1062px visibles con zoom:.75) y usa ese valor YA-ESCALADO tal cual para fijar el ancho/
+   alto CSS de su propio <canvas> — pero como el canvas está DENTRO del mismo ancestro con zoom, ese valor se
+   vuelve a escalar por el mismo .75 al pintarlo, dejando el canvas visualmente más chico que su contenedor
+   por ese mismo factor (~75% del ancho/alto — exactamente el hueco gris a la derecha/abajo reportado). Por
+   eso NINGÚN resync (`_update()`, `_zoomEnd()`, ni `glMap.resize()` llamado directo, los 3 probados) lo
+   arregla: cada uno vuelve a medir con el mismo getBoundingClientRect() ya contaminado por el zoom y repite
+   el mismo resultado incorrecto — no es una carrera de eventos, es un resultado consistente y repetible
+   mientras el zoom del ancestro sea distinto de 1. Coincide con lo que encontró el usuario probando: al
+   abrir Print/PDF, `doPresPrint()` pone `#presPages.style.zoom="1"` ANTES de imprimir — con zoom:1 ya no hay
+   nada que compensar, Mapbox GL mide bien, y esa corrección queda "pegada" al <canvas> aunque el zoom vuelva
+   a .75 después (por eso el 2do intento salía bien). Este mismo truco se aplica ahora automáticamente en
+   cada render, escopado SOLO a esta tarjeta del mapa (no a toda `#presPages`, para no mover el resto de la
+   vista previa) y con `visibility:hidden` mientras dura, para que el salto de tamaño no se alcance a ver. */
 function renderPresMap(list){
-  if(presMapInstance){ presMapInstance.remove(); presMapInstance=null; }
+  if(presMapInstance){ disposePresMapGL(); presMapInstance.remove(); presMapInstance=null; }
+  // por si un render anterior dejó pendiente su propio revert del truco de zoom/visibility de abajo — se
+  // ejecuta YA (no solo se cancela el timer) para no arrancar este render con el zoom/visibility ya tocados
+  clearTimeout(presMapZoomFixTimer);
+  if(presMapZoomFixPendingUndo){ presMapZoomFixPendingUndo(); presMapZoomFixPendingUndo=null; }
   const canvas=document.getElementById("presMapCanvas");
   if(!canvas) return;
+  const mapCardEl=canvas.closest(".map-page");
+  // OJO: el zoom hay que leerlo de #presPages (quien tiene la regla CSS `.pres-pages{zoom:.75}`), NO de
+  // mapCardEl — getComputedStyle().zoom de un descendiente sin su propia regla `zoom` devuelve "1" (el
+  // zoom de un ancestro no se "hereda" como valor computado, aunque su EFECTO visual sí se acumule).
+  const pagesElForZoom=document.getElementById("presPages");
+  const ancestorZoom=pagesElForZoom ? (parseFloat(getComputedStyle(pagesElForZoom).zoom))||1 : 1;
+  let undoMapCardZoomFix=()=>{};
+  if(mapCardEl && ancestorZoom!==1){
+    mapCardEl.style.visibility="hidden";
+    mapCardEl.style.zoom=String(1/ancestorZoom);
+    undoMapCardZoomFix=()=>{ mapCardEl.style.zoom=""; mapCardEl.style.visibility=""; };
+  }
   const pts=[];
   list.forEach((rec,i)=>{
     const lat=Number(rec.LATITUDE), lng=Number(rec.LONGITUDE);
     if(!isFinite(lat)||!isFinite(lng)) return;
     pts.push({lat,lng,num:i+1,rec});
   });
-  presMapInstance=L.map(canvas,{zoomControl:false,attributionControl:false,zoomSnap:0.25,zoomDelta:0.25,wheelPxPerZoomLevel:200});
-  L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=${CARTO_API_KEY}`,{
-    maxZoom:16, subdomains:'abcd'
-  }).addTo(presMapInstance);
+  // v7.3.5x: se le da un centro/zoom inicial a L.map() (antes se creaba sin ninguno) — causa raíz real
+  // del espacio gris/pines desfasados, encontrada con las pruebas del usuario (se autocorregía tras
+  // abrir y cancelar el diálogo de impresión). Sin centro/zoom inicial, Leaflet considera el mapa "sin
+  // cargar" (`_loaded=false`) y DIFIERE el `onAdd()` de cualquier capa agregada (incluida la de Mapbox
+  // GL) hasta su evento `load` — que Leaflet dispara DENTRO del primer fitBounds()/setView() de más abajo,
+  // DESPUÉS de que ese mismo fitBounds ya disparó zoomstart/zoomend. O sea: la capa de Mapbox GL terminaba
+  // enterándose tarde — sus listeners de `move`/`zoomend` (los que la mantienen sincronizada en tamaño y
+  // posición con Leaflet, ver addCitiusMapboxLayer/mapbox-gl-leaflet) se registraban DESPUÉS del único
+  // evento que debían atender, dejando su <canvas> mal medido/desincronizado desde el primer frame — y
+  // eso mismo explica el desfase de pines (dependen de la misma sincronización). Con un centro/zoom ya
+  // puesto aquí, el mapa ya está "cargado" cuando se agrega la capa (línea de abajo), sus listeners quedan
+  // registrados a tiempo, y el fitBounds()/setView() real (más abajo) pasa a ser un cambio de vista
+  // normal — el mismo camino que ya funciona bien en la pestaña Mapa (cuyo mapa nunca se crea sin vista).
+  presMapInstance=L.map(canvas,{zoomControl:false,attributionControl:false,zoomSnap:0.25,zoomDelta:0.25,wheelPxPerZoomLevel:200,center:[25.5,-100.9],zoom:11});
+  // v7.3.5x, pedido explícito del usuario ("probar el mapa nuevo en Propiedades, sin afectar nada más"):
+  // PILOTO — antes CARTO Voyager fijo (ver buildMapPageHtml), ahora el mismo basemap "Citius (Mapbox)" de
+  // la pestaña Mapa (mismo estilo/token, ver MAP_BASEMAPS/addCitiusMapboxLayer). Land y Oficinas siguen en
+  // CARTO por ahora — este cambio es SOLO de esta presentación, no toca setMapBasemap ni la pestaña Mapa.
+  presMapGL=addCitiusMapboxLayer(presMapInstance);
   const markerData=[];
   pts.forEach(p=>{
     const mapsUrl=`https://www.google.com/maps?q=${encodeURIComponent(p.lat)},${encodeURIComponent(p.lng)}`;
@@ -12210,7 +12435,10 @@ function renderPresMap(list){
   // Ahora se recalcula en cada `zoomend` — declutterMapPins() ya recalcula siempre desde las coordenadas
   // REALES guardadas en `markerData` (nunca desde una posición ya desplazada), así que repetirlo en cada
   // zoom es seguro: no se van "corriendo" con el tiempo.
-  presMapInstance.on("zoomend", ()=>declutterMapPins(presMapInstance, markerData));
+  presMapInstance.on("zoomend", ()=>{
+    declutterMapPins(presMapInstance, markerData);
+    resyncPresMapGL();
+  });
   setTimeout(()=>{
     presMapInstance.invalidateSize();
     if(pts.length){
@@ -12219,7 +12447,20 @@ function renderPresMap(list){
       presMapInstance.setView([25.5,-100.9], 11, {animate:false});
     }
     declutterMapPins(presMapInstance, markerData);
+    // Resync de respaldo (no es el fix principal — ver el comentario grande arriba de renderPresMap sobre
+    // el truco de zoom/visibility, que es lo que corrige el espacio gris de raíz). Se deja por las dudas
+    // ante algún otro desajuste menor del canvas tras el fitBounds/setView de arriba.
+    presMapZoomFixPendingUndo=undoMapCardZoomFix;
+    presMapZoomFixTimer=setTimeout(()=>{
+      resyncPresMapGL();
+      undoMapCardZoomFix();
+      presMapZoomFixPendingUndo=null;
+    }, 100);
   },50);
+}
+function resyncPresMapGL(){
+  if(!presMapGL) return;
+  try{ presMapGL._zoomEnd(); }catch(e){}
 }
 /* ==== Layout (spec sheet 1 página por propiedad) — v3.41.0 ====
    Nueva opción del deck de Propiedades, entre "Tabla" y "Cierre": a diferencia de "Tabla" (hasta 6
@@ -12415,7 +12656,7 @@ function renderPresentationView(){
   // contenedor, buscan .deck-page globalmente).
   document.getElementById("landPresPages").innerHTML="";
   document.getElementById("officePresPages").innerHTML="";
-  if(presMapInstance){ presMapInstance.remove(); presMapInstance=null; }
+  if(presMapInstance){ disposePresMapGL(); presMapInstance.remove(); presMapInstance=null; }
   presLayoutMapInstances.forEach(m=>{ try{ m.remove(); }catch(e){} }); presLayoutMapInstances=[];
   if(!list.length){
     pagesEl.innerHTML=`<div class="filters-empty">You haven't marked any properties for the presentation yet.<br>Open a Buildings record and turn on "Use in presentation".</div>`;
@@ -12668,17 +12909,43 @@ function doPresPrint(){
   document.body.classList.add("printing-deck"); // misma condición de layout para medir e imprimir (ver CSS)
   pagesEl.style.zoom="1"; // measure/print at true size, regardless of the on-screen preview zoom
   preparePrintPageSize();
-  // Chrome usa document.title como nombre sugerido en su diálogo "Guardar como PDF" — se cambia justo
-  // antes de imprimir y se restaura justo después (window.print() es síncrono/bloqueante en Chrome
-  // mientras el diálogo de impresión del sistema está abierto, así que esto nunca queda visible en la
-  // pestaña del navegador ni afecta nada más).
-  const originalTitle=document.title;
-  document.title=buildPresPdfFilename();
-  window.print();
-  document.title=originalTitle;
-  pagesEl.style.zoom="";
-  document.querySelectorAll(".deck-page.cover-page,.deck-page.map-page,.deck-page.layout-page,.deck-page.list-page,.deck-page.galeria-page").forEach(p=>{ p.style.height=""; p.style.width=""; }); // deshace el tamaño fijo puesto por preparePrintPageSize(), solo era para imprimir
-  document.body.classList.remove("printing-deck");
+  if(presMapInstance) presMapInstance.invalidateSize();
+  resyncPresMapGL();
+  // v7.3.5x, bug real reportado por el usuario ("el mapa sale en gris la 1ra vez que imprimo, si cancelo y
+  // vuelvo a imprimir ya sale bien"): pagesEl.style.zoom="1" (arriba) redimensiona el <canvas> de Mapbox GL
+  // (vía invalidateSize()/resyncPresMapGL()) — pero redimensionar un canvas WebGL invalida/limpia su
+  // contenido pintado, y window.print() es SÍNCRONO/bloqueante, así que corría inmediatamente después, sin
+  // darle al navegador ninguna oportunidad de pintar un frame nuevo en el canvas recién redimensionado —
+  // de ahí el recuadro gris con los pines (elementos HTML aparte, no parte del canvas) flotando encima de
+  // nada. El 2do intento salía bien porque el canvas ya había quedado pintado correctamente por el 1er
+  // intento (el diálogo de impresión, aunque se cancele, le da tiempo al navegador de renderizar de fondo).
+  // Fix: esperar el evento `idle` de Mapbox GL (la señal propia de la librería de "ya terminé de pintar
+  // este frame") antes de llamar a window.print() — con un timeout de respaldo por si 'idle' no llegara
+  // a tiempo (ej. estilo aún cargando algún tile), para no dejar la impresión colgada indefinidamente.
+  let printed=false;
+  const proceedToPrint=()=>{
+    if(printed) return;
+    printed=true;
+    // Chrome usa document.title como nombre sugerido en su diálogo "Guardar como PDF" — se cambia justo
+    // antes de imprimir y se restaura justo después (window.print() es síncrono/bloqueante en Chrome
+    // mientras el diálogo de impresión del sistema está abierto, así que esto nunca queda visible en la
+    // pestaña del navegador ni afecta nada más).
+    const originalTitle=document.title;
+    document.title=buildPresPdfFilename();
+    window.print();
+    document.title=originalTitle;
+    pagesEl.style.zoom="";
+    document.querySelectorAll(".deck-page.cover-page,.deck-page.map-page,.deck-page.layout-page,.deck-page.list-page,.deck-page.galeria-page").forEach(p=>{ p.style.height=""; p.style.width=""; }); // deshace el tamaño fijo puesto por preparePrintPageSize(), solo era para imprimir
+    document.body.classList.remove("printing-deck");
+  };
+  const glMapForPrint=presMapGL && presMapGL.getMapboxMap && presMapGL.getMapboxMap();
+  if(glMapForPrint){
+    try{ glMapForPrint.triggerRepaint(); }catch(e){}
+    glMapForPrint.once("idle", proceedToPrint);
+    setTimeout(proceedToPrint, 400);
+  } else {
+    proceedToPrint();
+  }
 }
 document.getElementById("presPrintBtn").onclick=()=>{
   // v6.4.0, pedido explícito del usuario: no generar si falta algún dato de "Cover Data" — abre el panel
@@ -12702,7 +12969,7 @@ document.getElementById("presPrintBtn").onclick=()=>{
     doPresPrint();
   });
 };
-window.addEventListener("beforeprint", ()=>{ if(presMapInstance) presMapInstance.invalidateSize(); if(landPresMapInstance) landPresMapInstance.invalidateSize(); if(officePresMapInstance) officePresMapInstance.invalidateSize(); presLayoutMapInstances.forEach(m=>{ try{ m.invalidateSize(); }catch(e){} }); landDeckMapInstances.forEach(m=>{ try{ m.invalidateSize(); }catch(e){} }); });
+window.addEventListener("beforeprint", ()=>{ if(presMapInstance) presMapInstance.invalidateSize(); if(landPresMapInstance) landPresMapInstance.invalidateSize(); if(officePresMapInstance) officePresMapInstance.invalidateSize(); presLayoutMapInstances.forEach(m=>{ try{ m.invalidateSize(); }catch(e){} }); landDeckMapInstances.forEach(m=>{ try{ m.invalidateSize(); }catch(e){} }); resyncPresMapGL(); resyncLandPresMapGL(); resyncOfficePresMapGL(); });
 /* Nombre sugerido del PDF de Terrenos (v3.39.0) — misma lógica EXACTA que buildPresPdfFilename() de
    Propiedades (pedido explícito del usuario), leyendo landPresCoverInfo en vez de presCoverInfo.
    brokerInitials()/sanitizeFilenamePart() se reutilizan tal cual — son agnósticas de entidad. */
@@ -12728,13 +12995,31 @@ function doLandPresPrint(){
   document.body.classList.add("printing-deck");
   pagesEl.style.zoom="1";
   preparePrintPageSize();
-  const originalTitle=document.title;
-  document.title=buildLandPresPdfFilename();
-  window.print();
-  document.title=originalTitle;
-  pagesEl.style.zoom="";
-  document.querySelectorAll(".deck-page.cover-page,.deck-page.map-page,.deck-page.layout-page,.deck-page.galeria-page").forEach(p=>{ p.style.height=""; p.style.width=""; });
-  document.body.classList.remove("printing-deck");
+  if(landPresMapInstance) landPresMapInstance.invalidateSize();
+  resyncLandPresMapGL();
+  // v7.3.5x: mismo fix que doPresPrint() (ver el comentario grande ahí) — espera el evento `idle` de
+  // Mapbox GL antes de imprimir, con un timeout de respaldo, para que el canvas alcance a pintar el frame
+  // nuevo tras el resize que causa el cambio de zoom de arriba.
+  let printed=false;
+  const proceedToPrint=()=>{
+    if(printed) return;
+    printed=true;
+    const originalTitle=document.title;
+    document.title=buildLandPresPdfFilename();
+    window.print();
+    document.title=originalTitle;
+    pagesEl.style.zoom="";
+    document.querySelectorAll(".deck-page.cover-page,.deck-page.map-page,.deck-page.layout-page,.deck-page.galeria-page").forEach(p=>{ p.style.height=""; p.style.width=""; });
+    document.body.classList.remove("printing-deck");
+  };
+  const glMapForPrint=landPresMapGL && landPresMapGL.getMapboxMap && landPresMapGL.getMapboxMap();
+  if(glMapForPrint){
+    try{ glMapForPrint.triggerRepaint(); }catch(e){}
+    glMapForPrint.once("idle", proceedToPrint);
+    setTimeout(proceedToPrint, 400);
+  } else {
+    proceedToPrint();
+  }
 }
 document.getElementById("landPresPrintBtn").onclick=()=>{
   // v6.4.0, pedido explícito del usuario: no generar si falta algún dato de "Cover Data" — abre el panel

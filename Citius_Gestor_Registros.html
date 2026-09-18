@@ -12261,18 +12261,22 @@ function renderPresMap(list){
     declutterMapPins(presMapInstance, markerData);
     // v7.3.5x: bug conocido de mapbox-gl-leaflet@0.0.16 (ver issues #143/#45 del repo mapbox/mapbox-gl-
     // leaflet) — su resincronización automática del canvas de Mapbox GL depende de un ciclo interno
-    // (evento `resize` -> `_transitionEnd` -> `jumpTo` -> `moveend` -> `_zoomEnd`/`_update`) encadenado con
+    // (evento `resize` -> `_transitionEnd` -> deja el <canvas> con un CSS transform temporal -> `jumpTo` ->
+    // `moveend` -> recién ahí `_zoomEnd()` quita ese transform y llama `_update()`) encadenado con
     // requestAnimationFrame; al llamar invalidateSize() y fitBounds()/setView({animate:false}) en el mismo
-    // tick, ese ciclo puede quedar a medio camino y el canvas se queda con el tamaño/posición viejos (el
-    // "espacio gris" a la derecha/abajo del mapa que reportó el usuario). Se fuerza aquí, con un pequeño
-    // retraso extra para correr DESPUÉS de cualquier ciclo interno pendiente, el mismo `_update()` que la
-    // librería usa internamente para reajustar tamaño/posición del canvas — resync "de respaldo".
+    // tick, ese `moveend` puede no completarse nunca y el <canvas> se queda con el transform temporal
+    // puesto — se ve como el mapa "encogido"/desplazado, con espacio gris a la derecha/abajo (confirmado
+    // con pruebas del usuario: el mismo mapa se ve bien solo, después, tras abrir e cancelar el diálogo de
+    // impresión del navegador — ese viaje redondo fuerza al navegador a completar el ciclo de resize
+    // pendiente). Se fuerza aquí, con un pequeño retraso extra para correr DESPUÉS de cualquier ciclo
+    // interno pendiente, el mismo `_zoomEnd()` que usa la librería para esa resincronización — a diferencia
+    // de `_update()` solo, `_zoomEnd()` SÍ quita el CSS transform que puede haber quedado pegado.
     setTimeout(resyncPresMapGL, 100);
   },50);
 }
 function resyncPresMapGL(){
   if(!presMapGL) return;
-  try{ presMapGL._update(); }catch(e){}
+  try{ presMapGL._zoomEnd(); }catch(e){}
 }
 /* ==== Layout (spec sheet 1 página por propiedad) — v3.41.0 ====
    Nueva opción del deck de Propiedades, entre "Tabla" y "Cierre": a diferencia de "Tabla" (hasta 6
@@ -12755,7 +12759,7 @@ document.getElementById("presPrintBtn").onclick=()=>{
     doPresPrint();
   });
 };
-window.addEventListener("beforeprint", ()=>{ if(presMapInstance) presMapInstance.invalidateSize(); if(landPresMapInstance) landPresMapInstance.invalidateSize(); if(officePresMapInstance) officePresMapInstance.invalidateSize(); presLayoutMapInstances.forEach(m=>{ try{ m.invalidateSize(); }catch(e){} }); landDeckMapInstances.forEach(m=>{ try{ m.invalidateSize(); }catch(e){} }); });
+window.addEventListener("beforeprint", ()=>{ if(presMapInstance) presMapInstance.invalidateSize(); if(landPresMapInstance) landPresMapInstance.invalidateSize(); if(officePresMapInstance) officePresMapInstance.invalidateSize(); presLayoutMapInstances.forEach(m=>{ try{ m.invalidateSize(); }catch(e){} }); landDeckMapInstances.forEach(m=>{ try{ m.invalidateSize(); }catch(e){} }); resyncPresMapGL(); });
 /* Nombre sugerido del PDF de Terrenos (v3.39.0) — misma lógica EXACTA que buildPresPdfFilename() de
    Propiedades (pedido explícito del usuario), leyendo landPresCoverInfo en vez de presCoverInfo.
    brokerInitials()/sanitizeFilenamePart() se reutilizan tal cual — son agnósticas de entidad. */

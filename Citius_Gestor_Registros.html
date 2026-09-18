@@ -1379,7 +1379,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      adentro (sin importar qué z-index interno use Leaflet) queda contenido como una sola capa en el lugar
      que le toca en el documento, nunca por encima de un modal/popover que esté más arriba en la página. */
   .layout-photo,.layout-aerial{min-height:220px;background:#eee;overflow:hidden;position:relative;z-index:0}
-  .layout-photo img{width:100%;height:100%;object-fit:cover;display:block}
+  /* v7.3.5x, pedido explícito del usuario: la foto de fachada se recortaba centrada (object-position 50%
+     50%, el default) — ahora ancla el recorte al borde DERECHO (queda fuera la izquierda), pedido para que
+     siempre se vea completo ese lado del edificio. */
+  .layout-photo img{width:100%;height:100%;object-fit:cover;object-position:right center;display:block}
   .layout-photo .image-placeholder,.layout-aerial .image-placeholder,.layout-plan .image-placeholder{
     width:100%;height:100%;min-height:220px;display:flex;align-items:center;justify-content:center;
     font-size:11px;color:#6b7480;text-align:center;padding:6px;box-sizing:border-box}
@@ -1534,7 +1537,14 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      pantalla normal, antes de que el navegador entre a modo impresión), y el tamaño de página calculado
      quedaría chico frente al tamaño real ya impreso. Con esta clase, medición e impresión ven el mismo layout. */
   body.printing-deck header.topbar,
-  body.printing-deck .pres-sidebar{display:none}
+  body.printing-deck .pres-sidebar,
+  /* v7.3.5x, bug real reportado por el usuario ("hoja blanca al inicio" al imprimir una Presentación en
+     Modo Consolidado): mismo mecanismo ya resuelto para el Market Report más abajo (#consolidatedBanner
+     nunca tenía este display:none aquí) — el `body *{visibility:hidden}` genérico de @media print lo
+     esconde visualmente pero no le quita el espacio que ocupa (visibility, a diferencia de display:none),
+     y ese hueco reservado (~65px, ANTES de #wrap/.pres-main en el DOM) empujaba toda la 1ra página del
+     deck hacia abajo, dejando una hoja casi en blanco al inicio. */
+  body.printing-deck #consolidatedBanner{display:none}
   body.printing-deck .main{margin-left:0}
   body.printing-deck .pres-main{padding:10px 1px 1px 13px} /* top right bottom left */
   body.printing-deck #presPages,

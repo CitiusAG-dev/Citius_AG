@@ -11329,35 +11329,65 @@ function buildLandCoverPageHtml(){
   return `<div class="deck-page cover-page"><img src="${COVER_IMAGE_SRC}" alt="Cover">${overlay}</div>`;
 }
 /* ==== Mapa de la Presentación de Terrenos (v3.38.0) — mismo patrón exacto que buildMapPageHtml/
-   renderPresMap de Propiedades (pines numerados sobre CARTO Voyager, decluttering de pines superpuestos vía
+   renderPresMap de Propiedades (pines numerados, decluttering de pines superpuestos vía
    declutterMapPins(), 100% reutilizada tal cual — no depende de ninguna entidad). Instancia de Leaflet
    propia (`landPresMapInstance`, canvas `#landPresMapCanvas`) para no pisar `presMapInstance` si algún día
-   ambos decks llegan a coexistir en el DOM al mismo tiempo. */
+   ambos decks llegan a coexistir en el DOM al mismo tiempo.
+   v7.3.5x, pedido explícito del usuario ("cambiar el mapa también para la presentación de Land"): pasa del
+   basemap CARTO Voyager fijo al mismo basemap Mapbox ya usado en la presentación de Propiedades (piloto
+   confirmado por el usuario) — mismas 3 correcciones ya encontradas ahí, replicadas aquí tal cual:
+   (1) centro/zoom inicial en L.map() para que la capa de Mapbox GL no se agregue a un mapa "sin cargar"
+   (ver el comentario grande en renderPresMap sobre onAdd() diferido), (2) preserveDrawingBuffer:true (via
+   addCitiusMapboxLayer) para que no salga en blanco al imprimir, (3) el truco de zoom/visibility escopado
+   a la tarjeta del mapa para que el canvas de Mapbox GL no quede desincronizado del zoom:.75 de la vista
+   previa (#landPresPages, no #presPages — ver el mismo comentario grande de renderPresMap). */
 function buildLandMapPageHtml(list, logoSrc){
   const withCoords=list.filter(r=>r.LATITUDE!=null && r.LATITUDE!=="" && r.LONGITUDE!=null && r.LONGITUDE!=="");
   const missing=list.length-withCoords.length;
   return `<div class="deck-page map-page">
     <div class="map-page-canvas" id="landPresMapCanvas"></div>
     <div class="map-page-badge"><img src="${logoSrc}"><h2>Location Map</h2></div>
-    <div class="map-page-attribution">&copy; OpenStreetMap &copy; CARTO</div>
+    <div class="map-page-attribution">&copy; Mapbox &copy; OpenStreetMap contributors</div>
     ${missing?`<p class="deck-note">*${missing} terreno(s) sin latitud/longitud capturada no se muestran en el mapa.</p>`:""}
   </div>`;
 }
 let landPresMapInstance=null;
+let landPresMapGL=null; // capa mapbox-gl-leaflet activa en este mapa (ver addCitiusMapboxLayer/disposeLandPresMapGL)
+let landPresMapZoomFixTimer=null; // pendingId del setTimeout que revierte el truco de zoom/visibility de renderLandPresMap
+let landPresMapZoomFixPendingUndo=null; // la función de revertir de ese timer pendiente, si hay uno
+function disposeLandPresMapGL(){
+  if(!landPresMapGL) return;
+  const glMap=landPresMapGL.getMapboxMap && landPresMapGL.getMapboxMap();
+  if(glMap) try{ glMap.remove(); }catch(e){}
+  landPresMapGL=null;
+}
+function resyncLandPresMapGL(){
+  if(!landPresMapGL) return;
+  try{ landPresMapGL._zoomEnd(); }catch(e){}
+}
 function renderLandPresMap(list){
-  if(landPresMapInstance){ landPresMapInstance.remove(); landPresMapInstance=null; }
+  if(landPresMapInstance){ disposeLandPresMapGL(); landPresMapInstance.remove(); landPresMapInstance=null; }
+  clearTimeout(landPresMapZoomFixTimer);
+  if(landPresMapZoomFixPendingUndo){ landPresMapZoomFixPendingUndo(); landPresMapZoomFixPendingUndo=null; }
   const canvas=document.getElementById("landPresMapCanvas");
   if(!canvas) return;
+  const mapCardEl=canvas.closest(".map-page");
+  const pagesElForZoom=document.getElementById("landPresPages");
+  const ancestorZoom=pagesElForZoom ? (parseFloat(getComputedStyle(pagesElForZoom).zoom))||1 : 1;
+  let undoMapCardZoomFix=()=>{};
+  if(mapCardEl && ancestorZoom!==1){
+    mapCardEl.style.visibility="hidden";
+    mapCardEl.style.zoom=String(1/ancestorZoom);
+    undoMapCardZoomFix=()=>{ mapCardEl.style.zoom=""; mapCardEl.style.visibility=""; };
+  }
   const pts=[];
   list.forEach((rec,i)=>{
     const lat=Number(rec.LATITUDE), lng=Number(rec.LONGITUDE);
     if(!isFinite(lat)||!isFinite(lng)) return;
     pts.push({lat,lng,num:i+1,rec});
   });
-  landPresMapInstance=L.map(canvas,{zoomControl:false,attributionControl:false,zoomSnap:0.25,zoomDelta:0.25,wheelPxPerZoomLevel:200});
-  L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=${CARTO_API_KEY}`,{
-    maxZoom:16, subdomains:'abcd'
-  }).addTo(landPresMapInstance);
+  landPresMapInstance=L.map(canvas,{zoomControl:false,attributionControl:false,zoomSnap:0.25,zoomDelta:0.25,wheelPxPerZoomLevel:200,center:[25.5,-100.9],zoom:11});
+  landPresMapGL=addCitiusMapboxLayer(landPresMapInstance);
   const markerData=[];
   pts.forEach(p=>{
     const mapsUrl=`https://www.google.com/maps?q=${encodeURIComponent(p.lat)},${encodeURIComponent(p.lng)}`;
@@ -11368,7 +11398,10 @@ function renderLandPresMap(list){
   // v3.44.3, pedido explícito del usuario: mismo fix que renderPresMap() — declutterMapPins() se recalcula
   // en cada `zoomend`, no solo en el fitBounds() inicial, para que los pines no vuelvan a amontonarse si el
   // usuario aleja más el zoom a mano.
-  landPresMapInstance.on("zoomend", ()=>declutterMapPins(landPresMapInstance, markerData));
+  landPresMapInstance.on("zoomend", ()=>{
+    declutterMapPins(landPresMapInstance, markerData);
+    resyncLandPresMapGL();
+  });
   setTimeout(()=>{
     landPresMapInstance.invalidateSize();
     if(pts.length){
@@ -11377,6 +11410,12 @@ function renderLandPresMap(list){
       landPresMapInstance.setView([25.5,-100.9], 11, {animate:false});
     }
     declutterMapPins(landPresMapInstance, markerData);
+    landPresMapZoomFixPendingUndo=undoMapCardZoomFix;
+    landPresMapZoomFixTimer=setTimeout(()=>{
+      resyncLandPresMapGL();
+      undoMapCardZoomFix();
+      landPresMapZoomFixPendingUndo=null;
+    }, 100);
   },50);
 }
 const LAND_PRES_SHOW_KEY="citius_land_pres_show_v1";
@@ -11436,7 +11475,7 @@ function renderLandPresentationView(){
   const pagesEl=document.getElementById("landPresPages");
   document.getElementById("presPages").innerHTML="";
   document.getElementById("officePresPages").innerHTML="";
-  if(landPresMapInstance){ landPresMapInstance.remove(); landPresMapInstance=null; }
+  if(landPresMapInstance){ disposeLandPresMapGL(); landPresMapInstance.remove(); landPresMapInstance=null; }
   landDeckMapInstances.forEach(m=>{ try{ m.remove(); }catch(e){} }); landDeckMapInstances=[];
   if(!list.length){
     pagesEl.innerHTML=`<div class="filters-empty">You haven't marked any land parcels for the presentation yet.<br>Open a Land record and turn on "Use in presentation".</div>`;
@@ -12864,7 +12903,7 @@ document.getElementById("presPrintBtn").onclick=()=>{
     doPresPrint();
   });
 };
-window.addEventListener("beforeprint", ()=>{ if(presMapInstance) presMapInstance.invalidateSize(); if(landPresMapInstance) landPresMapInstance.invalidateSize(); if(officePresMapInstance) officePresMapInstance.invalidateSize(); presLayoutMapInstances.forEach(m=>{ try{ m.invalidateSize(); }catch(e){} }); landDeckMapInstances.forEach(m=>{ try{ m.invalidateSize(); }catch(e){} }); resyncPresMapGL(); });
+window.addEventListener("beforeprint", ()=>{ if(presMapInstance) presMapInstance.invalidateSize(); if(landPresMapInstance) landPresMapInstance.invalidateSize(); if(officePresMapInstance) officePresMapInstance.invalidateSize(); presLayoutMapInstances.forEach(m=>{ try{ m.invalidateSize(); }catch(e){} }); landDeckMapInstances.forEach(m=>{ try{ m.invalidateSize(); }catch(e){} }); resyncPresMapGL(); resyncLandPresMapGL(); });
 /* Nombre sugerido del PDF de Terrenos (v3.39.0) — misma lógica EXACTA que buildPresPdfFilename() de
    Propiedades (pedido explícito del usuario), leyendo landPresCoverInfo en vez de presCoverInfo.
    brokerInitials()/sanitizeFilenamePart() se reutilizan tal cual — son agnósticas de entidad. */
@@ -12890,13 +12929,31 @@ function doLandPresPrint(){
   document.body.classList.add("printing-deck");
   pagesEl.style.zoom="1";
   preparePrintPageSize();
-  const originalTitle=document.title;
-  document.title=buildLandPresPdfFilename();
-  window.print();
-  document.title=originalTitle;
-  pagesEl.style.zoom="";
-  document.querySelectorAll(".deck-page.cover-page,.deck-page.map-page,.deck-page.layout-page,.deck-page.galeria-page").forEach(p=>{ p.style.height=""; p.style.width=""; });
-  document.body.classList.remove("printing-deck");
+  if(landPresMapInstance) landPresMapInstance.invalidateSize();
+  resyncLandPresMapGL();
+  // v7.3.5x: mismo fix que doPresPrint() (ver el comentario grande ahí) — espera el evento `idle` de
+  // Mapbox GL antes de imprimir, con un timeout de respaldo, para que el canvas alcance a pintar el frame
+  // nuevo tras el resize que causa el cambio de zoom de arriba.
+  let printed=false;
+  const proceedToPrint=()=>{
+    if(printed) return;
+    printed=true;
+    const originalTitle=document.title;
+    document.title=buildLandPresPdfFilename();
+    window.print();
+    document.title=originalTitle;
+    pagesEl.style.zoom="";
+    document.querySelectorAll(".deck-page.cover-page,.deck-page.map-page,.deck-page.layout-page,.deck-page.galeria-page").forEach(p=>{ p.style.height=""; p.style.width=""; });
+    document.body.classList.remove("printing-deck");
+  };
+  const glMapForPrint=landPresMapGL && landPresMapGL.getMapboxMap && landPresMapGL.getMapboxMap();
+  if(glMapForPrint){
+    try{ glMapForPrint.triggerRepaint(); }catch(e){}
+    glMapForPrint.once("idle", proceedToPrint);
+    setTimeout(proceedToPrint, 400);
+  } else {
+    proceedToPrint();
+  }
 }
 document.getElementById("landPresPrintBtn").onclick=()=>{
   // v6.4.0, pedido explícito del usuario: no generar si falta algún dato de "Cover Data" — abre el panel

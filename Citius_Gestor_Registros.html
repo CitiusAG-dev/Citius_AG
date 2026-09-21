@@ -2065,7 +2065,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.6.2</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.6.3</div>
     </nav>
   </aside>
   <div class="main">
@@ -4745,6 +4745,10 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.6.3", date:"2026-09-21", items:[
+    "Transactions: \"Transaction Type\" was missing from the field set shown for \"Absorption Type\" = \"Negative\" — since it's required for Negative to count toward \"Net Absorption\" and the Negative KPI/breakdown tables, no Negative transaction could ever be counted. It's now part of that form.",
+    "Fixed: Transactions' edit form showed an extra, always-empty \"Location\" tab (both Gross and Negative) — the hidden Region/State/Market/Submarket ID fields weren't grouped with the rest of \"Property\", so they spawned their own blank tab."
+  ]},
   {version:"8.6.2", date:"2026-09-18", items:[
     "Table: fixed the pagination footer not stretching with the table when more columns are added — it used to stay anchored to its old (narrower) width instead of matching the now-wider, horizontally-scrollable table."
   ]},

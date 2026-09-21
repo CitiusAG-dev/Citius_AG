@@ -2065,7 +2065,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.6.4</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.6.5</div>
     </nav>
   </aside>
   <div class="main">
@@ -4750,6 +4750,12 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.6.5", date:"2026-09-21", items:[
+    "Offices: \"Building Certification\" replaced by a new \"Building Certifications\" field (multi-select); \"Certification Level\" removed; new \"Nearby Amenities\" field (multi-select, list to be configured).",
+    "Offices: \"Year Built\" no longer shows a thousands separator (e.g. \"2,024\") in the record view or the presentation deck -- applies wherever this field is used (Buildings/Parks/Land too).",
+    "Offices: added \"Citius AG Listing\", \"Listing Start Date\", and \"Listing End Date\" fields, matching Buildings/Parks/Land.",
+    "Fixed: an Integer/Decimal field with a non-numeric value loaded from Excel (e.g. \"TBC\" in Leasable Area GLA) wasn't counted as pending in the section's badge or flagged in the form -- only list-type fields were checked before. Also fixed a related data-loss risk: such a field showed blank in edit mode (the browser rejects a non-numeric value in a number input), so saving without touching it could silently overwrite the real captured text with nothing."
+  ]},
   {version:"8.6.4", date:"2026-09-21", items:[
     "Fixed: a renamed section (e.g. \"Measurements\" renamed to \"Measures\") could lose its tab icon and fall back to a generic circle if the rename's internal record ever fell out of sync with the section's saved name — now self-heals automatically on load."
   ]},

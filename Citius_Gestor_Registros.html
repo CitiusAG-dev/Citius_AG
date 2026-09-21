@@ -8491,6 +8491,30 @@ const GROUP_RENAMES_KEY="citius_group_renames_v1";
 function loadGroupRenames(){ try{ const s=localStorage.getItem(GROUP_RENAMES_KEY); if(s) return JSON.parse(s); }catch(e){} return {}; }
 function saveGroupRenames(){ try{ localStorage.setItem(GROUP_RENAMES_KEY, JSON.stringify(groupRenames)); }catch(e){} }
 let groupRenames=loadGroupRenames();
+/* Bug real reportado por el usuario (screenshot: sección "Measures" con el ícono genérico de círculo en
+   vez del que tenía "Measurements") — groupRenames solo se llena dentro de renameFieldGroup() (botón
+   "Rename this section" de Configuración > Campos); un grupo renombrado por cualquier otra vía (ej.
+   editando a mano la columna GRUPO del Archivo de Configuración vinculado, ver loadFieldConfigFromSheet())
+   nunca queda registrado ahí, así que GROUP_META/TRANSACCION_FIELD_GROUP/el historial de "Listing" dejan
+   de reconocerlo silenciosamente. Esta función reconcilia groupRenames contra la realidad actual de
+   fieldConfig cada vez que arranca la app: para cada campo, compara su group ACTUAL contra el group
+   ORIGINAL hardcodeado en BUNDLE — si ya no coinciden (fue renombrado, sea como sea) y groupRenames no
+   refleja ya ese mismo destino, lo corrige. Autoreparable sin depender de por dónde vino el renombre. */
+function reconcileGroupRenames(){
+  let changed=false;
+  for(const ent in BUNDLE){
+    const originalGroupOf={}; BUNDLE[ent].fields.forEach(f=>{ originalGroupOf[f.key]=f.group; });
+    (fieldConfig[ent]||[]).forEach(f=>{
+      const original=originalGroupOf[f.key];
+      if(original && original!==f.group && currentGroupName(original)!==f.group){
+        groupRenames[original]=f.group;
+        changed=true;
+      }
+    });
+  }
+  if(changed) saveGroupRenames();
+}
+reconcileGroupRenames();
 /* Sigue la cadena de renombres a partir de un nombre ORIGINAL (el que está hardcodeado en GROUP_META o
    TRANSACCION_FIELD_GROUP) hasta su nombre VIGENTE hoy — soporta más de un renombre encadenado del mismo
    grupo. Si nunca se renombró, regresa el mismo nombre que se le pasó. */

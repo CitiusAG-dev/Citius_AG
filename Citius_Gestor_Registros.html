@@ -2075,7 +2075,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.7.1</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.8.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -4784,6 +4784,13 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.8.0", date:"2026-09-22", items:[
+    "Summary/Market Report: \"Total Market (Class A and B)\" and \"(A, B and C)\" now also require \"Status\" = \"Ready\" (previously included Under Construction/Under Development/Planned) -- also affects Vacancy Rate and Availability Rate, which divide by this KPI.",
+    "Market Report (PDF), Completed Transactions -- Detail: removed the Submarket column (still grouped by the gray separator row, like Available Inventory -- Detail); added Property Name after Tenant/Buyer and Broker (was Tenant Rep Broker) at the end; Location is now just the Park name.",
+    "Market Report (PDF), Available Inventory -- Detail: added a Generation column (Building Generation) after Class; \"Under Construction\" now shows as \"UC\" in the Status column.",
+    "Market Report (PDF), cover page: Land Price Min/Max is now always shown in m^2, regardless of the Imperial/Metric selector.",
+    "Market Report (PDF), Cover Data: Analyst is now a dropdown of 8 people (sorted alphabetically) instead of free text -- picking one also fills their role (Analyst vs Manager, varies per person) and office/address on the cover."
+  ]},
   {version:"8.7.1", date:"2026-09-22", items:[
     "Market Report (PDF): Completed Transactions -- Detail and Available Inventory -- Detail now use the same fixed column widths on every page, instead of each page auto-sizing its columns from only the rows that landed on it.",
     "Spaces: new \"Status\" field (Property section) -- the linked Office's own building status (Ready/Under Construction/Under Development/Planned), read-only and auto-filled, kept in sync automatically (including for existing Spaces, backfilled the moment you open the Spaces tab)."
@@ -6383,8 +6390,11 @@ function inSizeBucket(value, bucket){
 }
 function resumenKpis(year){
   const P=(state.PROPIEDADES||[]).filter(r=>resumenMarketMatches(r,"PROPIEDADES"));
-  const marketAB=sumByPredicate(P,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B"));
-  const marketABC=sumByPredicate(P,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B")||ciEq(r.CLASSIFICATION,"C"));
+  // Pedido explícito del usuario: "Total Market" ahora también exige Status = Ready (antes incluía
+  // Under Construction/Under Development/Planned) — el "mercado total" representa inventario YA construido,
+  // no lo que todavía está en proceso.
+  const marketAB=sumByPredicate(P,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.STATUS,"Ready")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B")));
+  const marketABC=sumByPredicate(P,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.STATUS,"Ready")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B")||ciEq(r.CLASSIFICATION,"C")));
   const inventory=sumByPredicate(P,"AVAILABLE_AREA_VALUE", r=>ciEq(r.STATUS,"Ready")&&ciEq(r.MARKET_STATUS,"Available")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B")));
   const vacancyRate=marketAB>0?inventory/marketAB:0;
   const underConstruction=sumByPredicate(P,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.STATUS,"Under Construction")&&ciEq(r.MARKET_STATUS,"Available")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B")));
@@ -6796,6 +6806,22 @@ function loadMktShowState(){
 }
 function saveMktShowState(){ try{ localStorage.setItem(MKT_SHOW_KEY, JSON.stringify(mktShowState)); }catch(e){} }
 let mktShowState=loadMktShowState();
+/* Pedido explícito del usuario: el analista de la portada ya no es un nombre libre — cada persona real trae
+   consigo su propio puesto (Analyst vs Manager, no siempre el mismo) y su propia oficina/dirección, así que
+   elegirla de esta lista fija rellena las 3 cosas de una vez en vez de solo el nombre (antes el puesto y la
+   dirección quedaban hardcodeados en mktTeamHtml sin importar quién fuera, ver ese comentario más abajo). */
+// Pedido explícito del usuario: orden alfabético por nombre (así queda también el <select> del panel
+// "Cover Data", que recorre este mismo array en el mismo orden).
+const MKT_COVER_ANALYSTS=[
+  {name:"Carlos Garces", role:"Market Intel Analyst", office:"Torre Reforma", addr:["Av. Paseo de la Reforma #483","Col. Cuauhtémoc, CDMX, Mexico."]},
+  {name:"Christian Barajas", role:"Market Intel Analyst", office:"Foro 4", addr:["Manuel J. Clouthier #304","Col. Jardines del Campestre, Leon, Gto."]},
+  {name:"Clementina Margain", role:"Market Intel Manager", office:"Querétaro Business Park 2", addr:["Avenida Antea #1090,","Col. Jurica, Querétaro, Qro."]},
+  {name:"Dario Torrez", role:"Market Intel Analyst", office:"VIA Corporativo - IOS Offices", addr:["Misión de San Javier #10643-405","Zona Urbana Rio, Tijuana, B.C."]},
+  {name:"Felipe Carrillo", role:"Market Intel Analyst", office:"The Landmark", addr:["Paseo de los Virreyes 45","Guadalajara, Jalisco"]},
+  {name:"Idalia Gardea", role:"Market Intel Manager", office:"Equus 335", addr:["Ave. Ricardo Margáin #335","Col. Valle del Campestre, SPGG, NL.."]},
+  {name:"Jorge Champion", role:"Market Intel Analyst", office:"Centro de Negocios Alianza", addr:["Blvd. Teofilo Borunda #8349","Cd, Juárez Chih."]},
+  {name:"Luis Martinez", role:"Market Intel Analyst", office:"Corporativo Altus", addr:["Sierra Leona #360,","Col. Villantigua, SLP, Mexico"]}
+];
 const MKT_COVER_KEY="citius_mkt_report_cover_v1";
 function loadMktCoverInfo(){
   const defaults={analystName:"", quarter:""};
@@ -6862,9 +6888,12 @@ function toggleMktCoverEditPanel(evt){
       <h5>Cover Data</h5>
       <button type="button" class="x" onclick="closeMktCoverEditPanel()">&times;</button>
     </div>
-    <div class="field"><label>Analyst name</label><input type="text" id="mktCoverEditAnalyst" placeholder="Name shown on the cover" value="${escapeAttr(mktCoverInfo.analystName||"")}"></div>
+    <div class="field"><label>Analyst</label><select id="mktCoverEditAnalyst">
+      <option value="">— Select —</option>
+      ${MKT_COVER_ANALYSTS.map(p=>`<option value="${escapeAttr(p.name)}" ${p.name===mktCoverInfo.analystName?"selected":""}>${escapeHtml(p.name)}</option>`).join("")}
+    </select></div>
     <div class="field"><label>Quarter (cover + page headers)</label><input type="text" id="mktCoverEditQuarter" placeholder="3Q" value="${escapeAttr(mktCoverInfo.quarter||"")}"></div>
-    <p class="map-hint" style="margin:2px 0 0">Both are required before printing/exporting — nothing is pre-filled or auto-calculated. The Quarter also feeds the PDF file name.</p>`;
+    <p class="map-hint" style="margin:2px 0 0">Both are required before printing/exporting — nothing is pre-filled or auto-calculated. Picking an Analyst also fills their role and office address on the cover. The Quarter also feeds the PDF file name.</p>`;
   document.body.appendChild(el);
   const r=btn.getBoundingClientRect();
   el.style.left=Math.max(8, Math.min(r.left, window.innerWidth-8-300))+"px";
@@ -6872,7 +6901,7 @@ function toggleMktCoverEditPanel(evt){
   // renderMktReportContentOnly() en vez de renderResumenView(): este panel se ancla a un botón que vive en
   // #resumenHeaderBar, así que redibujar el header completo en cada tecla reemplazaba ese botón bajo el
   // panel abierto (ver el mismo cambio en los checkboxes de "Design").
-  document.getElementById("mktCoverEditAnalyst").oninput=(e)=>{
+  document.getElementById("mktCoverEditAnalyst").onchange=(e)=>{
     mktCoverInfo.analystName=e.target.value;
     saveMktCoverInfo();
     renderMktReportContentOnly();
@@ -6979,7 +7008,7 @@ function renderResumenView(){
   // and C)" se redacta como diferencia contra la tarjeta anterior en vez de repetir toda la regla.
   const kpiCards=[
     ["Total Market (Class A and B)", area(k.marketAB),
-      `Sum of "Leasable Area (GLA)" for Properties with "Classification" = "A" or "B".`],
+      `Sum of "Leasable Area (GLA)" for Properties with "Status" = "Ready" and "Classification" = "A" or "B".`],
     ["Total Market (A, B and C)", area(k.marketABC),
       `Same as "Total Market (Class A and B)", but also includes Properties with "Classification" = "C".`],
     ["Available Inventory (Ready)", area(k.inventory),
@@ -7600,7 +7629,11 @@ function mktBuildCoverPage(){
     ["Availability Rate", pct(k.availabilityRate), false],
     ["Lease Transactions", area(k.leaseTx), false],
     ["Average Asking Price ("+resumenAreaUnitLabel()+"/Mo)", money(k.avgAsking), true],
-    ["Land Prices Min - Max ("+resumenAreaUnitLabel()+")", k.landPriceMin||k.landPriceMax?`US $ ${resumenRateVal(k.landPriceMin).toFixed(2)} - ${resumenRateVal(k.landPriceMax).toFixed(2)}`:"—", false]
+    // Pedido explícito del usuario: Land Price en la portada del Market Report siempre en m² — a diferencia
+    // del resto de esta tabla (que sigue el selector Imperial/Metric vía resumenRateVal()), este renglón
+    // ignora ese selector a propósito, así que la conversión va directo (k.landPriceMin/Max ya vienen en
+    // base USD/SF, ver resumenKpis()) en vez de resumenRateVal().
+    ["Land Prices Min - Max ("+UNIT_CONVERSIONS.SF_M2.metric+")", k.landPriceMin||k.landPriceMax?`US $ ${(k.landPriceMin/UNIT_CONVERSIONS.SF_M2.toMetric).toFixed(2)} - ${(k.landPriceMax/UNIT_CONVERSIONS.SF_M2.toMetric).toFixed(2)}`:"—", false]
   // v7.3.16, pedido explícito del usuario: dentro de "Total Market (Class A & B Bldgs)" (fila en negritas),
   // el paréntesis va en peso normal — solo "Total Market" se queda en negritas.
   ].map(([label,value,strong])=>{
@@ -7616,13 +7649,19 @@ function mktBuildCoverPage(){
   // analista ya NO tiene nombre por defecto — sale del panel "Cover Data" (mktCoverInfo.analystName) y,
   // mientras esté vacío, su bloque completo (nombre + puesto + dirección) simplemente no se dibuja, en vez
   // de dejar un puesto/dirección colgando bajo un nombre en blanco.
+  // v_pendiente, pedido explícito del usuario: el puesto y la dirección ya NO son un texto fijo compartido
+  // por cualquiera que se ponga como analista — se eligen de MKT_COVER_ANALYSTS (ver ese comentario grande
+  // junto a esa lista), cada quien con su propio puesto (Analyst/Manager) y oficina. Si analystName trae un
+  // nombre viejo que ya no está en esa lista (dato guardado antes de este cambio), se muestra el nombre solo
+  // — sin inventar puesto/dirección de otra persona.
+  const selectedAnalyst=MKT_COVER_ANALYSTS.find(p=>p.name===mktCoverInfo.analystName);
   const mktTeamHtml=[
-    {name:String(mktCoverInfo.analystName||"").trim(), role:"Market Intel Analyst"},
-    {name:"Abigail Rodriguez", role:"Market Intel Director", phone:"T +52 81 8368 2000"}
+    selectedAnalyst || (mktCoverInfo.analystName?{name:String(mktCoverInfo.analystName).trim(), role:"", office:"", addr:[]}:{name:""}),
+    {name:"Abigail Rodriguez", role:"Market Intel Director", office:"Equus 335", addr:["Ave. Ricardo Margáin #335","Col. Valle del Campestre, SPGG, NL.."], phone:"T +52 81 8368 2000"}
   ].filter(p=>p.name).map(p=>`<div class="mkt-cover-person">
       <div class="mkt-cover-person-name">${escapeHtml(p.name)}</div>
-      <div class="mkt-cover-person-role">${escapeHtml(p.role)}</div>
-      <div class="mkt-cover-person-addr">Equus 335<br>Ave. Ricardo Margáin #335<br>Col. Valle del Campestre, SPGG, NL..</div>
+      <div class="mkt-cover-person-role">${escapeHtml(p.role||"")}</div>
+      <div class="mkt-cover-person-addr">${p.office?escapeHtml(p.office)+"<br>":""}${(p.addr||[]).map(escapeHtml).join("<br>")}</div>
       ${p.phone?`<div class="mkt-cover-person-phone">${escapeHtml(p.phone)}</div>`:""}
     </div>`).join("");
   return `<div class="mkt-page mkt-cover-page">
@@ -7762,11 +7801,14 @@ function mktBuildTxDetailPage(){
   const subs=resumenSubmarkets();
   const yearStart=`${resumenYear}-01-01`, yearEnd=`${resumenYear}-12-31`;
   const num=v=>Math.round(v).toLocaleString("en-US");
-  const theadHtml=`<tr><th>Submarket</th><th>Tenant/Buyer</th><th>Developer</th><th>Location</th><th>Area (${resumenAreaUnitLabel()})</th><th>Building Type</th><th>Q</th><th>Trans</th></tr>`;
+  // Pedido explícito del usuario: quitar la columna Submarket (queda igual que Available Inventory —
+  // Detail, que ya agrupa por submercado solo con el renglón separador gris, sin columna propia) y agregar
+  // Property Name (después de Tenant/Buyer) y Tenant Rep Broker (al final).
+  const theadHtml=`<tr><th>Tenant/Buyer</th><th>Property Name</th><th>Developer</th><th>Location</th><th>Area (${resumenAreaUnitLabel()})</th><th>Building Type</th><th>Q</th><th>Trans</th><th>Broker</th></tr>`;
   // Bug real reportado por el usuario: mismo % de ancho en TODAS las páginas (ver comentario grande junto a
   // .mkt-detail-table en el CSS) — sin esto, table-layout:auto le da a cada página un ancho de columna
   // distinto según el contenido que le tocó.
-  const colgroupHtml=`<colgroup><col style="width:10%"><col style="width:18%"><col style="width:14%"><col style="width:20%"><col style="width:10%"><col style="width:14%"><col style="width:6%"><col style="width:8%"></colgroup>`;
+  const colgroupHtml=`<colgroup><col style="width:16%"><col style="width:14%"><col style="width:12%"><col style="width:14%"><col style="width:9%"><col style="width:12%"><col style="width:5%"><col style="width:7%"><col style="width:11%"></colgroup>`;
   let lines=[], grandTotalSF=0;
   subs.forEach(sm=>{
     // v7.3.5x, pedido explícito del usuario: solo Lease/Sublease/Sale (antes salían todos los tipos, ej.
@@ -7776,7 +7818,7 @@ function mktBuildTxDetailPage(){
     // v7.3.5x, bug real reportado por el usuario (con captura): colspan=7 dejaba SIN celda la 8va columna
     // (Trans) en este renglón — como .mkt-group-row pinta gris vía `td{background:#eee}`, esa columna sin
     // <td> no tenía nada que pintar y se veía blanca en vez de gris, en TODOS los separadores de submercado.
-    lines.push(`<tr class="mkt-group-row"><td colspan="8">▼ ${escapeHtml(sm.toUpperCase())}</td></tr>`);
+    lines.push(`<tr class="mkt-group-row"><td colspan="9">▼ ${escapeHtml(sm.toUpperCase())}</td></tr>`);
     // v7.3.5x, pedido explícito del usuario: orden Submarket (el agrupado de arriba) -> Q -> Developer
     // (antes solo por fecha completa, que ordenaba por Q pero sin desempatar por Developer dentro del
     // mismo trimestre).
@@ -7788,7 +7830,9 @@ function mktBuildTxDetailPage(){
       const areaSF=areaValueInSF(r,"TRANSACTION_AREA");
       grandTotalSF+=areaSF;
       const q=quarterOfDate(r.TRANSACTION_DATE);
-      lines.push(`<tr><td>${escapeHtml(sm)}</td><td>${escapeHtml(r.TENANT_BUYER_USER||"Confidential")}</td><td>${escapeHtml(r.DEVELOPER||"")}</td><td>${escapeHtml(r.PARK_NAME||r.PROPERTY_NAME||"")}</td><td class="num-cell">${num(resumenAreaVal(areaSF))}</td><td>${escapeHtml(r.BUILDING_TYPE||"")}</td><td class="mkt-center">${q?q+"Q":"—"}</td><td>${escapeHtml(r.TRANSACCION_TYPE||"")}</td></tr>`);
+      // Location ahora es SOLO el Parque (igual que Available Inventory — Detail) — Property Name (el
+      // edificio) ya tiene su propia columna, mostrarlo también aquí sería redundante.
+      lines.push(`<tr><td>${escapeHtml(r.TENANT_BUYER_USER||"Confidential")}</td><td>${escapeHtml(r.PROPERTY_NAME||"")}</td><td>${escapeHtml(r.DEVELOPER||"")}</td><td>${escapeHtml(r.PARK_NAME||"")}</td><td class="num-cell">${num(resumenAreaVal(areaSF))}</td><td>${escapeHtml(r.BUILDING_TYPE||"")}</td><td class="mkt-center">${q?q+"Q":"—"}</td><td>${escapeHtml(r.TRANSACCION_TYPE||"")}</td><td>${escapeHtml(r.TENANT_REP_BROKER||"")}</td></tr>`);
     });
   });
   if(!lines.length){
@@ -7798,12 +7842,12 @@ function mktBuildTxDetailPage(){
         <table class="mkt-table mkt-detail-table">
           ${colgroupHtml}
           <thead>${theadHtml}</thead>
-          <tbody><tr><td colspan="8" class="mkt-empty">No transactions.</td></tr></tbody>
+          <tbody><tr><td colspan="9" class="mkt-empty">No transactions.</td></tr></tbody>
         </table>
       </div>
     </div>`;
   }
-  lines.push(`<tr class="mkt-total-row"><td colspan="4">TOTAL:</td><td class="num-cell">${num(resumenAreaVal(grandTotalSF))} ${resumenAreaUnitLabel()}</td><td colspan="3"></td></tr>`);
+  lines.push(`<tr class="mkt-total-row"><td colspan="4">TOTAL:</td><td class="num-cell">${num(resumenAreaVal(grandTotalSF))} ${resumenAreaUnitLabel()}</td><td colspan="4"></td></tr>`);
   return mktPaginateDetailPages("Completed Transactions — Detail", theadHtml, lines, colgroupHtml);
 }
 /* ==== Página 4: Available Inventory — resumen (matriz por Submercado + 4 donas) ==== */
@@ -7854,18 +7898,20 @@ function mktBuildAvailSummaryPage(){
 function mktBuildAvailDetailPage(){
   const subs=resumenSubmarkets();
   const num=v=>Math.round(v).toLocaleString("en-US");
-  const theadHtml=`<tr><th>Name</th><th>Developer</th><th>Location</th><th>Size (${resumenAreaUnitLabel()})</th><th>Occupied</th><th>Available</th><th>Clear Height (${resumenHeightUnitLabel()})</th><th>Status</th><th>Class</th><th>$/${resumenAreaUnitLabel()}/Mo</th></tr>`;
+  // Pedido explícito del usuario: nueva columna "Generation" (Building Generation, campo BUILDING_GENERATION
+  // de Propiedades) después de Class.
+  const theadHtml=`<tr><th>Name</th><th>Developer</th><th>Location</th><th>Size (${resumenAreaUnitLabel()})</th><th>Occupied</th><th>Available</th><th>Clear Height (${resumenHeightUnitLabel()})</th><th>Status</th><th>Class</th><th>Generation</th><th>$/${resumenAreaUnitLabel()}/Mo</th></tr>`;
   // Bug real reportado por el usuario: mismo % de ancho en TODAS las páginas (ver comentario grande junto a
   // .mkt-detail-table en el CSS) — sin esto, table-layout:auto le da a cada página un ancho de columna
   // distinto según el contenido que le tocó.
-  const colgroupHtml=`<colgroup><col style="width:12%"><col style="width:10%"><col style="width:20%"><col style="width:9%"><col style="width:8%"><col style="width:7%"><col style="width:10%"><col style="width:8%"><col style="width:6%"><col style="width:10%"></colgroup>`;
+  const colgroupHtml=`<colgroup><col style="width:12%"><col style="width:10%"><col style="width:15%"><col style="width:9%"><col style="width:8%"><col style="width:7%"><col style="width:10%"><col style="width:8%"><col style="width:6%"><col style="width:8%"><col style="width:7%"></colgroup>`;
   let lines=[], grandTotalSF=0;
   subs.forEach(sm=>{
     const rows=(state.PROPIEDADES||[]).filter(r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B"))&&ciEq(r.MARKET_STATUS,"Available"));
     if(!rows.length) return;
     // v7.3.5x, pedido explícito del usuario: ya no lleva el total del submercado en la misma línea del
-    // separador (colspan ahora cubre las 10 columnas completas, antes 9 + una celda de total aparte).
-    lines.push(`<tr class="mkt-group-row"><td colspan="10">▼ ${escapeHtml(sm.toUpperCase())}</td></tr>`);
+    // separador (colspan ahora cubre las 11 columnas completas).
+    lines.push(`<tr class="mkt-group-row"><td colspan="11">▼ ${escapeHtml(sm.toUpperCase())}</td></tr>`);
     // v7.3.5x, pedido explícito del usuario: orden Submarket (el agrupado de arriba) -> Developer.
     rows.slice().sort((a,b)=>String(a.DEVELOPER||"").localeCompare(String(b.DEVELOPER||""))).forEach(r=>{
       const availSF=areaValueInSF(r,"AVAILABLE_AREA_VALUE");
@@ -7875,13 +7921,17 @@ function mktBuildAvailDetailPage(){
       // que el resto del reporte (askingRateValueInSF + resumenRateVal, mismo criterio que money() en la
       // portada).
       const rate=r.ASKING_RATE_VALUE?`${/usd/i.test(r.ASKING_RATE_UNIT||"")?"US":"MX"} $ ${resumenRateVal(askingRateValueInSF(r)).toFixed(2)}`:"UR";
+      // Pedido explícito del usuario: "Under Construction" se abrevia a "UC" en esta tabla (el resto de la
+      // app sigue mostrando el valor completo — es solo el texto de despliegue de este reporte).
+      const statusText=ciEq(r.STATUS,"Under Construction")?"UC":(r.STATUS||"—");
       lines.push(`<tr><td>${escapeHtml(r.PROPERTY_NAME||r.MAPPING_CODE||"")}</td><td>${escapeHtml(r.DEVELOPER||"")}</td><td>${escapeHtml(r.PARK_NAME||"")}</td>
         <td class="num-cell">${num(resumenAreaVal(areaValueInSF(r,"LEASABLE_AREA_GLA_VALUE")))}</td>
         <td class="num-cell">${num(resumenAreaVal(areaValueInSF(r,"OCCUPIED_AREA_VALUE")))}</td>
         <td class="num-cell">${num(resumenAreaVal(availSF))}</td>
         <td class="mkt-center">${r.MIN_CLEAR_HEIGHT_VALUE!=null&&r.MIN_CLEAR_HEIGHT_VALUE!==""?fmtNum(resumenHeightVal(heightValueInFt(r,"MIN_CLEAR_HEIGHT_VALUE"))):"—"}</td>
-        <td class="mkt-center">${escapeHtml(r.STATUS||"—")}</td>
+        <td class="mkt-center">${escapeHtml(statusText)}</td>
         <td class="mkt-center">${escapeHtml(r.CLASSIFICATION||"—")}</td>
+        <td class="mkt-center">${escapeHtml(r.BUILDING_GENERATION||"—")}</td>
         <td class="num-cell">${rate}</td></tr>`);
     });
   });
@@ -7892,12 +7942,12 @@ function mktBuildAvailDetailPage(){
         <table class="mkt-table mkt-detail-table">
           ${colgroupHtml}
           <thead>${theadHtml}</thead>
-          <tbody><tr><td colspan="10" class="mkt-empty">No available inventory.</td></tr></tbody>
+          <tbody><tr><td colspan="11" class="mkt-empty">No available inventory.</td></tr></tbody>
         </table>
       </div>
     </div>`;
   }
-  lines.push(`<tr class="mkt-total-row"><td colspan="5">TOTAL:</td><td class="num-cell">${num(resumenAreaVal(grandTotalSF))} ${resumenAreaUnitLabel()}</td><td colspan="4"></td></tr>`);
+  lines.push(`<tr class="mkt-total-row"><td colspan="5">TOTAL:</td><td class="num-cell">${num(resumenAreaVal(grandTotalSF))} ${resumenAreaUnitLabel()}</td><td colspan="5"></td></tr>`);
   return mktPaginateDetailPages("Available Inventory — Detail", theadHtml, lines, colgroupHtml);
 }
 function renderMarketReportHtml(){

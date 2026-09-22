@@ -451,7 +451,17 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-box .mkt-absorption-table tr:last-child td{border-bottom:none}
   .mkt-total-row td{background:var(--panel-2);font-weight:700;border-top:1.5px solid var(--txt)}
   .mkt-group-row td{background:#eee;font-weight:700;text-transform:uppercase;font-size:10px;letter-spacing:.3px}
-  .mkt-detail-table{font-size:10px}
+  /* Bug real reportado por el usuario (con captura): Completed/Available Detail paginan en varias
+     `.mkt-table` SEPARADAS (una por página, ver mktPaginateDetailPages()) — con table-layout:auto (el
+     default), cada `<table>` calcula el ancho de sus columnas SOLO a partir de las filas que le tocaron a
+     ESA página, así que 2 páginas de la misma tabla con contenido distinto (ej. nombres de Parque más
+     largos en una que en otra) terminaban con anchos de columna distintos entre sí. table-layout:fixed +
+     un <colgroup> con los mismos % en las 2 (ver el `colgroupHtml` local de mktBuildTxDetailPage()/
+     mktBuildAvailDetailPage(), cada tabla trae el suyo, pasado a mktPaginateDetailPages()) fuerza el mismo
+     ancho en TODAS las páginas, sin importar su contenido — el texto
+     que no quepa se envuelve a una 2da línea (comportamiento normal de <td>, nunca se activó un
+     white-space:nowrap aquí) en vez de forzar el ancho de su columna hacia arriba. */
+  .mkt-detail-table{font-size:10px;table-layout:fixed}
   /* v7.3.5x, pedido explícito del usuario: headers centrados en las tablas de detalle (Completed
      Transactions / Available Inventory) — las celdas de datos NO se tocan (siguen a la izquierda, o a la
      derecha las numéricas vía .num-cell). */
@@ -7701,13 +7711,14 @@ function mktBuildTxSummaryPage(){
    mano contando cuántas líneas caben de verdad en una hoja Carta horizontal a este tamaño de letra. Cada
    hoja nueva repite el mismo encabezado de página (mktPageHeaderHtml) y el mismo header de columnas. */
 const MKT_DETAIL_LINES_PER_PAGE=30;
-function mktPaginateDetailPages(pageTitle, theadHtml, bodyLineRows){
+function mktPaginateDetailPages(pageTitle, theadHtml, bodyLineRows, colgroupHtml){
   const chunks=[];
   for(let i=0;i<bodyLineRows.length;i+=MKT_DETAIL_LINES_PER_PAGE) chunks.push(bodyLineRows.slice(i,i+MKT_DETAIL_LINES_PER_PAGE));
   return chunks.map(chunk=>`<div class="mkt-page">
     ${mktPageHeaderHtml(pageTitle)}
     <div class="mkt-page-body">
       <table class="mkt-table mkt-detail-table">
+        ${colgroupHtml||""}
         <thead>${theadHtml}</thead>
         <tbody>${chunk.join("")}</tbody>
       </table>
@@ -7720,6 +7731,10 @@ function mktBuildTxDetailPage(){
   const yearStart=`${resumenYear}-01-01`, yearEnd=`${resumenYear}-12-31`;
   const num=v=>Math.round(v).toLocaleString("en-US");
   const theadHtml=`<tr><th>Submarket</th><th>Tenant/Buyer</th><th>Developer</th><th>Location</th><th>Area (${resumenAreaUnitLabel()})</th><th>Building Type</th><th>Q</th><th>Trans</th></tr>`;
+  // Bug real reportado por el usuario: mismo % de ancho en TODAS las páginas (ver comentario grande junto a
+  // .mkt-detail-table en el CSS) — sin esto, table-layout:auto le da a cada página un ancho de columna
+  // distinto según el contenido que le tocó.
+  const colgroupHtml=`<colgroup><col style="width:10%"><col style="width:18%"><col style="width:14%"><col style="width:20%"><col style="width:10%"><col style="width:14%"><col style="width:6%"><col style="width:8%"></colgroup>`;
   let lines=[], grandTotalSF=0;
   subs.forEach(sm=>{
     // v7.3.5x, pedido explícito del usuario: solo Lease/Sublease/Sale (antes salían todos los tipos, ej.
@@ -7749,6 +7764,7 @@ function mktBuildTxDetailPage(){
       ${mktPageHeaderHtml("Completed Transactions — Detail")}
       <div class="mkt-page-body">
         <table class="mkt-table mkt-detail-table">
+          ${colgroupHtml}
           <thead>${theadHtml}</thead>
           <tbody><tr><td colspan="8" class="mkt-empty">No transactions.</td></tr></tbody>
         </table>
@@ -7756,7 +7772,7 @@ function mktBuildTxDetailPage(){
     </div>`;
   }
   lines.push(`<tr class="mkt-total-row"><td colspan="4">TOTAL:</td><td class="num-cell">${num(resumenAreaVal(grandTotalSF))} ${resumenAreaUnitLabel()}</td><td colspan="3"></td></tr>`);
-  return mktPaginateDetailPages("Completed Transactions — Detail", theadHtml, lines);
+  return mktPaginateDetailPages("Completed Transactions — Detail", theadHtml, lines, colgroupHtml);
 }
 /* ==== Página 4: Available Inventory — resumen (matriz por Submercado + 4 donas) ==== */
 function mktBuildAvailSummaryPage(){
@@ -7807,6 +7823,10 @@ function mktBuildAvailDetailPage(){
   const subs=resumenSubmarkets();
   const num=v=>Math.round(v).toLocaleString("en-US");
   const theadHtml=`<tr><th>Name</th><th>Developer</th><th>Location</th><th>Size (${resumenAreaUnitLabel()})</th><th>Occupied</th><th>Available</th><th>Clear Height (${resumenHeightUnitLabel()})</th><th>Status</th><th>Class</th><th>$/${resumenAreaUnitLabel()}/Mo</th></tr>`;
+  // Bug real reportado por el usuario: mismo % de ancho en TODAS las páginas (ver comentario grande junto a
+  // .mkt-detail-table en el CSS) — sin esto, table-layout:auto le da a cada página un ancho de columna
+  // distinto según el contenido que le tocó.
+  const colgroupHtml=`<colgroup><col style="width:12%"><col style="width:10%"><col style="width:20%"><col style="width:9%"><col style="width:8%"><col style="width:7%"><col style="width:10%"><col style="width:8%"><col style="width:6%"><col style="width:10%"></colgroup>`;
   let lines=[], grandTotalSF=0;
   subs.forEach(sm=>{
     const rows=(state.PROPIEDADES||[]).filter(r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B"))&&ciEq(r.MARKET_STATUS,"Available"));
@@ -7838,6 +7858,7 @@ function mktBuildAvailDetailPage(){
       ${mktPageHeaderHtml("Available Inventory — Detail")}
       <div class="mkt-page-body">
         <table class="mkt-table mkt-detail-table">
+          ${colgroupHtml}
           <thead>${theadHtml}</thead>
           <tbody><tr><td colspan="10" class="mkt-empty">No available inventory.</td></tr></tbody>
         </table>
@@ -7845,7 +7866,7 @@ function mktBuildAvailDetailPage(){
     </div>`;
   }
   lines.push(`<tr class="mkt-total-row"><td colspan="5">TOTAL:</td><td class="num-cell">${num(resumenAreaVal(grandTotalSF))} ${resumenAreaUnitLabel()}</td><td colspan="4"></td></tr>`);
-  return mktPaginateDetailPages("Available Inventory — Detail", theadHtml, lines);
+  return mktPaginateDetailPages("Available Inventory — Detail", theadHtml, lines, colgroupHtml);
 }
 function renderMarketReportHtml(){
   if(!resumenMarket){

@@ -5453,13 +5453,13 @@ function statusPill(v){
    statusPill(): esa función genérica por substring sigue usándose tal cual para PARKS.STATUS (valores
    "Ready"/"Under Construction"/etc., mapa de colores completamente distinto), no se tocó. Solo se
    redefinió el color para las 3 opciones reales de la lista MARKET_STATUS (`DEFAULT_LISTS.MARKET_STATUS`):
-   Vacant→verde, Available→amarillo, Occupied→rojo (antes "avail" caía en verde vía statusPill — ahora
-   Available es amarillo). Cualquier valor que no matchee ninguna de las 3 (dato viejo/atípico) cae a gris,
-   igual que el fallback de statusPill. */
+   Vacant→verde, Available→verde (pedido explícito del usuario, v_pendiente — antes amarillo desde v3.30.3),
+   Occupied→rojo. Cualquier valor que no matchee ninguna de las 3 (dato viejo/atípico) cae a gris, igual que
+   el fallback de statusPill. */
 function marketStatusPill(v){
   if(!v) return '<span class="pill gray">—</span>';
   if(ciEq(v,"Vacant")) return `<span class="pill green">${v}</span>`;
-  if(ciEq(v,"Available")) return `<span class="pill amber">${v}</span>`;
+  if(ciEq(v,"Available")) return `<span class="pill green">${v}</span>`;
   if(ciEq(v,"Occupied")) return `<span class="pill red">${v}</span>`;
   return `<span class="pill gray">${v}</span>`;
 }

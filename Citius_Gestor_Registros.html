@@ -2085,6 +2085,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
           <button type="button" class="btn ghost" id="officeOptionsBtn" style="display:none" onclick="toggleOfficeOptionsPanel()">Presentation options<span class="pill amber" id="officeOptionsCountPill" style="display:none;margin-left:6px"></span></button>
           <div class="office-staging-actions" id="officeStagingActions" style="display:none">
             <button type="button" class="btn ghost" id="officeStagingGroupBtn" onclick="groupOfficeStagingAsOption()"></button>
+            <span class="muted" id="officeStagingMixedHint" style="display:none;font-size:12px;align-self:center">Select floors from a single Office to group them</span>
             <button type="button" class="btn ghost" id="officeStagingIndividualBtn" onclick="addOfficeStagingIndividually()"></button>
           </div>
           <span class="pill amber" id="presSelectedChip" style="display:none"></span>
@@ -5977,7 +5978,14 @@ function renderTable(){
       // llevaría esa Opción ANTES de confirmarla — mismo cálculo (y misma unidad, según el selector
       // "Units") que ya usa cada Opción ya armada, ver officeOptionAreaForDisplay().
       const stagingArea=officeOptionAreaForDisplay(officeSpaceStaging);
-      document.getElementById("officeStagingGroupBtn").textContent=`Add Group (${staging} — ${fmt(Math.round(stagingArea.value))} ${stagingArea.unit})`;
+      // Bug real reportado por el usuario: "Add Group" solo debe aparecer si TODO lo marcado es de la misma
+      // Oficina (ver officeStagingIsSingleOffice()) — agrupar pisos de torres distintas en una sola Opción
+      // no tiene sentido. Con más de 1 Oficina marcada, se oculta el botón y se muestra un hint en su lugar;
+      // "Add Individually" sigue disponible siempre (cada Space se ofrece por separado, sin mezclar áreas).
+      const singleOffice=officeStagingIsSingleOffice();
+      document.getElementById("officeStagingGroupBtn").style.display=singleOffice?"":"none";
+      document.getElementById("officeStagingMixedHint").style.display=singleOffice?"none":"";
+      if(singleOffice) document.getElementById("officeStagingGroupBtn").textContent=`Add Group (${staging} — ${fmt(Math.round(stagingArea.value))} ${stagingArea.unit})`;
       document.getElementById("officeStagingIndividualBtn").textContent=`Add Individually (${staging})`;
     }
   }
@@ -10793,10 +10801,24 @@ function clearAllOfficeSpaceStaging(){
   officeSpaceStaging=[];
   renderTable();
 }
+/* Bug real reportado por el usuario: nada impedía marcar pisos de Oficinas (edificios/torres) DISTINTAS y
+   agruparlos igual en 1 sola Opción, sumando área de edificios que no tienen nada que ver entre sí — "Add
+   Group" siempre se pensó para "varios pisos del MISMO edificio" (ver comentario de groupOfficeStagingAsOption
+   más abajo). Compara por MAPPING_CODE (el ID real de la Oficina dueña de cada Space, ver
+   autofillSpaceFromMappingCode) en vez de PROPERTY_NAME — 2 edificios distintos podrían compartir nombre por
+   error de captura, MAPPING_CODE nunca. Vacío/undefined (Space sin Oficina enlazada todavía) cuenta como su
+   propio "grupo" — normalizeStateText no aplica aquí (no es texto de Estado), un trim simple basta. */
+function officeStagingMappingCodes(){
+  const byId=new Map((state.SPACES||[]).map(r=>[r.__id,r]));
+  return new Set(officeSpaceStaging.map(id=>{ const r=byId.get(id); return r?String(r.MAPPING_CODE||"").trim():""; }));
+}
+function officeStagingIsSingleOffice(){ return officeStagingMappingCodes().size<=1; }
 /* Un solo click junta TODO lo marcado en 1 sola Opción (suma de área) — para "varios pisos del mismo
-   edificio ofrecidos como un solo paquete" (ej. Torre Equus, 4 pisos = 1,200 m²). */
+   edificio ofrecidos como un solo paquete" (ej. Torre Equus, 4 pisos = 1,200 m²). El botón que llama a esto
+   ya se oculta si hay más de 1 Oficina marcada (ver renderTable()) — este guard es solo defensivo, por si se
+   invoca de otra forma. */
 function groupOfficeStagingAsOption(){
-  if(!officeSpaceStaging.length) return;
+  if(!officeSpaceStaging.length || !officeStagingIsSingleOffice()) return;
   officePresOptions.push({id:"opt"+(officeOptionIdSeq++), spaceIds:[...officeSpaceStaging]});
   officeSpaceStaging=[];
   renderTable();

@@ -2075,7 +2075,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.7.1</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.8.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -4784,6 +4784,13 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.8.0", date:"2026-09-22", items:[
+    "Summary/Market Report: \"Total Market (Class A and B)\" and \"(A, B and C)\" now also require \"Status\" = \"Ready\" (previously included Under Construction/Under Development/Planned) -- also affects Vacancy Rate and Availability Rate, which divide by this KPI.",
+    "Market Report (PDF), Completed Transactions -- Detail: removed the Submarket column (still grouped by the gray separator row, like Available Inventory -- Detail); added Property Name after Tenant/Buyer and Broker (was Tenant Rep Broker) at the end; Location is now just the Park name.",
+    "Market Report (PDF), Available Inventory -- Detail: added a Generation column (Building Generation) after Class; \"Under Construction\" now shows as \"UC\" in the Status column.",
+    "Market Report (PDF), cover page: Land Price Min/Max is now always shown in m^2, regardless of the Imperial/Metric selector.",
+    "Market Report (PDF), Cover Data: Analyst is now a dropdown of 8 people (sorted alphabetically) instead of free text -- picking one also fills their role (Analyst vs Manager, varies per person) and office/address on the cover."
+  ]},
   {version:"8.7.1", date:"2026-09-22", items:[
     "Market Report (PDF): Completed Transactions -- Detail and Available Inventory -- Detail now use the same fixed column widths on every page, instead of each page auto-sizing its columns from only the rows that landed on it.",
     "Spaces: new \"Status\" field (Property section) -- the linked Office's own building status (Ready/Under Construction/Under Development/Planned), read-only and auto-filled, kept in sync automatically (including for existing Spaces, backfilled the moment you open the Spaces tab)."

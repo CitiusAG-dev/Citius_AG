@@ -3721,6 +3721,26 @@ function recomputeAllSpaceLinkedFields(office, previousMappingCode){
     SPACE_AUTOFILL_READONLY_KEYS.forEach(key=>{ space[key]=(office[key]!=null?office[key]:""); });
   });
 }
+/* Backfill/resync masivo de TODOS los Spaces (v_pendiente, pedido explícito del usuario: "el campo [STATUS]
+   aparece vacío... solo se popula hasta que relacione nuevamente la propiedad, hay otra forma de hacer esto
+   masivo") — recomputeAllSpaceLinkedFields() de arriba solo refresca los Spaces de UNA Oficina, la que se
+   acaba de guardar desde el formulario; esta versión recorre TODOS los Spaces y les copia
+   SPACE_AUTOFILL_READONLY_KEYS de nuevo desde su Oficina enlazada (por MAPPING_CODE), sin que el usuario
+   tenga que reabrir/reseleccionar cada Space a mano. Sirve tanto para poblar retroactivamente un campo nuevo
+   agregado a ese Set en registros ya capturados (ej. STATUS) como de red de seguridad si los datos de
+   Oficinas cambiaron por fuera de la app (Excel editado a mano) sin pasar por saveBtn.onclick. Se llama sola
+   al entrar a la pestaña Spaces (ver spaceDerivedCacheSig en renderTable(), mismo patrón de cache barato por
+   tamaño de arrays que ya usa recomputeAllParkDerivedFields()/parkDerivedCacheSig) — nunca hace falta
+   invocarla a mano. Un Space cuyo MAPPING_CODE no calza con ninguna Oficina real se deja tal cual, no se le
+   borra nada. */
+function recomputeAllSpacesFromOffices(){
+  const officeByCode=new Map((state.OFICINAS||[]).map(r=>[String(r.MAPPING_CODE||"").trim(), r]));
+  (state.SPACES||[]).forEach(space=>{
+    const office=officeByCode.get(String(space.MAPPING_CODE||"").trim());
+    if(!office) return;
+    SPACE_AUTOFILL_READONLY_KEYS.forEach(key=>{ space[key]=(office[key]!=null?office[key]:""); });
+  });
+}
 /* Reads a sheet whose name contains "LISTA" (if present) and replaces `lists` with what it finds; returns true if it changed anything */
 function loadListsFromSheet(wb){
   const listsSheetName=wb.SheetNames.find(n=>n.toUpperCase().includes("LISTA"));
@@ -5837,6 +5857,7 @@ function tablePaginationHtml(totalRows, totalPages){
     <button type="button" class="btn ghost" style="padding:5px 12px" onclick="goToTablePage(1)" ${p>=totalPages?"disabled":""}>Next ›</button></div>`;
 }
 let parkDerivedCacheSig=null;
+let spaceDerivedCacheSig=null;
 // v3.45.10: string plano (NO un objeto por entidad) — el thead es un ÚNICO elemento del DOM compartido por
 // las 4 entidades (solo cambia qué datos muestra `current`), así que lo que importa es comparar contra lo
 // que YA está en el DOM ahora mismo, sin importar de qué entidad vino la última vez. Cachear por entidad
@@ -5863,6 +5884,13 @@ function renderTable(){
   if(current==="PARKS"){
     const sig=(state.PARKS?state.PARKS.length:0)+"|"+(state.PROPIEDADES?state.PROPIEDADES.length:0);
     if(sig!==parkDerivedCacheSig){ recomputeAllParkDerivedFields(); parkDerivedCacheSig=sig; }
+  }
+  // Mismo patrón de cache barato que el bloque de PARKS de arriba (ver ese comentario grande), aplicado a
+  // recomputeAllSpacesFromOffices() — recalcula al entrar a Spaces (o si el conteo de Spaces/Oficinas
+  // cambió), nunca en cada render sin necesidad.
+  if(current==="SPACES"){
+    const sig=(state.SPACES?state.SPACES.length:0)+"|"+(state.OFICINAS?state.OFICINAS.length:0);
+    if(sig!==spaceDerivedCacheSig){ recomputeAllSpacesFromOffices(); spaceDerivedCacheSig=sig; }
   }
   updateClearFiltersBtn();
   const cfg=ENTITIES[current];
@@ -14943,6 +14971,7 @@ function applyConsolidatedResult(merged, officeCount, fileCount, total){
   state.BITACORA=merged.BITACORA;
   invalidateSubmarketToMarketCache();
   parkDerivedCacheSig=null;
+  spaceDerivedCacheSig=null;
   setConsolidatedChip(officeCount, fileCount, total);
   document.getElementById("consolidatedBannerInfo").textContent=officeCount+" oficina(s) · "+total+" registro(s)";
   renderTable();

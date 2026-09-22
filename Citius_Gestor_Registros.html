@@ -2075,7 +2075,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.7.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.7.1</div>
     </nav>
   </aside>
   <div class="main">
@@ -4784,6 +4784,10 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.7.1", date:"2026-09-22", items:[
+    "Market Report (PDF): Completed Transactions -- Detail and Available Inventory -- Detail now use the same fixed column widths on every page, instead of each page auto-sizing its columns from only the rows that landed on it.",
+    "Spaces: new \"Status\" field (Property section) -- the linked Office's own building status (Ready/Under Construction/Under Development/Planned), read-only and auto-filled, kept in sync automatically (including for existing Spaces, backfilled the moment you open the Spaces tab)."
+  ]},
   {version:"8.7.0", date:"2026-09-22", items:[
     "Offices presentation: the Options panel now auto-groups options by Submarket (alphabetical by default) instead of a single flat list -- drag a group's header to move all its options together, or drag an individual option to reorder it within its own group. The map legend/pins and the printed option pages now number options from this same grouped order, so they always match the panel.",
     "Offices presentation: the Options panel now shows Submarket next to the proposed area for each option.",

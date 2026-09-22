@@ -6803,15 +6803,17 @@ let mktShowState=loadMktShowState();
    consigo su propio puesto (Analyst vs Manager, no siempre el mismo) y su propia oficina/dirección, así que
    elegirla de esta lista fija rellena las 3 cosas de una vez en vez de solo el nombre (antes el puesto y la
    dirección quedaban hardcodeados en mktTeamHtml sin importar quién fuera, ver ese comentario más abajo). */
+// Pedido explícito del usuario: orden alfabético por nombre (así queda también el <select> del panel
+// "Cover Data", que recorre este mismo array en el mismo orden).
 const MKT_COVER_ANALYSTS=[
-  {name:"Dario Torrez", role:"Market Intel Analyst", office:"VIA Corporativo - IOS Offices", addr:["Misión de San Javier #10643-405","Zona Urbana Rio, Tijuana, B.C."]},
-  {name:"Jorge Champion", role:"Market Intel Analyst", office:"Centro de Negocios Alianza", addr:["Blvd. Teofilo Borunda #8349","Cd, Juárez Chih."]},
-  {name:"Idalia Gardea", role:"Market Intel Manager", office:"Equus 335", addr:["Ave. Ricardo Margáin #335","Col. Valle del Campestre, SPGG, NL.."]},
-  {name:"Clementina Margain", role:"Market Intel Manager", office:"Querétaro Business Park 2", addr:["Avenida Antea #1090,","Col. Jurica, Querétaro, Qro."]},
-  {name:"Luis Martinez", role:"Market Intel Analyst", office:"Corporativo Altus", addr:["Sierra Leona #360,","Col. Villantigua, SLP, Mexico"]},
+  {name:"Carlos Garces", role:"Market Intel Analyst", office:"Torre Reforma", addr:["Av. Paseo de la Reforma #483","Col. Cuauhtémoc, CDMX, Mexico."]},
   {name:"Christian Barajas", role:"Market Intel Analyst", office:"Foro 4", addr:["Manuel J. Clouthier #304","Col. Jardines del Campestre, Leon, Gto."]},
+  {name:"Clementina Margain", role:"Market Intel Manager", office:"Querétaro Business Park 2", addr:["Avenida Antea #1090,","Col. Jurica, Querétaro, Qro."]},
+  {name:"Dario Torrez", role:"Market Intel Analyst", office:"VIA Corporativo - IOS Offices", addr:["Misión de San Javier #10643-405","Zona Urbana Rio, Tijuana, B.C."]},
   {name:"Felipe Carrillo", role:"Market Intel Analyst", office:"The Landmark", addr:["Paseo de los Virreyes 45","Guadalajara, Jalisco"]},
-  {name:"Carlos Garces", role:"Market Intel Analyst", office:"Torre Reforma", addr:["Av. Paseo de la Reforma #483","Col. Cuauhtémoc, CDMX, Mexico."]}
+  {name:"Idalia Gardea", role:"Market Intel Manager", office:"Equus 335", addr:["Ave. Ricardo Margáin #335","Col. Valle del Campestre, SPGG, NL.."]},
+  {name:"Jorge Champion", role:"Market Intel Analyst", office:"Centro de Negocios Alianza", addr:["Blvd. Teofilo Borunda #8349","Cd, Juárez Chih."]},
+  {name:"Luis Martinez", role:"Market Intel Analyst", office:"Corporativo Altus", addr:["Sierra Leona #360,","Col. Villantigua, SLP, Mexico"]}
 ];
 const MKT_COVER_KEY="citius_mkt_report_cover_v1";
 function loadMktCoverInfo(){
@@ -7795,7 +7797,7 @@ function mktBuildTxDetailPage(){
   // Pedido explícito del usuario: quitar la columna Submarket (queda igual que Available Inventory —
   // Detail, que ya agrupa por submercado solo con el renglón separador gris, sin columna propia) y agregar
   // Property Name (después de Tenant/Buyer) y Tenant Rep Broker (al final).
-  const theadHtml=`<tr><th>Tenant/Buyer</th><th>Property Name</th><th>Developer</th><th>Location</th><th>Area (${resumenAreaUnitLabel()})</th><th>Building Type</th><th>Q</th><th>Trans</th><th>Tenant Rep Broker</th></tr>`;
+  const theadHtml=`<tr><th>Tenant/Buyer</th><th>Property Name</th><th>Developer</th><th>Location</th><th>Area (${resumenAreaUnitLabel()})</th><th>Building Type</th><th>Q</th><th>Trans</th><th>Broker</th></tr>`;
   // Bug real reportado por el usuario: mismo % de ancho en TODAS las páginas (ver comentario grande junto a
   // .mkt-detail-table en el CSS) — sin esto, table-layout:auto le da a cada página un ancho de columna
   // distinto según el contenido que le tocó.

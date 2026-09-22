@@ -5980,10 +5980,12 @@ function renderTable(){
       // Bug real reportado por el usuario: "Add Group" solo debe aparecer si TODO lo marcado es de la misma
       // Oficina (ver officeStagingIsSingleOffice()) — agrupar pisos de torres distintas en una sola Opción
       // no tiene sentido. Con más de 1 Oficina marcada, se oculta el botón; "Add Individually" sigue
-      // disponible siempre (cada Space se ofrece por separado, sin mezclar áreas).
-      const singleOffice=officeStagingIsSingleOffice();
-      document.getElementById("officeStagingGroupBtn").style.display=singleOffice?"":"none";
-      if(singleOffice) document.getElementById("officeStagingGroupBtn").textContent=`Add Group (${staging} — ${fmt(Math.round(stagingArea.value))} ${stagingArea.unit})`;
+      // disponible siempre (cada Space se ofrece por separado, sin mezclar áreas). Bug real reportado por el
+      // usuario (2do reporte): también debe estar oculto con 1 solo Space marcado — "agrupar" 1 solo registro
+      // no es una Opción agrupada, ya es justo lo que hace "Add Individually" con ese mismo Space.
+      const showGroupBtn=staging>1 && officeStagingIsSingleOffice();
+      document.getElementById("officeStagingGroupBtn").style.display=showGroupBtn?"":"none";
+      if(showGroupBtn) document.getElementById("officeStagingGroupBtn").textContent=`Add Group (${staging} — ${fmt(Math.round(stagingArea.value))} ${stagingArea.unit})`;
       document.getElementById("officeStagingIndividualBtn").textContent=`Add Individually (${staging})`;
     }
   }
@@ -10813,10 +10815,10 @@ function officeStagingMappingCodes(){
 function officeStagingIsSingleOffice(){ return officeStagingMappingCodes().size<=1; }
 /* Un solo click junta TODO lo marcado en 1 sola Opción (suma de área) — para "varios pisos del mismo
    edificio ofrecidos como un solo paquete" (ej. Torre Equus, 4 pisos = 1,200 m²). El botón que llama a esto
-   ya se oculta si hay más de 1 Oficina marcada (ver renderTable()) — este guard es solo defensivo, por si se
-   invoca de otra forma. */
+   ya se oculta si hay más de 1 Oficina marcada o menos de 2 Spaces marcados (ver renderTable()) — este guard
+   es solo defensivo, por si se invoca de otra forma. */
 function groupOfficeStagingAsOption(){
-  if(!officeSpaceStaging.length || !officeStagingIsSingleOffice()) return;
+  if(officeSpaceStaging.length<2 || !officeStagingIsSingleOffice()) return;
   officePresOptions.push({id:"opt"+(officeOptionIdSeq++), spaceIds:[...officeSpaceStaging]});
   officeSpaceStaging=[];
   renderTable();

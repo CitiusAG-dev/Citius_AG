@@ -2065,7 +2065,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.6.5</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.7.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -4754,6 +4754,13 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.7.0", date:"2026-09-22", items:[
+    "Offices presentation: the Options panel now auto-groups options by Submarket (alphabetical by default) instead of a single flat list -- drag a group's header to move all its options together, or drag an individual option to reorder it within its own group. The map legend/pins and the printed option pages now number options from this same grouped order, so they always match the panel.",
+    "Offices presentation: the Options panel now shows Submarket next to the proposed area for each option.",
+    "Offices presentation: \"Add Group\" only appears when 2+ selected floors belong to the same Office and are all selected together -- grouping floors from different buildings, or a single floor, no longer makes sense to offer.",
+    "Offices presentation: \"Add Individually\" now shows before \"Add Group\".",
+    "Market Status: \"Available\" chip is green again (was amber)."
+  ]},
   {version:"8.6.5", date:"2026-09-21", items:[
     "Offices: \"Building Certification\" replaced by a new \"Building Certifications\" field (multi-select); \"Certification Level\" removed; new \"Nearby Amenities\" field (multi-select, list to be configured).",
     "Offices: \"Year Built\" no longer shows a thousands separator (e.g. \"2,024\") in the record view or the presentation deck -- applies wherever this field is used (Buildings/Parks/Land too).",

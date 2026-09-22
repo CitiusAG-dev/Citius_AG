@@ -2085,7 +2085,6 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
           <button type="button" class="btn ghost" id="officeOptionsBtn" style="display:none" onclick="toggleOfficeOptionsPanel()">Presentation options<span class="pill amber" id="officeOptionsCountPill" style="display:none;margin-left:6px"></span></button>
           <div class="office-staging-actions" id="officeStagingActions" style="display:none">
             <button type="button" class="btn ghost" id="officeStagingGroupBtn" onclick="groupOfficeStagingAsOption()"></button>
-            <span class="muted" id="officeStagingMixedHint" style="display:none;font-size:12px;align-self:center">Select floors from a single Office to group them</span>
             <button type="button" class="btn ghost" id="officeStagingIndividualBtn" onclick="addOfficeStagingIndividually()"></button>
           </div>
           <span class="pill amber" id="presSelectedChip" style="display:none"></span>
@@ -5980,11 +5979,10 @@ function renderTable(){
       const stagingArea=officeOptionAreaForDisplay(officeSpaceStaging);
       // Bug real reportado por el usuario: "Add Group" solo debe aparecer si TODO lo marcado es de la misma
       // Oficina (ver officeStagingIsSingleOffice()) — agrupar pisos de torres distintas en una sola Opción
-      // no tiene sentido. Con más de 1 Oficina marcada, se oculta el botón y se muestra un hint en su lugar;
-      // "Add Individually" sigue disponible siempre (cada Space se ofrece por separado, sin mezclar áreas).
+      // no tiene sentido. Con más de 1 Oficina marcada, se oculta el botón; "Add Individually" sigue
+      // disponible siempre (cada Space se ofrece por separado, sin mezclar áreas).
       const singleOffice=officeStagingIsSingleOffice();
       document.getElementById("officeStagingGroupBtn").style.display=singleOffice?"":"none";
-      document.getElementById("officeStagingMixedHint").style.display=singleOffice?"none":"";
       if(singleOffice) document.getElementById("officeStagingGroupBtn").textContent=`Add Group (${staging} — ${fmt(Math.round(stagingArea.value))} ${stagingArea.unit})`;
       document.getElementById("officeStagingIndividualBtn").textContent=`Add Individually (${staging})`;
     }

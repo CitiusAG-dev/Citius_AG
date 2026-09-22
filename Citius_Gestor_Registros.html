@@ -10871,8 +10871,12 @@ function officeOptionInfo(opt, unitPref){
   const recs=opt.spaceIds.map(id=>byId.get(id)).filter(Boolean);
   const buildings=[...new Set(recs.map(r=>r.PROPERTY_NAME).filter(v=>v!=null && v!==""))];
   const floors=[...new Set(recs.map(r=>r.LEVEL_FLOOR).filter(v=>v!=null && v!==""))];
+  // Pedido explícito del usuario: mismo criterio que buildings/floors — un Set por si el Option agrupa
+  // Spaces de más de un Submarket (no debería pasar dentro de la misma Oficina, pero por las dudas se
+  // muestran todos en vez de solo el primero).
+  const submarkets=[...new Set(recs.map(r=>r.SUBMARKET).filter(v=>v!=null && v!==""))];
   const areaDisp=officeOptionAreaForDisplay(opt.spaceIds, unitPref);
-  return { buildings: buildings.join(", ")||"(unnamed building)", floors: floors.join(", "), count: recs.length, area: areaDisp.value, areaUnit: areaDisp.unit };
+  return { buildings: buildings.join(", ")||"(unnamed building)", floors: floors.join(", "), submarket: submarkets.join(", "), count: recs.length, area: areaDisp.value, areaUnit: areaDisp.unit };
 }
 /* v4.2.0: acepta `targetId` opcional (default "officeOptionsList", el panel acoplado de la tabla de Spaces
    de la Etapa 1) para poder pintar la MISMA lista dentro del sidebar del deck de Oficinas
@@ -10901,7 +10905,7 @@ function renderOfficeOptionsPanel(targetId, unitPref){
       ${FC_DRAG_ICON}
       <div class="office-option-main">
         <div class="office-option-title">${i+1}. ${escapeHtml(info.buildings)} ${badge}</div>
-        <div class="office-option-sub">${fmt(Math.round(info.area))} ${info.areaUnit}</div>
+        <div class="office-option-sub">${info.submarket?`${escapeHtml(info.submarket)} — `:""}${fmt(Math.round(info.area))} ${info.areaUnit}</div>
         <div class="office-option-sub">${info.floors?`Floor(s): ${escapeHtml(info.floors)}`:"—"}</div>
       </div>
       <button type="button" class="icon-btn" title="Remove this option" onclick="removeOfficePresOption('${opt.id}')">✕</button>

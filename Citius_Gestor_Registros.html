@@ -10782,6 +10782,37 @@ function getOrderedLandPresentationList(){
 let officeSpaceStaging=[]; // Space __id marcados, pendientes de convertirse en Opción(es)
 let officePresOptions=[]; // {id, spaceIds:[...]} — 1 spaceId = Opción individual; 2+ = Opción agrupada
 let officeOptionIdSeq=1;
+/* v_pendiente, pedido explícito del usuario (con captura: el panel de Opciones y la numeración del mapa/
+   páginas del deck no coincidían) — las Opciones ahora se agrupan SIEMPRE por Submarket, en vez de vivir en
+   una sola lista plana en el orden en que se fueron agregando. `officeSubmarketOrder` es el orden de los
+   GRUPOS (arranca alfabético, ver syncOfficeSubmarketOrder() — se puede reordenar arrastrando el header de
+   cada grupo, ver officeSubmarketGroupDrop()); el orden DENTRO de cada grupo sigue viviendo en la posición
+   relativa de cada Opción dentro de `officePresOptions` (arrastrable por separado, ver
+   officeOptionDragStart/Drop más abajo — ahora solo reordena Opciones DEL MISMO grupo: su Submarket es un
+   dato heredado de la Oficina/Space, no algo que se elija a mano aquí, así que no tiene sentido "soltar" una
+   Opción dentro de otro grupo). orderedOfficePresOptions() es la ÚNICA fuente de verdad para cualquier
+   numeración (panel, mapa, páginas del deck) — nunca se debe volver a iterar `officePresOptions` crudo donde
+   el orden/número importe. */
+let officeSubmarketOrder=[];
+function officeOptionSubmarketKey(opt){ return officeOptionSubmarket(opt)||"(No Submarket)"; }
+/* Si el conjunto de Submarkets presentes cambió (una Opción nueva trajo un Submarket que no había, o se quitó
+   el último de alguno), se recalcula TODO el orden de grupos alfabético desde cero — pedido explícito del
+   usuario, confirmado vía AskUserQuestion: un reordenamiento manual de grupos ya hecho se pierde en ese
+   momento, a cambio de no tener que decidir dónde "intercalar" el grupo nuevo. Si el conjunto no cambió
+   (mismos Submarkets que ya había), el orden que el usuario ya armó a mano arrastrando se respeta tal cual. */
+function syncOfficeSubmarketOrder(){
+  const current=[...new Set(officePresOptions.map(officeOptionSubmarketKey))];
+  const currentSet=new Set(current);
+  const sameSet=officeSubmarketOrder.length===current.length && officeSubmarketOrder.every(sm=>currentSet.has(sm));
+  if(!sameSet) officeSubmarketOrder=current.sort((a,b)=>a.localeCompare(b,"es"));
+}
+/* Opciones en el orden de despliegue real (agrupadas por Submarket, en el orden de officeSubmarketOrder;
+   dentro de cada grupo, en el orden relativo que ya tengan en officePresOptions) — usar esto, nunca
+   officePresOptions crudo, en cualquier lugar donde la numeración deba coincidir con el panel. */
+function orderedOfficePresOptions(){
+  syncOfficeSubmarketOrder();
+  return officeSubmarketOrder.flatMap(sm=>officePresOptions.filter(opt=>officeOptionSubmarketKey(opt)===sm));
+}
 function toggleOfficeSpaceStaging(id, checked){
   if(checked){ if(!officeSpaceStaging.includes(id)) officeSpaceStaging.push(id); }
   else officeSpaceStaging=officeSpaceStaging.filter(x=>x!==id);
@@ -10894,41 +10925,82 @@ function renderOfficeOptionsPanel(targetId, unitPref){
     list.innerHTML=`<p class="muted" style="font-size:12px">None yet.</p>`;
     return;
   }
-  list.innerHTML=officePresOptions.map((opt,i)=>{
-    const info=officeOptionInfo(opt, unitPref);
-    // v4.1.2, pedido explícito del usuario: chip abreviado a 3 letras — "Ind" (Individual) ya calzaba
-    // solo, "Grp" (Grouped) elegido para que quede igual de corto y reconocible.
-    const badge=info.count>1?`<span class="pill green">Grp</span>`:`<span class="pill gray">Ind</span>`;
-    return `<div class="office-option-row" draggable="true"
-         ondragstart="officeOptionDragStart(event,${i})" ondragover="officeOptionDragOver(event,${i})"
-         ondrop="officeOptionDrop(event,${i})" ondragleave="fcDragLeave(event)">
-      ${FC_DRAG_ICON}
-      <div class="office-option-main">
-        <div class="office-option-title">${i+1}. ${escapeHtml(info.buildings)} ${badge}</div>
-        <div class="office-option-sub">${info.submarket?`${escapeHtml(info.submarket)} — `:""}${fmt(Math.round(info.area))} ${info.areaUnit}</div>
-        <div class="office-option-sub">${info.floors?`Floor(s): ${escapeHtml(info.floors)}`:"—"}</div>
-      </div>
-      <button type="button" class="icon-btn" title="Remove this option" onclick="removeOfficePresOption('${opt.id}')">✕</button>
+  syncOfficeSubmarketOrder();
+  let counter=0;
+  list.innerHTML=officeSubmarketOrder.map(sm=>{
+    const opts=officePresOptions.filter(opt=>officeOptionSubmarketKey(opt)===sm);
+    if(!opts.length) return ""; // defensivo — syncOfficeSubmarketOrder() ya descarta grupos vacíos
+    const rowsHtml=opts.map(opt=>{
+      counter++;
+      const info=officeOptionInfo(opt, unitPref);
+      // v4.1.2, pedido explícito del usuario: chip abreviado a 3 letras — "Ind" (Individual) ya calzaba
+      // solo, "Grp" (Grouped) elegido para que quede igual de corto y reconocible.
+      const badge=info.count>1?`<span class="pill green">Grp</span>`:`<span class="pill gray">Ind</span>`;
+      return `<div class="office-option-row" draggable="true"
+           ondragstart="officeOptionDragStart(event,'${opt.id}')" ondragover="officeOptionDragOver(event)"
+           ondrop="officeOptionDrop(event,'${opt.id}')" ondragleave="fcDragLeave(event)">
+        ${FC_DRAG_ICON}
+        <div class="office-option-main">
+          <div class="office-option-title">${counter}. ${escapeHtml(info.buildings)} ${badge}</div>
+          <div class="office-option-sub">${info.submarket?`${escapeHtml(info.submarket)} — `:""}${fmt(Math.round(info.area))} ${info.areaUnit}</div>
+          <div class="office-option-sub">${info.floors?`Floor(s): ${escapeHtml(info.floors)}`:"—"}</div>
+        </div>
+        <button type="button" class="icon-btn" title="Remove this option" onclick="removeOfficePresOption('${opt.id}')">✕</button>
+      </div>`;
+    }).join("");
+    return `<div class="fc-group-card office-submarket-group" draggable="true"
+         ondragstart="officeSubmarketGroupDragStart(event,'${escapeAttr(sm)}')" ondragover="officeSubmarketGroupDragOver(event)"
+         ondrop="officeSubmarketGroupDrop(event,'${escapeAttr(sm)}')" ondragleave="fcDragLeave(event)">
+      <div class="fc-group-head">${FC_DRAG_ICON}<h5>${escapeHtml(sm)}</h5></div>
+      ${rowsHtml}
     </div>`;
   }).join("");
 }
-/* Reordenar Opciones por drag&drop — pedido explícito del usuario ("quiero poder reordenar las opciones
-   dentro de la lista"). Mismo mecanismo exacto que presItemDragStart/DragOver/Drop (Propiedades), aplicado
-   sobre `officePresOptions` en vez de `presentationOrder`. Como la MISMA lista se pinta en 2 lugares (el
-   panel acoplado de Spaces y el sidebar del deck de Oficinas, ver renderOfficeOptionsPanel(targetId)), tras
-   reordenar se refrescan los 2: el panel acoplado directo, y el deck completo si está activo (el orden
-   también cambia la numeración de las páginas y de los pines del mapa). */
-let dragOfficeOptionIdx=null;
-function officeOptionDragStart(e,i){ e.stopPropagation(); dragOfficeOptionIdx=i; e.dataTransfer.effectAllowed="move"; }
-function officeOptionDragOver(e,i){ e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.add("dragover"); }
-function officeOptionDrop(e,i){
+/* Reordenar Opciones por drag&drop, en 2 niveles — pedido explícito del usuario ("quiero poder ir
+   arrastrando todas las opciones del grupo... pero también pudiera mover las opciones individuales de ese
+   grupo"). Mismo criterio de refresco que antes: como la MISMA lista se pinta en 2 lugares (el panel
+   acoplado de Spaces y el sidebar del deck de Oficinas, ver renderOfficeOptionsPanel(targetId)), tras
+   reordenar (cualquiera de los 2 niveles) se refrescan los 2 — el panel acoplado directo, y el deck completo
+   si está activo (el orden también cambia la numeración de las páginas y de los pines del mapa).
+
+   Nivel 1, GRUPO (header de cada Submarket, arrastra TODAS sus Opciones juntas): reordena
+   officeSubmarketOrder por nombre de Submarket — no toca officePresOptions en absoluto, el orden dentro de
+   cada grupo no cambia.
+   Nivel 2, OPCIÓN individual (cada fila, dentro de su grupo): reordena la posición relativa de esa Opción
+   dentro de officePresOptions, identificando ambos extremos por `opt.id` (nunca por índice — con 2 niveles
+   de drag, un índice numérico se desincroniza fácil entre el render y el drop). Se valida que origen y
+   destino sean del MISMO grupo antes de mover nada — el Submarket de una Opción es un dato heredado de la
+   Oficina/Space, no algo que se "suelte" a mano aquí; si de alguna forma se intenta soltar sobre otro grupo,
+   no pasa nada (el guard de abajo lo descarta). */
+let dragOfficeSubmarketGroup=null;
+function officeSubmarketGroupDragStart(e, sm){ dragOfficeSubmarketGroup=sm; e.dataTransfer.effectAllowed="move"; }
+function officeSubmarketGroupDragOver(e){ e.preventDefault(); e.currentTarget.classList.add("dragover"); }
+function officeSubmarketGroupDrop(e, sm){
+  e.preventDefault(); e.currentTarget.classList.remove("dragover");
+  const dragged=dragOfficeSubmarketGroup;
+  dragOfficeSubmarketGroup=null;
+  if(dragged===null || dragged===sm) return;
+  const fromIdx=officeSubmarketOrder.indexOf(dragged);
+  if(fromIdx<0) return;
+  officeSubmarketOrder.splice(fromIdx,1);
+  officeSubmarketOrder.splice(officeSubmarketOrder.indexOf(sm),0,dragged);
+  renderOfficeOptionsPanel("officeOptionsList");
+  if(officePresentationViewActive) renderOfficePresentationView();
+}
+let dragOfficeOptionId=null;
+function officeOptionDragStart(e, optId){ e.stopPropagation(); dragOfficeOptionId=optId; e.dataTransfer.effectAllowed="move"; }
+function officeOptionDragOver(e){ e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.add("dragover"); }
+function officeOptionDrop(e, optId){
   e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.remove("dragover");
-  if(dragOfficeOptionIdx===null || dragOfficeOptionIdx===i){ dragOfficeOptionIdx=null; return; }
-  const [moved]=officePresOptions.splice(dragOfficeOptionIdx,1);
-  let destIdx=i;
-  if(dragOfficeOptionIdx<destIdx) destIdx-=1;
-  officePresOptions.splice(destIdx,0,moved);
-  dragOfficeOptionIdx=null;
+  const draggedId=dragOfficeOptionId;
+  dragOfficeOptionId=null;
+  if(draggedId===null || draggedId===optId) return;
+  const movedIdx=officePresOptions.findIndex(o=>o.id===draggedId);
+  const targetIdx=officePresOptions.findIndex(o=>o.id===optId);
+  if(movedIdx<0 || targetIdx<0) return;
+  if(officeOptionSubmarketKey(officePresOptions[movedIdx])!==officeOptionSubmarketKey(officePresOptions[targetIdx])) return;
+  const [moved]=officePresOptions.splice(movedIdx,1);
+  officePresOptions.splice(officePresOptions.findIndex(o=>o.id===optId),0,moved);
   renderOfficeOptionsPanel("officeOptionsList");
   if(officePresentationViewActive) renderOfficePresentationView();
 }
@@ -11786,7 +11858,9 @@ function officePresBuildingList(){
   const seen=new Set();
   const buildings=[];
   let unresolvedCount=0;
-  officePresOptions.forEach(opt=>{
+  // orderedOfficePresOptions() (agrupado por Submarket), no officePresOptions crudo — para que el orden de
+  // "primera aparición" que usa officePresBuildingsGroupedBySubmarket() más abajo ya calce con el panel.
+  orderedOfficePresOptions().forEach(opt=>{
     opt.spaceIds.forEach(id=>{
       const sp=spaceById.get(id);
       if(!sp) return;
@@ -12149,10 +12223,9 @@ function buildOfficeOptionPhotosPageHtml(opt, idx){
    Usa OFFICE_DIVIDER_IMAGE_SRC (embebida desde la Etapa 2, "OFICINA_SEPARADOR" — reservada para esto desde
    entonces) — el ícono blanco circular YA viene quemado en la foto, así que la única pieza dinámica es el
    nombre del submercado. Se inserta cada vez que el submercado de la Opción actual difiere del de la
-   Opción anterior, EN EL ORDEN ACTUAL en que estén las Opciones (el mismo orden que ya puede reordenar el
-   usuario arrastrando en el sidebar) — no se reagrupan/reordenan las Opciones por submercado, así que si el
-   usuario quiere los divisores agrupando edificios de un mismo submercado, debe dejarlas contiguas él mismo
-   (ya puede hacerlo con el drag&drop que ya existe). */
+   Opción anterior — desde que las Opciones se agrupan solas por Submarket (ver el comentario grande junto a
+   officeSubmarketOrder/orderedOfficePresOptions(), que es la lista que este loop recorre), las de un mismo
+   submercado SIEMPRE quedan contiguas, así que este divisor nunca se repite de forma intercalada. */
 function officeOptionSubmarket(opt){
   const office=officeOptionOfficeRecord(opt);
   return (office && office.SUBMARKET) || "";
@@ -12218,9 +12291,15 @@ async function renderOfficePresentationView(){
   let html="";
   if(officePresShowState.cover) html+=buildOfficeCoverPageHtml();
   if(officePresShowState.map) html+=buildOfficeMapPageHtml(officeMapGrouped, unresolvedCount);
+  // orderedOfficePresOptions() (agrupado por Submarket, ver ese comentario grande junto a
+  // officeSubmarketOrder) — calculado 1 sola vez y reusado por el loop de páginas y por
+  // loadOfficeOptionPages() de abajo, para que el `idx` de ambos sea EXACTAMENTE el mismo (loadOfficeOptionPages
+  // engancha cada foto por ese idx, ej. "officeDetailPhoto_2" — un desfase entre los 2 pondría la foto de una
+  // Opción en la página de otra).
+  const orderedOptions=orderedOfficePresOptions();
   if(officePresShowState.options){
     let lastSubmarket=null;
-    officePresOptions.forEach((opt,idx)=>{
+    orderedOptions.forEach((opt,idx)=>{
       const sm=officeOptionSubmarket(opt);
       if(sm!==lastSubmarket){ html+=buildOfficeDividerPageHtml(sm); lastSubmarket=sm; }
       html+=buildOfficeOptionDetailPageHtml(opt,idx)+buildOfficeOptionPhotosPageHtml(opt,idx);
@@ -12229,7 +12308,7 @@ async function renderOfficePresentationView(){
   if(officePresShowState.closing) html+=buildClosingPageHtml(OFFICE_CLOSING_IMAGE_SRC);
   pagesEl.innerHTML=html;
   if(officePresShowState.map) renderOfficePresMap(officeMapGrouped.ordered);
-  if(officePresShowState.options) loadOfficeOptionPages(officePresOptions);
+  if(officePresShowState.options) loadOfficeOptionPages(orderedOptions);
 }
 function buildOfficePresPdfFilename(){
   const client=(officePresCoverInfo.client||"").trim();

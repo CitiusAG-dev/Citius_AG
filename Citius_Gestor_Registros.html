@@ -2079,7 +2079,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.8.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.8.1</div>
     </nav>
   </aside>
   <div class="main">
@@ -4788,6 +4788,12 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.8.1", date:"2026-09-23", items:[
+    "Market Report (PDF), Completed Transactions/Available Inventory -- Detail: the gray Submarket separator row now matches the column header's typography and color exactly (was darker/bigger than the header).",
+    "Market Report (PDF), Available Inventory -- Detail: \"Generation\" header shortened to \"GEN\"; Status/Class/GEN columns are narrower and equal width to each other; Name/Developer/Location/$-SF-Mo columns resized to use the freed space, fixing rates like \"MX $ 12.54\" looking cramped.",
+    "Market Report (PDF), Available Inventory -- Detail: excluded records with \"Status\" = \"Planned\" (they still count in the rest of the report, e.g. the KPI cards).",
+    "Record tables (Buildings/Parks/Offices/etc.): area values converted between SF/m² (Available/Occupied/Leasable Area/etc.) now round to a whole number instead of showing 2 decimals; other unit types (Clear Height, thickness, rates) are unaffected."
+  ]},
   {version:"8.8.0", date:"2026-09-22", items:[
     "Summary/Market Report: \"Total Market (Class A and B)\" and \"(A, B and C)\" now also require \"Status\" = \"Ready\" (previously included Under Construction/Under Development/Planned) -- also affects Vacancy Rate and Availability Rate, which divide by this KPI.",
     "Market Report (PDF), Completed Transactions -- Detail: removed the Submarket column (still grouped by the gray separator row, like Available Inventory -- Detail); added Property Name after Tenant/Buyer and Broker (was Tenant Rep Broker) at the end; Location is now just the Park name.",

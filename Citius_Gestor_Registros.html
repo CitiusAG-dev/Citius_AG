@@ -7811,18 +7811,23 @@ function mktBuildTxSummaryPage(){
    corta a una hoja nueva — 30 + el renglón de header de la tabla = 31, el número que el usuario calibró a
    mano contando cuántas líneas caben de verdad en una hoja Carta horizontal a este tamaño de letra. Cada
    hoja nueva repite el mismo encabezado de página (mktPageHeaderHtml) y el mismo header de columnas.
-   v_pendiente, pedido explícito del usuario: bajado a 29 — el header de columnas ahora ocupa 2 renglones
-   (etiqueta + unidad, ver mktTh()) en vez de 1, así que cabe 1 fila de dato menos por hoja. */
+   v_pendiente, pedido explícito del usuario: bajado a 29 como DEFAULT — el header de columnas de Available
+   Inventory — Detail ocupa 2 renglones (etiqueta + unidad, ver mktTh()) en vez de 1, así que cabe 1 fila de
+   dato menos por hoja ahí. Completed Transactions — Detail volvió a header de 1 sola línea (pedido explícito
+   del usuario, 2do ajuste — su única columna de medida, "Area", no vale la pena partirla a 2 renglones
+   cuando el resto de sus headers ya son de 1 sola línea, se veía descuadrada) y pasa 30 explícito al llamar
+   mktPaginateDetailPages() (ver `linesPerPage` más abajo), en vez de heredar este default. */
 const MKT_DETAIL_LINES_PER_PAGE=29;
-/* Pedido explícito del usuario: los headers de columnas de MEDIDA (Size/Area/Occupied/Available/Clear
-   Height) pasan la unidad a un 2do renglón dentro del mismo <th> (antes "Size (SF)" todo en una línea; de
-   paso corrige que Occupied/Available en Available Inventory — Detail no traían ninguna unidad). No se
-   toca la columna de tarifa ($/SF/Mo) — ya no es una "medida" física, es un precio, y su formato de header
-   ya es distinto. */
+/* Pedido explícito del usuario: los headers de columnas de MEDIDA pasan la unidad a un 2do renglón dentro
+   del mismo <th> (antes "Size (SF)" todo en una línea; de paso corrige que Occupied/Available en Available
+   Inventory — Detail no traían ninguna unidad). Usado solo por esa tabla — Completed Transactions — Detail
+   volvió a headers de 1 línea (ver comentario junto a MKT_DETAIL_LINES_PER_PAGE). No se toca la columna de
+   tarifa ($/SF/Mo) — ya no es una "medida" física, es un precio, y su formato de header ya es distinto. */
 function mktTh(label, unit){ return `<th>${escapeHtml(label)}<br><span class="mkt-th-unit">${escapeHtml(unit)}</span></th>`; }
-function mktPaginateDetailPages(pageTitle, theadHtml, bodyLineRows, colgroupHtml){
+function mktPaginateDetailPages(pageTitle, theadHtml, bodyLineRows, colgroupHtml, linesPerPage){
+  const perPage=linesPerPage||MKT_DETAIL_LINES_PER_PAGE;
   const chunks=[];
-  for(let i=0;i<bodyLineRows.length;i+=MKT_DETAIL_LINES_PER_PAGE) chunks.push(bodyLineRows.slice(i,i+MKT_DETAIL_LINES_PER_PAGE));
+  for(let i=0;i<bodyLineRows.length;i+=perPage) chunks.push(bodyLineRows.slice(i,i+perPage));
   return chunks.map(chunk=>`<div class="mkt-page">
     ${mktPageHeaderHtml(pageTitle)}
     <div class="mkt-page-body">
@@ -7842,7 +7847,7 @@ function mktBuildTxDetailPage(){
   // Pedido explícito del usuario: quitar la columna Submarket (queda igual que Available Inventory —
   // Detail, que ya agrupa por submercado solo con el renglón separador gris, sin columna propia) y agregar
   // Property Name (después de Tenant/Buyer) y Tenant Rep Broker (al final).
-  const theadHtml=`<tr><th>Tenant/Buyer</th><th>Property Name</th><th>Developer</th><th>Location</th>${mktTh("Area",`(${resumenAreaUnitLabel()})`)}<th>Building Type</th><th>Q</th><th>Trans</th><th>Broker</th></tr>`;
+  const theadHtml=`<tr><th>Tenant/Buyer</th><th>Property Name</th><th>Developer</th><th>Location</th><th>Area (${resumenAreaUnitLabel()})</th><th>Building Type</th><th>Q</th><th>Trans</th><th>Broker</th></tr>`;
   // Bug real reportado por el usuario: mismo % de ancho en TODAS las páginas (ver comentario grande junto a
   // .mkt-detail-table en el CSS) — sin esto, table-layout:auto le da a cada página un ancho de columna
   // distinto según el contenido que le tocó.
@@ -7886,7 +7891,7 @@ function mktBuildTxDetailPage(){
     </div>`;
   }
   lines.push(`<tr class="mkt-total-row"><td colspan="4">TOTAL:</td><td class="num-cell">${num(resumenAreaVal(grandTotalSF))} ${resumenAreaUnitLabel()}</td><td colspan="4"></td></tr>`);
-  return mktPaginateDetailPages("Completed Transactions — Detail", theadHtml, lines, colgroupHtml);
+  return mktPaginateDetailPages("Completed Transactions — Detail", theadHtml, lines, colgroupHtml, 30);
 }
 /* ==== Página 4: Available Inventory — resumen (matriz por Submercado + 4 donas) ==== */
 function mktBuildAvailSummaryPage(){

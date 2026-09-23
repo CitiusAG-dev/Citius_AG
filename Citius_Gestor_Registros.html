@@ -7917,7 +7917,13 @@ function mktBuildAvailDetailPage(){
   // Class era más angosta); Name se recorta un poco (12% -> 10%) y ese espacio, más el que se necesitaba
   // para ensanchar Class (tomado de un recorte menor a Clear Height y a la tarifa), se le da todo a Location
   // (15% -> 17%).
-  const colgroupHtml=`<colgroup><col style="width:10%"><col style="width:10%"><col style="width:17%"><col style="width:9%"><col style="width:8%"><col style="width:7%"><col style="width:9%"><col style="width:8%"><col style="width:8%"><col style="width:8%"><col style="width:6%"></colgroup>`;
+  // Pedido explícito del usuario (2do ajuste): Status/Class/GEN se recortan otro 15% CADA UNA (8% -> 6.8%,
+  // no 15 puntos porcentuales) — el 3.6% total liberado (3 × 1.2) se reparte por igual entre Developer y
+  // Location (+1.8% cada una).
+  // Pedido explícito del usuario (3er ajuste, con captura: "MX $ 12.54" quedaba descuadrado a la derecha
+  // frente a "US $ 0.68" por lo angosta que era esta columna) — 2% más para la columna de tarifa ($/SF/Mo,
+  // 6% -> 8%), tomado de Location (18.8% -> 16.8%, que ya había crecido bastante en el ajuste anterior).
+  const colgroupHtml=`<colgroup><col style="width:10%"><col style="width:11.8%"><col style="width:16.8%"><col style="width:9%"><col style="width:8%"><col style="width:7%"><col style="width:9%"><col style="width:6.8%"><col style="width:6.8%"><col style="width:6.8%"><col style="width:8%"></colgroup>`;
   let lines=[], grandTotalSF=0;
   subs.forEach(sm=>{
     // Pedido explícito del usuario: se quitan de esta tabla los registros con Status = "Planned" (siguen

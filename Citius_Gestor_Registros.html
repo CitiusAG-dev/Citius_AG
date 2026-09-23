@@ -2083,7 +2083,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.8.1</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.9.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -4792,6 +4792,11 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.9.0", date:"2026-09-23", items:[
+    "Market Report (PDF), Available Inventory -- Detail: measurement column headers (Size/Occupied/Available/Clear Height) now show the unit on a 2nd line -- also fixes Occupied/Available, which showed no unit at all; Clear Height now always shows exactly 1 decimal. Completed Transactions -- Detail keeps its \"Area (SF)\" header on one line (its only measurement column).",
+    "Buildings: \"Available Area\" is now a computed field -- Leasable Area GLA minus Occupied Area, same idea as Parks' own Available Area -- and is read-only. Existing records are backfilled automatically the moment you open the Buildings tab.",
+    "Buildings: changing \"Market Status\" to \"Occupied\" copies Occupied Area = Leasable Area GLA, so Available Area lands on 0."
+  ]},
   {version:"8.8.1", date:"2026-09-23", items:[
     "Market Report (PDF), Completed Transactions/Available Inventory -- Detail: the gray Submarket separator row now matches the column header's typography and color exactly (was darker/bigger than the header).",
     "Market Report (PDF), Available Inventory -- Detail: \"Generation\" header shortened to \"GEN\"; Status/Class/GEN columns are narrower and equal width to each other; Name/Developer/Location/$-SF-Mo columns resized to use the freed space, fixing rates like \"MX $ 12.54\" looking cramped.",

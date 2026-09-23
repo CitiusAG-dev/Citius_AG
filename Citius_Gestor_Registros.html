@@ -352,7 +352,11 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-box-avail .mkt-donut-out-label,.mkt-box-avail .mkt-donut-out-pct{font-size:12px}
   .mkt-table{width:100%;border-collapse:collapse;font-size:10.5px}
   .mkt-table th{background:var(--panel-2);color:var(--muted);font-weight:700;text-transform:uppercase;
-                 font-size:9px;letter-spacing:.3px;padding:5px 6px;text-align:left;border-bottom:1px solid var(--line)}
+                 font-size:9px;letter-spacing:.3px;padding:5px 6px;text-align:left;border-bottom:1px solid var(--line);line-height:1.35}
+  /* Pedido explícito del usuario: unidad de la columna (ej. "(SF)") en su propio renglón dentro del header,
+     ver mktTh() — un poco más chica/menos pesada que la etiqueta para que se note que es la unidad, no una
+     2da etiqueta igual de importante. */
+  .mkt-th-unit{font-size:8px;font-weight:400}
   .mkt-table td{padding:4px 6px;border-bottom:1px solid var(--line)}
   .mkt-table td.num-cell{text-align:right;font-variant-numeric:tabular-nums}
   .mkt-table .mkt-center{text-align:center}
@@ -5884,6 +5888,7 @@ function tablePaginationHtml(totalRows, totalPages){
 }
 let parkDerivedCacheSig=null;
 let spaceDerivedCacheSig=null;
+let propertyDerivedCacheSig=null;
 // v3.45.10: string plano (NO un objeto por entidad) — el thead es un ÚNICO elemento del DOM compartido por
 // las 4 entidades (solo cambia qué datos muestra `current`), así que lo que importa es comparar contra lo
 // que YA está en el DOM ahora mismo, sin importar de qué entidad vino la última vez. Cachear por entidad
@@ -5917,6 +5922,15 @@ function renderTable(){
   if(current==="SPACES"){
     const sig=(state.SPACES?state.SPACES.length:0)+"|"+(state.OFICINAS?state.OFICINAS.length:0);
     if(sig!==spaceDerivedCacheSig){ recomputeAllSpacesFromOffices(); spaceDerivedCacheSig=sig; }
+  }
+  // Mismo patrón de cache barato que los 2 bloques de arriba, aplicado a recomputeAllPropertyDerivedFields()
+  // (Available Area = Leasable Area GLA - Occupied Area, ver PROPIEDADES_COMPUTED_FIELD_KEYS) — corre solo
+  // al entrar a Buildings (o si el conteo de Propiedades cambió), y de paso es lo que llena retroactivamente
+  // este cálculo en registros ya capturados antes de que existiera, sin que el usuario tenga que reabrir
+  // cada uno a mano.
+  if(current==="PROPIEDADES"){
+    const sig=String(state.PROPIEDADES?state.PROPIEDADES.length:0);
+    if(sig!==propertyDerivedCacheSig){ recomputeAllPropertyDerivedFields(); propertyDerivedCacheSig=sig; }
   }
   updateClearFiltersBtn();
   const cfg=ENTITIES[current];
@@ -6136,6 +6150,7 @@ function detectFieldType(ent, key){
   // diseño frágil: una key computada de Parks no debería influir en el tipo de OTRA entidad solo por
   // coincidir de nombre.
   if(ent==="PARKS" && PARK_COMPUTED_FIELD_KEYS.has(key)) return "number";
+  if(ent==="PROPIEDADES" && PROPIEDADES_COMPUTED_FIELD_KEYS.has(key)) return "number";
   /* El tipo configurado por el usuario en Configuración > Campos manda sobre cualquier adivinanza a partir
      del valor guardado — antes, un campo marcado "Texto" (ej. ID_PARK) podía terminar mostrando el filtro
      de rango numérico "Desde/Hasta" solo porque sus valores capturados resultaron ser números de JS
@@ -7795,8 +7810,16 @@ function mktBuildTxSummaryPage(){
    verdad: cada "línea" (separador de submercado, fila de dato, fila de Total) se cuenta, y cada 30 líneas se
    corta a una hoja nueva — 30 + el renglón de header de la tabla = 31, el número que el usuario calibró a
    mano contando cuántas líneas caben de verdad en una hoja Carta horizontal a este tamaño de letra. Cada
-   hoja nueva repite el mismo encabezado de página (mktPageHeaderHtml) y el mismo header de columnas. */
-const MKT_DETAIL_LINES_PER_PAGE=30;
+   hoja nueva repite el mismo encabezado de página (mktPageHeaderHtml) y el mismo header de columnas.
+   v_pendiente, pedido explícito del usuario: bajado a 29 — el header de columnas ahora ocupa 2 renglones
+   (etiqueta + unidad, ver mktTh()) en vez de 1, así que cabe 1 fila de dato menos por hoja. */
+const MKT_DETAIL_LINES_PER_PAGE=29;
+/* Pedido explícito del usuario: los headers de columnas de MEDIDA (Size/Area/Occupied/Available/Clear
+   Height) pasan la unidad a un 2do renglón dentro del mismo <th> (antes "Size (SF)" todo en una línea; de
+   paso corrige que Occupied/Available en Available Inventory — Detail no traían ninguna unidad). No se
+   toca la columna de tarifa ($/SF/Mo) — ya no es una "medida" física, es un precio, y su formato de header
+   ya es distinto. */
+function mktTh(label, unit){ return `<th>${escapeHtml(label)}<br><span class="mkt-th-unit">${escapeHtml(unit)}</span></th>`; }
 function mktPaginateDetailPages(pageTitle, theadHtml, bodyLineRows, colgroupHtml){
   const chunks=[];
   for(let i=0;i<bodyLineRows.length;i+=MKT_DETAIL_LINES_PER_PAGE) chunks.push(bodyLineRows.slice(i,i+MKT_DETAIL_LINES_PER_PAGE));
@@ -7819,7 +7842,7 @@ function mktBuildTxDetailPage(){
   // Pedido explícito del usuario: quitar la columna Submarket (queda igual que Available Inventory —
   // Detail, que ya agrupa por submercado solo con el renglón separador gris, sin columna propia) y agregar
   // Property Name (después de Tenant/Buyer) y Tenant Rep Broker (al final).
-  const theadHtml=`<tr><th>Tenant/Buyer</th><th>Property Name</th><th>Developer</th><th>Location</th><th>Area (${resumenAreaUnitLabel()})</th><th>Building Type</th><th>Q</th><th>Trans</th><th>Broker</th></tr>`;
+  const theadHtml=`<tr><th>Tenant/Buyer</th><th>Property Name</th><th>Developer</th><th>Location</th>${mktTh("Area",`(${resumenAreaUnitLabel()})`)}<th>Building Type</th><th>Q</th><th>Trans</th><th>Broker</th></tr>`;
   // Bug real reportado por el usuario: mismo % de ancho en TODAS las páginas (ver comentario grande junto a
   // .mkt-detail-table en el CSS) — sin esto, table-layout:auto le da a cada página un ancho de columna
   // distinto según el contenido que le tocó.
@@ -7915,7 +7938,7 @@ function mktBuildAvailDetailPage(){
   const num=v=>Math.round(v).toLocaleString("en-US");
   // Pedido explícito del usuario: header "Generation" -> "GEN" (Building Generation, campo
   // BUILDING_GENERATION de Propiedades, después de Class).
-  const theadHtml=`<tr><th>Name</th><th>Developer</th><th>Location</th><th>Size (${resumenAreaUnitLabel()})</th><th>Occupied</th><th>Available</th><th>Clear Height (${resumenHeightUnitLabel()})</th><th>Status</th><th>Class</th><th>GEN</th><th>$/${resumenAreaUnitLabel()}/Mo</th></tr>`;
+  const theadHtml=`<tr><th>Name</th><th>Developer</th><th>Location</th>${mktTh("Size",`(${resumenAreaUnitLabel()})`)}${mktTh("Occupied",`(${resumenAreaUnitLabel()})`)}${mktTh("Available",`(${resumenAreaUnitLabel()})`)}${mktTh("Clear Height",`(${resumenHeightUnitLabel()})`)}<th>Status</th><th>Class</th><th>GEN</th><th>$/${resumenAreaUnitLabel()}/Mo</th></tr>`;
   // Bug real reportado por el usuario: mismo % de ancho en TODAS las páginas (ver comentario grande junto a
   // .mkt-detail-table en el CSS) — sin esto, table-layout:auto le da a cada página un ancho de columna
   // distinto según el contenido que le tocó.
@@ -7955,7 +7978,7 @@ function mktBuildAvailDetailPage(){
         <td class="num-cell">${num(resumenAreaVal(areaValueInSF(r,"LEASABLE_AREA_GLA_VALUE")))}</td>
         <td class="num-cell">${num(resumenAreaVal(areaValueInSF(r,"OCCUPIED_AREA_VALUE")))}</td>
         <td class="num-cell">${num(resumenAreaVal(availSF))}</td>
-        <td class="mkt-center">${r.MIN_CLEAR_HEIGHT_VALUE!=null&&r.MIN_CLEAR_HEIGHT_VALUE!==""?fmtNum(resumenHeightVal(heightValueInFt(r,"MIN_CLEAR_HEIGHT_VALUE"))):"—"}</td>
+        <td class="mkt-center">${r.MIN_CLEAR_HEIGHT_VALUE!=null&&r.MIN_CLEAR_HEIGHT_VALUE!==""?resumenHeightVal(heightValueInFt(r,"MIN_CLEAR_HEIGHT_VALUE")).toFixed(1):"—"}</td>
         <td class="mkt-center">${escapeHtml(statusText)}</td>
         <td class="mkt-center">${escapeHtml(r.CLASSIFICATION||"—")}</td>
         <td class="mkt-center">${escapeHtml(r.BUILDING_GENERATION||"—")}</td>
@@ -8636,6 +8659,46 @@ function recomputeParkDerivedFields(park){
   park.AVAILABLE_BUILDINGS=related.filter(r=>ciEq(r.MARKET_STATUS,"Available")).length;
 }
 function recomputeAllParkDerivedFields(){ (state.PARKS||[]).forEach(recomputeParkDerivedFields); }
+/* Buildings (v_pendiente, pedido explícito del usuario): "Available Area" pasa a ser un campo CALCULADO —
+   Leasable Area GLA - Occupied Area — mismo patrón EXACTO que AVAILABLE_AREA_VALUE de Parks arriba (mismo
+   nombre de key, entidad distinta, cada una con su propio Set/guard — ver PROPIEDADES_COMPUTED_FIELD_KEYS y
+   el comentario grande junto a PARK_COMPUTED_FIELD_KEYS sobre por qué hace falta el guard `ent==="..."` en
+   cada punto donde se consulta). No se convierte de unidad entre Leasable/Occupied si vinieran capturados en
+   unidades distintas (mismo criterio/limitación ya aceptada en Parks) — AVAILABLE_AREA_UNIT simplemente
+   copia el de Leasable. */
+const PROPIEDADES_COMPUTED_FIELD_KEYS = new Set(["AVAILABLE_AREA_VALUE"]);
+function recomputePropertyDerivedFields(property){
+  const leasable=Number(property.LEASABLE_AREA_GLA_VALUE);
+  const hasLeasable = property.LEASABLE_AREA_GLA_VALUE!=null && property.LEASABLE_AREA_GLA_VALUE!=="" && !isNaN(leasable);
+  if(hasLeasable){
+    const occ=Number(property.OCCUPIED_AREA_VALUE);
+    const occVal=(property.OCCUPIED_AREA_VALUE!=null && property.OCCUPIED_AREA_VALUE!=="" && !isNaN(occ)) ? occ : 0;
+    property.AVAILABLE_AREA_VALUE=round2(leasable-occVal);
+    property.AVAILABLE_AREA_UNIT=property.LEASABLE_AREA_GLA_UNIT||"";
+  } else {
+    property.AVAILABLE_AREA_VALUE="";
+    property.AVAILABLE_AREA_UNIT="";
+  }
+}
+function recomputeAllPropertyDerivedFields(){ (state.PROPIEDADES||[]).forEach(recomputePropertyDerivedFields); }
+/* Pedido explícito del usuario: en Buildings, al cambiar "Market Status" a "Occupied" se copia Occupied Area
+   = Leasable Area GLA (mismo valor Y unidad) — junto con el punto anterior (Available Area = Leasable -
+   Occupied, ver PROPIEDADES_COMPUTED_FIELD_KEYS/recomputePropertyDerivedFields), esto deja "Available" en 0
+   sin que el usuario tenga que tocar Occupied a mano. Solo copia EN ESE SENTIDO (al pasar A "Occupied") —
+   cambiar a cualquier OTRO status no restaura ni toca Occupied, no se pidió eso. El input visible de
+   Available sigue mostrando el valor de ANTES de este cambio hasta guardar/reabrir (mismo criterio ya
+   aceptado para los campos calculados de Parks — nunca se recalculan "en vivo" mientras se edita, solo al
+   abrir la ficha y al guardar, ver recomputePropertyDerivedFields()). */
+function onPropertyMarketStatusChange(selectEl){
+  if(!ciEq(selectEl.value,"Occupied")) return;
+  const leasableEl=document.querySelector('#mBody [data-key="LEASABLE_AREA_GLA_VALUE"]');
+  const leasableUnitEl=document.querySelector('#mBody [data-key="LEASABLE_AREA_GLA_UNIT"]');
+  const occupiedEl=document.querySelector('#mBody [data-key="OCCUPIED_AREA_VALUE"]');
+  const occupiedUnitEl=document.querySelector('#mBody [data-key="OCCUPIED_AREA_UNIT"]');
+  if(!leasableEl || !occupiedEl) return;
+  occupiedEl.value=leasableEl.value;
+  if(occupiedUnitEl && leasableUnitEl) occupiedUnitEl.value=leasableUnitEl.value;
+}
 function polygonSummary(raw){
   if(!raw) return "No polygon captured";
   try{
@@ -9120,8 +9183,12 @@ function buildForm(ent, record){
       const rawVal=record&&record[f.key]!=null?String(record[f.key]):"";
       const mismatchCls=fieldValueMismatch(ent,f,record)?" field-value-mismatch":"";
       const mismatchTitle=mismatchCls?' title="The captured value is not in the list configured for this field"':"";
+      // Pedido explícito del usuario: en Buildings, cambiar "Market Status" a "Occupied" copia Occupied Area
+      // = Leasable Area GLA (para que Available Area, ahora calculada — ver PROPIEDADES_COMPUTED_FIELD_KEYS
+      // — quede en 0). Ver onPropertyMarketStatusChange().
+      const onChangeAttr=(ent==="PROPIEDADES" && f.key==="MARKET_STATUS")?' onchange="onPropertyMarketStatusChange(this)"':"";
       return `<div class="field"><label>${fieldLabel(f.key)}${reqMark}${helpIcon}</label>
-        <select data-key="${f.key}" class="${mismatchCls.trim()}"${mismatchTitle}>${listOptionsHtml(listName,rawVal)}</select></div>`;
+        <select data-key="${f.key}" class="${mismatchCls.trim()}"${mismatchTitle}${onChangeAttr}>${listOptionsHtml(listName,rawVal)}</select></div>`;
     }
     if(f.type==="date"){
       const rawVal=record&&record[f.key]!=null?String(record[f.key]):"";
@@ -9181,7 +9248,7 @@ function buildForm(ent, record){
     // mismo patrón ya corregido abajo para SPACE_AUTOFILL_READONLY_KEYS (v3.51.1) — sin `ent==="PARKS"`,
     // esta rama también agarraba el AVAILABLE_AREA_VALUE/UNIT de Terrenos (mismo key, desde v7.3.49), un
     // campo normal ahí, y lo volvía de solo lectura por error.
-    if(ent==="PARKS" && PARK_COMPUTED_FIELD_KEYS.has(valueField.key)){
+    if((ent==="PARKS" && PARK_COMPUTED_FIELD_KEYS.has(valueField.key)) || (ent==="PROPIEDADES" && PROPIEDADES_COMPUTED_FIELD_KEYS.has(valueField.key))){
       const computedVal=record&&record[valueField.key]!=null&&record[valueField.key]!==""?record[valueField.key]:0;
       const computedUnit=(record&&record[unitField.key])||"—";
       return `<div class="field field-readonly"><label>${label}${helpIcon}</label>
@@ -13516,6 +13583,7 @@ function reRenderTransactionForm(){
 }
 function enterEditMode(rec){
   if(current==="PARKS" && rec) recomputeParkDerivedFields(rec);
+  if(current==="PROPIEDADES" && rec) recomputePropertyDerivedFields(rec);
   editingOriginalPhotoId=(rec&&PHOTO_ID_FIELD[current])?rec[PHOTO_ID_FIELD[current]]:null;
   document.getElementById("mTitle").textContent=rec?"Edit · "+(rec[ENTITIES[current].titleField]||ENTITIES[current].label):"New · "+ENTITIES[current].label;
   document.getElementById("mBody").innerHTML=buildForm(current,rec);
@@ -13605,6 +13673,7 @@ async function openView(id, panelIdx){
     const rec=(state[current]||[]).find(r=>r.__id===id);
     if(!rec){ closeModal(); toast("This record no longer exists (someone else deleted it, or the file changed).","err"); return; }
     if(current==="PARKS") recomputeParkDerivedFields(rec);
+    if(current==="PROPIEDADES") recomputePropertyDerivedFields(rec);
     document.getElementById("mTitle").textContent=rec[ENTITIES[current].titleField]||ENTITIES[current].label;
     document.getElementById("mBody").innerHTML=buildViewForm(current,rec);
     document.getElementById("modalEditBtn").style.display=(consolidatedMode||current==="BITACORA")?"none":"";
@@ -13747,7 +13816,7 @@ document.getElementById("saveBtn").onclick=()=>{
   // MARKET_STATUS pudo cambiar a cuál Parque pertenece o si cuenta como disponible) — así los conteos
   // quedan frescos en el Excel exportado sin depender de que alguien vuelva a abrir la ficha de ese Parque.
   if(current==="PARKS") recomputeParkDerivedFields(rec);
-  else if(current==="PROPIEDADES") recomputeAllParkDerivedFields();
+  else if(current==="PROPIEDADES"){ recomputePropertyDerivedFields(rec); recomputeAllParkDerivedFields(); }
   // v3.51.4, pedido explícito del usuario: si se guardó una Oficina, refresca TODOS los Spaces enlazados a
   // ella (mismo criterio que el bloque de arriba para Parques/Propiedades) — ver
   // recomputeAllSpaceLinkedFields(). `editingOriginalPhotoId` todavía tiene el Mapping Code ANTERIOR a este
@@ -15053,6 +15122,7 @@ function applyConsolidatedResult(merged, officeCount, fileCount, total){
   invalidateSubmarketToMarketCache();
   parkDerivedCacheSig=null;
   spaceDerivedCacheSig=null;
+  propertyDerivedCacheSig=null;
   setConsolidatedChip(officeCount, fileCount, total);
   document.getElementById("consolidatedBannerInfo").textContent=officeCount+" oficina(s) · "+total+" registro(s)";
   renderTable();

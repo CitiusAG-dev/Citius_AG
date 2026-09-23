@@ -450,7 +450,11 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-box .mkt-absorption-table tr.mkt-total-row td{background:transparent}
   .mkt-box .mkt-absorption-table tr:last-child td{border-bottom:none}
   .mkt-total-row td{background:var(--panel-2);font-weight:700;border-top:1.5px solid var(--txt)}
-  .mkt-group-row td{background:#eee;font-weight:700;text-transform:uppercase;font-size:10px;letter-spacing:.3px}
+  /* Pedido explícito del usuario: el separador de Submarket (este renglón) se veía "más grande y oscuro" que
+     el header de columnas de la misma tabla — ahora usa exactamente la misma tipografía/color que
+     `.mkt-table th` (arriba: fondo var(--panel-2), texto var(--muted), 9px) en vez de su propio fondo/tamaño/
+     color (antes #eee de fondo y el color de texto por defecto, más oscuro que var(--muted)). */
+  .mkt-group-row td{background:var(--panel-2);color:var(--muted);font-weight:700;text-transform:uppercase;font-size:9px;letter-spacing:.3px}
   /* Bug real reportado por el usuario (con captura): Completed/Available Detail paginan en varias
      `.mkt-table` SEPARADAS (una por página, ver mktPaginateDetailPages()) — con table-layout:auto (el
      default), cada `<table>` calcula el ancho de sus columnas SOLO a partir de las filas que le tocaron a
@@ -2075,7 +2079,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.8.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.8.1</div>
     </nav>
   </aside>
   <div class="main">
@@ -4784,6 +4788,12 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.8.1", date:"2026-09-23", items:[
+    "Market Report (PDF), Completed Transactions/Available Inventory -- Detail: the gray Submarket separator row now matches the column header's typography and color exactly (was darker/bigger than the header).",
+    "Market Report (PDF), Available Inventory -- Detail: \"Generation\" header shortened to \"GEN\"; Status/Class/GEN columns are narrower and equal width to each other; Name/Developer/Location/$-SF-Mo columns resized to use the freed space, fixing rates like \"MX $ 12.54\" looking cramped.",
+    "Market Report (PDF), Available Inventory -- Detail: excluded records with \"Status\" = \"Planned\" (they still count in the rest of the report, e.g. the KPI cards).",
+    "Record tables (Buildings/Parks/Offices/etc.): area values converted between SF/m² (Available/Occupied/Leasable Area/etc.) now round to a whole number instead of showing 2 decimals; other unit types (Clear Height, thickness, rates) are unaffected."
+  ]},
   {version:"8.8.0", date:"2026-09-22", items:[
     "Summary/Market Report: \"Total Market (Class A and B)\" and \"(A, B and C)\" now also require \"Status\" = \"Ready\" (previously included Under Construction/Under Development/Planned) -- also affects Vacancy Rate and Availability Rate, which divide by this KPI.",
     "Market Report (PDF), Completed Transactions -- Detail: removed the Submarket column (still grouped by the gray separator row, like Available Inventory -- Detail); added Property Name after Tenant/Buyer and Broker (was Tenant Rep Broker) at the end; Location is now just the Park name.",
@@ -5598,8 +5608,13 @@ function convertCellForView(ent, valueKey, unitKey, rawValue, rawUnit, targetVie
   const dim=UNIT_CONVERSIONS[listName];
   if(!dim) return {value:rawValue, unit:rawUnit};
   const u=String(rawUnit).trim();
-  if(targetView==="metric" && ciEq(u,dim.imperial)) return {value:round2(Number(rawValue)*dim.toMetric), unit:dim.metric};
-  if(targetView==="imperial" && ciEq(u,dim.metric)) return {value:round2(Number(rawValue)/dim.toMetric), unit:dim.imperial};
+  // Pedido explícito del usuario: en las tablas de registros (Buildings/Parks/Offices/etc.), los valores de
+  // ÁREA convertidos entre SF/m² (Available/Occupied/Leasable/etc., cualquier campo cuya lista de unidad sea
+  // SF_M2) se redondean a entero — antes usaban round2() (2 decimales) igual que el resto de dimensiones
+  // (Clear Height en FT_M, espesores en CM_IN, etc.), que sí conservan sus decimales, sin cambio.
+  const roundFn=listName==="SF_M2" ? Math.round : round2;
+  if(targetView==="metric" && ciEq(u,dim.imperial)) return {value:roundFn(Number(rawValue)*dim.toMetric), unit:dim.metric};
+  if(targetView==="imperial" && ciEq(u,dim.metric)) return {value:roundFn(Number(rawValue)/dim.toMetric), unit:dim.imperial};
   return {value:rawValue, unit:rawUnit};
 }
 /* Para una columna que ES el lado "unidad" de algún par valor/unidad visible: encuentra esa key "valor" */
@@ -7816,7 +7831,7 @@ function mktBuildTxDetailPage(){
     const rows=(state.TRANSACCIONES||[]).filter(r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd&&["Lease","Sublease","Sale"].some(t=>ciEq(r.TRANSACCION_TYPE,t)));
     if(!rows.length) return;
     // v7.3.5x, bug real reportado por el usuario (con captura): colspan=7 dejaba SIN celda la 8va columna
-    // (Trans) en este renglón — como .mkt-group-row pinta gris vía `td{background:#eee}`, esa columna sin
+    // (Trans) en este renglón — como .mkt-group-row pinta de fondo vía `td{background:...}`, esa columna sin
     // <td> no tenía nada que pintar y se veía blanca en vez de gris, en TODOS los separadores de submercado.
     lines.push(`<tr class="mkt-group-row"><td colspan="9">▼ ${escapeHtml(sm.toUpperCase())}</td></tr>`);
     // v7.3.5x, pedido explícito del usuario: orden Submarket (el agrupado de arriba) -> Q -> Developer
@@ -7898,16 +7913,28 @@ function mktBuildAvailSummaryPage(){
 function mktBuildAvailDetailPage(){
   const subs=resumenSubmarkets();
   const num=v=>Math.round(v).toLocaleString("en-US");
-  // Pedido explícito del usuario: nueva columna "Generation" (Building Generation, campo BUILDING_GENERATION
-  // de Propiedades) después de Class.
-  const theadHtml=`<tr><th>Name</th><th>Developer</th><th>Location</th><th>Size (${resumenAreaUnitLabel()})</th><th>Occupied</th><th>Available</th><th>Clear Height (${resumenHeightUnitLabel()})</th><th>Status</th><th>Class</th><th>Generation</th><th>$/${resumenAreaUnitLabel()}/Mo</th></tr>`;
+  // Pedido explícito del usuario: header "Generation" -> "GEN" (Building Generation, campo
+  // BUILDING_GENERATION de Propiedades, después de Class).
+  const theadHtml=`<tr><th>Name</th><th>Developer</th><th>Location</th><th>Size (${resumenAreaUnitLabel()})</th><th>Occupied</th><th>Available</th><th>Clear Height (${resumenHeightUnitLabel()})</th><th>Status</th><th>Class</th><th>GEN</th><th>$/${resumenAreaUnitLabel()}/Mo</th></tr>`;
   // Bug real reportado por el usuario: mismo % de ancho en TODAS las páginas (ver comentario grande junto a
   // .mkt-detail-table en el CSS) — sin esto, table-layout:auto le da a cada página un ancho de columna
   // distinto según el contenido que le tocó.
-  const colgroupHtml=`<colgroup><col style="width:12%"><col style="width:10%"><col style="width:15%"><col style="width:9%"><col style="width:8%"><col style="width:7%"><col style="width:10%"><col style="width:8%"><col style="width:6%"><col style="width:8%"><col style="width:7%"></colgroup>`;
+  // Pedido explícito del usuario: Status/Class/GEN al mismo ancho (el de Status, 8%, como referencia — antes
+  // Class era más angosta); Name se recorta un poco (12% -> 10%) y ese espacio, más el que se necesitaba
+  // para ensanchar Class (tomado de un recorte menor a Clear Height y a la tarifa), se le da todo a Location
+  // (15% -> 17%).
+  // Pedido explícito del usuario (2do ajuste): Status/Class/GEN se recortan otro 15% CADA UNA (8% -> 6.8%,
+  // no 15 puntos porcentuales) — el 3.6% total liberado (3 × 1.2) se reparte por igual entre Developer y
+  // Location (+1.8% cada una).
+  // Pedido explícito del usuario (3er ajuste, con captura: "MX $ 12.54" quedaba descuadrado a la derecha
+  // frente a "US $ 0.68" por lo angosta que era esta columna) — 2% más para la columna de tarifa ($/SF/Mo,
+  // 6% -> 8%), tomado de Location (18.8% -> 16.8%, que ya había crecido bastante en el ajuste anterior).
+  const colgroupHtml=`<colgroup><col style="width:10%"><col style="width:11.8%"><col style="width:16.8%"><col style="width:9%"><col style="width:8%"><col style="width:7%"><col style="width:9%"><col style="width:6.8%"><col style="width:6.8%"><col style="width:6.8%"><col style="width:8%"></colgroup>`;
   let lines=[], grandTotalSF=0;
   subs.forEach(sm=>{
-    const rows=(state.PROPIEDADES||[]).filter(r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B"))&&ciEq(r.MARKET_STATUS,"Available"));
+    // Pedido explícito del usuario: se quitan de esta tabla los registros con Status = "Planned" (siguen
+    // contando para el resto del reporte, ej. las tarjetas KPI — este filtro es solo para este detalle).
+    const rows=(state.PROPIEDADES||[]).filter(r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B"))&&ciEq(r.MARKET_STATUS,"Available")&&!ciEq(r.STATUS,"Planned"));
     if(!rows.length) return;
     // v7.3.5x, pedido explícito del usuario: ya no lleva el total del submercado en la misma línea del
     // separador (colspan ahora cubre las 11 columnas completas).

@@ -2083,7 +2083,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.9.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.9.1</div>
     </nav>
   </aside>
   <div class="main">
@@ -4792,6 +4792,11 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.9.1", date:"2026-09-24", items:[
+    "Fixed: the \"Proposed in Presentations\" listing history disappeared from Buildings/Parks/Land record forms -- now detected by the presence of the Citius AG Listing field instead of a renamed-group name lookup that could silently drift out of sync.",
+    "Pres. Log: Listed Records now shows a readable table (Mapping Code/Name/Available Area/Market/Submarket/Citius AG Listing) instead of raw JSON -- logs every proposed property (not just Citius AG Listing = Yes), and Available Area shows in the unit the presentation was generated in.",
+    "Pres. Log: the record's \"Log\" tab now has a real icon (was a generic circle)."
+  ]},
   {version:"8.9.0", date:"2026-09-23", items:[
     "Market Report (PDF), Available Inventory -- Detail: measurement column headers (Size/Occupied/Available/Clear Height) now show the unit on a 2nd line -- also fixes Occupied/Available, which showed no unit at all; Clear Height now always shows exactly 1 decimal. Completed Transactions -- Detail keeps its \"Area (SF)\" header on one line (its only measurement column).",
     "Buildings: \"Available Area\" is now a computed field -- Leasable Area GLA minus Occupied Area, same idea as Parks' own Available Area -- and is read-only. Existing records are backfilled automatically the moment you open the Buildings tab.",

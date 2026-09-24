@@ -9053,6 +9053,22 @@ function listingPresentationHistoryHtml(ent, record){
    PRESENCIA del campo CITIUS_AG_LISTING dentro del grupo que se está pintando, no por el nombre del grupo —
    ese campo nunca cambia de key, así que esto no se puede romper por un renombre, sea cual sea su causa. */
 function isListingFieldGroup(groupFields){ return (groupFields||[]).some(f=>f.key==="CITIUS_AG_LISTING"); }
+/* Pedido explícito del usuario ("quiero verlo en una tablita... mapping code, nombre, mercado y submercado"):
+   en la ficha de solo lectura de Pres. Log (BITACORA), el campo LISTED_RECORDS se veía como el JSON crudo
+   ([{"ent":"PROPIEDADES","id":"..."},...], ver logBitacoraEntry()) — poco legible. Esta función lo resuelve
+   contra el registro real (por ent+__id, mismo criterio que listingPresentationHistoryHtml() en la dirección
+   inversa) y arma una tabla con los 4 campos que el usuario pidió. Un registro que ya no exista (borrado
+   después de haberse propuesto) se muestra igual, marcado "(deleted)" en vez de desaparecer en silencio. */
+function bitacoraListedRecordsHtml(raw){
+  let arr; try{ arr=JSON.parse(raw||"[]"); }catch(e){ arr=[]; }
+  if(!arr.length) return '<span class="muted">—</span>';
+  const rowsHtml=arr.map(x=>{
+    const rec=(state[x.ent]||[]).find(r=>r.__id===x.id);
+    if(!rec) return `<tr><td colspan="4" class="col-add-empty">(deleted record — ${escapeHtml(x.ent||"")})</td></tr>`;
+    return `<tr><td>${escapeHtml(rec.MAPPING_CODE||"")}</td><td>${escapeHtml(rec.PROPERTY_NAME||"")}</td><td>${escapeHtml(rec.MARKET||"")}</td><td>${escapeHtml(rec.SUBMARKET||"")}</td></tr>`;
+  }).join("");
+  return `<div class="resumen-scroll"><table class="resumen-table listing-history-table"><thead><tr><th>Mapping Code</th><th>Name</th><th>Market</th><th>Submarket</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
+}
 function buildForm(ent, record){
   const flds=transactionVisibleFields(ent, record, fields(ent)), sugg=suggestions(ent);
   const groups={};
@@ -9431,6 +9447,10 @@ function buildViewForm(ent, record){
       const f=item.field;
       const reqMark=f.required?' <span class="field-required">*</span>':"";
       const helpIcon=fieldHelpIconHtml(ent,f);
+      if(ent==="BITACORA" && f.key==="LISTED_RECORDS"){
+        html+=`<div class="field" style="grid-column:1/-1"><label>${fieldLabel(f.key)}${helpIcon}</label>${bitacoraListedRecordsHtml(record&&record[f.key])}</div>`;
+        return;
+      }
       if(POLYGON_FIELD_KEYS.has(f.key)){
         // v3.45.16: fuerza su propia fila — en modo edición esto pasa solo porque el botón "Dibujar
         // polígono" ocupa la 3ra celda y no queda espacio para las 2 columnas del campo en la fila de

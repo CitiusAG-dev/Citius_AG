@@ -9044,6 +9044,15 @@ function listingPresentationHistoryHtml(ent, record){
   return `<h5 style="margin:20px 0 8px">Proposed in Presentations (${matches.length})</h5>
     <div class="resumen-scroll"><table class="resumen-table listing-history-table"><thead><tr><th>Date</th><th>Company/Project</th><th>Type</th><th>Broker</th><th>Size</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
 }
+/* Bug real reportado por el usuario ("esto funcionaba antes y ya no aparece"): el bloque de arriba se
+   insertaba comparando el NOMBRE del grupo contra currentGroupName("LISTING") — si groupRenames alguna vez
+   quedaba mal (ej. alguien arrastra CITIUS_AG_LISTING/LISTING_BROKER/etc. a otra pestaña en Configuración >
+   Campos, o un import/exportación de fieldConfig deja el grupo con otro nombre), esa comparación indirecta
+   deja de calzar y el bloque desaparece de TODAS las fichas (Buildings/Parks/Land comparten groupRenames,
+   que es global) sin ningún error visible — exactamente el síntoma reportado. Ahora se detecta por la
+   PRESENCIA del campo CITIUS_AG_LISTING dentro del grupo que se está pintando, no por el nombre del grupo —
+   ese campo nunca cambia de key, así que esto no se puede romper por un renombre, sea cual sea su causa. */
+function isListingFieldGroup(groupFields){ return (groupFields||[]).some(f=>f.key==="CITIUS_AG_LISTING"); }
 function buildForm(ent, record){
   const flds=transactionVisibleFields(ent, record, fields(ent)), sugg=suggestions(ent);
   const groups={};
@@ -9311,7 +9320,7 @@ function buildForm(ent, record){
       html+= item.pair ? renderPairField(item.valueField, item.unitField) : renderStandaloneField(item.field);
     });
     html+=`</div>`;
-    if(g===currentGroupName("LISTING")) html+=listingPresentationHistoryHtml(ent, record);
+    if(isListingFieldGroup(groups[g])) html+=listingPresentationHistoryHtml(ent, record);
     panels.push({label:g, html, missing:countMissingRequired(ent, groups[g], record)});
   }
   if(PHOTO_ID_FIELD[ent]) panels.push({label:"Photography", html:buildImageBlock(ent), missing:photoMissingCount(ent,record)});
@@ -9455,7 +9464,7 @@ function buildViewForm(ent, record){
       html+=`<div class="field"${forceNewRow}><label>${fieldLabel(f.key)}${reqMark}${helpIcon}</label><div class="view-val${mismatchCls}"${mismatchTitle}>${displayVal}</div></div>`;
     });
     html+=`</div>`;
-    if(g===currentGroupName("LISTING")) html+=listingPresentationHistoryHtml(ent, record);
+    if(isListingFieldGroup(groups[g])) html+=listingPresentationHistoryHtml(ent, record);
     panels.push({label:g, html, missing:countMissingRequired(ent, groups[g], record)});
   }
   if(PHOTO_ID_FIELD[ent]) panels.push({label:"Photography", html:buildImageViewBlock(ent), missing:photoMissingCount(ent,record)});

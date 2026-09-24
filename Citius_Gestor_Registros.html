@@ -3267,6 +3267,15 @@ const CASCADE_ID_HEADER_ALIASES={
   MARKET:["COLUMN3","ID_MERCADO"],
   SUBMARKET:["COLUMN4","ID_SUBMERCADO"]
 };
+/* Columna "Tipo" (pedido explícito del usuario, 2026-09-24): Región/Estado/Mercado se comparten entre
+   Industrial y Oficinas, pero Submercado NO -- Oficinas divide la ciudad en submercados distintos a los de
+   Industrial. Columna opcional (posición libre, se busca por nombre como el resto del catálogo) con valor
+   "Industrial" u "Oficinas" por fila; una fila sin este valor capturado todavía no se filtra (sigue
+   apareciendo para ambos tipos) para no ocultar submercados mientras el catálogo se termina de llenar. Solo
+   afecta las opciones de Submercado -- Región/Estado/Mercado siguen agregando TODAS las filas sin importar
+   Tipo, como pidió el usuario. */
+const CASCADE_TYPE_HEADER_ALIASES=["TIPO","TYPE"];
+function cascadeEntityTipo(ent){ return ent==="OFICINAS" ? "OFICINAS" : "INDUSTRIAL"; }
 function findHeaderIndex(header, aliases){
   for(const alias of aliases){ const idx=header.indexOf(alias); if(idx>=0) return idx; }
   return -1;
@@ -3288,6 +3297,7 @@ function loadCascadeCatalogFromSheet(wb){
   for(const key of CASCADE_ORDER){
     ciId[key]=findHeaderIndex(header, CASCADE_ID_HEADER_ALIASES[key]);
   }
+  const typeIdx=findHeaderIndex(header, CASCADE_TYPE_HEADER_ALIASES);
   const rows=[];
   for(let r=1;r<aoa.length;r++){
     const row=aoa[r];
@@ -3297,6 +3307,7 @@ function loadCascadeCatalogFromSheet(wb){
       const idIdx=ciId[key];
       if(idIdx>=0){ const raw=row[idIdx]; entry[CASCADE_ID_KEY[key]]=(raw===""||raw==null)?"":String(raw).trim(); }
     });
+    entry.TIPO=typeIdx>=0?String(row[typeIdx]||"").trim().toUpperCase():"";
     if(CASCADE_ORDER.every(key=>!entry[key])) continue;
     rows.push(entry);
   }
@@ -3339,6 +3350,7 @@ function buildCascadeIndexIfNeeded(){
   if(cascadeIndex) return cascadeIndex;
   const idx={};
   CASCADE_ORDER.forEach(key=>{ idx[key]={ allSet:new Set(), byParent:new Map() }; });
+  idx.SUBMARKET.byParentByType={INDUSTRIAL:new Map(), OFICINAS:new Map()};
   cascadeCatalog.forEach(row=>{
     CASCADE_ORDER.forEach((key,i)=>{
       const val=row[key];
@@ -3350,6 +3362,20 @@ function buildCascadeIndexIfNeeded(){
           let set=idx[key].byParent.get(parentVal);
           if(!set) idx[key].byParent.set(parentVal, set=new Set());
           set.add(val);
+          // v8.9.x, columna "Tipo" (ver CASCADE_TYPE_HEADER_ALIASES): además del byParent normal (todas
+          // las filas, usado cuando no hace falta filtrar por tipo), se arma un byParent POR TIPO solo para
+          // Submercado. Una fila sin Tipo capturado entra a los 2 tipos -- no debe desaparecer del dropdown
+          // de nadie solo porque esa fila del catálogo todavía no se etiquetó.
+          if(key==="SUBMARKET"){
+            const tipos=row.TIPO?[row.TIPO]:["INDUSTRIAL","OFICINAS"];
+            tipos.forEach(t=>{
+              const byType=idx.SUBMARKET.byParentByType[t];
+              if(!byType) return;
+              let tset=byType.get(parentVal);
+              if(!tset) byType.set(parentVal, tset=new Set());
+              tset.add(val);
+            });
+          }
         }
       }
     });
@@ -3358,24 +3384,36 @@ function buildCascadeIndexIfNeeded(){
     idx[key].all=[...idx[key].allSet].sort((a,b)=>a.localeCompare(b));
     idx[key].byParent.forEach((set,pval)=>idx[key].byParent.set(pval,[...set].sort((a,b)=>a.localeCompare(b))));
   });
+  ["INDUSTRIAL","OFICINAS"].forEach(t=>{
+    idx.SUBMARKET.byParentByType[t].forEach((set,pval)=>idx.SUBMARKET.byParentByType[t].set(pval,[...set].sort((a,b)=>a.localeCompare(b))));
+  });
   cascadeIndex=idx;
   return idx;
 }
-function cascadeOptionsFor(key, parentKey, parentValue){
+/* `ent` (opcional, 4º parámetro): entidad que está pidiendo las opciones ("OFICINAS" vs. cualquier otra) --
+   solo se usa para filtrar Submercado por la columna "Tipo" del catálogo (ver comentario en
+   CASCADE_TYPE_HEADER_ALIASES); Región/Estado/Mercado ignoran `ent` a propósito, siguen 100% compartidos. */
+function cascadeOptionsFor(key, parentKey, parentValue, ent){
   const order=CASCADE_ORDER.indexOf(key);
   const adjacentParentKey=order>0?CASCADE_ORDER[order-1]:null;
+  const tipo=(key==="SUBMARKET" && ent!==undefined)?cascadeEntityTipo(ent):null;
   if(parentKey && parentKey!==adjacentParentKey){
     // caso no cubierto por el índice (parentKey NO es el nivel inmediatamente anterior) — barrido de
     // siempre, para no arriesgar un resultado incorrecto; no ocurre con las entidades reales hoy.
     const set=new Set();
     cascadeCatalog.forEach(row=>{
       if(parentValue && row[parentKey]!==parentValue) return;
+      if(tipo && row.TIPO && row.TIPO!==tipo) return;
       if(row[key]) set.add(row[key]);
     });
     return [...set].sort((a,b)=>a.localeCompare(b));
   }
-  const idxForKey=buildCascadeIndexIfNeeded()[key];
+  const idxAll=buildCascadeIndexIfNeeded();
+  const idxForKey=idxAll[key];
   if(!idxForKey) return [];
+  if(tipo && parentKey && parentValue){
+    return idxAll.SUBMARKET.byParentByType[tipo].get(parentValue) || [];
+  }
   if(!parentKey || !parentValue) return idxForKey.all;
   return idxForKey.byParent.get(parentValue) || [];
 }
@@ -3398,7 +3436,7 @@ function onCascadeFieldChange(selEl){
     const parentKey=cascadeParentKeyFor(current, childKey);
     const parentEl=parentKey?document.querySelector('#mBody [data-key="'+parentKey+'"]'):null;
     const parentValue=parentEl?parentEl.value:"";
-    childSel.innerHTML=cascadeSelectOptionsHtml(cascadeOptionsFor(childKey,parentKey,parentValue), "");
+    childSel.innerHTML=cascadeSelectOptionsHtml(cascadeOptionsFor(childKey,parentKey,parentValue,current), "");
     childSel.value="";
   }
   syncGeoIdFields();
@@ -8879,7 +8917,7 @@ function fieldValueMismatch(ent, f, record){
   if(CASCADE_ORDER.includes(f.key) && cascadeCatalog.length){
     const parentKey=cascadeParentKeyFor(ent,f.key);
     const parentValue=parentKey&&record?String(record[parentKey]||""):"";
-    return !cascadeOptionsFor(f.key,parentKey,parentValue).includes(raw);
+    return !cascadeOptionsFor(f.key,parentKey,parentValue,ent).includes(raw);
   }
   if(MULTI_LIST_FIELD_KEYS.has(f.key) && f.list && lists[f.list]){
     // valor guardado como "A, B, C" (ver MULTI_LIST_FIELD_KEYS) — "no está en la lista" solo si ALGUNO de
@@ -9228,7 +9266,7 @@ function buildForm(ent, record){
       const rawVal=record&&record[f.key]!=null?String(record[f.key]):"";
       const parentKey=cascadeParentKeyFor(ent,f.key);
       const parentValue=parentKey&&record?String(record[parentKey]||""):"";
-      const options=cascadeOptionsFor(f.key,parentKey,parentValue);
+      const options=cascadeOptionsFor(f.key,parentKey,parentValue,ent);
       const mismatchCls=fieldValueMismatch(ent,f,record)?" field-value-mismatch":"";
       const mismatchTitle=mismatchCls?' title="The captured value is not in the list configured for this field"':"";
       return `<div class="field"><label>${fieldLabel(f.key)}${reqMark}${helpIcon}</label>

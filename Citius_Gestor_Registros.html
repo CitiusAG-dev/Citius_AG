@@ -8783,6 +8783,10 @@ const GROUP_META = {
   "COMMERCIAL": {label:"Commercial", icon:'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'},
   "PARKING": {label:"Parking", icon:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 17V7h4a3 3 0 0 1 0 6H9"/>'},
   "LISTING": {label:"Listing", icon:'<path d="M19 21 12 17 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>'},
+  // Pedido explícito del usuario: la pestaña "Log" de Pres. Log (BITACORA) traía el ícono genérico de
+  // círculo que le toca por default (ver groupMeta() más abajo) — mismo ícono de portapapeles que ya usa
+  // "Pres. Log" en la barra lateral principal (ver ICONS.BITACORA), para que se reconozca de inmediato.
+  "LOG": {label:"Log", icon:'<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="16" y2="16"/><line x1="8" y1="20" x2="12" y2="20"/>'},
 };
 function groupMeta(g){
   const fallbackLabel=g.charAt(0)+g.slice(1).toLowerCase();
@@ -9057,17 +9061,24 @@ function isListingFieldGroup(groupFields){ return (groupFields||[]).some(f=>f.ke
    en la ficha de solo lectura de Pres. Log (BITACORA), el campo LISTED_RECORDS se veía como el JSON crudo
    ([{"ent":"PROPIEDADES","id":"..."},...], ver logBitacoraEntry()) — poco legible. Esta función lo resuelve
    contra el registro real (por ent+__id, mismo criterio que listingPresentationHistoryHtml() en la dirección
-   inversa) y arma una tabla con los 4 campos que el usuario pidió. Un registro que ya no exista (borrado
-   después de haberse propuesto) se muestra igual, marcado "(deleted)" en vez de desaparecer en silencio. */
+   inversa) y arma una tabla con los campos que el usuario pidió. Un registro que ya no exista (borrado
+   después de haberse propuesto) se muestra igual, marcado "(deleted)" en vez de desaparecer en silencio.
+   v_pendiente, pedido explícito del usuario ("en un futuro quiero ver la totalidad de la información...
+   agregar Citius AG Listing, solo las que sí son que digan Yes"): LISTED_RECORDS ahora guarda TODOS los
+   propuestos en la presentación (ver doPresPrint/doLandPresPrint), no solo los "Yes" — esta tabla agrega la
+   5ta columna "Citius AG Listing" resolviendo el valor REAL de cada registro (vacío si no es "Yes", nunca
+   "No" — el usuario pidió específicamente solo marcar los que sí son). Logs viejos (de antes de este cambio)
+   ya solo tenían los "Yes" guardados, así que para esos la tabla sigue viéndose igual que antes, solo con la
+   columna nueva de más. */
 function bitacoraListedRecordsHtml(raw){
   let arr; try{ arr=JSON.parse(raw||"[]"); }catch(e){ arr=[]; }
   if(!arr.length) return '<span class="muted">—</span>';
   const rowsHtml=arr.map(x=>{
     const rec=(state[x.ent]||[]).find(r=>r.__id===x.id);
-    if(!rec) return `<tr><td colspan="4" class="col-add-empty">(deleted record — ${escapeHtml(x.ent||"")})</td></tr>`;
-    return `<tr><td>${escapeHtml(rec.MAPPING_CODE||"")}</td><td>${escapeHtml(rec.PROPERTY_NAME||"")}</td><td>${escapeHtml(rec.MARKET||"")}</td><td>${escapeHtml(rec.SUBMARKET||"")}</td></tr>`;
+    if(!rec) return `<tr><td colspan="5" class="col-add-empty">(deleted record — ${escapeHtml(x.ent||"")})</td></tr>`;
+    return `<tr><td>${escapeHtml(rec.MAPPING_CODE||"")}</td><td>${escapeHtml(rec.PROPERTY_NAME||"")}</td><td>${escapeHtml(rec.MARKET||"")}</td><td>${escapeHtml(rec.SUBMARKET||"")}</td><td>${ciEq(rec.CITIUS_AG_LISTING,"Yes")?"Yes":""}</td></tr>`;
   }).join("");
-  return `<div class="resumen-scroll"><table class="resumen-table listing-history-table"><thead><tr><th>Mapping Code</th><th>Name</th><th>Market</th><th>Submarket</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
+  return `<div class="resumen-scroll"><table class="resumen-table listing-history-table"><thead><tr><th>Mapping Code</th><th>Name</th><th>Market</th><th>Submarket</th><th>Citius AG Listing</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
 }
 function buildForm(ent, record){
   const flds=transactionVisibleFields(ent, record, fields(ent)), sugg=suggestions(ent);
@@ -13431,7 +13442,11 @@ document.getElementById("presPrintBtn").onclick=()=>{
       markets:presCoverInfo.markets,
       brokers:presCoverInfo.brokers,
       propertiesCount:list.length,
-      listedRecords: list.filter(r=>ciEq(r.CITIUS_AG_LISTING,"Yes")).map(r=>({ent:"PROPIEDADES", id:r.__id}))
+      // Pedido explícito del usuario ("quiero ver la totalidad de la información"): antes solo se guardaban
+      // los registros con Citius AG Listing = "Yes" — ahora se guardan TODOS los propuestos en la
+      // presentación (mismo `list` que ya alimenta propertiesCount, así que los 2 números siempre calzan);
+      // "Yes"/"No" se resuelve al mostrarlo, ver bitacoraListedRecordsHtml().
+      listedRecords: list.map(r=>({ent:"PROPIEDADES", id:r.__id}))
     });
     doPresPrint();
   });
@@ -13505,7 +13520,8 @@ document.getElementById("landPresPrintBtn").onclick=()=>{
       markets:landPresCoverInfo.markets,
       brokers:landPresCoverInfo.brokers,
       propertiesCount:list.length,
-      listedRecords: list.filter(r=>ciEq(r.CITIUS_AG_LISTING,"Yes")).map(r=>({ent:"LAND", id:r.__id}))
+      // Mismo cambio que doPresPrint() (ver ese comentario): todos los propuestos, no solo los "Yes".
+      listedRecords: list.map(r=>({ent:"LAND", id:r.__id}))
     });
     doLandPresPrint();
   });

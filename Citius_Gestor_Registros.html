@@ -1315,7 +1315,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
 
   .deck-page{background:#fff;border:none;box-shadow:none;
              padding:26px 30px;width:100%;max-width:1180px;color:#1a1a1a;font-size:12px;box-sizing:border-box}
-  .deck-header{display:flex;align-items:center;gap:14px;padding-bottom:12px;margin-bottom:16px}
+  .deck-header{display:flex;align-items:center;gap:14px;padding-bottom:12px;margin-bottom:11px}
   .deck-logo{width:34px;height:34px;object-fit:contain}
   .deck-header h2{margin:0;font-size:32px;font-weight:400;color:#666;font-family:'Dala Moa',Georgia,serif}
   .deck-grid{display:grid;gap:0;font-size:12px;font-family:'Unitext',sans-serif;font-weight:300}
@@ -1333,11 +1333,11 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      `.layout-aerial`: sin él, el z-index inline que Leaflet fija en sus panes internos se sale por encima
      de modales/popovers de la app. En la tabla de Propiedades este div sigue usándose para una <img> normal
      (foto de fachada) — sin cambios ahí, `.deck-photo img`/`.image-placeholder` siguen aplicando igual. */
-  .deck-row-label{padding:2px 8px;color:#1a1a1a;white-space:nowrap;display:flex;align-items:center;gap:4px;font-size:12px}
-  .deck-cell{padding:2px 8px;text-align:center;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .deck-row-label{padding:1px 8px;color:#1a1a1a;white-space:nowrap;display:flex;align-items:center;gap:4px;font-size:11.5px}
+  .deck-cell{padding:1px 8px;text-align:center;display:flex;align-items:center;justify-content:center;font-size:11.5px}
   .deck-cell a{color:inherit;text-decoration:underline}
   .deck-cell.deck-cell-sm{font-size:10px}
-  .deck-row-unit{padding:2px 6px;color:inherit;font-size:9.5px;white-space:nowrap;display:flex;align-items:center;justify-content:center}
+  .deck-row-unit{padding:1px 6px;color:inherit;font-size:9.5px;white-space:nowrap;display:flex;align-items:center;justify-content:center}
   .deck-row-label.deck-highlight,.deck-cell.deck-highlight,.deck-row-unit.deck-highlight{background:var(--accent);color:#3a2c05;font-weight:700;box-shadow:1px 0 0 var(--accent),-1px 0 0 var(--accent)}
   .deck-row-label.deck-dark,.deck-cell.deck-dark,.deck-row-unit.deck-dark{background:#6b6f75;color:#fff;font-weight:700;box-shadow:1px 0 0 #6b6f75,-1px 0 0 #6b6f75}
   .deck-row-label.deck-subtotal,.deck-cell.deck-subtotal,.deck-row-unit.deck-subtotal{background:#e2e2e2;color:#1a1a1a;font-weight:700;box-shadow:1px 0 0 #e2e2e2,-1px 0 0 #e2e2e2}
@@ -1349,7 +1349,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   /* v3.39.1: reducido de 44px a 20px a pedido del usuario ("el margen de abajo se ve grande") — esta regla
      es COMPARTIDA por el deck de Propiedades y el de Terrenos (ambos usan la misma clase .deck-note para
      su aviso legal al pie de la tabla), así que el ajuste aplica a los 2 por igual. */
-  .deck-note{margin-top:20px;font-size:10.5px;color:#666;line-height:1.5;font-family:'Unitext',sans-serif;font-weight:300}
+  .deck-note{margin-top:15px;font-size:10.5px;color:#666;line-height:1.5;font-family:'Unitext',sans-serif;font-weight:300}
   /* ==== "List" (resumen fila-por-propiedad) — v3.45.27, pedido explícito del usuario con imagen de
      referencia: mismo header amarillo del logo, tabla real (no CSS grid como .deck-grid, aquí no hace
      falta el layout "columna=propiedad, fila=atributo" de Table) con encabezado sólido en --accent y
@@ -2083,7 +2083,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.9.1</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.9.2</div>
     </nav>
   </aside>
   <div class="main">
@@ -4792,6 +4792,9 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.9.2", date:"2026-09-24", items:[
+    "Presentation -- Building/Land Options (comparative table): fixed the table overflowing the page footer when printing several properties -- removed the extra gap before Asking Rate, tightened row padding, moved the table closer to the title, reduced the gap before the disclaimer, and slightly reduced the table's font size."
+  ]},
   {version:"8.9.1", date:"2026-09-24", items:[
     "Fixed: the \"Proposed in Presentations\" listing history disappeared from Buildings/Parks/Land record forms -- now detected by the presence of the Citius AG Listing field instead of a renamed-group name lookup that could silently drift out of sync.",
     "Pres. Log: Listed Records now shows a readable table (Mapping Code/Name/Available Area/Market/Submarket/Citius AG Listing) instead of raw JSON -- logs every proposed property (not just Citius AG Listing = Yes), and Available Area shows in the unit the presentation was generated in.",
@@ -10860,7 +10863,6 @@ const PRESENTATION_ROWS = [
   {label:"Water Source", key:"WATER_SOURCE"},
   {label:"Sewer Source", key:"SEWER_SOURCE"},
   {label:"Natural Gas Infrastructure", key:"NATURAL_GAS_INFRASTRUCTURE_STATUS"},
-  {spacer:true},
   {label:"Asking Rate", key:"ASKING_RATE_VALUE", unit:"month/SF", unitClass:"RATE", dark:true, rule:"upon_request", prefix:"US $ "},
   {label:"Availability | Delivery", key:"AVAILABILITY_DELIVERY"},
   {label:"Purchase Option", key:"PURCHASE_OPTION"}

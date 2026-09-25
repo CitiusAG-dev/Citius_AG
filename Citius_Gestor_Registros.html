@@ -2403,6 +2403,18 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
             </div>
           </div>
           <div class="files-card">
+            <h5>Local Backup Folder</h5>
+            <div class="settings-row">
+              <span id="backupDirChip" style="padding:4px 10px;border-radius:20px;background:rgba(107,116,128,.15);color:var(--muted);font-size:12px">No folder linked</span>
+            </div>
+            <div class="path-note" id="backupDirPathNote"></div>
+            <p class="map-hint">Optional: a folder on this computer (outside OneDrive) where a copy of the data Excel is saved automatically every time it's saved to the linked file — a backup in case OneDrive fails to sync.</p>
+            <div class="settings-actions">
+              <button class="btn ghost" id="chooseBackupDirBtn">Choose backup folder…</button>
+              <button class="btn ghost" id="unlinkBackupDirBtn" disabled>Unlink</button>
+            </div>
+          </div>
+          <div class="files-card">
             <h5>Images Folder</h5>
             <div class="settings-row">
               <span id="imagesChip" style="padding:4px 10px;border-radius:20px;background:rgba(107,116,128,.15);color:var(--muted);font-size:12px">No folder linked</span>
@@ -14116,6 +14128,8 @@ async function saveHandle(h){ const db=await idb(); return new Promise((res)=>{ 
 async function getHandle(){ const db=await idb(); return new Promise((res)=>{ const tx=db.transaction("handles","readonly"); const rq=tx.objectStore("handles").get("excel"); rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>res(null); }); }
 async function saveImagesHandle(h){ const db=await idb(); return new Promise((res)=>{ const tx=db.transaction("handles","readwrite"); tx.objectStore("handles").put(h,"images"); tx.oncomplete=res; }); }
 async function getImagesHandle(){ const db=await idb(); return new Promise((res)=>{ const tx=db.transaction("handles","readonly"); const rq=tx.objectStore("handles").get("images"); rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>res(null); }); }
+async function saveBackupDirHandle(h){ const db=await idb(); return new Promise((res)=>{ const tx=db.transaction("handles","readwrite"); tx.objectStore("handles").put(h,"backupDir"); tx.oncomplete=res; }); }
+async function getBackupDirHandle(){ const db=await idb(); return new Promise((res)=>{ const tx=db.transaction("handles","readonly"); const rq=tx.objectStore("handles").get("backupDir"); rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>res(null); }); }
 async function saveConfigHandle(h){ const db=await idb(); return new Promise((res)=>{ const tx=db.transaction("handles","readwrite"); tx.objectStore("handles").put(h,"config"); tx.oncomplete=res; }); }
 async function getConfigHandle(){ const db=await idb(); return new Promise((res)=>{ const tx=db.transaction("handles","readonly"); const rq=tx.objectStore("handles").get("config"); rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>res(null); }); }
 async function saveComplementaryHandle(h){ const db=await idb(); return new Promise((res)=>{ const tx=db.transaction("handles","readwrite"); tx.objectStore("handles").put(h,"complementary"); tx.oncomplete=res; }); }
@@ -14344,6 +14358,38 @@ async function restoreComplementaryFile(){
   }
 }
 
+/* ==== Local Backup Folder (pedido explícito del usuario, 2026-09-25): carpeta LOCAL (fuera de OneDrive)
+   donde se guarda una copia del Excel de datos cada vez que writeToFile() guarda el archivo vinculado --
+   protege contra el caso real que reportó el usuario (OneDrive falla en subir el cambio a la nube y nadie
+   se entera). Sobreescribe siempre el mismo nombre (mismo criterio que el archivo principal, sin versiones
+   con fecha -- decisión explícita del usuario). Solo cubre el Excel de datos (no imágenes, tampoco pedido).
+   Es "best effort": si falla (carpeta movida/borrada, permiso revocado), NUNCA debe bloquear ni marcar como
+   fallido el guardado principal -- solo avisa con un toast. */
+let backupDirHandle=null;
+function setBackupDirChip(){
+  const chip=document.getElementById("backupDirChip");
+  if(!chip) return;
+  if(backupDirHandle){ chip.textContent="● "+backupDirHandle.name; chip.style.background="rgba(30,158,90,.14)"; chip.style.color="var(--green)"; }
+  else { chip.textContent="No folder linked"; chip.style.background="rgba(107,116,128,.14)"; chip.style.color="var(--muted)"; }
+  const unlinkBtn=document.getElementById("unlinkBackupDirBtn");
+  if(unlinkBtn) unlinkBtn.disabled=!backupDirHandle;
+}
+async function restoreBackupDir(){
+  if(!FSA_DIR){ const b=document.getElementById("chooseBackupDirBtn"); if(b) b.disabled=true; return; }
+  const h=await getBackupDirHandle(); if(!h) return;
+  backupDirHandle=h; setBackupDirChip();
+}
+/* Copia `buf` (el mismo ArrayBuffer/Uint8Array que se acaba de escribir en fileHandle) a backupDirHandle con
+   el mismo nombre de archivo -- llamada desde writeToFile() justo después del guardado principal exitoso. */
+async function writeLocalBackup(buf, fileName){
+  if(!backupDirHandle) return;
+  try{
+    if(!(await ensurePermission(backupDirHandle,"readwrite"))) return;
+    const bfh=await backupDirHandle.getFileHandle(fileName,{create:true});
+    const bw=await bfh.createWritable();
+    await bw.write(buf); await bw.close();
+  }catch(e){ toast("Local backup couldn't be saved: "+e.message,"err"); }
+}
 /* ==== Property/Park/Land photo: folder handle + capture (600x270→600x405 cover-crop JPG, see PHOTO_TARGET_W/H below) ==== */
 let imagesDirHandle=null;
 const FSA_DIR = ("showDirectoryPicker" in window);
@@ -14853,6 +14899,22 @@ async function renameImageFile(ent,oldCode,newCode){
     }catch(e){ /* este tipo de foto no existía para el código viejo — nada que renombrar */ }
   }
 }
+document.getElementById("chooseBackupDirBtn")?.addEventListener("click", async()=>{
+  if(!FSA_DIR){ toast("Your browser doesn't support this. Use Chrome or Edge.","err"); return; }
+  try{
+    const h=await window.showDirectoryPicker({mode:"readwrite"});
+    backupDirHandle=h; await saveBackupDirHandle(h); setBackupDirChip();
+    toast("Backup folder linked: "+h.name,"ok");
+  }catch(e){ if(e.name!=="AbortError") toast("Error: "+e.message,"err"); }
+});
+document.getElementById("unlinkBackupDirBtn")?.addEventListener("click", async()=>{
+  if(!backupDirHandle) return;
+  if(!confirm(`Unlink the backup folder "${backupDirHandle.name}"? The data Excel will stop being copied there automatically.`)) return;
+  backupDirHandle=null;
+  await saveBackupDirHandle(null);
+  setBackupDirChip();
+  toast("Backup folder unlinked.","ok");
+});
 document.getElementById("chooseImagesDirBtn")?.addEventListener("click", async()=>{
   if(!FSA_DIR){ toast("Your browser doesn't support this. Use Chrome or Edge.","err"); return; }
   try{
@@ -15332,6 +15394,7 @@ async function writeToFile(){
     lastKnownFileModTime=written.lastModified;
     flashSaved(fileHandle.name);
     ok=true;
+    writeLocalBackup(buf, fileHandle.name); // best effort, no bloquea ni afecta `ok` -- ver comentario en writeLocalBackup
   }catch(e){ toast("Couldn't write the file: "+e.message,"err"); }
   writing=false;
   if(pendingWrite){ pendingWrite=false; writeToFile(); }
@@ -15621,6 +15684,7 @@ document.addEventListener("keydown",e=>{
   }
 })();
 setChip(); restoreFile();
+setBackupDirChip(); restoreBackupDir();
 setImagesChip(); restoreImagesDir();
 setConfigFileChip(); restoreConfigFile();
 setComplementaryFileChip(); restoreComplementaryFile();

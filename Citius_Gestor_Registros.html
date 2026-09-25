@@ -3312,8 +3312,16 @@ const CASCADE_TYPE_HEADER_ALIASES=["TIPO","TYPE"];
 // KEYS), así que su Submercado SIEMPRE es uno de tipo Oficinas -- sin el guard `ent==="SPACES"` aquí, ese
 // valor copiado se comparaba contra la lista filtrada de Submercados INDUSTRIALES (fieldValueMismatch()
 // consulta cascadeOptionsFor con este tipo) y salía "fuera de catálogo" siempre, aunque el dato fuera
-// perfectamente correcto.
-function cascadeEntityTipo(ent){ return (ent==="OFICINAS"||ent==="SPACES") ? "OFICINAS" : "INDUSTRIAL"; }
+// perfectamente correcto. Transacciones (mismo reporte del usuario, extendido a esta entidad) es un caso
+// distinto: una MISMA transacción puede enlazar a un edificio Industrial O a una Oficina según su Categoría
+// (PROPERTY_TYPE) -- no hay un tipo fijo por entidad como en Spaces/Oficinas, así que aquí se decide por
+// REGISTRO (record.PROPERTY_TYPE==="Offices"), no solo por `ent`. `record` es opcional (2º parámetro nuevo)
+// para no romper los llamadores que ya pasaban solo `ent` y no lo necesitan (Oficinas/Spaces no lo consultan).
+function cascadeEntityTipo(ent, record){
+  if(ent==="OFICINAS"||ent==="SPACES") return "OFICINAS";
+  if(ent==="TRANSACCIONES" && ciEq(record&&record.PROPERTY_TYPE,"Offices")) return "OFICINAS";
+  return "INDUSTRIAL";
+}
 function findHeaderIndex(header, aliases){
   for(const alias of aliases){ const idx=header.indexOf(alias); if(idx>=0) return idx; }
   return -1;
@@ -3428,13 +3436,14 @@ function buildCascadeIndexIfNeeded(){
   cascadeIndex=idx;
   return idx;
 }
-/* `ent` (opcional, 4º parámetro): entidad que está pidiendo las opciones ("OFICINAS" vs. cualquier otra) --
-   solo se usa para filtrar Submercado por la columna "Tipo" del catálogo (ver comentario en
-   CASCADE_TYPE_HEADER_ALIASES); Región/Estado/Mercado ignoran `ent` a propósito, siguen 100% compartidos. */
-function cascadeOptionsFor(key, parentKey, parentValue, ent){
+/* `ent`/`record` (opcionales, 4º/5º parámetro): entidad (y registro, para Transacciones -- ver
+   cascadeEntityTipo) que está pidiendo las opciones -- solo se usan para filtrar Submercado por la columna
+   "Tipo" del catálogo (ver comentario en CASCADE_TYPE_HEADER_ALIASES); Región/Estado/Mercado ignoran ambos a
+   propósito, siguen 100% compartidos. */
+function cascadeOptionsFor(key, parentKey, parentValue, ent, record){
   const order=CASCADE_ORDER.indexOf(key);
   const adjacentParentKey=order>0?CASCADE_ORDER[order-1]:null;
-  const tipo=(key==="SUBMARKET" && ent!==undefined)?cascadeEntityTipo(ent):null;
+  const tipo=(key==="SUBMARKET" && ent!==undefined)?cascadeEntityTipo(ent, record):null;
   if(parentKey && parentKey!==adjacentParentKey){
     // caso no cubierto por el índice (parentKey NO es el nivel inmediatamente anterior) — barrido de
     // siempre, para no arriesgar un resultado incorrecto; no ocurre con las entidades reales hoy.
@@ -3467,6 +3476,10 @@ function onCascadeFieldChange(selEl){
   const changedKey=selEl.dataset.key;
   const idx=CASCADE_ORDER.indexOf(changedKey);
   if(idx<0) return;
+  // Solo hace falta para Transacciones (ver cascadeEntityTipo) -- se lee del DOM en vez de `state` porque la
+  // ficha puede tener cambios sin guardar todavía (mismo criterio que parentValue un poco más abajo).
+  const propertyTypeEl=document.querySelector('#mBody [data-key="PROPERTY_TYPE"]');
+  const pseudoRecord=propertyTypeEl?{PROPERTY_TYPE:propertyTypeEl.value}:null;
   for(let i=idx+1;i<CASCADE_ORDER.length;i++){
     const childKey=CASCADE_ORDER[i];
     const childSel=document.querySelector('#mBody [data-key="'+childKey+'"]');
@@ -3474,7 +3487,7 @@ function onCascadeFieldChange(selEl){
     const parentKey=cascadeParentKeyFor(current, childKey);
     const parentEl=parentKey?document.querySelector('#mBody [data-key="'+parentKey+'"]'):null;
     const parentValue=parentEl?parentEl.value:"";
-    childSel.innerHTML=cascadeSelectOptionsHtml(cascadeOptionsFor(childKey,parentKey,parentValue,current), "");
+    childSel.innerHTML=cascadeSelectOptionsHtml(cascadeOptionsFor(childKey,parentKey,parentValue,current,pseudoRecord), "");
     childSel.value="";
   }
   syncGeoIdFields();
@@ -9033,7 +9046,7 @@ function fieldValueMismatch(ent, f, record){
   if(CASCADE_ORDER.includes(f.key) && cascadeCatalog.length){
     const parentKey=cascadeParentKeyFor(ent,f.key);
     const parentValue=parentKey&&record?String(record[parentKey]||""):"";
-    return !cascadeOptionsFor(f.key,parentKey,parentValue,ent).includes(raw);
+    return !cascadeOptionsFor(f.key,parentKey,parentValue,ent,record).includes(raw);
   }
   if(MULTI_LIST_FIELD_KEYS.has(f.key) && f.list && lists[f.list]){
     // valor guardado como "A, B, C" (ver MULTI_LIST_FIELD_KEYS) — "no está en la lista" solo si ALGUNO de
@@ -9397,7 +9410,7 @@ function buildForm(ent, record){
       const rawVal=record&&record[f.key]!=null?String(record[f.key]):"";
       const parentKey=cascadeParentKeyFor(ent,f.key);
       const parentValue=parentKey&&record?String(record[parentKey]||""):"";
-      const options=cascadeOptionsFor(f.key,parentKey,parentValue,ent);
+      const options=cascadeOptionsFor(f.key,parentKey,parentValue,ent,record);
       const mismatchCls=fieldValueMismatch(ent,f,record)?" field-value-mismatch":"";
       const mismatchTitle=mismatchCls?' title="The captured value is not in the list configured for this field"':"";
       return `<div class="field"><label>${fieldLabel(f.key)}${reqMark}${helpIcon}</label>

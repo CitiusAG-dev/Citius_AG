@@ -2675,6 +2675,26 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   </div>
 </div>
 
+<!-- Backup local obligatorio antes de poder guardar/eliminar un registro (pedido explícito del usuario,
+     2026-09-25): si hay un Excel vinculado (fileHandle), el navegador soporta showDirectoryPicker (FSA_DIR)
+     y todavía no hay una carpeta de backup configurada (backupDirHandle), este modal INTERCEPTA el guardado
+     -- ver ensureBackupFolderThenRun()/backupFolderRequired() en el JS -- para forzar a configurarla antes
+     de continuar. Si se cierra sin elegir carpeta, el cambio NO se guarda (decisión explícita del usuario:
+     "esto para asegurar que siempre estará respaldada la información"). -->
+<div class="overlay" id="backupRequiredOverlay">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-head"><h3>Backup folder required</h3><button class="x" id="backupRequiredCloseBtn">&times;</button></div>
+    <div class="modal-body">
+      <p>Before saving, choose a folder on this computer (outside OneDrive) where a backup copy of the data Excel will be saved automatically — this protects your information in case OneDrive fails to sync.</p>
+      <p class="muted">If you close this window without choosing a folder, this change will not be saved.</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" id="backupRequiredCloseBtn2">Cancel</button>
+      <button class="btn" id="backupRequiredChooseBtn">Choose backup folder…</button>
+    </div>
+  </div>
+</div>
+
 <!-- Confirmación antes de imprimir/exportar una presentación (v_pendiente, pedido explícito del usuario) —
      mismo shell .overlay/.modal que el resto de la app. Compartido por los 3 botones de Print/PDF
      (Properties/Land/Offices): cada uno llama openPrintConfirmModal(fn), donde `fn` registra la entrada en
@@ -13847,7 +13867,8 @@ function closeModal(){ document.getElementById("overlay").classList.remove("show
 // Parque ("Seleccionar Parque…") — guarda una copia exacta del MAPPING_CODE de ese Parque, así que corre
 // el mismo riesgo de convertirse a número si "parece" uno (ver el comentario grande de arriba).
 const ID_LIKE_FIELD_KEYS = new Set(["MAPPING_CODE","ID_PARK","SPACE_CODE"]);
-document.getElementById("saveBtn").onclick=()=>{
+document.getElementById("saveBtn").onclick=()=>{ ensureBackupFolderThenRun(doSaveRecord); };
+function doSaveRecord(){
   if(blockIfConsolidated()) return;
   const cfgByKey={}; fields(current).forEach(f=>cfgByKey[f.key]=f);
   const inputs=document.querySelectorAll("#mBody [data-key]");
@@ -13987,7 +14008,8 @@ function askDelete(id){
   document.getElementById("confirmOverlay").classList.add("show");
 }
 function closeConfirm(){ document.getElementById("confirmOverlay").classList.remove("show"); pendingDelete=null; }
-document.getElementById("confirmDelBtn").onclick=()=>{
+document.getElementById("confirmDelBtn").onclick=()=>{ ensureBackupFolderThenRun(doConfirmDelete); };
+function doConfirmDelete(){
   if(blockIfConsolidated()) return;
   state[current]=state[current].filter(r=>r.__id!==pendingDelete);
   // eliminar una Propiedad puede cambiar cuántos edificios tiene/tiene disponibles su Parque
@@ -14390,6 +14412,38 @@ async function writeLocalBackup(buf, fileName){
     await bw.write(buf); await bw.close();
   }catch(e){ toast("Local backup couldn't be saved: "+e.message,"err"); }
 }
+/* ==== Gate obligatorio de backup antes de guardar/eliminar (pedido explícito del usuario, 2026-09-25) ====
+   Solo aplica si hay un Excel vinculado (sin fileHandle no hay nada que respaldar) y el navegador soporta
+   showDirectoryPicker -- si no lo soporta, esta protección simplemente no se puede ofrecer y no debe
+   bloquear a nadie. `ensureBackupFolderThenRun(action)` reemplaza la llamada directa a la acción real de
+   guardar/eliminar en saveBtn/confirmDelBtn: si falta la carpeta, intercepta con el modal y solo corre
+   `action` si el usuario la configura ahí mismo (si cierra sin elegirla, `action` nunca se llama -- el
+   cambio no se guarda, decisión explícita del usuario). */
+function backupFolderRequired(){ return !!(fileHandle && FSA_DIR && !backupDirHandle); }
+let pendingBackupGateAction=null;
+function ensureBackupFolderThenRun(action){
+  if(!backupFolderRequired()){ action(); return; }
+  pendingBackupGateAction=action;
+  document.getElementById("backupRequiredOverlay").classList.add("show");
+}
+function closeBackupRequiredModal(){
+  document.getElementById("backupRequiredOverlay").classList.remove("show");
+  pendingBackupGateAction=null;
+}
+document.getElementById("backupRequiredCloseBtn").onclick=closeBackupRequiredModal;
+document.getElementById("backupRequiredCloseBtn2").onclick=closeBackupRequiredModal;
+document.getElementById("backupRequiredOverlay").onclick=e=>{ if(e.target.id==="backupRequiredOverlay") closeBackupRequiredModal(); };
+document.getElementById("backupRequiredChooseBtn").onclick=async()=>{
+  if(!FSA_DIR){ toast("Your browser doesn't support this. Use Chrome or Edge.","err"); return; }
+  try{
+    const h=await window.showDirectoryPicker({mode:"readwrite"});
+    backupDirHandle=h; await saveBackupDirHandle(h); setBackupDirChip();
+    document.getElementById("backupRequiredOverlay").classList.remove("show");
+    toast("Backup folder linked: "+h.name,"ok");
+    const action=pendingBackupGateAction; pendingBackupGateAction=null;
+    if(action) action();
+  }catch(e){ if(e.name!=="AbortError") toast("Error: "+e.message,"err"); }
+};
 /* ==== Property/Park/Land photo: folder handle + capture (600x270→600x405 cover-crop JPG, see PHOTO_TARGET_W/H below) ==== */
 let imagesDirHandle=null;
 const FSA_DIR = ("showDirectoryPicker" in window);

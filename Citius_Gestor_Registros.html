@@ -2083,7 +2083,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.9.2</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.10.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -2403,6 +2403,18 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
             </div>
           </div>
           <div class="files-card">
+            <h5>Local Backup Folder</h5>
+            <div class="settings-row">
+              <span id="backupDirChip" style="padding:4px 10px;border-radius:20px;background:rgba(107,116,128,.15);color:var(--muted);font-size:12px">No folder linked</span>
+            </div>
+            <div class="path-note" id="backupDirPathNote"></div>
+            <p class="map-hint">Optional: a folder on this computer (outside OneDrive) where a copy of the data Excel is saved automatically every time it's saved to the linked file — a backup in case OneDrive fails to sync.</p>
+            <div class="settings-actions">
+              <button class="btn ghost" id="chooseBackupDirBtn">Choose backup folder…</button>
+              <button class="btn ghost" id="unlinkBackupDirBtn" disabled>Unlink</button>
+            </div>
+          </div>
+          <div class="files-card">
             <h5>Images Folder</h5>
             <div class="settings-row">
               <span id="imagesChip" style="padding:4px 10px;border-radius:20px;background:rgba(107,116,128,.15);color:var(--muted);font-size:12px">No folder linked</span>
@@ -2659,6 +2671,26 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     <div class="modal-foot">
       <button class="btn ghost" onclick="closePinMap()">Cancel</button>
       <button class="btn" id="pinSaveBtn">Save location</button>
+    </div>
+  </div>
+</div>
+
+<!-- Backup local obligatorio antes de poder guardar/eliminar un registro (pedido explícito del usuario,
+     2026-09-25): si hay un Excel vinculado (fileHandle), el navegador soporta showDirectoryPicker (FSA_DIR)
+     y todavía no hay una carpeta de backup configurada (backupDirHandle), este modal INTERCEPTA el guardado
+     -- ver ensureBackupFolderThenRun()/backupFolderRequired() en el JS -- para forzar a configurarla antes
+     de continuar. Si se cierra sin elegir carpeta, el cambio NO se guarda (decisión explícita del usuario:
+     "esto para asegurar que siempre estará respaldada la información"). -->
+<div class="overlay" id="backupRequiredOverlay">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-head"><h3>Backup folder required</h3><button class="x" id="backupRequiredCloseBtn">&times;</button></div>
+    <div class="modal-body">
+      <p>Before saving, choose a folder on this computer (outside OneDrive) where a backup copy of the data Excel will be saved automatically — this protects your information in case OneDrive fails to sync.</p>
+      <p class="muted">If you close this window without choosing a folder, this change will not be saved.</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" id="backupRequiredCloseBtn2">Cancel</button>
+      <button class="btn" id="backupRequiredChooseBtn">Choose backup folder…</button>
     </div>
   </div>
 </div>
@@ -3267,6 +3299,15 @@ const CASCADE_ID_HEADER_ALIASES={
   MARKET:["COLUMN3","ID_MERCADO"],
   SUBMARKET:["COLUMN4","ID_SUBMERCADO"]
 };
+/* Columna "Tipo" (pedido explícito del usuario, 2026-09-24): Región/Estado/Mercado se comparten entre
+   Industrial y Oficinas, pero Submercado NO -- Oficinas divide la ciudad en submercados distintos a los de
+   Industrial. Columna opcional (posición libre, se busca por nombre como el resto del catálogo) con valor
+   "Industrial" u "Oficinas" por fila; una fila sin este valor capturado todavía no se filtra (sigue
+   apareciendo para ambos tipos) para no ocultar submercados mientras el catálogo se termina de llenar. Solo
+   afecta las opciones de Submercado -- Región/Estado/Mercado siguen agregando TODAS las filas sin importar
+   Tipo, como pidió el usuario. */
+const CASCADE_TYPE_HEADER_ALIASES=["TIPO","TYPE"];
+function cascadeEntityTipo(ent){ return ent==="OFICINAS" ? "OFICINAS" : "INDUSTRIAL"; }
 function findHeaderIndex(header, aliases){
   for(const alias of aliases){ const idx=header.indexOf(alias); if(idx>=0) return idx; }
   return -1;
@@ -3288,6 +3329,7 @@ function loadCascadeCatalogFromSheet(wb){
   for(const key of CASCADE_ORDER){
     ciId[key]=findHeaderIndex(header, CASCADE_ID_HEADER_ALIASES[key]);
   }
+  const typeIdx=findHeaderIndex(header, CASCADE_TYPE_HEADER_ALIASES);
   const rows=[];
   for(let r=1;r<aoa.length;r++){
     const row=aoa[r];
@@ -3297,6 +3339,7 @@ function loadCascadeCatalogFromSheet(wb){
       const idIdx=ciId[key];
       if(idIdx>=0){ const raw=row[idIdx]; entry[CASCADE_ID_KEY[key]]=(raw===""||raw==null)?"":String(raw).trim(); }
     });
+    entry.TIPO=typeIdx>=0?String(row[typeIdx]||"").trim().toUpperCase():"";
     if(CASCADE_ORDER.every(key=>!entry[key])) continue;
     rows.push(entry);
   }
@@ -3339,6 +3382,7 @@ function buildCascadeIndexIfNeeded(){
   if(cascadeIndex) return cascadeIndex;
   const idx={};
   CASCADE_ORDER.forEach(key=>{ idx[key]={ allSet:new Set(), byParent:new Map() }; });
+  idx.SUBMARKET.byParentByType={INDUSTRIAL:new Map(), OFICINAS:new Map()};
   cascadeCatalog.forEach(row=>{
     CASCADE_ORDER.forEach((key,i)=>{
       const val=row[key];
@@ -3350,6 +3394,20 @@ function buildCascadeIndexIfNeeded(){
           let set=idx[key].byParent.get(parentVal);
           if(!set) idx[key].byParent.set(parentVal, set=new Set());
           set.add(val);
+          // v8.9.x, columna "Tipo" (ver CASCADE_TYPE_HEADER_ALIASES): además del byParent normal (todas
+          // las filas, usado cuando no hace falta filtrar por tipo), se arma un byParent POR TIPO solo para
+          // Submercado. Una fila sin Tipo capturado entra a los 2 tipos -- no debe desaparecer del dropdown
+          // de nadie solo porque esa fila del catálogo todavía no se etiquetó.
+          if(key==="SUBMARKET"){
+            const tipos=row.TIPO?[row.TIPO]:["INDUSTRIAL","OFICINAS"];
+            tipos.forEach(t=>{
+              const byType=idx.SUBMARKET.byParentByType[t];
+              if(!byType) return;
+              let tset=byType.get(parentVal);
+              if(!tset) byType.set(parentVal, tset=new Set());
+              tset.add(val);
+            });
+          }
         }
       }
     });
@@ -3358,24 +3416,36 @@ function buildCascadeIndexIfNeeded(){
     idx[key].all=[...idx[key].allSet].sort((a,b)=>a.localeCompare(b));
     idx[key].byParent.forEach((set,pval)=>idx[key].byParent.set(pval,[...set].sort((a,b)=>a.localeCompare(b))));
   });
+  ["INDUSTRIAL","OFICINAS"].forEach(t=>{
+    idx.SUBMARKET.byParentByType[t].forEach((set,pval)=>idx.SUBMARKET.byParentByType[t].set(pval,[...set].sort((a,b)=>a.localeCompare(b))));
+  });
   cascadeIndex=idx;
   return idx;
 }
-function cascadeOptionsFor(key, parentKey, parentValue){
+/* `ent` (opcional, 4º parámetro): entidad que está pidiendo las opciones ("OFICINAS" vs. cualquier otra) --
+   solo se usa para filtrar Submercado por la columna "Tipo" del catálogo (ver comentario en
+   CASCADE_TYPE_HEADER_ALIASES); Región/Estado/Mercado ignoran `ent` a propósito, siguen 100% compartidos. */
+function cascadeOptionsFor(key, parentKey, parentValue, ent){
   const order=CASCADE_ORDER.indexOf(key);
   const adjacentParentKey=order>0?CASCADE_ORDER[order-1]:null;
+  const tipo=(key==="SUBMARKET" && ent!==undefined)?cascadeEntityTipo(ent):null;
   if(parentKey && parentKey!==adjacentParentKey){
     // caso no cubierto por el índice (parentKey NO es el nivel inmediatamente anterior) — barrido de
     // siempre, para no arriesgar un resultado incorrecto; no ocurre con las entidades reales hoy.
     const set=new Set();
     cascadeCatalog.forEach(row=>{
       if(parentValue && row[parentKey]!==parentValue) return;
+      if(tipo && row.TIPO && row.TIPO!==tipo) return;
       if(row[key]) set.add(row[key]);
     });
     return [...set].sort((a,b)=>a.localeCompare(b));
   }
-  const idxForKey=buildCascadeIndexIfNeeded()[key];
+  const idxAll=buildCascadeIndexIfNeeded();
+  const idxForKey=idxAll[key];
   if(!idxForKey) return [];
+  if(tipo && parentKey && parentValue){
+    return idxAll.SUBMARKET.byParentByType[tipo].get(parentValue) || [];
+  }
   if(!parentKey || !parentValue) return idxForKey.all;
   return idxForKey.byParent.get(parentValue) || [];
 }
@@ -3398,7 +3468,7 @@ function onCascadeFieldChange(selEl){
     const parentKey=cascadeParentKeyFor(current, childKey);
     const parentEl=parentKey?document.querySelector('#mBody [data-key="'+parentKey+'"]'):null;
     const parentValue=parentEl?parentEl.value:"";
-    childSel.innerHTML=cascadeSelectOptionsHtml(cascadeOptionsFor(childKey,parentKey,parentValue), "");
+    childSel.innerHTML=cascadeSelectOptionsHtml(cascadeOptionsFor(childKey,parentKey,parentValue,current), "");
     childSel.value="";
   }
   syncGeoIdFields();
@@ -4792,6 +4862,11 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.10.0", date:"2026-09-25", items:[
+    "Location catalog (CATALOGO_UBICACION): new optional \"Tipo\" column (Industrial/Oficinas) -- Region/State/Market stay fully shared, but Submarket options are now filtered so Offices only sees its own submarkets and Buildings/Parks/Land only see theirs.",
+    "New \"Local Backup Folder\" (Settings > Excel Files / Images): once you link a folder on this computer (outside OneDrive), a copy of the data Excel is saved there automatically every time it's saved to the linked file -- protects against OneDrive failing to sync.",
+    "If a Local Backup Folder hasn't been configured yet, saving or deleting a record now shows a required popup to set it up right there before continuing -- ensures every computer ends up with a backup configured."
+  ]},
   {version:"8.9.2", date:"2026-09-24", items:[
     "Presentation -- Building/Land Options (comparative table): fixed the table overflowing the page footer when printing several properties -- removed the extra gap before Asking Rate, tightened row padding, moved the table closer to the title, reduced the gap before the disclaimer, and slightly reduced the table's font size."
   ]},
@@ -8879,7 +8954,7 @@ function fieldValueMismatch(ent, f, record){
   if(CASCADE_ORDER.includes(f.key) && cascadeCatalog.length){
     const parentKey=cascadeParentKeyFor(ent,f.key);
     const parentValue=parentKey&&record?String(record[parentKey]||""):"";
-    return !cascadeOptionsFor(f.key,parentKey,parentValue).includes(raw);
+    return !cascadeOptionsFor(f.key,parentKey,parentValue,ent).includes(raw);
   }
   if(MULTI_LIST_FIELD_KEYS.has(f.key) && f.list && lists[f.list]){
     // valor guardado como "A, B, C" (ver MULTI_LIST_FIELD_KEYS) — "no está en la lista" solo si ALGUNO de
@@ -9228,7 +9303,7 @@ function buildForm(ent, record){
       const rawVal=record&&record[f.key]!=null?String(record[f.key]):"";
       const parentKey=cascadeParentKeyFor(ent,f.key);
       const parentValue=parentKey&&record?String(record[parentKey]||""):"";
-      const options=cascadeOptionsFor(f.key,parentKey,parentValue);
+      const options=cascadeOptionsFor(f.key,parentKey,parentValue,ent);
       const mismatchCls=fieldValueMismatch(ent,f,record)?" field-value-mismatch":"";
       const mismatchTitle=mismatchCls?' title="The captured value is not in the list configured for this field"':"";
       return `<div class="field"><label>${fieldLabel(f.key)}${reqMark}${helpIcon}</label>
@@ -13797,7 +13872,8 @@ function closeModal(){ document.getElementById("overlay").classList.remove("show
 // Parque ("Seleccionar Parque…") — guarda una copia exacta del MAPPING_CODE de ese Parque, así que corre
 // el mismo riesgo de convertirse a número si "parece" uno (ver el comentario grande de arriba).
 const ID_LIKE_FIELD_KEYS = new Set(["MAPPING_CODE","ID_PARK","SPACE_CODE"]);
-document.getElementById("saveBtn").onclick=()=>{
+document.getElementById("saveBtn").onclick=()=>{ ensureBackupFolderThenRun(doSaveRecord); };
+function doSaveRecord(){
   if(blockIfConsolidated()) return;
   const cfgByKey={}; fields(current).forEach(f=>cfgByKey[f.key]=f);
   const inputs=document.querySelectorAll("#mBody [data-key]");
@@ -13937,7 +14013,8 @@ function askDelete(id){
   document.getElementById("confirmOverlay").classList.add("show");
 }
 function closeConfirm(){ document.getElementById("confirmOverlay").classList.remove("show"); pendingDelete=null; }
-document.getElementById("confirmDelBtn").onclick=()=>{
+document.getElementById("confirmDelBtn").onclick=()=>{ ensureBackupFolderThenRun(doConfirmDelete); };
+function doConfirmDelete(){
   if(blockIfConsolidated()) return;
   state[current]=state[current].filter(r=>r.__id!==pendingDelete);
   // eliminar una Propiedad puede cambiar cuántos edificios tiene/tiene disponibles su Parque
@@ -14078,6 +14155,8 @@ async function saveHandle(h){ const db=await idb(); return new Promise((res)=>{ 
 async function getHandle(){ const db=await idb(); return new Promise((res)=>{ const tx=db.transaction("handles","readonly"); const rq=tx.objectStore("handles").get("excel"); rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>res(null); }); }
 async function saveImagesHandle(h){ const db=await idb(); return new Promise((res)=>{ const tx=db.transaction("handles","readwrite"); tx.objectStore("handles").put(h,"images"); tx.oncomplete=res; }); }
 async function getImagesHandle(){ const db=await idb(); return new Promise((res)=>{ const tx=db.transaction("handles","readonly"); const rq=tx.objectStore("handles").get("images"); rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>res(null); }); }
+async function saveBackupDirHandle(h){ const db=await idb(); return new Promise((res)=>{ const tx=db.transaction("handles","readwrite"); tx.objectStore("handles").put(h,"backupDir"); tx.oncomplete=res; }); }
+async function getBackupDirHandle(){ const db=await idb(); return new Promise((res)=>{ const tx=db.transaction("handles","readonly"); const rq=tx.objectStore("handles").get("backupDir"); rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>res(null); }); }
 async function saveConfigHandle(h){ const db=await idb(); return new Promise((res)=>{ const tx=db.transaction("handles","readwrite"); tx.objectStore("handles").put(h,"config"); tx.oncomplete=res; }); }
 async function getConfigHandle(){ const db=await idb(); return new Promise((res)=>{ const tx=db.transaction("handles","readonly"); const rq=tx.objectStore("handles").get("config"); rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>res(null); }); }
 async function saveComplementaryHandle(h){ const db=await idb(); return new Promise((res)=>{ const tx=db.transaction("handles","readwrite"); tx.objectStore("handles").put(h,"complementary"); tx.oncomplete=res; }); }
@@ -14306,6 +14385,70 @@ async function restoreComplementaryFile(){
   }
 }
 
+/* ==== Local Backup Folder (pedido explícito del usuario, 2026-09-25): carpeta LOCAL (fuera de OneDrive)
+   donde se guarda una copia del Excel de datos cada vez que writeToFile() guarda el archivo vinculado --
+   protege contra el caso real que reportó el usuario (OneDrive falla en subir el cambio a la nube y nadie
+   se entera). Sobreescribe siempre el mismo nombre (mismo criterio que el archivo principal, sin versiones
+   con fecha -- decisión explícita del usuario). Solo cubre el Excel de datos (no imágenes, tampoco pedido).
+   Es "best effort": si falla (carpeta movida/borrada, permiso revocado), NUNCA debe bloquear ni marcar como
+   fallido el guardado principal -- solo avisa con un toast. */
+let backupDirHandle=null;
+function setBackupDirChip(){
+  const chip=document.getElementById("backupDirChip");
+  if(!chip) return;
+  if(backupDirHandle){ chip.textContent="● "+backupDirHandle.name; chip.style.background="rgba(30,158,90,.14)"; chip.style.color="var(--green)"; }
+  else { chip.textContent="No folder linked"; chip.style.background="rgba(107,116,128,.14)"; chip.style.color="var(--muted)"; }
+  const unlinkBtn=document.getElementById("unlinkBackupDirBtn");
+  if(unlinkBtn) unlinkBtn.disabled=!backupDirHandle;
+}
+async function restoreBackupDir(){
+  if(!FSA_DIR){ const b=document.getElementById("chooseBackupDirBtn"); if(b) b.disabled=true; return; }
+  const h=await getBackupDirHandle(); if(!h) return;
+  backupDirHandle=h; setBackupDirChip();
+}
+/* Copia `buf` (el mismo ArrayBuffer/Uint8Array que se acaba de escribir en fileHandle) a backupDirHandle con
+   el mismo nombre de archivo -- llamada desde writeToFile() justo después del guardado principal exitoso. */
+async function writeLocalBackup(buf, fileName){
+  if(!backupDirHandle) return;
+  try{
+    if(!(await ensurePermission(backupDirHandle,"readwrite"))) return;
+    const bfh=await backupDirHandle.getFileHandle(fileName,{create:true});
+    const bw=await bfh.createWritable();
+    await bw.write(buf); await bw.close();
+  }catch(e){ toast("Local backup couldn't be saved: "+e.message,"err"); }
+}
+/* ==== Gate obligatorio de backup antes de guardar/eliminar (pedido explícito del usuario, 2026-09-25) ====
+   Solo aplica si hay un Excel vinculado (sin fileHandle no hay nada que respaldar) y el navegador soporta
+   showDirectoryPicker -- si no lo soporta, esta protección simplemente no se puede ofrecer y no debe
+   bloquear a nadie. `ensureBackupFolderThenRun(action)` reemplaza la llamada directa a la acción real de
+   guardar/eliminar en saveBtn/confirmDelBtn: si falta la carpeta, intercepta con el modal y solo corre
+   `action` si el usuario la configura ahí mismo (si cierra sin elegirla, `action` nunca se llama -- el
+   cambio no se guarda, decisión explícita del usuario). */
+function backupFolderRequired(){ return !!(fileHandle && FSA_DIR && !backupDirHandle); }
+let pendingBackupGateAction=null;
+function ensureBackupFolderThenRun(action){
+  if(!backupFolderRequired()){ action(); return; }
+  pendingBackupGateAction=action;
+  document.getElementById("backupRequiredOverlay").classList.add("show");
+}
+function closeBackupRequiredModal(){
+  document.getElementById("backupRequiredOverlay").classList.remove("show");
+  pendingBackupGateAction=null;
+}
+document.getElementById("backupRequiredCloseBtn").onclick=closeBackupRequiredModal;
+document.getElementById("backupRequiredCloseBtn2").onclick=closeBackupRequiredModal;
+document.getElementById("backupRequiredOverlay").onclick=e=>{ if(e.target.id==="backupRequiredOverlay") closeBackupRequiredModal(); };
+document.getElementById("backupRequiredChooseBtn").onclick=async()=>{
+  if(!FSA_DIR){ toast("Your browser doesn't support this. Use Chrome or Edge.","err"); return; }
+  try{
+    const h=await window.showDirectoryPicker({mode:"readwrite"});
+    backupDirHandle=h; await saveBackupDirHandle(h); setBackupDirChip();
+    document.getElementById("backupRequiredOverlay").classList.remove("show");
+    toast("Backup folder linked: "+h.name,"ok");
+    const action=pendingBackupGateAction; pendingBackupGateAction=null;
+    if(action) action();
+  }catch(e){ if(e.name!=="AbortError") toast("Error: "+e.message,"err"); }
+};
 /* ==== Property/Park/Land photo: folder handle + capture (600x270→600x405 cover-crop JPG, see PHOTO_TARGET_W/H below) ==== */
 let imagesDirHandle=null;
 const FSA_DIR = ("showDirectoryPicker" in window);
@@ -14815,6 +14958,22 @@ async function renameImageFile(ent,oldCode,newCode){
     }catch(e){ /* este tipo de foto no existía para el código viejo — nada que renombrar */ }
   }
 }
+document.getElementById("chooseBackupDirBtn")?.addEventListener("click", async()=>{
+  if(!FSA_DIR){ toast("Your browser doesn't support this. Use Chrome or Edge.","err"); return; }
+  try{
+    const h=await window.showDirectoryPicker({mode:"readwrite"});
+    backupDirHandle=h; await saveBackupDirHandle(h); setBackupDirChip();
+    toast("Backup folder linked: "+h.name,"ok");
+  }catch(e){ if(e.name!=="AbortError") toast("Error: "+e.message,"err"); }
+});
+document.getElementById("unlinkBackupDirBtn")?.addEventListener("click", async()=>{
+  if(!backupDirHandle) return;
+  if(!confirm(`Unlink the backup folder "${backupDirHandle.name}"? The data Excel will stop being copied there automatically.`)) return;
+  backupDirHandle=null;
+  await saveBackupDirHandle(null);
+  setBackupDirChip();
+  toast("Backup folder unlinked.","ok");
+});
 document.getElementById("chooseImagesDirBtn")?.addEventListener("click", async()=>{
   if(!FSA_DIR){ toast("Your browser doesn't support this. Use Chrome or Edge.","err"); return; }
   try{
@@ -15294,6 +15453,7 @@ async function writeToFile(){
     lastKnownFileModTime=written.lastModified;
     flashSaved(fileHandle.name);
     ok=true;
+    writeLocalBackup(buf, fileHandle.name); // best effort, no bloquea ni afecta `ok` -- ver comentario en writeLocalBackup
   }catch(e){ toast("Couldn't write the file: "+e.message,"err"); }
   writing=false;
   if(pendingWrite){ pendingWrite=false; writeToFile(); }
@@ -15583,6 +15743,7 @@ document.addEventListener("keydown",e=>{
   }
 })();
 setChip(); restoreFile();
+setBackupDirChip(); restoreBackupDir();
 setImagesChip(); restoreImagesDir();
 setConfigFileChip(); restoreConfigFile();
 setComplementaryFileChip(); restoreComplementaryFile();

@@ -2083,7 +2083,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.10.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.11.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -2633,9 +2633,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   <div class="modal map-modal">
     <div class="modal-head"><h3>Draw polygon</h3>
       <div class="unit-view-select" title="Map style">
-        <select id="polyMapBasemapSelect" onchange="setPickerMapBasemap(polyMap,polyMapBasemapLayers,this.value)">
+        <select id="polyMapBasemapSelect" onchange="setPolyMapBasemap(this.value)">
           <option value="satellite">Satellite</option>
-          <option value="voyager">Light streets</option>
+          <option value="citiusMapbox">Citius (Mapbox)</option>
         </select>
       </div>
     <button class="x" onclick="closePolygonMap()">&times;</button></div>
@@ -3307,7 +3307,21 @@ const CASCADE_ID_HEADER_ALIASES={
    afecta las opciones de Submercado -- Región/Estado/Mercado siguen agregando TODAS las filas sin importar
    Tipo, como pidió el usuario. */
 const CASCADE_TYPE_HEADER_ALIASES=["TIPO","TYPE"];
-function cascadeEntityTipo(ent){ return ent==="OFICINAS" ? "OFICINAS" : "INDUSTRIAL"; }
+// v8.10.x, bug real reportado por el usuario ("aparece que faltan campos por llenar cuando todo está lleno,
+// en Location"): Spaces hereda Región/Estado/Mercado/Submercado de su Oficina (ver SPACE_AUTOFILL_READONLY_
+// KEYS), así que su Submercado SIEMPRE es uno de tipo Oficinas -- sin el guard `ent==="SPACES"` aquí, ese
+// valor copiado se comparaba contra la lista filtrada de Submercados INDUSTRIALES (fieldValueMismatch()
+// consulta cascadeOptionsFor con este tipo) y salía "fuera de catálogo" siempre, aunque el dato fuera
+// perfectamente correcto. Transacciones (mismo reporte del usuario, extendido a esta entidad) es un caso
+// distinto: una MISMA transacción puede enlazar a un edificio Industrial O a una Oficina según su Categoría
+// (PROPERTY_TYPE) -- no hay un tipo fijo por entidad como en Spaces/Oficinas, así que aquí se decide por
+// REGISTRO (record.PROPERTY_TYPE==="Offices"), no solo por `ent`. `record` es opcional (2º parámetro nuevo)
+// para no romper los llamadores que ya pasaban solo `ent` y no lo necesitan (Oficinas/Spaces no lo consultan).
+function cascadeEntityTipo(ent, record){
+  if(ent==="OFICINAS"||ent==="SPACES") return "OFICINAS";
+  if(ent==="TRANSACCIONES" && ciEq(record&&record.PROPERTY_TYPE,"Offices")) return "OFICINAS";
+  return "INDUSTRIAL";
+}
 function findHeaderIndex(header, aliases){
   for(const alias of aliases){ const idx=header.indexOf(alias); if(idx>=0) return idx; }
   return -1;
@@ -3422,13 +3436,14 @@ function buildCascadeIndexIfNeeded(){
   cascadeIndex=idx;
   return idx;
 }
-/* `ent` (opcional, 4º parámetro): entidad que está pidiendo las opciones ("OFICINAS" vs. cualquier otra) --
-   solo se usa para filtrar Submercado por la columna "Tipo" del catálogo (ver comentario en
-   CASCADE_TYPE_HEADER_ALIASES); Región/Estado/Mercado ignoran `ent` a propósito, siguen 100% compartidos. */
-function cascadeOptionsFor(key, parentKey, parentValue, ent){
+/* `ent`/`record` (opcionales, 4º/5º parámetro): entidad (y registro, para Transacciones -- ver
+   cascadeEntityTipo) que está pidiendo las opciones -- solo se usan para filtrar Submercado por la columna
+   "Tipo" del catálogo (ver comentario en CASCADE_TYPE_HEADER_ALIASES); Región/Estado/Mercado ignoran ambos a
+   propósito, siguen 100% compartidos. */
+function cascadeOptionsFor(key, parentKey, parentValue, ent, record){
   const order=CASCADE_ORDER.indexOf(key);
   const adjacentParentKey=order>0?CASCADE_ORDER[order-1]:null;
-  const tipo=(key==="SUBMARKET" && ent!==undefined)?cascadeEntityTipo(ent):null;
+  const tipo=(key==="SUBMARKET" && ent!==undefined)?cascadeEntityTipo(ent, record):null;
   if(parentKey && parentKey!==adjacentParentKey){
     // caso no cubierto por el índice (parentKey NO es el nivel inmediatamente anterior) — barrido de
     // siempre, para no arriesgar un resultado incorrecto; no ocurre con las entidades reales hoy.
@@ -3461,6 +3476,10 @@ function onCascadeFieldChange(selEl){
   const changedKey=selEl.dataset.key;
   const idx=CASCADE_ORDER.indexOf(changedKey);
   if(idx<0) return;
+  // Solo hace falta para Transacciones (ver cascadeEntityTipo) -- se lee del DOM en vez de `state` porque la
+  // ficha puede tener cambios sin guardar todavía (mismo criterio que parentValue un poco más abajo).
+  const propertyTypeEl=document.querySelector('#mBody [data-key="PROPERTY_TYPE"]');
+  const pseudoRecord=propertyTypeEl?{PROPERTY_TYPE:propertyTypeEl.value}:null;
   for(let i=idx+1;i<CASCADE_ORDER.length;i++){
     const childKey=CASCADE_ORDER[i];
     const childSel=document.querySelector('#mBody [data-key="'+childKey+'"]');
@@ -3468,7 +3487,7 @@ function onCascadeFieldChange(selEl){
     const parentKey=cascadeParentKeyFor(current, childKey);
     const parentEl=parentKey?document.querySelector('#mBody [data-key="'+parentKey+'"]'):null;
     const parentValue=parentEl?parentEl.value:"";
-    childSel.innerHTML=cascadeSelectOptionsHtml(cascadeOptionsFor(childKey,parentKey,parentValue,current), "");
+    childSel.innerHTML=cascadeSelectOptionsHtml(cascadeOptionsFor(childKey,parentKey,parentValue,current,pseudoRecord), "");
     childSel.value="";
   }
   syncGeoIdFields();
@@ -4862,6 +4881,11 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.11.0", date:"2026-09-25", items:[
+    "Fixed: Spaces and Transactions linked to an Offices record could show \"missing fields\"/\"not in the list\" on Submarket even when correctly filled in -- a side effect of the new Submarket-by-Type filter not knowing those records' Submarket comes from an Offices catalog entry.",
+    "Spaces: \"Transaction Available\" is now hidden (and no longer counts as pending) whenever Market Status = Occupied.",
+    "Spaces: \"Assigned Parking Spots\" is now a computed, read-only field -- Net Leasable Area (converted to m²) × Parking Ratio, rounded to a whole number."
+  ]},
   {version:"8.10.0", date:"2026-09-25", items:[
     "Location catalog (CATALOGO_UBICACION): new optional \"Tipo\" column (Industrial/Oficinas) -- Region/State/Market stay fully shared, but Submarket options are now filtered so Offices only sees its own submarkets and Buildings/Parks/Land only see theirs.",
     "New \"Local Backup Folder\" (Settings > Excel Files / Images): once you link a folder on this computer (outside OneDrive), a copy of the data Excel is saved there automatically every time it's saved to the linked file -- protects against OneDrive failing to sync.",
@@ -5902,7 +5926,9 @@ function helpIconHtml(id, text){
 }
 /* % de campos obligatorios llenos, según fieldConfig — null si esa entidad no tiene ninguno marcado */
 function completionStats(ent, rec){
-  const req=fields(ent).filter(f=>f.required);
+  // ver isSpaceTransactionAvailableHidden()/transactionVisibleFields(): mismo criterio que la ficha, para que
+  // el % no cuente como pendiente un campo que ni siquiera se le muestra al usuario.
+  const req=fields(ent).filter(f=>f.required && !(ent==="SPACES" && f.key==="TRANSACTION_AVAILABLE" && isSpaceTransactionAvailableHidden(rec)));
   const trackPhoto=!!PHOTO_ID_FIELD[ent] && photoSet!==null;
   const total=req.length+(trackPhoto?1:0);
   if(!total) return null;
@@ -5977,6 +6003,7 @@ function tablePaginationHtml(totalRows, totalPages){
 let parkDerivedCacheSig=null;
 let spaceDerivedCacheSig=null;
 let propertyDerivedCacheSig=null;
+let officeDerivedCacheSig=null;
 // v3.45.10: string plano (NO un objeto por entidad) — el thead es un ÚNICO elemento del DOM compartido por
 // las 4 entidades (solo cambia qué datos muestra `current`), así que lo que importa es comparar contra lo
 // que YA está en el DOM ahora mismo, sin importar de qué entidad vino la última vez. Cachear por entidad
@@ -6009,7 +6036,10 @@ function renderTable(){
   // cambió), nunca en cada render sin necesidad.
   if(current==="SPACES"){
     const sig=(state.SPACES?state.SPACES.length:0)+"|"+(state.OFICINAS?state.OFICINAS.length:0);
-    if(sig!==spaceDerivedCacheSig){ recomputeAllSpacesFromOffices(); spaceDerivedCacheSig=sig; }
+    // recomputeAllSpaceDerivedFields() (Assigned Parking Spots, ver SPACES_COMPUTED_FIELD_KEYS) reusa esta
+    // misma señal barata -- mismo criterio de "al entrar a la pestaña o si cambió el conteo" que ya usa
+    // recomputeAllSpacesFromOffices() en esta misma línea, no hace falta una caché aparte.
+    if(sig!==spaceDerivedCacheSig){ recomputeAllSpacesFromOffices(); recomputeAllSpaceDerivedFields(); spaceDerivedCacheSig=sig; }
   }
   // Mismo patrón de cache barato que los 2 bloques de arriba, aplicado a recomputeAllPropertyDerivedFields()
   // (Available Area = Leasable Area GLA - Occupied Area, ver PROPIEDADES_COMPUTED_FIELD_KEYS) — corre solo
@@ -6019,6 +6049,14 @@ function renderTable(){
   if(current==="PROPIEDADES"){
     const sig=String(state.PROPIEDADES?state.PROPIEDADES.length:0);
     if(sig!==propertyDerivedCacheSig){ recomputeAllPropertyDerivedFields(); propertyDerivedCacheSig=sig; }
+  }
+  // Mismo patrón de cache barato que los bloques de arriba, aplicado a recomputeAllOfficeDerivedFields()
+  // (Occupied/Available Area = suma de Net Leasable Area de los Spaces enlazados, ver
+  // OFICINAS_COMPUTED_FIELD_KEYS) — corre al entrar a Offices (o si el conteo de Oficinas/Spaces cambió), y
+  // de paso llena retroactivamente este cálculo en registros ya capturados antes de que existiera.
+  if(current==="OFICINAS"){
+    const sig=(state.OFICINAS?state.OFICINAS.length:0)+"|"+(state.SPACES?state.SPACES.length:0);
+    if(sig!==officeDerivedCacheSig){ recomputeAllOfficeDerivedFields(); officeDerivedCacheSig=sig; }
   }
   updateClearFiltersBtn();
   const cfg=ENTITIES[current];
@@ -6239,6 +6277,8 @@ function detectFieldType(ent, key){
   // coincidir de nombre.
   if(ent==="PARKS" && PARK_COMPUTED_FIELD_KEYS.has(key)) return "number";
   if(ent==="PROPIEDADES" && PROPIEDADES_COMPUTED_FIELD_KEYS.has(key)) return "number";
+  if(ent==="OFICINAS" && OFICINAS_COMPUTED_FIELD_KEYS.has(key)) return "number";
+  if(ent==="SPACES" && SPACES_COMPUTED_FIELD_KEYS.has(key)) return "number";
   /* El tipo configurado por el usuario en Configuración > Campos manda sobre cualquier adivinanza a partir
      del valor guardado — antes, un campo marcado "Texto" (ej. ID_PARK) podía terminar mostrando el filtro
      de rango numérico "Desde/Hasta" solo porque sus valores capturados resultaron ser números de JS
@@ -8774,6 +8814,63 @@ function recomputePropertyDerivedFields(property){
   }
 }
 function recomputeAllPropertyDerivedFields(){ (state.PROPIEDADES||[]).forEach(recomputePropertyDerivedFields); }
+/* Oficinas (v8.10.x, pedido explícito del usuario): "Occupied Area"/"Available Area" pasan de capturarse a
+   mano a ser CALCULADAS -- suma de "Net Leasable Area" (NET_LEASABLE_AREA_VALUE) de todos los Spaces
+   enlazados a esta Oficina (por MAPPING_CODE), agrupados por el "Market Status" de CADA Space (Available ->
+   Available Area, Occupied -> Occupied Area). A diferencia de Parks/Propiedades arriba (que derivan de OTRO
+   CAMPO del mismo registro), aquí se agrega sobre OTRA tabla (Spaces) -- mismo criterio que ya usa Parks para
+   NUM_BUILDINGS_IN_PARK/AVAILABLE_BUILDINGS (recorrer la tabla enlazada), solo que sumando un valor en vez de
+   contando filas. A diferencia de esos casos SÍ convierte de unidad (ver officeAreaValueToSF) -- aquí hace
+   falta de verdad: los Spaces de una misma Oficina pueden mezclar SF/m² sin que nadie lo note al capturar, y
+   sumar los valores crudos de unidades distintas daría un total sin sentido. El resultado se expresa en la
+   unidad de Leasable Area GLA de la Oficina (o SF si esa todavía no está capturada). */
+const OFICINAS_COMPUTED_FIELD_KEYS = new Set(["OCCUPIED_AREA_VALUE","AVAILABLE_AREA_VALUE"]);
+function officeAreaValueToSF(value, unit){
+  const n=Number(value);
+  if(value==null || value==="" || !isFinite(n)) return 0;
+  return ciEq(unit, UNIT_CONVERSIONS.SF_M2.metric) ? n/UNIT_CONVERSIONS.SF_M2.toMetric : n;
+}
+function recomputeOfficeDerivedFields(office){
+  const code=String(office.MAPPING_CODE||"").trim();
+  const targetUnit=office.LEASABLE_AREA_GLA_UNIT || "SF";
+  const sfToTarget=sf=> ciEq(targetUnit, UNIT_CONVERSIONS.SF_M2.metric) ? round2(sf*UNIT_CONVERSIONS.SF_M2.toMetric) : round2(sf);
+  let availableSF=0, occupiedSF=0;
+  if(code){
+    (state.SPACES||[]).forEach(space=>{
+      if(!ciEq(space.MAPPING_CODE, code)) return;
+      const sf=officeAreaValueToSF(space.NET_LEASABLE_AREA_VALUE, space.NET_LEASABLE_AREA_UNIT);
+      if(ciEq(space.MARKET_STATUS,"Available")) availableSF+=sf;
+      else if(ciEq(space.MARKET_STATUS,"Occupied")) occupiedSF+=sf;
+    });
+  }
+  office.AVAILABLE_AREA_VALUE=sfToTarget(availableSF);
+  office.AVAILABLE_AREA_UNIT=targetUnit;
+  office.OCCUPIED_AREA_VALUE=sfToTarget(occupiedSF);
+  office.OCCUPIED_AREA_UNIT=targetUnit;
+}
+function recomputeAllOfficeDerivedFields(){ (state.OFICINAS||[]).forEach(recomputeOfficeDerivedFields); }
+/* Spaces (v8.10.x, pedido explícito del usuario): "Assigned Parking Spots" pasa a ser CALCULADO -- Net
+   Leasable Area (convertida a m², ver officeAreaValueToSF/PARKING_RATIO abajo) × Parking Ratio, redondeado a
+   un entero (Parking Ratio está en "#/m²", ver fieldLabel PARKING_RATIO -- así que hace falta el área en m²
+   para que la multiplicación tenga sentido, sin importar en qué unidad se haya capturado Net Leasable Area de
+   ESTE Space en particular). Usa el Parking Ratio propio del Space (SPACE_AUTOFILL_PREFILL_KEYS lo prellena
+   desde la Oficina al elegirla, pero es editable por Space después y nunca se vuelve a sincronizar solo -- ver
+   ese comentario), no el de la Oficina. VIP_PARKING_SPOTS/POOL_SPOTS no se tocan, siguen siendo captura
+   manual -- no se pidió calcularlos. */
+const SPACES_COMPUTED_FIELD_KEYS = new Set(["ASSIGNED_PARKING_SPOTS"]);
+function recomputeSpaceDerivedFields(space){
+  const ratio=Number(space.PARKING_RATIO);
+  const hasRatio = space.PARKING_RATIO!=null && space.PARKING_RATIO!=="" && !isNaN(ratio);
+  const areaSF=officeAreaValueToSF(space.NET_LEASABLE_AREA_VALUE, space.NET_LEASABLE_AREA_UNIT);
+  const hasArea = space.NET_LEASABLE_AREA_VALUE!=null && space.NET_LEASABLE_AREA_VALUE!=="";
+  if(hasRatio && hasArea){
+    const areaM2=areaSF*UNIT_CONVERSIONS.SF_M2.toMetric;
+    space.ASSIGNED_PARKING_SPOTS=Math.round(areaM2*ratio);
+  } else {
+    space.ASSIGNED_PARKING_SPOTS="";
+  }
+}
+function recomputeAllSpaceDerivedFields(){ (state.SPACES||[]).forEach(recomputeSpaceDerivedFields); }
 /* Pedido explícito del usuario: en Buildings, al cambiar "Market Status" a "Occupied" se copia Occupied Area
    = Leasable Area GLA (mismo valor Y unidad) — junto con el punto anterior (Available Area = Leasable -
    Occupied, ver PROPIEDADES_COMPUTED_FIELD_KEYS/recomputePropertyDerivedFields), esto deja "Available" en 0
@@ -8954,7 +9051,7 @@ function fieldValueMismatch(ent, f, record){
   if(CASCADE_ORDER.includes(f.key) && cascadeCatalog.length){
     const parentKey=cascadeParentKeyFor(ent,f.key);
     const parentValue=parentKey&&record?String(record[parentKey]||""):"";
-    return !cascadeOptionsFor(f.key,parentKey,parentValue,ent).includes(raw);
+    return !cascadeOptionsFor(f.key,parentKey,parentValue,ent,record).includes(raw);
   }
   if(MULTI_LIST_FIELD_KEYS.has(f.key) && f.list && lists[f.list]){
     // valor guardado como "A, B, C" (ver MULTI_LIST_FIELD_KEYS) — "no está en la lista" solo si ALGUNO de
@@ -9087,7 +9184,16 @@ const TRANSACCION_FIELD_GROUP={
    solo miraba ABSORPTION_TYPE; ahora PROPERTY_TYPE decide PRIMERO el set completo (classic Building/Park/
    Land vs. Office), y Absorption Type sigue filtrando dentro del set classic exactamente igual que siempre
    — Office no tiene un subset "Negative" reducido (el documento fuente no distingue ese caso ahí). */
+// v8.10.x, pedido explícito del usuario: en Spaces, "Transaction Available" se oculta cuando Market Status =
+// Occupied (un espacio ocupado no tiene un tipo de transacción disponible que capturar) -- se filtra aquí
+// (antes de armar `groups`) para que también deje de contar como pendiente en el badge de la pestaña/ficha
+// (countMissingRequired/buildForm/buildViewForm ya arman `groups` a partir de lo que esta función regresa,
+// ver sus llamadas más abajo). El valor capturado antes de pasar a Occupied NO se borra, solo se deja de
+// mostrar/exigir mientras el status siga en Occupied -- ver también completionStats() para el mismo criterio
+// en la columna "% Completado" de la tabla.
+function isSpaceTransactionAvailableHidden(record){ return ciEq(record&&record.MARKET_STATUS,"Occupied"); }
 function transactionVisibleFields(ent, record, allFields){
+  if(ent==="SPACES") return isSpaceTransactionAvailableHidden(record) ? allFields.filter(f=>f.key!=="TRANSACTION_AVAILABLE") : allFields;
   if(ent!=="TRANSACCIONES") return allFields;
   const category=normalizeStateText(record&&record.PROPERTY_TYPE);
   const absorption=normalizeStateText(record&&record.ABSORPTION_TYPE);
@@ -9299,11 +9405,17 @@ function buildForm(ent, record){
         <input value="${escapeAttr(String(computedVal))}" readonly disabled>
         <input type="hidden" data-key="${f.key}" value="${val}"></div>`;
     }
+    if(ent==="SPACES" && SPACES_COMPUTED_FIELD_KEYS.has(f.key)){
+      const computedVal=record&&record[f.key]!=null&&record[f.key]!==""?record[f.key]:0;
+      return `<div class="field field-readonly"><label>${fieldLabel(f.key)}${helpIcon}</label>
+        <input value="${escapeAttr(String(computedVal))}" readonly disabled>
+        <input type="hidden" data-key="${f.key}" value="${val}"></div>`;
+    }
     if(CASCADE_ORDER.includes(f.key) && cascadeCatalog.length){
       const rawVal=record&&record[f.key]!=null?String(record[f.key]):"";
       const parentKey=cascadeParentKeyFor(ent,f.key);
       const parentValue=parentKey&&record?String(record[parentKey]||""):"";
-      const options=cascadeOptionsFor(f.key,parentKey,parentValue,ent);
+      const options=cascadeOptionsFor(f.key,parentKey,parentValue,ent,record);
       const mismatchCls=fieldValueMismatch(ent,f,record)?" field-value-mismatch":"";
       const mismatchTitle=mismatchCls?' title="The captured value is not in the list configured for this field"':"";
       return `<div class="field"><label>${fieldLabel(f.key)}${reqMark}${helpIcon}</label>
@@ -9387,7 +9499,7 @@ function buildForm(ent, record){
     // mismo patrón ya corregido abajo para SPACE_AUTOFILL_READONLY_KEYS (v3.51.1) — sin `ent==="PARKS"`,
     // esta rama también agarraba el AVAILABLE_AREA_VALUE/UNIT de Terrenos (mismo key, desde v7.3.49), un
     // campo normal ahí, y lo volvía de solo lectura por error.
-    if((ent==="PARKS" && PARK_COMPUTED_FIELD_KEYS.has(valueField.key)) || (ent==="PROPIEDADES" && PROPIEDADES_COMPUTED_FIELD_KEYS.has(valueField.key))){
+    if((ent==="PARKS" && PARK_COMPUTED_FIELD_KEYS.has(valueField.key)) || (ent==="PROPIEDADES" && PROPIEDADES_COMPUTED_FIELD_KEYS.has(valueField.key)) || (ent==="OFICINAS" && OFICINAS_COMPUTED_FIELD_KEYS.has(valueField.key))){
       const computedVal=record&&record[valueField.key]!=null&&record[valueField.key]!==""?record[valueField.key]:0;
       const computedUnit=(record&&record[unitField.key])||"—";
       return `<div class="field field-readonly"><label>${label}${helpIcon}</label>
@@ -9634,7 +9746,7 @@ function setPickerMapBasemap(map, currentLayersRef, key){
 }
 
 /* ==== Polygon capture map (Leaflet + Leaflet.draw) ==== */
-let polyMap=null, polyDrawnItems=null, polyMapBasemapLayers=[];
+let polyMap=null, polyDrawnItems=null, polyMapBasemapLayers=[], polyMapBasemapGL=null;
 function initPolyMapIfNeeded(){
   if(polyMap) return;
   polyMap=L.map('polygonMapEl');
@@ -9645,6 +9757,30 @@ function initPolyMapIfNeeded(){
   });
   polyMap.addControl(drawControl);
   polyMap.on(L.Draw.Event.CREATED, e=>{ polyDrawnItems.clearLayers(); polyDrawnItems.addLayer(e.layer); });
+}
+/* v8.10.x, pedido explícito del usuario: reemplaza "Light streets" por "Citius (Mapbox)" en el selector del
+   modal "Dibujar polígono" (compartido por Buildings/Parks/Land/Offices). A diferencia del selector genérico
+   setPickerMapBasemap() (que solo maneja basemaps raster vía `cfg.layers`), "Citius (Mapbox)" es un basemap
+   `gl` (Mapbox GL JS vectorial, ver MAP_BASEMAPS/addCitiusMapboxLayer) -- mismo criterio EXACTO que
+   setMapBasemap() del Mapa principal: quita la capa raster o GL anterior (liberando su contexto WebGL antes
+   de descartarla) y agrega la nueva según el tipo de basemap elegido. */
+function setPolyMapBasemap(key){
+  polyMapBasemapLayers.forEach(l=>polyMap.removeLayer(l));
+  polyMapBasemapLayers.length=0;
+  if(polyMapBasemapGL){
+    const oldGL=polyMapBasemapGL.getMapboxMap && polyMapBasemapGL.getMapboxMap();
+    polyMap.removeLayer(polyMapBasemapGL);
+    if(oldGL) try{ oldGL.remove(); }catch(e){}
+    polyMapBasemapGL=null;
+  }
+  const cfg=MAP_BASEMAPS.find(b=>b.key===key) || MAP_BASEMAPS[0];
+  if(cfg.gl){
+    polyMapBasemapGL=addCitiusMapboxLayer(polyMap);
+  } else {
+    cfg.layers.forEach(l=>{
+      polyMapBasemapLayers.push(L.tileLayer(l.url,{maxZoom:19, attribution:l.attribution, subdomains:l.subdomains||"abc"}).addTo(polyMap));
+    });
+  }
 }
 /* ==== Vista por defecto del mapa según el Estado capturado (v3.44.5, pedido explícito del usuario: "cuando
    abro el mapa para dibujar el polígono siempre aparece en Saltillo") ====
@@ -9709,7 +9845,7 @@ function openPolygonMap(){
   document.getElementById("mapOverlay").classList.add("show");
   initPolyMapIfNeeded();
   document.getElementById("polyMapBasemapSelect").value="satellite";
-  setPickerMapBasemap(polyMap, polyMapBasemapLayers, "satellite");
+  setPolyMapBasemap("satellite");
   setTimeout(()=>{
     polyMap.invalidateSize();
     polyDrawnItems.clearLayers();
@@ -13980,7 +14116,14 @@ function doSaveRecord(){
   // recomputeAllSpaceLinkedFields(). `editingOriginalPhotoId` todavía tiene el Mapping Code ANTERIOR a este
   // guardado en este punto (se reasigna un poco más abajo), así que sirve para encontrar los Spaces que
   // quedaron enlazados con el código viejo si cambió.
-  else if(current==="OFICINAS") recomputeAllSpaceLinkedFields(rec, editingOriginalPhotoId);
+  else if(current==="OFICINAS"){ recomputeAllSpaceLinkedFields(rec, editingOriginalPhotoId); recomputeOfficeDerivedFields(rec); }
+  // Pedido explícito del usuario: Occupied/Available Area de la Oficina se calculan sumando los Spaces
+  // enlazados a ella (ver OFICINAS_COMPUTED_FIELD_KEYS/recomputeOfficeDerivedFields) -- si se guardó un
+  // Space, cualquier Oficina cuyo total dependa de él necesita recalcularse (mismo criterio que Propiedades
+  // recalculando TODOS los Parques arriba: más simple y seguro que rastrear cuál oficina exacta cambió).
+  // recomputeSpaceDerivedFields(rec) recalcula el Assigned Parking Spots de ESTE Space (ver
+  // SPACES_COMPUTED_FIELD_KEYS) -- su propio Leasable Area/Parking Ratio pudieron cambiar en este guardado.
+  else if(current==="SPACES"){ recomputeSpaceDerivedFields(rec); recomputeAllOfficeDerivedFields(); }
   const photoIdKey=PHOTO_ID_FIELD[current];
   if(photoIdKey && editingOriginalPhotoId && rec[photoIdKey] && rec[photoIdKey]!==editingOriginalPhotoId){
     renameImageFile(current, editingOriginalPhotoId, rec[photoIdKey]);
@@ -14019,6 +14162,8 @@ function doConfirmDelete(){
   state[current]=state[current].filter(r=>r.__id!==pendingDelete);
   // eliminar una Propiedad puede cambiar cuántos edificios tiene/tiene disponibles su Parque
   if(current==="PROPIEDADES") recomputeAllParkDerivedFields();
+  // eliminar un Space puede cambiar Occupied/Available Area de la Oficina a la que estaba enlazado
+  else if(current==="SPACES") recomputeAllOfficeDerivedFields();
   saveState(); closeConfirm(); renderTable(); toast("Record deleted","err");
 };
 

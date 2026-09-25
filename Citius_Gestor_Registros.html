@@ -2633,9 +2633,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   <div class="modal map-modal">
     <div class="modal-head"><h3>Draw polygon</h3>
       <div class="unit-view-select" title="Map style">
-        <select id="polyMapBasemapSelect" onchange="setPickerMapBasemap(polyMap,polyMapBasemapLayers,this.value)">
+        <select id="polyMapBasemapSelect" onchange="setPolyMapBasemap(this.value)">
           <option value="satellite">Satellite</option>
-          <option value="voyager">Light streets</option>
+          <option value="citiusMapbox">Citius (Mapbox)</option>
         </select>
       </div>
     <button class="x" onclick="closePolygonMap()">&times;</button></div>
@@ -9634,7 +9634,7 @@ function setPickerMapBasemap(map, currentLayersRef, key){
 }
 
 /* ==== Polygon capture map (Leaflet + Leaflet.draw) ==== */
-let polyMap=null, polyDrawnItems=null, polyMapBasemapLayers=[];
+let polyMap=null, polyDrawnItems=null, polyMapBasemapLayers=[], polyMapBasemapGL=null;
 function initPolyMapIfNeeded(){
   if(polyMap) return;
   polyMap=L.map('polygonMapEl');
@@ -9645,6 +9645,30 @@ function initPolyMapIfNeeded(){
   });
   polyMap.addControl(drawControl);
   polyMap.on(L.Draw.Event.CREATED, e=>{ polyDrawnItems.clearLayers(); polyDrawnItems.addLayer(e.layer); });
+}
+/* v8.10.x, pedido explícito del usuario: reemplaza "Light streets" por "Citius (Mapbox)" en el selector del
+   modal "Dibujar polígono" (compartido por Buildings/Parks/Land/Offices). A diferencia del selector genérico
+   setPickerMapBasemap() (que solo maneja basemaps raster vía `cfg.layers`), "Citius (Mapbox)" es un basemap
+   `gl` (Mapbox GL JS vectorial, ver MAP_BASEMAPS/addCitiusMapboxLayer) -- mismo criterio EXACTO que
+   setMapBasemap() del Mapa principal: quita la capa raster o GL anterior (liberando su contexto WebGL antes
+   de descartarla) y agrega la nueva según el tipo de basemap elegido. */
+function setPolyMapBasemap(key){
+  polyMapBasemapLayers.forEach(l=>polyMap.removeLayer(l));
+  polyMapBasemapLayers.length=0;
+  if(polyMapBasemapGL){
+    const oldGL=polyMapBasemapGL.getMapboxMap && polyMapBasemapGL.getMapboxMap();
+    polyMap.removeLayer(polyMapBasemapGL);
+    if(oldGL) try{ oldGL.remove(); }catch(e){}
+    polyMapBasemapGL=null;
+  }
+  const cfg=MAP_BASEMAPS.find(b=>b.key===key) || MAP_BASEMAPS[0];
+  if(cfg.gl){
+    polyMapBasemapGL=addCitiusMapboxLayer(polyMap);
+  } else {
+    cfg.layers.forEach(l=>{
+      polyMapBasemapLayers.push(L.tileLayer(l.url,{maxZoom:19, attribution:l.attribution, subdomains:l.subdomains||"abc"}).addTo(polyMap));
+    });
+  }
 }
 /* ==== Vista por defecto del mapa según el Estado capturado (v3.44.5, pedido explícito del usuario: "cuando
    abro el mapa para dibujar el polígono siempre aparece en Saltillo") ====
@@ -9709,7 +9733,7 @@ function openPolygonMap(){
   document.getElementById("mapOverlay").classList.add("show");
   initPolyMapIfNeeded();
   document.getElementById("polyMapBasemapSelect").value="satellite";
-  setPickerMapBasemap(polyMap, polyMapBasemapLayers, "satellite");
+  setPolyMapBasemap("satellite");
   setTimeout(()=>{
     polyMap.invalidateSize();
     polyDrawnItems.clearLayers();

@@ -5977,6 +5977,7 @@ function tablePaginationHtml(totalRows, totalPages){
 let parkDerivedCacheSig=null;
 let spaceDerivedCacheSig=null;
 let propertyDerivedCacheSig=null;
+let officeDerivedCacheSig=null;
 // v3.45.10: string plano (NO un objeto por entidad) — el thead es un ÚNICO elemento del DOM compartido por
 // las 4 entidades (solo cambia qué datos muestra `current`), así que lo que importa es comparar contra lo
 // que YA está en el DOM ahora mismo, sin importar de qué entidad vino la última vez. Cachear por entidad
@@ -6019,6 +6020,14 @@ function renderTable(){
   if(current==="PROPIEDADES"){
     const sig=String(state.PROPIEDADES?state.PROPIEDADES.length:0);
     if(sig!==propertyDerivedCacheSig){ recomputeAllPropertyDerivedFields(); propertyDerivedCacheSig=sig; }
+  }
+  // Mismo patrón de cache barato que los bloques de arriba, aplicado a recomputeAllOfficeDerivedFields()
+  // (Occupied/Available Area = suma de Net Leasable Area de los Spaces enlazados, ver
+  // OFICINAS_COMPUTED_FIELD_KEYS) — corre al entrar a Offices (o si el conteo de Oficinas/Spaces cambió), y
+  // de paso llena retroactivamente este cálculo en registros ya capturados antes de que existiera.
+  if(current==="OFICINAS"){
+    const sig=(state.OFICINAS?state.OFICINAS.length:0)+"|"+(state.SPACES?state.SPACES.length:0);
+    if(sig!==officeDerivedCacheSig){ recomputeAllOfficeDerivedFields(); officeDerivedCacheSig=sig; }
   }
   updateClearFiltersBtn();
   const cfg=ENTITIES[current];
@@ -6239,6 +6248,7 @@ function detectFieldType(ent, key){
   // coincidir de nombre.
   if(ent==="PARKS" && PARK_COMPUTED_FIELD_KEYS.has(key)) return "number";
   if(ent==="PROPIEDADES" && PROPIEDADES_COMPUTED_FIELD_KEYS.has(key)) return "number";
+  if(ent==="OFICINAS" && OFICINAS_COMPUTED_FIELD_KEYS.has(key)) return "number";
   /* El tipo configurado por el usuario en Configuración > Campos manda sobre cualquier adivinanza a partir
      del valor guardado — antes, un campo marcado "Texto" (ej. ID_PARK) podía terminar mostrando el filtro
      de rango numérico "Desde/Hasta" solo porque sus valores capturados resultaron ser números de JS
@@ -8774,6 +8784,41 @@ function recomputePropertyDerivedFields(property){
   }
 }
 function recomputeAllPropertyDerivedFields(){ (state.PROPIEDADES||[]).forEach(recomputePropertyDerivedFields); }
+/* Oficinas (v8.10.x, pedido explícito del usuario): "Occupied Area"/"Available Area" pasan de capturarse a
+   mano a ser CALCULADAS -- suma de "Net Leasable Area" (NET_LEASABLE_AREA_VALUE) de todos los Spaces
+   enlazados a esta Oficina (por MAPPING_CODE), agrupados por el "Market Status" de CADA Space (Available ->
+   Available Area, Occupied -> Occupied Area). A diferencia de Parks/Propiedades arriba (que derivan de OTRO
+   CAMPO del mismo registro), aquí se agrega sobre OTRA tabla (Spaces) -- mismo criterio que ya usa Parks para
+   NUM_BUILDINGS_IN_PARK/AVAILABLE_BUILDINGS (recorrer la tabla enlazada), solo que sumando un valor en vez de
+   contando filas. A diferencia de esos casos SÍ convierte de unidad (ver officeAreaValueToSF) -- aquí hace
+   falta de verdad: los Spaces de una misma Oficina pueden mezclar SF/m² sin que nadie lo note al capturar, y
+   sumar los valores crudos de unidades distintas daría un total sin sentido. El resultado se expresa en la
+   unidad de Leasable Area GLA de la Oficina (o SF si esa todavía no está capturada). */
+const OFICINAS_COMPUTED_FIELD_KEYS = new Set(["OCCUPIED_AREA_VALUE","AVAILABLE_AREA_VALUE"]);
+function officeAreaValueToSF(value, unit){
+  const n=Number(value);
+  if(value==null || value==="" || !isFinite(n)) return 0;
+  return ciEq(unit, UNIT_CONVERSIONS.SF_M2.metric) ? n/UNIT_CONVERSIONS.SF_M2.toMetric : n;
+}
+function recomputeOfficeDerivedFields(office){
+  const code=String(office.MAPPING_CODE||"").trim();
+  const targetUnit=office.LEASABLE_AREA_GLA_UNIT || "SF";
+  const sfToTarget=sf=> ciEq(targetUnit, UNIT_CONVERSIONS.SF_M2.metric) ? round2(sf*UNIT_CONVERSIONS.SF_M2.toMetric) : round2(sf);
+  let availableSF=0, occupiedSF=0;
+  if(code){
+    (state.SPACES||[]).forEach(space=>{
+      if(!ciEq(space.MAPPING_CODE, code)) return;
+      const sf=officeAreaValueToSF(space.NET_LEASABLE_AREA_VALUE, space.NET_LEASABLE_AREA_UNIT);
+      if(ciEq(space.MARKET_STATUS,"Available")) availableSF+=sf;
+      else if(ciEq(space.MARKET_STATUS,"Occupied")) occupiedSF+=sf;
+    });
+  }
+  office.AVAILABLE_AREA_VALUE=sfToTarget(availableSF);
+  office.AVAILABLE_AREA_UNIT=targetUnit;
+  office.OCCUPIED_AREA_VALUE=sfToTarget(occupiedSF);
+  office.OCCUPIED_AREA_UNIT=targetUnit;
+}
+function recomputeAllOfficeDerivedFields(){ (state.OFICINAS||[]).forEach(recomputeOfficeDerivedFields); }
 /* Pedido explícito del usuario: en Buildings, al cambiar "Market Status" a "Occupied" se copia Occupied Area
    = Leasable Area GLA (mismo valor Y unidad) — junto con el punto anterior (Available Area = Leasable -
    Occupied, ver PROPIEDADES_COMPUTED_FIELD_KEYS/recomputePropertyDerivedFields), esto deja "Available" en 0
@@ -9387,7 +9432,7 @@ function buildForm(ent, record){
     // mismo patrón ya corregido abajo para SPACE_AUTOFILL_READONLY_KEYS (v3.51.1) — sin `ent==="PARKS"`,
     // esta rama también agarraba el AVAILABLE_AREA_VALUE/UNIT de Terrenos (mismo key, desde v7.3.49), un
     // campo normal ahí, y lo volvía de solo lectura por error.
-    if((ent==="PARKS" && PARK_COMPUTED_FIELD_KEYS.has(valueField.key)) || (ent==="PROPIEDADES" && PROPIEDADES_COMPUTED_FIELD_KEYS.has(valueField.key))){
+    if((ent==="PARKS" && PARK_COMPUTED_FIELD_KEYS.has(valueField.key)) || (ent==="PROPIEDADES" && PROPIEDADES_COMPUTED_FIELD_KEYS.has(valueField.key)) || (ent==="OFICINAS" && OFICINAS_COMPUTED_FIELD_KEYS.has(valueField.key))){
       const computedVal=record&&record[valueField.key]!=null&&record[valueField.key]!==""?record[valueField.key]:0;
       const computedUnit=(record&&record[unitField.key])||"—";
       return `<div class="field field-readonly"><label>${label}${helpIcon}</label>
@@ -14004,7 +14049,12 @@ function doSaveRecord(){
   // recomputeAllSpaceLinkedFields(). `editingOriginalPhotoId` todavía tiene el Mapping Code ANTERIOR a este
   // guardado en este punto (se reasigna un poco más abajo), así que sirve para encontrar los Spaces que
   // quedaron enlazados con el código viejo si cambió.
-  else if(current==="OFICINAS") recomputeAllSpaceLinkedFields(rec, editingOriginalPhotoId);
+  else if(current==="OFICINAS"){ recomputeAllSpaceLinkedFields(rec, editingOriginalPhotoId); recomputeOfficeDerivedFields(rec); }
+  // Pedido explícito del usuario: Occupied/Available Area de la Oficina se calculan sumando los Spaces
+  // enlazados a ella (ver OFICINAS_COMPUTED_FIELD_KEYS/recomputeOfficeDerivedFields) -- si se guardó un
+  // Space, cualquier Oficina cuyo total dependa de él necesita recalcularse (mismo criterio que Propiedades
+  // recalculando TODOS los Parques arriba: más simple y seguro que rastrear cuál oficina exacta cambió).
+  else if(current==="SPACES") recomputeAllOfficeDerivedFields();
   const photoIdKey=PHOTO_ID_FIELD[current];
   if(photoIdKey && editingOriginalPhotoId && rec[photoIdKey] && rec[photoIdKey]!==editingOriginalPhotoId){
     renameImageFile(current, editingOriginalPhotoId, rec[photoIdKey]);
@@ -14043,6 +14093,8 @@ function doConfirmDelete(){
   state[current]=state[current].filter(r=>r.__id!==pendingDelete);
   // eliminar una Propiedad puede cambiar cuántos edificios tiene/tiene disponibles su Parque
   if(current==="PROPIEDADES") recomputeAllParkDerivedFields();
+  // eliminar un Space puede cambiar Occupied/Available Area de la Oficina a la que estaba enlazado
+  else if(current==="SPACES") recomputeAllOfficeDerivedFields();
   saveState(); closeConfirm(); renderTable(); toast("Record deleted","err");
 };
 

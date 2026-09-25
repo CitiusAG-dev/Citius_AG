@@ -2083,7 +2083,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.9.2</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.10.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -4862,6 +4862,11 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.10.0", date:"2026-09-25", items:[
+    "Location catalog (CATALOGO_UBICACION): new optional \"Tipo\" column (Industrial/Oficinas) -- Region/State/Market stay fully shared, but Submarket options are now filtered so Offices only sees its own submarkets and Buildings/Parks/Land only see theirs.",
+    "New \"Local Backup Folder\" (Settings > Excel Files / Images): once you link a folder on this computer (outside OneDrive), a copy of the data Excel is saved there automatically every time it's saved to the linked file -- protects against OneDrive failing to sync.",
+    "If a Local Backup Folder hasn't been configured yet, saving or deleting a record now shows a required popup to set it up right there before continuing -- ensures every computer ends up with a backup configured."
+  ]},
   {version:"8.9.2", date:"2026-09-24", items:[
     "Presentation -- Building/Land Options (comparative table): fixed the table overflowing the page footer when printing several properties -- removed the extra gap before Asking Rate, tightened row padding, moved the table closer to the title, reduced the gap before the disclaimer, and slightly reduced the table's font size."
   ]},

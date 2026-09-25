@@ -9616,6 +9616,15 @@ document.getElementById("mBody").addEventListener("input", e=>{
   });
   reRenderTransactionForm();
 });
+/* v8.11.x, pedido explícito del usuario ("quiero que eso sea durante la edición de los valores en vivo en la
+   ficha"): cambiar Market Status en Spaces también cambia qué campos se muestran (ver
+   isSpaceTransactionAvailableHidden()/transactionVisibleFields()) -- antes solo se recalculaba al guardar y
+   reabrir la ficha. Mismo criterio EXACTO que Absorption Type/Property Type de Transacciones arriba:
+   reRenderTransactionForm() ya es genérica (lee `current`, no algo hardcodeado a Transacciones), así que se
+   reusa tal cual, sin escribir una función aparte. */
+document.getElementById("mBody").addEventListener("input", e=>{
+  if(current==="SPACES" && e.target && e.target.dataset && e.target.dataset.key==="MARKET_STATUS") reRenderTransactionForm();
+});
 function buildImageViewBlock(ent){
   const kinds=photoKindsFor(ent);
   const showTitles=kinds.length>1;

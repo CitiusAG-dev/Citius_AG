@@ -9237,7 +9237,21 @@ function transactionVisibleFields(ent, record, allFields){
     else order=TRANSACCION_FIELDS_GROSS; // Absorption Type no reconocido -> set completo, no el reducido
   } else return allFields; // Categoría no reconocida (ej. dato importado viejo) -> no ocultar nada de más
   const byKey={}; allFields.forEach(f=>{ byKey[f.key]=f; });
-  return order.map(k=>byKey[k] ? {...byKey[k], group:TRANSACCION_FIELD_GROUP[k]?currentGroupName(TRANSACCION_FIELD_GROUP[k]):byKey[k].group} : null).filter(Boolean);
+  // v8.11.x, bug real reportado por el usuario (screenshot: "Listing"/"Econ. Terms" en vez de las 3 pestañas
+  // de siempre, con Region/State/Market/Submarket mezclados con Property Type/Absorption Type/etc.): antes
+  // pasaba TRANSACCION_FIELD_GROUP[k] por currentGroupName() para respetar un rename manual de sección -- pero
+  // currentGroupName()/groupRenames es GLOBAL y se llena solo (ver reconcileGroupRenames()) comparando el
+  // GRUPO que cada campo trae en fieldConfig (cargado del Excel del usuario) contra el original de BUNDLE, de
+  // CUALQUIER entidad. "PROPIEDAD" y "TRANSACTION DETAILS" también son nombres de grupo REALES que Spaces/
+  // Transacciones traen en su propio Excel -- en cuanto el usuario reorganiza esos grupos a su gusto (ej.
+  // Spaces mueve Market Status de "PROPIEDAD" a "IDENTIFICATION"), reconcileGroupRenames() interpreta eso como
+  // "PROPIEDAD se renombró a IDENTIFICATION" GLOBALMENTE, y esa traducción se le aplicaba también aquí, a las
+  // 3 pestañas fijas de Transacciones -- terminaban encadenándose entre sí (PROPIEDAD -> IDENTIFICATION ->
+  // LISTING, por ejemplo) y mezclándose en una sola pestaña. Estas 3 pestañas son SIEMPRE fijas (por diseño,
+  // ver TRANSACCION_FIELD_GROUP arriba) y nunca deben depender de renames de otras entidades -- mismo criterio
+  // ya aplicado antes al historial de "Listing" (ver comentario ahí: se dejó de detectar por nombre de grupo
+  // renombrado, por la misma fragilidad). Se usa el nombre fijo TAL CUAL, sin traducir renames.
+  return order.map(k=>byKey[k] ? {...byKey[k], group:TRANSACCION_FIELD_GROUP[k]||byKey[k].group} : null).filter(Boolean);
 }
 /* ==== Historial de propuestas dentro de la pestaña "Listing" (v_pendiente, pedido explícito del usuario) ====
    Al imprimir una presentación (ver logBitacoraEntry/doPresPrint/doLandPresPrint), cada registro incluido

@@ -1389,6 +1389,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      recortan con "…" si no caben), el título de columna ahora hace wrap a una 2ª línea en vez de truncarse. */
   .deck-list-table th{position:static;background:var(--accent);color:#3a2c05;font-weight:700;text-align:center;padding:7px 8px;white-space:normal;line-height:1.15;word-break:break-word;font-size:9.5px} /* font-size explícito: la regla global `th{font-size:11.5px}` (para #tbl) gana sobre la herencia de .deck-list-table si no se sobreescribe aquí */
   .deck-list-table td{padding:6px 8px;border-bottom:1px solid #e2e2e2;white-space:nowrap}
+  .deck-list-table td.num-cell{text-align:right}
   .deck-list-table tr.deck-list-stripe td{background:#f2f2f2}
   .deck-list-table .deck-list-num{text-align:center;color:#666} /* el ancho real ahora lo da el <colgroup> (NUM_COL_SHARE) */
   /* ==== Layout (spec sheet 1 página/propiedad) — v3.41.0 ====
@@ -11693,19 +11694,25 @@ function buildDeckPageHtml(chunk,pageIndex,logoSrc){
    verdad, ver nota más abajo) reparte el ancho en partes IGUALES entre columnas, y textos largos como
    Location/Developer quedaban truncados con "…" todo el tiempo. Location pidió explícitamente más
    espacio que el resto (widthShare:2.2 vs 1 del resto); # es aparte, siempre angosta. */
+// v8.11.x, pedido explícito del usuario: Size/Occupied/Available/Clear Height angostas y AL MISMO ancho
+// (antes 1 cada una) -- el espacio liberado (0.25×4 = 1.0) se le da entero a Location (2.2 -> 3.2). Status/
+// Class/Gen al mismo ancho, un poco más grande que el de Gen (antes 0.6) -- las 3 quedan en 0.8. Size/
+// Occupied/Available/Clear Height/Asking Rate (align:"right") se alinean a la derecha, como cualquier columna
+// numérica -- ver su uso en buildListPagesHtml (clase "num-cell", mismo nombre que ya usa Market Report para
+// lo mismo).
 const PRESENTATION_LIST_COLUMNS=[
-  {label:"Submarket", key:"SUBMARKET", widthShare:1.6}, // v8.11.x, pedido explícito del usuario: ampliado (antes 1.1)
+  {label:"Submarket", key:"SUBMARKET", widthShare:1.6},
   {label:"Name", key:"PROPERTY_NAME", widthShare:1.3},
   {label:"Developer", key:"DEVELOPER", confidentialHide:true, widthShare:1.3},
-  {label:"Location", key:"PARK_NAME", confidentialHide:true, widthShare:2.2},
-  {label:"Size", key:"LEASABLE_AREA_GLA_VALUE", unitClass:"AREA", widthShare:1},
-  {label:"Occupied", key:"OCCUPIED_AREA_VALUE", unitClass:"AREA", widthShare:1},
-  {label:"Available", key:"AVAILABLE_AREA_VALUE", unitClass:"AREA", widthShare:1},
-  {label:"Clear Height", key:"MIN_CLEAR_HEIGHT_VALUE", unitClass:"LONG", widthShare:1, decimals:1}, // v8.11.x, pedido explícito del usuario: siempre 1 decimal
-  {label:"Status", key:"STATUS", widthShare:1.3, rule:"uc_abbrev"}, // v8.11.x, pedido explícito del usuario: "Under Construction" -> "UC"
-  {label:"CLASS", key:"CLASSIFICATION", widthShare:1},
-  {label:"Gen", key:"BUILDING_GENERATION", widthShare:0.6},
-  {label:"Asking Rate", key:"ASKING_RATE_VALUE", unitClass:"RATE", rule:"upon_request", prefix:"US $ ", widthShare:1.2}
+  {label:"Location", key:"PARK_NAME", confidentialHide:true, widthShare:3.2},
+  {label:"Size", key:"LEASABLE_AREA_GLA_VALUE", unitClass:"AREA", widthShare:0.75, align:"right"},
+  {label:"Occupied", key:"OCCUPIED_AREA_VALUE", unitClass:"AREA", widthShare:0.75, align:"right"},
+  {label:"Available", key:"AVAILABLE_AREA_VALUE", unitClass:"AREA", widthShare:0.75, align:"right"},
+  {label:"Clear Height", key:"MIN_CLEAR_HEIGHT_VALUE", unitClass:"LONG", widthShare:0.75, decimals:1, align:"right"},
+  {label:"Status", key:"STATUS", widthShare:0.8, rule:"uc_abbrev"},
+  {label:"CLASS", key:"CLASSIFICATION", widthShare:0.8},
+  {label:"Gen", key:"BUILDING_GENERATION", widthShare:0.8},
+  {label:"Asking Rate", key:"ASKING_RATE_VALUE", unitClass:"RATE", rule:"upon_request", prefix:"US $ ", widthShare:1.2, align:"right"}
 ];
 /* Header dinámico según presUnitPref/presPeriodPref — mismo criterio que presUnitLabel() ya usa para las
    filas de Table, solo que aquí también compone el caso especial "$/unidad/periodo" de Asking Rate. */
@@ -11714,7 +11721,7 @@ function presListColumnHeaderLabel(col){
   if(col.unitClass==="RATE") return `$/${presUnitPref==="metric"?"m²":"SF"}/${presPeriodPref==="annual"?"Yr":"Mo"}`;
   return col.label;
 }
-const LIST_ROWS_PER_PAGE=20; // ajustado a pedido explícito del usuario (v3.45.29; empezó en 25, la referencia)
+const LIST_ROWS_PER_PAGE=25; // v8.11.x, pedido explícito del usuario: vuelve a 25 (había bajado a 20 en v3.45.29)
 function buildListPagesHtml(list, logoSrc){
   const cols=PRESENTATION_LIST_COLUMNS.filter(c=>!(c.confidentialHide && presConfidential));
   const NUM_COL_SHARE=0.4;
@@ -11733,7 +11740,7 @@ function buildListPagesHtml(list, logoSrc){
     const chunk=list.slice(start, start+LIST_ROWS_PER_PAGE);
     const rowsHtml=chunk.map((rec,i)=>{
       const isAlt=(start+i)%2===1;
-      return `<tr class="${isAlt?"deck-list-stripe":""}"><td class="deck-list-num">${start+i+1}</td>${cols.map(c=>`<td>${escapeHtml(presValueFor(rec,c))}</td>`).join("")}</tr>`;
+      return `<tr class="${isAlt?"deck-list-stripe":""}"><td class="deck-list-num">${start+i+1}</td>${cols.map(c=>`<td${c.align==="right"?' class="num-cell"':""}>${escapeHtml(presValueFor(rec,c))}</td>`).join("")}</tr>`;
     }).join("");
     html+=`<div class="deck-page list-page">
       <div class="deck-header"><img class="deck-logo" src="${logoSrc}"><h2>Building Options</h2></div>

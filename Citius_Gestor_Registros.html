@@ -1390,6 +1390,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .deck-list-table th{position:static;background:var(--accent);color:#3a2c05;font-weight:700;text-align:center;padding:7px 8px;white-space:normal;line-height:1.15;word-break:break-word;font-size:9.5px} /* font-size explícito: la regla global `th{font-size:11.5px}` (para #tbl) gana sobre la herencia de .deck-list-table si no se sobreescribe aquí */
   .deck-list-table td{padding:6px 8px;border-bottom:1px solid #e2e2e2;white-space:nowrap}
   .deck-list-table td.num-cell{text-align:right}
+  .deck-list-table td.center-cell{text-align:center}
   .deck-list-table tr.deck-list-stripe td{background:#f2f2f2}
   .deck-list-table .deck-list-num{text-align:center;color:#666} /* el ancho real ahora lo da el <colgroup> (LIST_NUM_COL_PCT) */
   /* ==== Layout (spec sheet 1 página/propiedad) — v3.41.0 ====
@@ -11181,7 +11182,7 @@ function presValueFor(rec,row){
     if(v===0) return "To Suit";
     if(v==null||v==="") return "TBC";
   }
-  if(row.rule==="upon_request" && v===0) return "Upon Request";
+  if(row.rule==="upon_request" && v===0) return row.abbreviateUponRequest ? "UR" : "Upon Request";
   // v8.11.x, pedido explícito del usuario ("comparar como se ve en la Presentación de Mercado que está más
   // trabajado"): mismo criterio EXACTO que ya usa Market Report (PDF), Available Inventory -- Detail para su
   // columna Status (ver mktBuildAvailDetailPage/statusText) -- solo el texto de despliegue de esta hoja
@@ -11703,11 +11704,15 @@ const PRESENTATION_LIST_COLUMNS=[
   {label:"Size", key:"LEASABLE_AREA_GLA_VALUE", unitClass:"AREA", pct:8, align:"right"},
   {label:"Occupied", key:"OCCUPIED_AREA_VALUE", unitClass:"AREA", pct:8, align:"right"},
   {label:"Available", key:"AVAILABLE_AREA_VALUE", unitClass:"AREA", pct:8, align:"right"},
-  {label:"Clear Height", key:"MIN_CLEAR_HEIGHT_VALUE", unitClass:"LONG", pct:8, decimals:1, align:"right"},
-  {label:"Status", key:"STATUS", pct:5, rule:"uc_abbrev"},
-  {label:"CLASS", key:"CLASSIFICATION", pct:5},
-  {label:"Gen", key:"BUILDING_GENERATION", pct:5},
-  {label:"Asking Rate", key:"ASKING_RATE_VALUE", unitClass:"RATE", rule:"upon_request", prefix:"US $ ", pct:6, align:"right"}
+  {label:"Clear Height", key:"MIN_CLEAR_HEIGHT_VALUE", unitClass:"LONG", pct:8, decimals:1, align:"center"},
+  {label:"Status", key:"STATUS", pct:5, rule:"uc_abbrev", align:"center"},
+  {label:"CLASS", key:"CLASSIFICATION", pct:5, align:"center"},
+  {label:"Gen", key:"BUILDING_GENERATION", pct:5, align:"center"},
+  // abbreviateUponRequest (pedido explícito del usuario): "UR" en vez de "Upon Request" -- solo en esta hoja
+  // (List), el resto de la app sigue mostrando "Upon Request" completo (ver presValueFor). Distinto de "UC"
+  // (Status, arriba) a propósito -- confirmado con el usuario, evita que las 2 abreviaturas de esta misma
+  // tabla signifiquen cosas distintas con el mismo texto.
+  {label:"Asking Rate", key:"ASKING_RATE_VALUE", unitClass:"RATE", rule:"upon_request", abbreviateUponRequest:true, prefix:"US $ ", pct:6, align:"right"}
 ];
 const LIST_NUM_COL_PCT=2.5; // columna "#", pedido explícito del usuario
 /* Header dinámico según presUnitPref/presPeriodPref — mismo criterio que presUnitLabel() ya usa para las
@@ -11735,17 +11740,18 @@ function buildListPagesHtml(list, logoSrc){
     cols.map(c=>`<col style="width:${(c.pct/totalPct*100).toFixed(2)}%">`).join("")
   }</colgroup>`;
   const headHtml=`<tr><th class="deck-list-num">#</th>${cols.map(c=>`<th>${escapeHtml(presListColumnHeaderLabel(c))}</th>`).join("")}</tr>`;
+  const alignCls=c=>c.align==="right"?' class="num-cell"':(c.align==="center"?' class="center-cell"':"");
   let html="";
   for(let start=0; start<list.length; start+=LIST_ROWS_PER_PAGE){
     const chunk=list.slice(start, start+LIST_ROWS_PER_PAGE);
     const rowsHtml=chunk.map((rec,i)=>{
       const isAlt=(start+i)%2===1;
-      return `<tr class="${isAlt?"deck-list-stripe":""}"><td class="deck-list-num">${start+i+1}</td>${cols.map(c=>`<td${c.align==="right"?' class="num-cell"':""}>${escapeHtml(presValueFor(rec,c))}</td>`).join("")}</tr>`;
+      return `<tr class="${isAlt?"deck-list-stripe":""}"><td class="deck-list-num">${start+i+1}</td>${cols.map(c=>`<td${alignCls(c)}>${escapeHtml(presValueFor(rec,c))}</td>`).join("")}</tr>`;
     }).join("");
     html+=`<div class="deck-page list-page">
       <div class="deck-header"><img class="deck-logo" src="${logoSrc}"><h2>Building Options</h2></div>
       <table class="deck-list-table">${colgroupHtml}<thead>${headHtml}</thead><tbody>${rowsHtml}</tbody></table>
-      <p class="deck-note">*This information has been provided to Citius AG by developers and local brokers. However, Citius AG makes no warranties or representations as to the accuracy of the data until a formal quotation. *All Tenant Improvements specified as "To Suit" will be added onto the base lease rate. &nbsp;*"TBC" to be confirmed</p>
+      <p class="deck-note">*This information has been provided to Citius AG by developers and local brokers. However, Citius AG makes no warranties or representations as to the accuracy of the data until a formal quotation. *All Tenant Improvements specified as "To Suit" will be added onto the base lease rate. &nbsp;*"TBC" to be confirmed. &nbsp;*"UC": Under Construction. &nbsp;*"UR": Upon Request</p>
     </div>`;
   }
   return html;

@@ -1391,7 +1391,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .deck-list-table td{padding:6px 8px;border-bottom:1px solid #e2e2e2;white-space:nowrap}
   .deck-list-table td.num-cell{text-align:right}
   .deck-list-table tr.deck-list-stripe td{background:#f2f2f2}
-  .deck-list-table .deck-list-num{text-align:center;color:#666} /* el ancho real ahora lo da el <colgroup> (NUM_COL_SHARE) */
+  .deck-list-table .deck-list-num{text-align:center;color:#666} /* el ancho real ahora lo da el <colgroup> (LIST_NUM_COL_PCT) */
   /* ==== Layout (spec sheet 1 página/propiedad) — v3.41.0 ====
      Reusa .deck-page/.deck-logo/.map-pin tal cual; solo agrega clases propias para el arreglo de 4 bloques
      (fachada | tabla 2 columnas | aéreo satelital | plano grande abajo). Sin aspect-ratio fijo (a diferencia
@@ -11689,31 +11689,27 @@ function buildDeckPageHtml(chunk,pageIndex,logoSrc){
    continuo a través de TODAS las hojas, no se reinicia por página. Developer y Location se OMITEN por
    completo (no solo se redactan a "Private"/"Industrial Park" como ya hace presValueFor para Table) cuando
    Confidencial="Sí" — decisión explícita del usuario, distinta de cómo Table maneja lo mismo. */
-/* widthShare (v3.45.29, pedido explícito del usuario): reparto proporcional de columnas dentro del
-   <colgroup> — sin esto, table-layout:fixed (necesario para que el ancho de la tabla se respete de
-   verdad, ver nota más abajo) reparte el ancho en partes IGUALES entre columnas, y textos largos como
-   Location/Developer quedaban truncados con "…" todo el tiempo. Location pidió explícitamente más
-   espacio que el resto (widthShare:2.2 vs 1 del resto); # es aparte, siempre angosta. */
-// v8.11.x, pedido explícito del usuario: Size/Occupied/Available/Clear Height angostas y AL MISMO ancho
-// (antes 1 cada una) -- el espacio liberado (0.25×4 = 1.0) se le da entero a Location (2.2 -> 3.2). Status/
-// Class/Gen al mismo ancho, un poco más grande que el de Gen (antes 0.6) -- las 3 quedan en 0.8. Size/
-// Occupied/Available/Clear Height/Asking Rate (align:"right") se alinean a la derecha, como cualquier columna
-// numérica -- ver su uso en buildListPagesHtml (clase "num-cell", mismo nombre que ya usa Market Report para
-// lo mismo).
+/* pct (v8.11.x, pedido explícito del usuario "para poder ajustarlos yo mismo más fácil"): reemplaza el
+   widthShare proporcional de antes (v3.45.29) por el % de ancho EXACTO de cada columna dentro del
+   <colgroup> -- junto con NUM_COL_PCT (columna "#"), deben sumar 100. Mismo criterio que ya usa Market
+   Report para sus tablas de detalle (ver mktBuildAvailDetailPage/colgroupHtml ahí, % fijos a mano). Para
+   cambiar un ancho, solo hay que pedir "tal columna a X%" -- ver buildListPagesHtml, ya no hace ninguna
+   conversión, usa `c.pct` tal cual. */
 const PRESENTATION_LIST_COLUMNS=[
-  {label:"Submarket", key:"SUBMARKET", widthShare:1.6},
-  {label:"Name", key:"PROPERTY_NAME", widthShare:1.3},
-  {label:"Developer", key:"DEVELOPER", confidentialHide:true, widthShare:1.3},
-  {label:"Location", key:"PARK_NAME", confidentialHide:true, widthShare:3.2},
-  {label:"Size", key:"LEASABLE_AREA_GLA_VALUE", unitClass:"AREA", widthShare:0.75, align:"right"},
-  {label:"Occupied", key:"OCCUPIED_AREA_VALUE", unitClass:"AREA", widthShare:0.75, align:"right"},
-  {label:"Available", key:"AVAILABLE_AREA_VALUE", unitClass:"AREA", widthShare:0.75, align:"right"},
-  {label:"Clear Height", key:"MIN_CLEAR_HEIGHT_VALUE", unitClass:"LONG", widthShare:0.75, decimals:1, align:"right"},
-  {label:"Status", key:"STATUS", widthShare:0.8, rule:"uc_abbrev"},
-  {label:"CLASS", key:"CLASSIFICATION", widthShare:0.8},
-  {label:"Gen", key:"BUILDING_GENERATION", widthShare:0.8},
-  {label:"Asking Rate", key:"ASKING_RATE_VALUE", unitClass:"RATE", rule:"upon_request", prefix:"US $ ", widthShare:1.2, align:"right"}
+  {label:"Submarket", key:"SUBMARKET", pct:11},
+  {label:"Name", key:"PROPERTY_NAME", pct:7.5},
+  {label:"Developer", key:"DEVELOPER", confidentialHide:true, pct:9},
+  {label:"Location", key:"PARK_NAME", confidentialHide:true, pct:17},
+  {label:"Size", key:"LEASABLE_AREA_GLA_VALUE", unitClass:"AREA", pct:8, align:"right"},
+  {label:"Occupied", key:"OCCUPIED_AREA_VALUE", unitClass:"AREA", pct:8, align:"right"},
+  {label:"Available", key:"AVAILABLE_AREA_VALUE", unitClass:"AREA", pct:8, align:"right"},
+  {label:"Clear Height", key:"MIN_CLEAR_HEIGHT_VALUE", unitClass:"LONG", pct:8, decimals:1, align:"right"},
+  {label:"Status", key:"STATUS", pct:5, rule:"uc_abbrev"},
+  {label:"CLASS", key:"CLASSIFICATION", pct:5},
+  {label:"Gen", key:"BUILDING_GENERATION", pct:5},
+  {label:"Asking Rate", key:"ASKING_RATE_VALUE", unitClass:"RATE", rule:"upon_request", prefix:"US $ ", pct:6, align:"right"}
 ];
+const LIST_NUM_COL_PCT=2.5; // columna "#", pedido explícito del usuario
 /* Header dinámico según presUnitPref/presPeriodPref — mismo criterio que presUnitLabel() ya usa para las
    filas de Table, solo que aquí también compone el caso especial "$/unidad/periodo" de Asking Rate. */
 function presListColumnHeaderLabel(col){
@@ -11724,15 +11720,19 @@ function presListColumnHeaderLabel(col){
 const LIST_ROWS_PER_PAGE=25; // v8.11.x, pedido explícito del usuario: vuelve a 25 (había bajado a 20 en v3.45.29)
 function buildListPagesHtml(list, logoSrc){
   const cols=PRESENTATION_LIST_COLUMNS.filter(c=>!(c.confidentialHide && presConfidential));
-  const NUM_COL_SHARE=0.4;
-  const totalShare=NUM_COL_SHARE+cols.reduce((a,c)=>a+(c.widthShare||1),0);
+  // Los `pct` de PRESENTATION_LIST_COLUMNS + LIST_NUM_COL_PCT ya suman 100 en el caso normal (todas las
+  // columnas visibles) -- `totalPct` solo entra en juego en modo Confidencial, cuando Developer/Location se
+  // ocultan (confidentialHide): renormaliza el resto para que sigan sumando 100% del ancho de la tabla, en
+  // vez de dejar ~26% de espacio vacío sin repartir. Mismo criterio de renormalización que ya tenía el
+  // widthShare anterior, solo que ahora basado en % reales en vez de proporciones abstractas.
+  const totalPct=LIST_NUM_COL_PCT+cols.reduce((a,c)=>a+c.pct,0);
   // Verificado (pedido explícito del usuario, comparando contra Market Report -- que tuvo este mismo bug real
   // reportado y corregido, ver mktBuildAvailDetailPage): `colgroupHtml` se calcula UNA sola vez, fuera del
   // `for` de páginas de abajo, y el mismo string se reusa en TODAS -- junto con `table-layout:fixed`, el % de
   // cada columna ya es idéntico en cada hoja sin importar qué filas le tocaron, no hace falta ningún cambio
   // aquí.
-  const colgroupHtml=`<colgroup><col style="width:${(NUM_COL_SHARE/totalShare*100).toFixed(2)}%">${
-    cols.map(c=>`<col style="width:${((c.widthShare||1)/totalShare*100).toFixed(2)}%">`).join("")
+  const colgroupHtml=`<colgroup><col style="width:${(LIST_NUM_COL_PCT/totalPct*100).toFixed(2)}%">${
+    cols.map(c=>`<col style="width:${(c.pct/totalPct*100).toFixed(2)}%">`).join("")
   }</colgroup>`;
   const headHtml=`<tr><th class="deck-list-num">#</th>${cols.map(c=>`<th>${escapeHtml(presListColumnHeaderLabel(c))}</th>`).join("")}</tr>`;
   let html="";

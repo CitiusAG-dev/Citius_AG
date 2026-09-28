@@ -5924,11 +5924,23 @@ function helpIconHtml(id, text){
     <span class="field-help-tip" id="${id}" role="tooltip">${escapeHtml(text)}</span>
   </span>`;
 }
-/* % de campos obligatorios llenos, según fieldConfig — null si esa entidad no tiene ninguno marcado */
+/* ¿Esta entidad tiene ALGÚN campo obligatorio configurado (sin importar categoría/visibilidad de un registro
+   en particular), o exige foto? Usado como guard independiente del registro (ej. "esta entidad no tiene
+   ningún campo marcado como obligatorio todavía" en las tablas de % de Cumplimiento del Resumen) -- a
+   propósito NO pasa por transactionVisibleFields() (ver completionStats() abajo), porque aquí solo importa
+   si la CONFIGURACIÓN tiene algo marcado required, no si un registro concreto lo estaría mostrando. */
+function entityHasRequiredFields(ent){
+  return fields(ent).some(f=>f.required) || (!!PHOTO_ID_FIELD[ent] && photoSet!==null);
+}
+/* % de campos obligatorios llenos, según fieldConfig — null si esa entidad no tiene ninguno marcado.
+   v8.11.x, bug real reportado por el usuario ("aún con todos los campos llenos aparece que no está al 100%
+   de completado" en Transacciones): antes usaba fields(ent) tal cual, sin pasar por transactionVisibleFields()
+   -- así que un campo obligatorio que ni siquiera se le muestra al usuario para SU Categoría/Absorption Type
+   (ej. un campo exclusivo de Land en una transacción de Offices) igual contaba como "pendiente" y el % nunca
+   llegaba a 100%. Mismo criterio que ya usa updateFormNavBadges()/countMissingRequired() para el badge de la
+   ficha -- ahora completionStats() (la tabla y la columna "% Completado") queda consistente con eso. */
 function completionStats(ent, rec){
-  // ver isSpaceTransactionAvailableHidden()/transactionVisibleFields(): mismo criterio que la ficha, para que
-  // el % no cuente como pendiente un campo que ni siquiera se le muestra al usuario.
-  const req=fields(ent).filter(f=>f.required && !(ent==="SPACES" && f.key==="TRANSACTION_AVAILABLE" && isSpaceTransactionAvailableHidden(rec)));
+  const req=transactionVisibleFields(ent, rec, fields(ent)).filter(f=>f.required);
   const trackPhoto=!!PHOTO_ID_FIELD[ent] && photoSet!==null;
   const total=req.length+(trackPhoto?1:0);
   if(!total) return null;
@@ -6756,7 +6768,7 @@ function resumenBreakdownTableHtml(title, subtitle, categories, computeFn, isAre
    Filas = mercados (resumenMarkets(), o solo el filtrado si hay uno activo); columnas = las categorías
    configuradas hoy en la lista MARKET_STATUS (se adapta sola si el usuario la edita desde Configuración). */
 function resumenComplianceTableHtml(title, subtitle, ent){
-  if(!completionStats(ent, {})){
+  if(!entityHasRequiredFields(ent)){
     return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(title)}</h4><p class="muted">This entity doesn't have any field marked as required yet.</p></div>`;
   }
   const statuses=lists.MARKET_STATUS||[];
@@ -6787,11 +6799,20 @@ function resumenComplianceTableHtml(title, subtitle, ent){
   const colgroupHtml=resumenColgroupHtml(statuses.length);
   return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(title)}</h4>${subtitle?`<p class="resumen-block-note">${escapeHtml(subtitle)}</p>`:""}<div class="resumen-scroll"><table class="resumen-table">${colgroupHtml}<thead><tr><th>Market</th>${statuses.map(s=>`<th>${escapeHtml(s)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
-/* Mercado al que pertenece una fila de `ent`, para las tablas de cumplimiento "full" (v3.40.0). Propiedades,
-   Parques y Terrenos ya traen `MARKET` directo; Transacciones no tiene ese campo, así que se resuelve vía
-   `resumenMarketForSubmarket(row.SUBMARKET)` — mismo criterio exacto que ya usa `resumenMarketMatches()`. */
+/* Mercado al que pertenece una fila de `ent`, para las tablas de cumplimiento "full" (v3.40.0). v8.11.x, bug
+   real reportado por el usuario ("no se muestra el % de cumplimiento de Transacciones"): este comentario
+   decía que Transacciones "no tiene" MARKET propio y por eso siempre caía al diccionario submercado→mercado
+   (resumenMarketForSubmarket, "primer match gana" -- ver el comentario grande junto a resumenMarketOnlyMatches
+   sobre submercados genéricos reutilizados en varios mercados, ej. "West"/"East"). Eso dejó de ser cierto
+   desde que Transacciones capturó su propio MARKET (ver BUNDLE.TRANSACCIONES) -- resumenMarketOnlyMatches()
+   ya se corrigió para usarlo directo, pero esta función se quedó vieja: con submercados que colisionan entre
+   mercados (más probable todavía ahora que Oficinas tiene sus propios submercados, ver Tipo en
+   CATALOGO_UBICACION), muchas transacciones resolvían al mercado EQUIVOCADO por el diccionario, o a ninguno,
+   y sus filas terminaban sin contar en la tabla de Cumplimiento (celdas en "—"). Ahora usa `row.MARKET`
+   directo para CUALQUIER entidad que lo traiga (las 4 ya lo capturan) -- el diccionario queda solo de
+   respaldo para filas viejas/incompletas sin MARKET propio, mismo criterio que resumenMarketOnlyMatches(). */
 function resumenMarketOfRow(ent, row){
-  if((ent==="PROPIEDADES"||ent==="PARKS"||ent==="LAND") && row.MARKET) return row.MARKET;
+  if(row.MARKET) return row.MARKET;
   return resumenMarketForSubmarket(row.SUBMARKET);
 }
 /* Tabla de cumplimiento "full" (v3.40.0, pedido explícito del usuario para Parques/Transacciones/Terrenos:
@@ -6799,7 +6820,7 @@ function resumenMarketOfRow(ent, row){
    de `resumenComplianceTableHtml` (Propiedades, que sí se queda con el quiebre por MARKET_STATUS, no se
    tocó), esta versión solo desglosa por Mercado, una sola columna "% Completado", sin ningún quiebre extra. */
 function resumenComplianceFullTableHtml(title, subtitle, ent){
-  if(!completionStats(ent, {})){
+  if(!entityHasRequiredFields(ent)){
     return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(title)}</h4><p class="muted">This entity doesn't have any field marked as required yet.</p></div>`;
   }
   const markets=resumenMarket?[resumenMarket]:resumenMarkets();

@@ -5924,13 +5924,25 @@ function helpIconHtml(id, text){
     <span class="field-help-tip" id="${id}" role="tooltip">${escapeHtml(text)}</span>
   </span>`;
 }
+/* v8.11.x, pedido explícito del usuario: REGION_ID/STATE_ID/MARKET_ID/SUBMARKET_ID (GEO_ID_FIELD_KEYS) nunca
+   se muestran ni se pueden llenar a mano (ver GEO_ID_FIELD_KEYS en buildForm/renderStandaloneField -- son
+   <input type="hidden">, se calculan solos contra el catálogo de Ubicación) -- así que aunque el usuario los
+   marque "Requerido" en su Excel, NUNCA deben contar hacia el % de Completado/badges de pendientes: a
+   diferencia de un campo calculado normal (que siempre logra un valor con solo los datos del propio
+   registro), estos dependen de que el catálogo tenga una fila que calce EXACTO con el Región/Estado/Mercado/
+   Submercado capturado -- si no calza, el campo se queda vacío sin que el usuario pueda verlo ni corregirlo
+   desde la ficha, y el % quedaba atorado sin ninguna forma de arreglarlo (bug real reportado: una transacción
+   enlazada a un edificio con esos IDs sin recalcular se quedaba en 96% para siempre, sin importar qué se
+   llenara). Único punto de verdad para "cuenta como obligatorio de verdad" -- usarlo en vez de `f.required`
+   suelto en completionStats/countMissingRequired/entityHasRequiredFields. */
+function isRealRequiredField(f){ return !!f.required && !GEO_ID_FIELD_KEYS.has(f.key); }
 /* ¿Esta entidad tiene ALGÚN campo obligatorio configurado (sin importar categoría/visibilidad de un registro
    en particular), o exige foto? Usado como guard independiente del registro (ej. "esta entidad no tiene
    ningún campo marcado como obligatorio todavía" en las tablas de % de Cumplimiento del Resumen) -- a
    propósito NO pasa por transactionVisibleFields() (ver completionStats() abajo), porque aquí solo importa
    si la CONFIGURACIÓN tiene algo marcado required, no si un registro concreto lo estaría mostrando. */
 function entityHasRequiredFields(ent){
-  return fields(ent).some(f=>f.required) || (!!PHOTO_ID_FIELD[ent] && photoSet!==null);
+  return fields(ent).some(isRealRequiredField) || (!!PHOTO_ID_FIELD[ent] && photoSet!==null);
 }
 /* % de campos obligatorios llenos, según fieldConfig — null si esa entidad no tiene ninguno marcado.
    v8.11.x, bug real reportado por el usuario ("aún con todos los campos llenos aparece que no está al 100%
@@ -5940,7 +5952,7 @@ function entityHasRequiredFields(ent){
    llegaba a 100%. Mismo criterio que ya usa updateFormNavBadges()/countMissingRequired() para el badge de la
    ficha -- ahora completionStats() (la tabla y la columna "% Completado") queda consistente con eso. */
 function completionStats(ent, rec){
-  const req=transactionVisibleFields(ent, rec, fields(ent)).filter(f=>f.required);
+  const req=transactionVisibleFields(ent, rec, fields(ent)).filter(isRealRequiredField);
   const trackPhoto=!!PHOTO_ID_FIELD[ent] && photoSet!==null;
   const total=req.length+(trackPhoto?1:0);
   if(!total) return null;
@@ -9032,7 +9044,7 @@ function pairFieldsByUnit(list){
 function countMissingRequired(ent, groupFields, record){
   let n=0;
   groupFields.forEach(f=>{
-    if(!f.required) return;
+    if(!isRealRequiredField(f)) return;
     const v=record ? record[f.key] : undefined;
     if(v==null || String(v).trim()===""){ n++; return; }
     if(fieldValueMismatch(ent,f,record)) n++;
@@ -13902,7 +13914,7 @@ function markEmptyRequiredFields(){
   const cfgByKey={}; fields(current).forEach(f=>cfgByKey[f.key]=f);
   document.querySelectorAll("#mBody [data-key]").forEach(inp=>{
     const cfg=cfgByKey[inp.dataset.key];
-    if(cfg && cfg.required && fieldInputIsEmpty(inp)) inp.classList.add("field-error");
+    if(cfg && isRealRequiredField(cfg) && fieldInputIsEmpty(inp)) inp.classList.add("field-error");
   });
 }
 /* v3.44.6, pedido explícito del usuario: reconstruye #mBody a partir de lo que YA está tecleado en
@@ -14063,7 +14075,7 @@ function doSaveRecord(){
     const cfg=cfgByKey[inp.dataset.key];
     const v=inp.type==="checkbox" ? (inp.checked?"SI":"") : String(inp.value).trim();
     if(v===""){
-      if(cfg&&cfg.required) missingKeys.push(cfg.key);
+      if(cfg&&isRealRequiredField(cfg)) missingKeys.push(cfg.key);
       return;
     }
     if(cfg&&cfg.type==="int"){

@@ -2086,7 +2086,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.11.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.12.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -4884,6 +4884,14 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.12.0", date:"2026-09-28", items:[
+    "Fixed: Transactions' record form could collapse its 3 fixed tabs (Trans. Details/Property/Econ. Terms) into fewer, wrongly-merged tabs -- caused by a global section-rename tracker misinterpreting normal reorganization of OTHER entities' field groups (e.g. Spaces) as a rename that also applied to Transactions' fixed tabs.",
+    "Fixed: the 4 hidden Location ID fields (Region/State/Market/Submarket ID) no longer count toward \"% Complete\", the pending-fields badge, or the \"still missing required fields\" save warning, for any entity -- they're calculated automatically against the Location catalog and can silently stay empty if a linked record's own IDs were never backfilled, with no way for the user to see or fix that from the record form.",
+    "Fixed: \"% Complete\" on Transactions could get stuck below 100% even with every visible field filled in -- it now respects the same Category/Absorption Type field visibility as the record form, instead of counting fields that aren't even shown for that transaction.",
+    "Fixed: the Summary > KPI's \"% Compliance\" table for Transactions could show \"--\" for markets that do have data -- it now uses each transaction's own captured Market instead of a submarket-to-market lookup that can collide when two markets reuse the same submarket name.",
+    "Land presentation: \"Water Capacity\" now shows \"Feasible\" when the value is 0 and \"None\" when empty (was the raw number/blank).",
+    "Presentation, \"List\" sheet (Building Options): reworked to match the more polished Market Report styling -- column widths now use exact percentages you can request directly (e.g. \"Location to 17%\") instead of relative proportions; Size/Occupied/Available/Clear Height/Asking Rate are right-aligned, Clear Height/Status/Class/Gen are centered; \"Under Construction\" shows as \"UC\" and an empty Asking Rate shows \"UR\" (footnotes added explaining both); Clear Height always shows 1 decimal; measurement column headers show their unit on a 2nd line; 25 rows per page (was 20); smaller font and a wider Submarket column."
+  ]},
   {version:"8.11.0", date:"2026-09-25", items:[
     "Fixed: Spaces and Transactions linked to an Offices record could show \"missing fields\"/\"not in the list\" on Submarket even when correctly filled in -- a side effect of the new Submarket-by-Type filter not knowing those records' Submarket comes from an Offices catalog entry.",
     "Spaces: \"Transaction Available\" is now hidden (and no longer counts as pending) whenever Market Status = Occupied.",

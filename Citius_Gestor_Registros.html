@@ -11823,7 +11823,7 @@ const PRESENTATION_ROWS_LAND = [
 ];
 /* Reglas de valor vacío/0, pedido explícito del usuario (v3.45.23/3.45.24, texto de "viability_none"
    actualizado en v8.11.x):
-   - "viability_none" (Water Capacity): 0 → "Feasible", vacío → "NONE".
+   - "viability_none" (Water Capacity): 0 → "Feasible", vacío → "None".
    - "none_zero_tbc_empty" (Electric Capacity): 0 → "None", vacío → "TBC" — distinta de "viability_none"
      (que usaba antes y quedó mal: mostraba "Viability" en 0) y también distinta de "tbc_empty" (que
      dejaría el 0 tal cual, algo que el usuario corrigió después de pedirlo así la primera vez).
@@ -11841,7 +11841,7 @@ function presLandValueFor(rec,row){
   const v=rec[row.key];
   if(row.rule==="viability_none"){
     if(v===0) return "Feasible";
-    if(v==null||v==="") return "NONE";
+    if(v==null||v==="") return "None";
   }
   if(row.rule==="none_zero_tbc_empty"){
     if(v===0) return "None";

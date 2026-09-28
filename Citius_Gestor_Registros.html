@@ -1379,7 +1379,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      terminaba más ancha que la hoja completa (925px medido en una hoja de 885px), justo la queja original
      del usuario. Con fixed, las columnas se reparten ese 92% entre sí y el contenido que no cabe se recorta
      con "…" (ver white-space/overflow abajo) en vez de forzar la tabla a crecer. */
-  .deck-list-table{width:98%;margin-top:20px;table-layout:fixed;border-collapse:collapse;font-family:'Unitext',sans-serif;font-size:10px}
+  .deck-list-table{width:98%;margin-top:20px;table-layout:fixed;border-collapse:collapse;font-family:'Unitext',sans-serif;font-size:9.5px}
   .deck-list-table td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   /* position:static explícito: la regla global `th{position:sticky;top:0}` (pensada para el encabezado de
      la tabla principal #tbl) se hereda por defecto en CUALQUIER <th>, incluido este — sin este override el
@@ -1387,7 +1387,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      desplazarse junto con el resto de la hoja como cualquier tabla normal (reportado por el usuario).
      white-space:normal + word-break (a pedido del usuario): a diferencia de las celdas de datos (que se
      recortan con "…" si no caben), el título de columna ahora hace wrap a una 2ª línea en vez de truncarse. */
-  .deck-list-table th{position:static;background:var(--accent);color:#3a2c05;font-weight:700;text-align:center;padding:7px 8px;white-space:normal;line-height:1.15;word-break:break-word;font-size:10px} /* font-size explícito: la regla global `th{font-size:11.5px}` (para #tbl) gana sobre la herencia de .deck-list-table si no se sobreescribe aquí */
+  .deck-list-table th{position:static;background:var(--accent);color:#3a2c05;font-weight:700;text-align:center;padding:7px 8px;white-space:normal;line-height:1.15;word-break:break-word;font-size:9.5px} /* font-size explícito: la regla global `th{font-size:11.5px}` (para #tbl) gana sobre la herencia de .deck-list-table si no se sobreescribe aquí */
   .deck-list-table td{padding:6px 8px;border-bottom:1px solid #e2e2e2;white-space:nowrap}
   .deck-list-table tr.deck-list-stripe td{background:#f2f2f2}
   .deck-list-table .deck-list-num{text-align:center;color:#666} /* el ancho real ahora lo da el <colgroup> (NUM_COL_SHARE) */
@@ -11181,6 +11181,11 @@ function presValueFor(rec,row){
     if(v==null||v==="") return "TBC";
   }
   if(row.rule==="upon_request" && v===0) return "Upon Request";
+  // v8.11.x, pedido explícito del usuario ("comparar como se ve en la Presentación de Mercado que está más
+  // trabajado"): mismo criterio EXACTO que ya usa Market Report (PDF), Available Inventory -- Detail para su
+  // columna Status (ver mktBuildAvailDetailPage/statusText) -- solo el texto de despliegue de esta hoja
+  // (List), el dato guardado nunca cambia.
+  if(row.rule==="uc_abbrev" && ciEq(v,"Under Construction")) return "UC";
   if(v==null||v==="") return "—";
   let prefix=row.prefix;
   if(row.unitClass){
@@ -11198,6 +11203,11 @@ function presValueFor(rec,row){
     // Forzado a 2 decimales siempre (ej. 1 -> "1.00"), a diferencia de fmtNum (que recorta ceros a la
     // derecha) — pedido explícito del usuario, funciona igual convertido a Métrico/Imperial o a Anual.
     out=v.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+  } else if(row.decimals!=null && typeof v==="number"){
+    // v8.11.x, pedido explícito del usuario (hoja List, Clear Height siempre a 1 decimal, mismo criterio que
+    // ya usa Market Report -- Available Inventory Detail para esta misma columna) -- mismo patrón que RATE
+    // arriba, generalizado a cualquier cantidad de decimales fija vía `row.decimals`.
+    out=v.toLocaleString("en-US",{minimumFractionDigits:row.decimals,maximumFractionDigits:row.decimals});
   } else {
     out=(typeof v==="number")?fmtNum(v):String(v);
   }
@@ -11684,15 +11694,15 @@ function buildDeckPageHtml(chunk,pageIndex,logoSrc){
    Location/Developer quedaban truncados con "…" todo el tiempo. Location pidió explícitamente más
    espacio que el resto (widthShare:2.2 vs 1 del resto); # es aparte, siempre angosta. */
 const PRESENTATION_LIST_COLUMNS=[
-  {label:"Submarket", key:"SUBMARKET", widthShare:1.1},
+  {label:"Submarket", key:"SUBMARKET", widthShare:1.6}, // v8.11.x, pedido explícito del usuario: ampliado (antes 1.1)
   {label:"Name", key:"PROPERTY_NAME", widthShare:1.3},
   {label:"Developer", key:"DEVELOPER", confidentialHide:true, widthShare:1.3},
   {label:"Location", key:"PARK_NAME", confidentialHide:true, widthShare:2.2},
   {label:"Size", key:"LEASABLE_AREA_GLA_VALUE", unitClass:"AREA", widthShare:1},
   {label:"Occupied", key:"OCCUPIED_AREA_VALUE", unitClass:"AREA", widthShare:1},
   {label:"Available", key:"AVAILABLE_AREA_VALUE", unitClass:"AREA", widthShare:1},
-  {label:"Clear Height", key:"MIN_CLEAR_HEIGHT_VALUE", unitClass:"LONG", widthShare:1},
-  {label:"Status", key:"STATUS", widthShare:1.3},
+  {label:"Clear Height", key:"MIN_CLEAR_HEIGHT_VALUE", unitClass:"LONG", widthShare:1, decimals:1}, // v8.11.x, pedido explícito del usuario: siempre 1 decimal
+  {label:"Status", key:"STATUS", widthShare:1.3, rule:"uc_abbrev"}, // v8.11.x, pedido explícito del usuario: "Under Construction" -> "UC"
   {label:"CLASS", key:"CLASSIFICATION", widthShare:1},
   {label:"Gen", key:"BUILDING_GENERATION", widthShare:0.6},
   {label:"Asking Rate", key:"ASKING_RATE_VALUE", unitClass:"RATE", rule:"upon_request", prefix:"US $ ", widthShare:1.2}
@@ -11709,6 +11719,11 @@ function buildListPagesHtml(list, logoSrc){
   const cols=PRESENTATION_LIST_COLUMNS.filter(c=>!(c.confidentialHide && presConfidential));
   const NUM_COL_SHARE=0.4;
   const totalShare=NUM_COL_SHARE+cols.reduce((a,c)=>a+(c.widthShare||1),0);
+  // Verificado (pedido explícito del usuario, comparando contra Market Report -- que tuvo este mismo bug real
+  // reportado y corregido, ver mktBuildAvailDetailPage): `colgroupHtml` se calcula UNA sola vez, fuera del
+  // `for` de páginas de abajo, y el mismo string se reusa en TODAS -- junto con `table-layout:fixed`, el % de
+  // cada columna ya es idéntico en cada hoja sin importar qué filas le tocaron, no hace falta ningún cambio
+  // aquí.
   const colgroupHtml=`<colgroup><col style="width:${(NUM_COL_SHARE/totalShare*100).toFixed(2)}%">${
     cols.map(c=>`<col style="width:${((c.widthShare||1)/totalShare*100).toFixed(2)}%">`).join("")
   }</colgroup>`;

@@ -1391,6 +1391,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .deck-list-table td{padding:6px 8px;border-bottom:1px solid #e2e2e2;white-space:nowrap}
   .deck-list-table td.num-cell{text-align:right}
   .deck-list-table td.center-cell{text-align:center}
+  .deck-list-th-unit{font-size:8px;font-weight:400}
   .deck-list-table tr.deck-list-stripe td{background:#f2f2f2}
   .deck-list-table .deck-list-num{text-align:center;color:#666} /* el ancho real ahora lo da el <colgroup> (LIST_NUM_COL_PCT) */
   /* ==== Layout (spec sheet 1 página/propiedad) — v3.41.0 ====
@@ -11699,12 +11700,12 @@ function buildDeckPageHtml(chunk,pageIndex,logoSrc){
 const PRESENTATION_LIST_COLUMNS=[
   {label:"Submarket", key:"SUBMARKET", pct:11},
   {label:"Name", key:"PROPERTY_NAME", pct:7.5},
-  {label:"Developer", key:"DEVELOPER", confidentialHide:true, pct:9},
+  {label:"Developer", key:"DEVELOPER", confidentialHide:true, pct:9.5},
   {label:"Location", key:"PARK_NAME", confidentialHide:true, pct:17},
-  {label:"Size", key:"LEASABLE_AREA_GLA_VALUE", unitClass:"AREA", pct:8, align:"right"},
-  {label:"Occupied", key:"OCCUPIED_AREA_VALUE", unitClass:"AREA", pct:8, align:"right"},
-  {label:"Available", key:"AVAILABLE_AREA_VALUE", unitClass:"AREA", pct:8, align:"right"},
-  {label:"Clear Height", key:"MIN_CLEAR_HEIGHT_VALUE", unitClass:"LONG", pct:8, decimals:1, align:"center"},
+  {label:"Size", key:"LEASABLE_AREA_GLA_VALUE", unitClass:"AREA", pct:7.5, align:"right"},
+  {label:"Occupied", key:"OCCUPIED_AREA_VALUE", unitClass:"AREA", pct:7.5, align:"right"},
+  {label:"Available", key:"AVAILABLE_AREA_VALUE", unitClass:"AREA", pct:7.5, align:"right"},
+  {label:"Clear Height", key:"MIN_CLEAR_HEIGHT_VALUE", unitClass:"LONG", pct:7.5, decimals:1, align:"center"},
   {label:"Status", key:"STATUS", pct:5, rule:"uc_abbrev", align:"center"},
   {label:"CLASS", key:"CLASSIFICATION", pct:5, align:"center"},
   {label:"Gen", key:"BUILDING_GENERATION", pct:5, align:"center"},
@@ -11712,15 +11713,20 @@ const PRESENTATION_LIST_COLUMNS=[
   // (List), el resto de la app sigue mostrando "Upon Request" completo (ver presValueFor). Distinto de "UC"
   // (Status, arriba) a propósito -- confirmado con el usuario, evita que las 2 abreviaturas de esta misma
   // tabla signifiquen cosas distintas con el mismo texto.
-  {label:"Asking Rate", key:"ASKING_RATE_VALUE", unitClass:"RATE", rule:"upon_request", abbreviateUponRequest:true, prefix:"US $ ", pct:6, align:"right"}
+  {label:"Asking Rate", key:"ASKING_RATE_VALUE", unitClass:"RATE", rule:"upon_request", abbreviateUponRequest:true, prefix:"US $ ", pct:7.5, align:"right"}
 ];
 const LIST_NUM_COL_PCT=2.5; // columna "#", pedido explícito del usuario
 /* Header dinámico según presUnitPref/presPeriodPref — mismo criterio que presUnitLabel() ya usa para las
-   filas de Table, solo que aquí también compone el caso especial "$/unidad/periodo" de Asking Rate. */
+   filas de Table, solo que aquí también compone el caso especial "$/unidad/periodo" de Asking Rate.
+   v8.11.x, pedido explícito del usuario: en las columnas con unidad (Size/Occupied/Available/Clear Height),
+   la unidad pasa a una 2ª línea -- mismo criterio que ya usa Market Report (ver mktTh) para este mismo caso.
+   Regresa HTML ya escapado (antes regresaba texto plano y el llamador lo escapaba entero; con <br>/<span> de
+   por medio eso ya no funciona, así que ahora escapa cada pedazo aquí adentro). Asking Rate no trae un label
+   separado de su unidad (el header ES la unidad, "$/SF/Mo"), así que se deja igual, en una sola línea. */
 function presListColumnHeaderLabel(col){
-  if(col.unitClass==="AREA"||col.unitClass==="LONG") return `${col.label} (${presUnitLabel(col.unitClass)})`;
-  if(col.unitClass==="RATE") return `$/${presUnitPref==="metric"?"m²":"SF"}/${presPeriodPref==="annual"?"Yr":"Mo"}`;
-  return col.label;
+  if(col.unitClass==="AREA"||col.unitClass==="LONG") return `${escapeHtml(col.label)}<br><span class="deck-list-th-unit">(${escapeHtml(presUnitLabel(col.unitClass))})</span>`;
+  if(col.unitClass==="RATE") return escapeHtml(`$/${presUnitPref==="metric"?"m²":"SF"}/${presPeriodPref==="annual"?"Yr":"Mo"}`);
+  return escapeHtml(col.label);
 }
 const LIST_ROWS_PER_PAGE=25; // v8.11.x, pedido explícito del usuario: vuelve a 25 (había bajado a 20 en v3.45.29)
 function buildListPagesHtml(list, logoSrc){
@@ -11739,7 +11745,7 @@ function buildListPagesHtml(list, logoSrc){
   const colgroupHtml=`<colgroup><col style="width:${(LIST_NUM_COL_PCT/totalPct*100).toFixed(2)}%">${
     cols.map(c=>`<col style="width:${(c.pct/totalPct*100).toFixed(2)}%">`).join("")
   }</colgroup>`;
-  const headHtml=`<tr><th class="deck-list-num">#</th>${cols.map(c=>`<th>${escapeHtml(presListColumnHeaderLabel(c))}</th>`).join("")}</tr>`;
+  const headHtml=`<tr><th class="deck-list-num">#</th>${cols.map(c=>`<th>${presListColumnHeaderLabel(c)}</th>`).join("")}</tr>`;
   const alignCls=c=>c.align==="right"?' class="num-cell"':(c.align==="center"?' class="center-cell"':"");
   let html="";
   for(let start=0; start<list.length; start+=LIST_ROWS_PER_PAGE){

@@ -1379,7 +1379,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      terminaba más ancha que la hoja completa (925px medido en una hoja de 885px), justo la queja original
      del usuario. Con fixed, las columnas se reparten ese 92% entre sí y el contenido que no cabe se recorta
      con "…" (ver white-space/overflow abajo) en vez de forzar la tabla a crecer. */
-  .deck-list-table{width:98%;margin-top:20px;table-layout:fixed;border-collapse:collapse;font-family:'Unitext',sans-serif;font-size:10px}
+  .deck-list-table{width:98%;margin-top:20px;table-layout:fixed;border-collapse:collapse;font-family:'Unitext',sans-serif;font-size:9.5px}
   .deck-list-table td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   /* position:static explícito: la regla global `th{position:sticky;top:0}` (pensada para el encabezado de
      la tabla principal #tbl) se hereda por defecto en CUALQUIER <th>, incluido este — sin este override el
@@ -1387,10 +1387,13 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      desplazarse junto con el resto de la hoja como cualquier tabla normal (reportado por el usuario).
      white-space:normal + word-break (a pedido del usuario): a diferencia de las celdas de datos (que se
      recortan con "…" si no caben), el título de columna ahora hace wrap a una 2ª línea en vez de truncarse. */
-  .deck-list-table th{position:static;background:var(--accent);color:#3a2c05;font-weight:700;text-align:center;padding:7px 8px;white-space:normal;line-height:1.15;word-break:break-word;font-size:10px} /* font-size explícito: la regla global `th{font-size:11.5px}` (para #tbl) gana sobre la herencia de .deck-list-table si no se sobreescribe aquí */
+  .deck-list-table th{position:static;background:var(--accent);color:#3a2c05;font-weight:700;text-align:center;padding:7px 8px;white-space:normal;line-height:1.15;word-break:break-word;font-size:9.5px} /* font-size explícito: la regla global `th{font-size:11.5px}` (para #tbl) gana sobre la herencia de .deck-list-table si no se sobreescribe aquí */
   .deck-list-table td{padding:6px 8px;border-bottom:1px solid #e2e2e2;white-space:nowrap}
+  .deck-list-table td.num-cell{text-align:right}
+  .deck-list-table td.center-cell{text-align:center}
+  .deck-list-th-unit{font-size:8px;font-weight:400}
   .deck-list-table tr.deck-list-stripe td{background:#f2f2f2}
-  .deck-list-table .deck-list-num{text-align:center;color:#666} /* el ancho real ahora lo da el <colgroup> (NUM_COL_SHARE) */
+  .deck-list-table .deck-list-num{text-align:center;color:#666} /* el ancho real ahora lo da el <colgroup> (LIST_NUM_COL_PCT) */
   /* ==== Layout (spec sheet 1 página/propiedad) — v3.41.0 ====
      Reusa .deck-page/.deck-logo/.map-pin tal cual; solo agrega clases propias para el arreglo de 4 bloques
      (fachada | tabla 2 columnas | aéreo satelital | plano grande abajo). Sin aspect-ratio fijo (a diferencia
@@ -2083,7 +2086,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.11.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.12.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -4881,6 +4884,14 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.12.0", date:"2026-09-28", items:[
+    "Fixed: Transactions' record form could collapse its 3 fixed tabs (Trans. Details/Property/Econ. Terms) into fewer, wrongly-merged tabs -- caused by a global section-rename tracker misinterpreting normal reorganization of OTHER entities' field groups (e.g. Spaces) as a rename that also applied to Transactions' fixed tabs.",
+    "Fixed: the 4 hidden Location ID fields (Region/State/Market/Submarket ID) no longer count toward \"% Complete\", the pending-fields badge, or the \"still missing required fields\" save warning, for any entity -- they're calculated automatically against the Location catalog and can silently stay empty if a linked record's own IDs were never backfilled, with no way for the user to see or fix that from the record form.",
+    "Fixed: \"% Complete\" on Transactions could get stuck below 100% even with every visible field filled in -- it now respects the same Category/Absorption Type field visibility as the record form, instead of counting fields that aren't even shown for that transaction.",
+    "Fixed: the Summary > KPI's \"% Compliance\" table for Transactions could show \"--\" for markets that do have data -- it now uses each transaction's own captured Market instead of a submarket-to-market lookup that can collide when two markets reuse the same submarket name.",
+    "Land presentation: \"Water Capacity\" now shows \"Feasible\" when the value is 0 and \"None\" when empty (was the raw number/blank).",
+    "Presentation, \"List\" sheet (Building Options): reworked to match the more polished Market Report styling -- column widths now use exact percentages you can request directly (e.g. \"Location to 17%\") instead of relative proportions; Size/Occupied/Available/Clear Height/Asking Rate are right-aligned, Clear Height/Status/Class/Gen are centered; \"Under Construction\" shows as \"UC\" and an empty Asking Rate shows \"UR\" (footnotes added explaining both); Clear Height always shows 1 decimal; measurement column headers show their unit on a 2nd line; 25 rows per page (was 20); smaller font and a wider Submarket column."
+  ]},
   {version:"8.11.0", date:"2026-09-25", items:[
     "Fixed: Spaces and Transactions linked to an Offices record could show \"missing fields\"/\"not in the list\" on Submarket even when correctly filled in -- a side effect of the new Submarket-by-Type filter not knowing those records' Submarket comes from an Offices catalog entry.",
     "Spaces: \"Transaction Available\" is now hidden (and no longer counts as pending) whenever Market Status = Occupied.",
@@ -5924,11 +5935,35 @@ function helpIconHtml(id, text){
     <span class="field-help-tip" id="${id}" role="tooltip">${escapeHtml(text)}</span>
   </span>`;
 }
-/* % de campos obligatorios llenos, según fieldConfig — null si esa entidad no tiene ninguno marcado */
+/* v8.11.x, pedido explícito del usuario: REGION_ID/STATE_ID/MARKET_ID/SUBMARKET_ID (GEO_ID_FIELD_KEYS) nunca
+   se muestran ni se pueden llenar a mano (ver GEO_ID_FIELD_KEYS en buildForm/renderStandaloneField -- son
+   <input type="hidden">, se calculan solos contra el catálogo de Ubicación) -- así que aunque el usuario los
+   marque "Requerido" en su Excel, NUNCA deben contar hacia el % de Completado/badges de pendientes: a
+   diferencia de un campo calculado normal (que siempre logra un valor con solo los datos del propio
+   registro), estos dependen de que el catálogo tenga una fila que calce EXACTO con el Región/Estado/Mercado/
+   Submercado capturado -- si no calza, el campo se queda vacío sin que el usuario pueda verlo ni corregirlo
+   desde la ficha, y el % quedaba atorado sin ninguna forma de arreglarlo (bug real reportado: una transacción
+   enlazada a un edificio con esos IDs sin recalcular se quedaba en 96% para siempre, sin importar qué se
+   llenara). Único punto de verdad para "cuenta como obligatorio de verdad" -- usarlo en vez de `f.required`
+   suelto en completionStats/countMissingRequired/entityHasRequiredFields. */
+function isRealRequiredField(f){ return !!f.required && !GEO_ID_FIELD_KEYS.has(f.key); }
+/* ¿Esta entidad tiene ALGÚN campo obligatorio configurado (sin importar categoría/visibilidad de un registro
+   en particular), o exige foto? Usado como guard independiente del registro (ej. "esta entidad no tiene
+   ningún campo marcado como obligatorio todavía" en las tablas de % de Cumplimiento del Resumen) -- a
+   propósito NO pasa por transactionVisibleFields() (ver completionStats() abajo), porque aquí solo importa
+   si la CONFIGURACIÓN tiene algo marcado required, no si un registro concreto lo estaría mostrando. */
+function entityHasRequiredFields(ent){
+  return fields(ent).some(isRealRequiredField) || (!!PHOTO_ID_FIELD[ent] && photoSet!==null);
+}
+/* % de campos obligatorios llenos, según fieldConfig — null si esa entidad no tiene ninguno marcado.
+   v8.11.x, bug real reportado por el usuario ("aún con todos los campos llenos aparece que no está al 100%
+   de completado" en Transacciones): antes usaba fields(ent) tal cual, sin pasar por transactionVisibleFields()
+   -- así que un campo obligatorio que ni siquiera se le muestra al usuario para SU Categoría/Absorption Type
+   (ej. un campo exclusivo de Land en una transacción de Offices) igual contaba como "pendiente" y el % nunca
+   llegaba a 100%. Mismo criterio que ya usa updateFormNavBadges()/countMissingRequired() para el badge de la
+   ficha -- ahora completionStats() (la tabla y la columna "% Completado") queda consistente con eso. */
 function completionStats(ent, rec){
-  // ver isSpaceTransactionAvailableHidden()/transactionVisibleFields(): mismo criterio que la ficha, para que
-  // el % no cuente como pendiente un campo que ni siquiera se le muestra al usuario.
-  const req=fields(ent).filter(f=>f.required && !(ent==="SPACES" && f.key==="TRANSACTION_AVAILABLE" && isSpaceTransactionAvailableHidden(rec)));
+  const req=transactionVisibleFields(ent, rec, fields(ent)).filter(isRealRequiredField);
   const trackPhoto=!!PHOTO_ID_FIELD[ent] && photoSet!==null;
   const total=req.length+(trackPhoto?1:0);
   if(!total) return null;
@@ -6756,7 +6791,7 @@ function resumenBreakdownTableHtml(title, subtitle, categories, computeFn, isAre
    Filas = mercados (resumenMarkets(), o solo el filtrado si hay uno activo); columnas = las categorías
    configuradas hoy en la lista MARKET_STATUS (se adapta sola si el usuario la edita desde Configuración). */
 function resumenComplianceTableHtml(title, subtitle, ent){
-  if(!completionStats(ent, {})){
+  if(!entityHasRequiredFields(ent)){
     return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(title)}</h4><p class="muted">This entity doesn't have any field marked as required yet.</p></div>`;
   }
   const statuses=lists.MARKET_STATUS||[];
@@ -6787,11 +6822,20 @@ function resumenComplianceTableHtml(title, subtitle, ent){
   const colgroupHtml=resumenColgroupHtml(statuses.length);
   return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(title)}</h4>${subtitle?`<p class="resumen-block-note">${escapeHtml(subtitle)}</p>`:""}<div class="resumen-scroll"><table class="resumen-table">${colgroupHtml}<thead><tr><th>Market</th>${statuses.map(s=>`<th>${escapeHtml(s)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
-/* Mercado al que pertenece una fila de `ent`, para las tablas de cumplimiento "full" (v3.40.0). Propiedades,
-   Parques y Terrenos ya traen `MARKET` directo; Transacciones no tiene ese campo, así que se resuelve vía
-   `resumenMarketForSubmarket(row.SUBMARKET)` — mismo criterio exacto que ya usa `resumenMarketMatches()`. */
+/* Mercado al que pertenece una fila de `ent`, para las tablas de cumplimiento "full" (v3.40.0). v8.11.x, bug
+   real reportado por el usuario ("no se muestra el % de cumplimiento de Transacciones"): este comentario
+   decía que Transacciones "no tiene" MARKET propio y por eso siempre caía al diccionario submercado→mercado
+   (resumenMarketForSubmarket, "primer match gana" -- ver el comentario grande junto a resumenMarketOnlyMatches
+   sobre submercados genéricos reutilizados en varios mercados, ej. "West"/"East"). Eso dejó de ser cierto
+   desde que Transacciones capturó su propio MARKET (ver BUNDLE.TRANSACCIONES) -- resumenMarketOnlyMatches()
+   ya se corrigió para usarlo directo, pero esta función se quedó vieja: con submercados que colisionan entre
+   mercados (más probable todavía ahora que Oficinas tiene sus propios submercados, ver Tipo en
+   CATALOGO_UBICACION), muchas transacciones resolvían al mercado EQUIVOCADO por el diccionario, o a ninguno,
+   y sus filas terminaban sin contar en la tabla de Cumplimiento (celdas en "—"). Ahora usa `row.MARKET`
+   directo para CUALQUIER entidad que lo traiga (las 4 ya lo capturan) -- el diccionario queda solo de
+   respaldo para filas viejas/incompletas sin MARKET propio, mismo criterio que resumenMarketOnlyMatches(). */
 function resumenMarketOfRow(ent, row){
-  if((ent==="PROPIEDADES"||ent==="PARKS"||ent==="LAND") && row.MARKET) return row.MARKET;
+  if(row.MARKET) return row.MARKET;
   return resumenMarketForSubmarket(row.SUBMARKET);
 }
 /* Tabla de cumplimiento "full" (v3.40.0, pedido explícito del usuario para Parques/Transacciones/Terrenos:
@@ -6799,7 +6843,7 @@ function resumenMarketOfRow(ent, row){
    de `resumenComplianceTableHtml` (Propiedades, que sí se queda con el quiebre por MARKET_STATUS, no se
    tocó), esta versión solo desglosa por Mercado, una sola columna "% Completado", sin ningún quiebre extra. */
 function resumenComplianceFullTableHtml(title, subtitle, ent){
-  if(!completionStats(ent, {})){
+  if(!entityHasRequiredFields(ent)){
     return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(title)}</h4><p class="muted">This entity doesn't have any field marked as required yet.</p></div>`;
   }
   const markets=resumenMarket?[resumenMarket]:resumenMarkets();
@@ -9011,7 +9055,7 @@ function pairFieldsByUnit(list){
 function countMissingRequired(ent, groupFields, record){
   let n=0;
   groupFields.forEach(f=>{
-    if(!f.required) return;
+    if(!isRealRequiredField(f)) return;
     const v=record ? record[f.key] : undefined;
     if(v==null || String(v).trim()===""){ n++; return; }
     if(fieldValueMismatch(ent,f,record)) n++;
@@ -9216,7 +9260,21 @@ function transactionVisibleFields(ent, record, allFields){
     else order=TRANSACCION_FIELDS_GROSS; // Absorption Type no reconocido -> set completo, no el reducido
   } else return allFields; // Categoría no reconocida (ej. dato importado viejo) -> no ocultar nada de más
   const byKey={}; allFields.forEach(f=>{ byKey[f.key]=f; });
-  return order.map(k=>byKey[k] ? {...byKey[k], group:TRANSACCION_FIELD_GROUP[k]?currentGroupName(TRANSACCION_FIELD_GROUP[k]):byKey[k].group} : null).filter(Boolean);
+  // v8.11.x, bug real reportado por el usuario (screenshot: "Listing"/"Econ. Terms" en vez de las 3 pestañas
+  // de siempre, con Region/State/Market/Submarket mezclados con Property Type/Absorption Type/etc.): antes
+  // pasaba TRANSACCION_FIELD_GROUP[k] por currentGroupName() para respetar un rename manual de sección -- pero
+  // currentGroupName()/groupRenames es GLOBAL y se llena solo (ver reconcileGroupRenames()) comparando el
+  // GRUPO que cada campo trae en fieldConfig (cargado del Excel del usuario) contra el original de BUNDLE, de
+  // CUALQUIER entidad. "PROPIEDAD" y "TRANSACTION DETAILS" también son nombres de grupo REALES que Spaces/
+  // Transacciones traen en su propio Excel -- en cuanto el usuario reorganiza esos grupos a su gusto (ej.
+  // Spaces mueve Market Status de "PROPIEDAD" a "IDENTIFICATION"), reconcileGroupRenames() interpreta eso como
+  // "PROPIEDAD se renombró a IDENTIFICATION" GLOBALMENTE, y esa traducción se le aplicaba también aquí, a las
+  // 3 pestañas fijas de Transacciones -- terminaban encadenándose entre sí (PROPIEDAD -> IDENTIFICATION ->
+  // LISTING, por ejemplo) y mezclándose en una sola pestaña. Estas 3 pestañas son SIEMPRE fijas (por diseño,
+  // ver TRANSACCION_FIELD_GROUP arriba) y nunca deben depender de renames de otras entidades -- mismo criterio
+  // ya aplicado antes al historial de "Listing" (ver comentario ahí: se dejó de detectar por nombre de grupo
+  // renombrado, por la misma fragilidad). Se usa el nombre fijo TAL CUAL, sin traducir renames.
+  return order.map(k=>byKey[k] ? {...byKey[k], group:TRANSACCION_FIELD_GROUP[k]||byKey[k].group} : null).filter(Boolean);
 }
 /* ==== Historial de propuestas dentro de la pestaña "Listing" (v_pendiente, pedido explícito del usuario) ====
    Al imprimir una presentación (ver logBitacoraEntry/doPresPrint/doLandPresPrint), cada registro incluido
@@ -9615,6 +9673,15 @@ document.getElementById("mBody").addEventListener("input", e=>{
     if(el) el.value="";
   });
   reRenderTransactionForm();
+});
+/* v8.11.x, pedido explícito del usuario ("quiero que eso sea durante la edición de los valores en vivo en la
+   ficha"): cambiar Market Status en Spaces también cambia qué campos se muestran (ver
+   isSpaceTransactionAvailableHidden()/transactionVisibleFields()) -- antes solo se recalculaba al guardar y
+   reabrir la ficha. Mismo criterio EXACTO que Absorption Type/Property Type de Transacciones arriba:
+   reRenderTransactionForm() ya es genérica (lee `current`, no algo hardcodeado a Transacciones), así que se
+   reusa tal cual, sin escribir una función aparte. */
+document.getElementById("mBody").addEventListener("input", e=>{
+  if(current==="SPACES" && e.target && e.target.dataset && e.target.dataset.key==="MARKET_STATUS") reRenderTransactionForm();
 });
 function buildImageViewBlock(ent){
   const kinds=photoKindsFor(ent);
@@ -11124,7 +11191,12 @@ function presValueFor(rec,row){
     if(v===0) return "To Suit";
     if(v==null||v==="") return "TBC";
   }
-  if(row.rule==="upon_request" && v===0) return "Upon Request";
+  if(row.rule==="upon_request" && v===0) return row.abbreviateUponRequest ? "UR" : "Upon Request";
+  // v8.11.x, pedido explícito del usuario ("comparar como se ve en la Presentación de Mercado que está más
+  // trabajado"): mismo criterio EXACTO que ya usa Market Report (PDF), Available Inventory -- Detail para su
+  // columna Status (ver mktBuildAvailDetailPage/statusText) -- solo el texto de despliegue de esta hoja
+  // (List), el dato guardado nunca cambia.
+  if(row.rule==="uc_abbrev" && ciEq(v,"Under Construction")) return "UC";
   if(v==null||v==="") return "—";
   let prefix=row.prefix;
   if(row.unitClass){
@@ -11142,6 +11214,11 @@ function presValueFor(rec,row){
     // Forzado a 2 decimales siempre (ej. 1 -> "1.00"), a diferencia de fmtNum (que recorta ceros a la
     // derecha) — pedido explícito del usuario, funciona igual convertido a Métrico/Imperial o a Anual.
     out=v.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+  } else if(row.decimals!=null && typeof v==="number"){
+    // v8.11.x, pedido explícito del usuario (hoja List, Clear Height siempre a 1 decimal, mismo criterio que
+    // ya usa Market Report -- Available Inventory Detail para esta misma columna) -- mismo patrón que RATE
+    // arriba, generalizado a cualquier cantidad de decimales fija vía `row.decimals`.
+    out=v.toLocaleString("en-US",{minimumFractionDigits:row.decimals,maximumFractionDigits:row.decimals});
   } else {
     out=(typeof v==="number")?fmtNum(v):String(v);
   }
@@ -11622,52 +11699,73 @@ function buildDeckPageHtml(chunk,pageIndex,logoSrc){
    continuo a través de TODAS las hojas, no se reinicia por página. Developer y Location se OMITEN por
    completo (no solo se redactan a "Private"/"Industrial Park" como ya hace presValueFor para Table) cuando
    Confidencial="Sí" — decisión explícita del usuario, distinta de cómo Table maneja lo mismo. */
-/* widthShare (v3.45.29, pedido explícito del usuario): reparto proporcional de columnas dentro del
-   <colgroup> — sin esto, table-layout:fixed (necesario para que el ancho de la tabla se respete de
-   verdad, ver nota más abajo) reparte el ancho en partes IGUALES entre columnas, y textos largos como
-   Location/Developer quedaban truncados con "…" todo el tiempo. Location pidió explícitamente más
-   espacio que el resto (widthShare:2.2 vs 1 del resto); # es aparte, siempre angosta. */
+/* pct (v8.11.x, pedido explícito del usuario "para poder ajustarlos yo mismo más fácil"): reemplaza el
+   widthShare proporcional de antes (v3.45.29) por el % de ancho EXACTO de cada columna dentro del
+   <colgroup> -- junto con NUM_COL_PCT (columna "#"), deben sumar 100. Mismo criterio que ya usa Market
+   Report para sus tablas de detalle (ver mktBuildAvailDetailPage/colgroupHtml ahí, % fijos a mano). Para
+   cambiar un ancho, solo hay que pedir "tal columna a X%" -- ver buildListPagesHtml, ya no hace ninguna
+   conversión, usa `c.pct` tal cual. */
 const PRESENTATION_LIST_COLUMNS=[
-  {label:"Submarket", key:"SUBMARKET", widthShare:1.1},
-  {label:"Name", key:"PROPERTY_NAME", widthShare:1.3},
-  {label:"Developer", key:"DEVELOPER", confidentialHide:true, widthShare:1.3},
-  {label:"Location", key:"PARK_NAME", confidentialHide:true, widthShare:2.2},
-  {label:"Size", key:"LEASABLE_AREA_GLA_VALUE", unitClass:"AREA", widthShare:1},
-  {label:"Occupied", key:"OCCUPIED_AREA_VALUE", unitClass:"AREA", widthShare:1},
-  {label:"Available", key:"AVAILABLE_AREA_VALUE", unitClass:"AREA", widthShare:1},
-  {label:"Clear Height", key:"MIN_CLEAR_HEIGHT_VALUE", unitClass:"LONG", widthShare:1},
-  {label:"Status", key:"STATUS", widthShare:1.3},
-  {label:"CLASS", key:"CLASSIFICATION", widthShare:1},
-  {label:"Gen", key:"BUILDING_GENERATION", widthShare:0.6},
-  {label:"Asking Rate", key:"ASKING_RATE_VALUE", unitClass:"RATE", rule:"upon_request", prefix:"US $ ", widthShare:1.2}
+  {label:"Submarket", key:"SUBMARKET", pct:11},
+  {label:"Name", key:"PROPERTY_NAME", pct:7.5},
+  {label:"Developer", key:"DEVELOPER", confidentialHide:true, pct:9.5},
+  {label:"Location", key:"PARK_NAME", confidentialHide:true, pct:17},
+  {label:"Size", key:"LEASABLE_AREA_GLA_VALUE", unitClass:"AREA", pct:7.5, align:"right"},
+  {label:"Occupied", key:"OCCUPIED_AREA_VALUE", unitClass:"AREA", pct:7.5, align:"right"},
+  {label:"Available", key:"AVAILABLE_AREA_VALUE", unitClass:"AREA", pct:7.5, align:"right"},
+  {label:"Clear Height", key:"MIN_CLEAR_HEIGHT_VALUE", unitClass:"LONG", pct:7.5, decimals:1, align:"center"},
+  {label:"Status", key:"STATUS", pct:5, rule:"uc_abbrev", align:"center"},
+  {label:"CLASS", key:"CLASSIFICATION", pct:5, align:"center"},
+  {label:"Gen", key:"BUILDING_GENERATION", pct:5, align:"center"},
+  // abbreviateUponRequest (pedido explícito del usuario): "UR" en vez de "Upon Request" -- solo en esta hoja
+  // (List), el resto de la app sigue mostrando "Upon Request" completo (ver presValueFor). Distinto de "UC"
+  // (Status, arriba) a propósito -- confirmado con el usuario, evita que las 2 abreviaturas de esta misma
+  // tabla signifiquen cosas distintas con el mismo texto.
+  {label:"Asking Rate", key:"ASKING_RATE_VALUE", unitClass:"RATE", rule:"upon_request", abbreviateUponRequest:true, prefix:"US $ ", pct:7.5, align:"right"}
 ];
+const LIST_NUM_COL_PCT=2.5; // columna "#", pedido explícito del usuario
 /* Header dinámico según presUnitPref/presPeriodPref — mismo criterio que presUnitLabel() ya usa para las
-   filas de Table, solo que aquí también compone el caso especial "$/unidad/periodo" de Asking Rate. */
+   filas de Table, solo que aquí también compone el caso especial "$/unidad/periodo" de Asking Rate.
+   v8.11.x, pedido explícito del usuario: en las columnas con unidad (Size/Occupied/Available/Clear Height),
+   la unidad pasa a una 2ª línea -- mismo criterio que ya usa Market Report (ver mktTh) para este mismo caso.
+   Regresa HTML ya escapado (antes regresaba texto plano y el llamador lo escapaba entero; con <br>/<span> de
+   por medio eso ya no funciona, así que ahora escapa cada pedazo aquí adentro). Asking Rate no trae un label
+   separado de su unidad (el header ES la unidad, "$/SF/Mo"), así que se deja igual, en una sola línea. */
 function presListColumnHeaderLabel(col){
-  if(col.unitClass==="AREA"||col.unitClass==="LONG") return `${col.label} (${presUnitLabel(col.unitClass)})`;
-  if(col.unitClass==="RATE") return `$/${presUnitPref==="metric"?"m²":"SF"}/${presPeriodPref==="annual"?"Yr":"Mo"}`;
-  return col.label;
+  if(col.unitClass==="AREA"||col.unitClass==="LONG") return `${escapeHtml(col.label)}<br><span class="deck-list-th-unit">(${escapeHtml(presUnitLabel(col.unitClass))})</span>`;
+  if(col.unitClass==="RATE") return escapeHtml(`$/${presUnitPref==="metric"?"m²":"SF"}/${presPeriodPref==="annual"?"Yr":"Mo"}`);
+  return escapeHtml(col.label);
 }
-const LIST_ROWS_PER_PAGE=20; // ajustado a pedido explícito del usuario (v3.45.29; empezó en 25, la referencia)
+const LIST_ROWS_PER_PAGE=25; // v8.11.x, pedido explícito del usuario: vuelve a 25 (había bajado a 20 en v3.45.29)
 function buildListPagesHtml(list, logoSrc){
   const cols=PRESENTATION_LIST_COLUMNS.filter(c=>!(c.confidentialHide && presConfidential));
-  const NUM_COL_SHARE=0.4;
-  const totalShare=NUM_COL_SHARE+cols.reduce((a,c)=>a+(c.widthShare||1),0);
-  const colgroupHtml=`<colgroup><col style="width:${(NUM_COL_SHARE/totalShare*100).toFixed(2)}%">${
-    cols.map(c=>`<col style="width:${((c.widthShare||1)/totalShare*100).toFixed(2)}%">`).join("")
+  // Los `pct` de PRESENTATION_LIST_COLUMNS + LIST_NUM_COL_PCT ya suman 100 en el caso normal (todas las
+  // columnas visibles) -- `totalPct` solo entra en juego en modo Confidencial, cuando Developer/Location se
+  // ocultan (confidentialHide): renormaliza el resto para que sigan sumando 100% del ancho de la tabla, en
+  // vez de dejar ~26% de espacio vacío sin repartir. Mismo criterio de renormalización que ya tenía el
+  // widthShare anterior, solo que ahora basado en % reales en vez de proporciones abstractas.
+  const totalPct=LIST_NUM_COL_PCT+cols.reduce((a,c)=>a+c.pct,0);
+  // Verificado (pedido explícito del usuario, comparando contra Market Report -- que tuvo este mismo bug real
+  // reportado y corregido, ver mktBuildAvailDetailPage): `colgroupHtml` se calcula UNA sola vez, fuera del
+  // `for` de páginas de abajo, y el mismo string se reusa en TODAS -- junto con `table-layout:fixed`, el % de
+  // cada columna ya es idéntico en cada hoja sin importar qué filas le tocaron, no hace falta ningún cambio
+  // aquí.
+  const colgroupHtml=`<colgroup><col style="width:${(LIST_NUM_COL_PCT/totalPct*100).toFixed(2)}%">${
+    cols.map(c=>`<col style="width:${(c.pct/totalPct*100).toFixed(2)}%">`).join("")
   }</colgroup>`;
-  const headHtml=`<tr><th class="deck-list-num">#</th>${cols.map(c=>`<th>${escapeHtml(presListColumnHeaderLabel(c))}</th>`).join("")}</tr>`;
+  const headHtml=`<tr><th class="deck-list-num">#</th>${cols.map(c=>`<th>${presListColumnHeaderLabel(c)}</th>`).join("")}</tr>`;
+  const alignCls=c=>c.align==="right"?' class="num-cell"':(c.align==="center"?' class="center-cell"':"");
   let html="";
   for(let start=0; start<list.length; start+=LIST_ROWS_PER_PAGE){
     const chunk=list.slice(start, start+LIST_ROWS_PER_PAGE);
     const rowsHtml=chunk.map((rec,i)=>{
       const isAlt=(start+i)%2===1;
-      return `<tr class="${isAlt?"deck-list-stripe":""}"><td class="deck-list-num">${start+i+1}</td>${cols.map(c=>`<td>${escapeHtml(presValueFor(rec,c))}</td>`).join("")}</tr>`;
+      return `<tr class="${isAlt?"deck-list-stripe":""}"><td class="deck-list-num">${start+i+1}</td>${cols.map(c=>`<td${alignCls(c)}>${escapeHtml(presValueFor(rec,c))}</td>`).join("")}</tr>`;
     }).join("");
     html+=`<div class="deck-page list-page">
       <div class="deck-header"><img class="deck-logo" src="${logoSrc}"><h2>Building Options</h2></div>
       <table class="deck-list-table">${colgroupHtml}<thead>${headHtml}</thead><tbody>${rowsHtml}</tbody></table>
-      <p class="deck-note">*This information has been provided to Citius AG by developers and local brokers. However, Citius AG makes no warranties or representations as to the accuracy of the data until a formal quotation. *All Tenant Improvements specified as "To Suit" will be added onto the base lease rate. &nbsp;*"TBC" to be confirmed</p>
+      <p class="deck-note">*This information has been provided to Citius AG by developers and local brokers. However, Citius AG makes no warranties or representations as to the accuracy of the data until a formal quotation. *All Tenant Improvements specified as "To Suit" will be added onto the base lease rate. &nbsp;*"TBC" to be confirmed. &nbsp;*"UC": Under Construction. &nbsp;*"UR": Upon Request</p>
     </div>`;
   }
   return html;
@@ -11765,8 +11863,9 @@ const PRESENTATION_ROWS_LAND = [
   {label:"Land Use", key:"LAND_USE"},
   {label:"Asking Price", key:"ASKING_SALE_PRICE_VALUE", unit:"$/m2", dark:true, currency:true, rule:"upon_request_zero"}
 ];
-/* Reglas de valor vacío/0, pedido explícito del usuario (v3.45.23/3.45.24):
-   - "viability_none" (Water Capacity): 0 → "Viability", vacío → "None".
+/* Reglas de valor vacío/0, pedido explícito del usuario (v3.45.23/3.45.24, texto de "viability_none"
+   actualizado en v8.11.x):
+   - "viability_none" (Water Capacity): 0 → "Feasible", vacío → "None".
    - "none_zero_tbc_empty" (Electric Capacity): 0 → "None", vacío → "TBC" — distinta de "viability_none"
      (que usaba antes y quedó mal: mostraba "Viability" en 0) y también distinta de "tbc_empty" (que
      dejaría el 0 tal cual, algo que el usuario corrigió después de pedirlo así la primera vez).
@@ -11783,7 +11882,7 @@ function presLandValueFor(rec,row){
   }
   const v=rec[row.key];
   if(row.rule==="viability_none"){
-    if(v===0) return "Viability";
+    if(v===0) return "Feasible";
     if(v==null||v==="") return "None";
   }
   if(row.rule==="none_zero_tbc_empty"){
@@ -13858,7 +13957,7 @@ function markEmptyRequiredFields(){
   const cfgByKey={}; fields(current).forEach(f=>cfgByKey[f.key]=f);
   document.querySelectorAll("#mBody [data-key]").forEach(inp=>{
     const cfg=cfgByKey[inp.dataset.key];
-    if(cfg && cfg.required && fieldInputIsEmpty(inp)) inp.classList.add("field-error");
+    if(cfg && isRealRequiredField(cfg) && fieldInputIsEmpty(inp)) inp.classList.add("field-error");
   });
 }
 /* v3.44.6, pedido explícito del usuario: reconstruye #mBody a partir de lo que YA está tecleado en
@@ -14019,7 +14118,7 @@ function doSaveRecord(){
     const cfg=cfgByKey[inp.dataset.key];
     const v=inp.type==="checkbox" ? (inp.checked?"SI":"") : String(inp.value).trim();
     if(v===""){
-      if(cfg&&cfg.required) missingKeys.push(cfg.key);
+      if(cfg&&isRealRequiredField(cfg)) missingKeys.push(cfg.key);
       return;
     }
     if(cfg&&cfg.type==="int"){

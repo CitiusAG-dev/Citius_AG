@@ -1140,15 +1140,21 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      encoge para caber (object-fit:contain) sin importar qué tan grande sea la que suba el usuario; si no hay
      logo cargado este bloque ni siquiera se imprime (ver buildOfficeCoverPageHtml), el título simplemente
      queda más arriba. */
-  /* v8.13.x, pedido explícito del usuario: el doble de tamaño (190x64 -> 380x128). processLogoImageDataUrl
-     guarda hasta 900x300, así que no se pixelea. */
-  .office-cover-client-logo-box{max-width:380px;max-height:128px}
+  /* v8.13.x, pedido explícito del usuario: el logo se MUESTRA siempre a un tamaño fijo de 250px en su lado
+     más largo (caja fija 250x250, object-fit:contain), sin importar el tamaño del archivo -- uno más chico
+     se agranda (puede verse pixeleado) y uno más grande se reduce. processLogoImageDataUrl guarda como
+     máximo 250x250, así que en pantalla nunca se muestra a más resolución de la que se guardó.
+     Historia: 190x64 -> 380x128 (tope, a su tamaño natural) -> 250x250 fijo. */
+  .office-cover-client-logo-box{width:250px;height:250px}
   /* v8.13.x, bug real reportado por el usuario (logo no empezaba donde la esfera de Citius AG): la regla
      general `.cover-page img{width:100%;height:100%;object-fit:cover}` (pensada para la foto de fondo) también
      le pegaba a este <img> -- lo estiraba al ancho completo de la caja (380px) y object-fit:contain centraba el
      logo adentro, así que cualquier logo que no fuera 3:1 quedaba corrido a la derecha. width/height:auto
-     regresa el <img> a su tamaño natural (topado por max-*) pegado a la izquierda. */
-  .office-cover-client-logo-box img{width:auto;height:auto;max-width:100%;max-height:128px;object-fit:contain;object-position:left center;display:block}
+     regresa el <img> a su tamaño natural (topado por max-*) pegado a la izquierda.
+     v8.13.x (tamaño fijo 250px): ahora el <img> llena la caja fija (100%x100%) y object-fit:contain lo
+     escala a 250px en su lado más largo; object-position:left top lo mantiene pegado a la izquierda (a la
+     esfera de Citius AG) y arriba, así que un logo horizontal no queda centrado a media caja. */
+  .office-cover-client-logo-box img{width:100%;height:100%;object-fit:contain;object-position:left top;display:block}
   /* Título dinámico según idioma (ver OFFICE_COVER_TITLE/officePresLangPref) -- reemplaza el "Análisis de
      Mercado"/"Market Availability" que antes venía quemado en la foto. Color claro (antes era oscuro,
      #3f4550 -- pensado para la portada VIEJA, con fondo claro ahí; el panel de esta foto es gris oscuro). */

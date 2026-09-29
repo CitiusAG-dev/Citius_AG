@@ -365,17 +365,26 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      Report) -- se definen aquí como referencia de comentario, el valor real se repite en cada regla de abajo
      porque CSS no tiene variables locales a un bloque de comentario. MKT_HEADER_BG=#cfcfcf, MKT_LINE=#c3c6cc. */
   .mkt-table{width:100%;border-collapse:collapse;font-size:10.5px}
-  .mkt-table th{background:#cfcfcf;color:var(--muted);font-weight:700;text-transform:uppercase;
-                 font-size:9px;letter-spacing:.3px;padding:5px 6px;text-align:left;border-bottom:1px solid #c3c6cc;line-height:1.35}
+  /* v8.12.x, pedido explícito del usuario: valor que no quepa en el ancho de su columna se recorta con "…"
+     (overflow:hidden + text-overflow:ellipsis) en vez de traslaparse visualmente sobre la columna vecina --
+     table-layout:fixed ya fija el ancho real de cada columna, solo faltaba recortar lo que no cupiera dentro.
+     white-space:nowrap es la base para TODA celda de TODAS las tablas del Market Report (th y td, aquí en la
+     regla genérica .mkt-table) -- una <br> explícita (ver mktTh(), headers a 2 líneas) sigue forzando su
+     salto de línea igual, nowrap solo evita el ajuste automático por espacios. Donde de verdad hace falta que
+     el texto pueda pasar a una 2da línea (ej. .mkt-absorption-table th, ya traía su propio white-space:normal;
+     o la columna YTD de Absorption) esas reglas, más específicas, siguen ganando sin cambios. */
+  .mkt-table th{background:#cfcfcf;color:#404040;font-weight:700;text-transform:uppercase;
+                 font-size:9px;letter-spacing:.3px;padding:5px 6px;text-align:left;border-bottom:1px solid #c3c6cc;line-height:1.35;
+                 overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   /* Pedido explícito del usuario: unidad de la columna (ej. "(SF)") en su propio renglón dentro del header,
      ver mktTh() — un poco más chica/menos pesada que la etiqueta para que se note que es la unidad, no una
      2da etiqueta igual de importante. */
   .mkt-th-unit{font-size:8px;font-weight:400}
-  .mkt-table td{padding:4px 6px;border-bottom:1px solid #c3c6cc}
+  .mkt-table td{padding:4px 6px;border-bottom:1px solid #c3c6cc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .mkt-table td.num-cell{text-align:right;font-variant-numeric:tabular-nums}
   .mkt-table .mkt-center{text-align:center}
   .mkt-table-plain{font-size:11px}
-  .mkt-table-plain td{border-bottom:1px dotted #c3c6cc;padding:4.5px 0}
+  .mkt-table-plain td{border-bottom:1px solid #c3c6cc;padding:4.5px 0}
   .mkt-table-plain tr:last-child td{border-bottom:none}
   /* v7.3.23, pedido explícito del usuario: Significant Transactions (portada) con el MISMO diseño que las
      tablas de Absorption — antes tenía su propia clase .mkt-sigtx-table con estilo distinto; ahora reusa
@@ -401,7 +410,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   /* v8.12.x, pedido explícito del usuario: un poco más de espacio antes de "Inventory"/"Lease Transactions"/
      "Land Prices Min - Max" (ver gapBefore en marketRowsHtml, mktBuildCoverPage) -- solo padding-top extra en
      la celda, no cambia el resto del espaciado de la tabla. */
-  .mkt-box .mkt-table-plain tr.mkt-row-gap-before td{padding-top:11px}
+  .mkt-box .mkt-table-plain tr.mkt-row-gap-before td{padding-top:18px}
   .mkt-label-normal{font-weight:400}
   /* Absorción (GROSS/NEGATIVE/NET) — v7.3.17/18, pedido explícito del usuario (con imagen de referencia):
      más aire que el resto de tablas compactas de .mkt-box (ver .mkt-box .mkt-table más abajo, esas siguen
@@ -492,6 +501,15 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      Transactions / Available Inventory) — las celdas de datos NO se tocan (siguen a la izquierda, o a la
      derecha las numéricas vía .num-cell). */
   .mkt-detail-table th{position:static;text-align:center}
+  /* v8.12.x, pedido explícito del usuario: ya no hacen falta líneas entre cada renglón de datos (el
+     "interlineado" de abajo las reemplaza) -- pero el separador de Submercado conserva una línea propia, más
+     clara que el gris general de líneas divisorias del resto del reporte (#c3c6cc). */
+  .mkt-detail-table td{border-bottom:none}
+  .mkt-detail-table tr.mkt-group-row td{border-bottom:1px solid #dfe1e5}
+  /* "Interlineado" (v8.12.x, pedido explícito del usuario): renglón blanco / gris clarito alternados en vez
+     de líneas divisorias -- se reinicia en blanco al empezar cada Submercado (ver stripeIdx en
+     mktBuildTxDetailPage()/mktBuildAvailDetailPage()). */
+  .mkt-detail-table tr.mkt-detail-stripe td{background:#f2f3f5}
   .mkt-empty{color:var(--muted);font-style:italic;padding:8px 0;text-align:center}
   /* v7.3.38, pedido explícito del usuario (con imagen de referencia): el header de las páginas 2-5 pasa a
      parecerse al de la portada — nombre del Mercado con la misma tipografía/tamaño que .mkt-cover-title
@@ -7555,7 +7573,12 @@ function quarterOfDate(dateStr){
    de RESUMEN_DONUT_BASE_COLORS (esa se queda tal cual para las donas de KPI's, sin tocar — es una paleta ya
    validada para ese contexto, aparte del reporte). Mismo mecanismo de "tandas más claras" que
    resumenLightenHex si hay más de 8 categorías (caso raro). */
-const MKT_DONUT_COLORS=["#f0b323","#6a4c93","#eb6834","#2a78d6","#1baf7a","#e34948","#4a3aa7","#e87ba4"];
+// v8.12.x, pedido explícito del usuario: paleta de marca CAG (imagen de referencia que compartió) -- colores
+// extraídos directo de esa imagen, en el MISMO orden en el que aparecen ahí, empezando por el amarillo de
+// arriba y avanzando en el sentido de las manecillas del reloj (mismo orden en que mktDonutHtml() ya dibuja
+// cada dona, así que el primer dato de cada dona sale amarillo, el 2º naranja, etc., sin tener que tocar
+// mktDonutColorForIndex()).
+const MKT_DONUT_COLORS=["#efb321","#f08e1c","#c15953","#c97da8","#8e6085","#663e8e","#9eb7c5","#207bbc","#084d86","#33a8b3","#bdad00","#83a147","#186235","#525c6a"];
 function mktDonutColorForIndex(i){
   const n=MKT_DONUT_COLORS.length;
   const tier=Math.floor(i/n), base=MKT_DONUT_COLORS[i%n];
@@ -7999,13 +8022,13 @@ function mktBuildTxSummaryPage(){
            v7.3.5x, pedido explícito del usuario (con zoom a 400%, notó el contorno gris de cada slice —
            al revés que la portada, que NO lo tiene): sliceOutline (7mo argumento) pasa a false. -->
       <div class="mkt-donut-row">
-        ${mktDonutHtml("Quarter", quarterDonutData, resumenAreaUnitLabel(), 37, undefined, true, false)}
+        ${mktDonutHtml("Quarter", quarterDonutData, resumenAreaUnitLabel(), 48, undefined, true, false)}
         <!-- v7.3.5x, pedido explícito del usuario: título de esta dona "Count" -> "Size" (sus categorías
              son rangos de tamaño, bucketCategories — el título de la tabla arriba se queda igual,
              "Building Count", solo se renombra la dona). -->
-        ${mktDonutHtml("Size", countDonutData, "", 37, undefined, true, false)}
-        ${mktDonutHtml("Type", typeDonutData, resumenAreaUnitLabel(), 37, undefined, true, false)}
-        ${mktDonutHtml("Deal", dealDonutData, resumenAreaUnitLabel(), 37, undefined, true, false)}
+        ${mktDonutHtml("Size", countDonutData, "", 48, undefined, true, false)}
+        ${mktDonutHtml("Type", typeDonutData, resumenAreaUnitLabel(), 48, undefined, true, false)}
+        ${mktDonutHtml("Deal", dealDonutData, resumenAreaUnitLabel(), 48, undefined, true, false)}
       </div>
     </div>
   </div>`;
@@ -8071,6 +8094,11 @@ function mktBuildTxDetailPage(){
     // v7.3.5x, pedido explícito del usuario: orden Submarket (el agrupado de arriba) -> Q -> Developer
     // (antes solo por fecha completa, que ordenaba por Q pero sin desempatar por Developer dentro del
     // mismo trimestre).
+    // v8.12.x, pedido explícito del usuario: "interlineado" (renglón blanco, renglón gris clarito, blanco...)
+    // en vez de líneas divisorias entre renglones (ver .mkt-detail-stripe/.mkt-detail-table td en el CSS) --
+    // el contador se reinicia en 0 (blanco) al empezar CADA submercado nuevo, para que el primer renglón de
+    // cada grupo siempre arranque igual, sin importar cuántos renglones tuvo el submercado anterior.
+    let stripeIdx=0;
     rows.slice().sort((a,b)=>{
       const qa=quarterOfDate(a.TRANSACTION_DATE)||0, qb=quarterOfDate(b.TRANSACTION_DATE)||0;
       if(qa!==qb) return qa-qb;
@@ -8079,9 +8107,10 @@ function mktBuildTxDetailPage(){
       const areaSF=areaValueInSF(r,"TRANSACTION_AREA");
       grandTotalSF+=areaSF;
       const q=quarterOfDate(r.TRANSACTION_DATE);
+      const stripeCls=stripeIdx%2===1?" mkt-detail-stripe":""; stripeIdx++;
       // Location ahora es SOLO el Parque (igual que Available Inventory — Detail) — Property Name (el
       // edificio) ya tiene su propia columna, mostrarlo también aquí sería redundante.
-      lines.push(`<tr><td>${escapeHtml(r.TENANT_BUYER_USER||"Confidential")}</td><td>${escapeHtml(r.PROPERTY_NAME||"")}</td><td>${escapeHtml(r.DEVELOPER||"")}</td><td>${escapeHtml(r.PARK_NAME||"")}</td><td class="num-cell">${num(resumenAreaVal(areaSF))}</td><td>${escapeHtml(r.BUILDING_TYPE||"")}</td><td class="mkt-center">${q?q+"Q":"—"}</td><td>${escapeHtml(r.TRANSACCION_TYPE||"")}</td><td>${escapeHtml(r.TENANT_REP_BROKER||"")}</td></tr>`);
+      lines.push(`<tr class="${stripeCls.trim()}"><td>${escapeHtml(r.TENANT_BUYER_USER||"Confidential")}</td><td>${escapeHtml(r.PROPERTY_NAME||"")}</td><td>${escapeHtml(r.DEVELOPER||"")}</td><td>${escapeHtml(r.PARK_NAME||"")}</td><td class="num-cell">${num(resumenAreaVal(areaSF))}</td><td>${escapeHtml(r.BUILDING_TYPE||"")}</td><td class="mkt-center">${q?q+"Q":"—"}</td><td>${escapeHtml(r.TRANSACCION_TYPE||"")}</td><td>${escapeHtml(r.TENANT_REP_BROKER||"")}</td></tr>`);
     });
   });
   if(!lines.length){
@@ -8133,12 +8162,12 @@ function mktBuildAvailSummaryPage(){
       <div class="mkt-box">${statusTable}</div>
       <div class="mkt-box">${genTable}</div>
       <div class="mkt-donut-row">
-        ${mktDonutHtml("Class", classDonutData, resumenAreaUnitLabel(), 37, undefined, true, false)}
+        ${mktDonutHtml("Class", classDonutData, resumenAreaUnitLabel(), 48, undefined, true, false)}
         <!-- v7.3.5x, pedido explícito del usuario: título de esta dona "Count" -> "Size" (mismo criterio
              que la de Completed Transactions, sus categorías también son rangos de tamaño). -->
-        ${mktDonutHtml("Size", countDonutData, "", 37, undefined, true, false)}
-        ${mktDonutHtml("Status", statusDonutData, resumenAreaUnitLabel(), 37, undefined, true, false)}
-        ${mktDonutHtml("Generation", genDonutData, resumenAreaUnitLabel(), 37, undefined, true, false)}
+        ${mktDonutHtml("Size", countDonutData, "", 48, undefined, true, false)}
+        ${mktDonutHtml("Status", statusDonutData, resumenAreaUnitLabel(), 48, undefined, true, false)}
+        ${mktDonutHtml("Generation", genDonutData, resumenAreaUnitLabel(), 48, undefined, true, false)}
       </div>
     </div>
   </div>`;
@@ -8174,6 +8203,9 @@ function mktBuildAvailDetailPage(){
     // separador (colspan ahora cubre las 11 columnas completas).
     lines.push(`<tr class="mkt-group-row"><td colspan="11">▼ ${escapeHtml(sm.toUpperCase())}</td></tr>`);
     // v7.3.5x, pedido explícito del usuario: orden Submarket (el agrupado de arriba) -> Developer.
+    // v8.12.x, pedido explícito del usuario: mismo "interlineado" que Completed Transactions — Detail (ver
+    // ese comentario grande) -- se reinicia en 0 (blanco) al empezar cada submercado.
+    let stripeIdx=0;
     rows.slice().sort((a,b)=>String(a.DEVELOPER||"").localeCompare(String(b.DEVELOPER||""))).forEach(r=>{
       const availSF=areaValueInSF(r,"AVAILABLE_AREA_VALUE");
       grandTotalSF+=availSF;
@@ -8185,7 +8217,8 @@ function mktBuildAvailDetailPage(){
       // Pedido explícito del usuario: "Under Construction" se abrevia a "UC" en esta tabla (el resto de la
       // app sigue mostrando el valor completo — es solo el texto de despliegue de este reporte).
       const statusText=ciEq(r.STATUS,"Under Construction")?"UC":(r.STATUS||"—");
-      lines.push(`<tr><td>${escapeHtml(r.PROPERTY_NAME||r.MAPPING_CODE||"")}</td><td>${escapeHtml(r.DEVELOPER||"")}</td><td>${escapeHtml(r.PARK_NAME||"")}</td>
+      const stripeCls=stripeIdx%2===1?" mkt-detail-stripe":""; stripeIdx++;
+      lines.push(`<tr class="${stripeCls.trim()}"><td>${escapeHtml(r.PROPERTY_NAME||r.MAPPING_CODE||"")}</td><td>${escapeHtml(r.DEVELOPER||"")}</td><td>${escapeHtml(r.PARK_NAME||"")}</td>
         <td class="num-cell">${num(resumenAreaVal(areaValueInSF(r,"LEASABLE_AREA_GLA_VALUE")))}</td>
         <td class="num-cell">${num(resumenAreaVal(areaValueInSF(r,"OCCUPIED_AREA_VALUE")))}</td>
         <td class="num-cell">${num(resumenAreaVal(availSF))}</td>

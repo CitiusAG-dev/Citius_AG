@@ -9468,8 +9468,12 @@ function buildForm(ent, record){
     }
     if(ent==="SPACES" && SPACES_COMPUTED_FIELD_KEYS.has(f.key)){
       const computedVal=record&&record[f.key]!=null&&record[f.key]!==""?record[f.key]:0;
+      // id="computedDisplay_${f.key}" (v8.12.x, pedido explícito del usuario: recalcular en vivo mientras se
+      // captura, no solo al guardar) -- ver livePreviewSpaceParkingSpots()/el listener de #mBody, que
+      // actualiza este input Y el <input type="hidden"> de abajo (el que de verdad se guarda) cada vez que
+      // cambia Net Leasable Area o Parking Ratio, sin esperar a Guardar+reabrir.
       return `<div class="field field-readonly"><label>${fieldLabel(f.key)}${helpIcon}</label>
-        <input value="${escapeAttr(String(computedVal))}" readonly disabled>
+        <input id="computedDisplay_${f.key}" value="${escapeAttr(String(computedVal))}" readonly disabled>
         <input type="hidden" data-key="${f.key}" value="${val}"></div>`;
     }
     if(CASCADE_ORDER.includes(f.key) && cascadeCatalog.length){
@@ -9685,6 +9689,29 @@ document.getElementById("mBody").addEventListener("input", e=>{
    reusa tal cual, sin escribir una función aparte. */
 document.getElementById("mBody").addEventListener("input", e=>{
   if(current==="SPACES" && e.target && e.target.dataset && e.target.dataset.key==="MARKET_STATUS") reRenderTransactionForm();
+});
+/* v8.12.x, pedido explícito del usuario ("que se vea desde que se está capturando el valor de Parking Ratio,
+   hacer el cálculo en vivo"): antes Assigned Parking Spots (ver SPACES_COMPUTED_FIELD_KEYS/
+   recomputeSpaceDerivedFields) solo se recalculaba al Guardar -- se veía en 0/desactualizado mientras se
+   editaba. Lee Net Leasable Area/su unidad/Parking Ratio DIRECTO del DOM (mismo criterio que
+   updateFormNavBadges/reRenderTransactionForm: lo que ya está tecleado en pantalla, no el registro original),
+   arma un objeto suelto (no toca `state`) y reusa recomputeSpaceDerivedFields() tal cual para no duplicar la
+   fórmula -- solo actualiza el input visible (id="computedDisplay_ASSIGNED_PARKING_SPOTS") y el
+   <input type="hidden"> que de verdad se guarda, sin reconstruir el formulario completo (a diferencia de
+   MARKET_STATUS arriba, aquí no cambia qué campos se muestran, así que no hace falta). */
+function livePreviewSpaceParkingSpots(){
+  const hiddenEl=document.querySelector('#mBody [data-key="ASSIGNED_PARKING_SPOTS"]');
+  const displayEl=document.getElementById("computedDisplay_ASSIGNED_PARKING_SPOTS");
+  if(!hiddenEl || !displayEl) return;
+  const val=key=>{ const el=document.querySelector('#mBody [data-key="'+key+'"]'); return el?el.value:""; };
+  const pseudo={ NET_LEASABLE_AREA_VALUE: val("NET_LEASABLE_AREA_VALUE"), NET_LEASABLE_AREA_UNIT: val("NET_LEASABLE_AREA_UNIT"), PARKING_RATIO: val("PARKING_RATIO") };
+  recomputeSpaceDerivedFields(pseudo);
+  const v=pseudo.ASSIGNED_PARKING_SPOTS;
+  hiddenEl.value=(v===""?"":String(v));
+  displayEl.value=(v===""?"0":String(v));
+}
+document.getElementById("mBody").addEventListener("input", e=>{
+  if(current==="SPACES" && e.target && e.target.dataset && ["NET_LEASABLE_AREA_VALUE","NET_LEASABLE_AREA_UNIT","PARKING_RATIO"].includes(e.target.dataset.key)) livePreviewSpaceParkingSpots();
 });
 function buildImageViewBlock(ent){
   const kinds=photoKindsFor(ent);

@@ -365,22 +365,13 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      Report) -- se definen aquí como referencia de comentario, el valor real se repite en cada regla de abajo
      porque CSS no tiene variables locales a un bloque de comentario. MKT_HEADER_BG=#cfcfcf, MKT_LINE=#c3c6cc. */
   .mkt-table{width:100%;border-collapse:collapse;font-size:10.5px}
-  /* v8.12.x, pedido explícito del usuario: valor que no quepa en el ancho de su columna se recorta con "…"
-     (overflow:hidden + text-overflow:ellipsis) en vez de traslaparse visualmente sobre la columna vecina --
-     table-layout:fixed ya fija el ancho real de cada columna, solo faltaba recortar lo que no cupiera dentro.
-     white-space:nowrap es la base para TODA celda de TODAS las tablas del Market Report (th y td, aquí en la
-     regla genérica .mkt-table) -- una <br> explícita (ver mktTh(), headers a 2 líneas) sigue forzando su
-     salto de línea igual, nowrap solo evita el ajuste automático por espacios. Donde de verdad hace falta que
-     el texto pueda pasar a una 2da línea (ej. .mkt-absorption-table th, ya traía su propio white-space:normal;
-     o la columna YTD de Absorption) esas reglas, más específicas, siguen ganando sin cambios. */
   .mkt-table th{background:#cfcfcf;color:#404040;font-weight:700;text-transform:uppercase;
-                 font-size:9px;letter-spacing:.3px;padding:5px 6px;text-align:left;border-bottom:1px solid #c3c6cc;line-height:1.35;
-                 overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+                 font-size:9px;letter-spacing:.3px;padding:5px 6px;text-align:left;border-bottom:1px solid #c3c6cc;line-height:1.35}
   /* Pedido explícito del usuario: unidad de la columna (ej. "(SF)") en su propio renglón dentro del header,
      ver mktTh() — un poco más chica/menos pesada que la etiqueta para que se note que es la unidad, no una
      2da etiqueta igual de importante. */
   .mkt-th-unit{font-size:8px;font-weight:400}
-  .mkt-table td{padding:4px 6px;border-bottom:1px solid #c3c6cc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mkt-table td{padding:4px 6px;border-bottom:1px solid #c3c6cc}
   .mkt-table td.num-cell{text-align:right;font-variant-numeric:tabular-nums}
   .mkt-table .mkt-center{text-align:center}
   .mkt-table-plain{font-size:11px}

@@ -1254,8 +1254,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      pegada a la base del texto -- align-items:baseline: un flex item sin texto (la línea) toma como
      "baseline" su borde inferior, así que queda justo sobre la línea base del nombre del Mercado.
      Después: línea más larga (8% -> 11%, el nombre del Mercado se recorre a la derecha con ella) y banner
-     blanco más alto (19% -> 21%; mapa y leyenda bajan con él). */
-  .office-map-titlerow{position:absolute;left:0;right:0;top:calc(67% + 20px);transform:translateY(-50%);
+     blanco más alto (19% -> 21%; mapa y leyenda bajan con él). Luego línea + Mercado 10px más arriba
+     (+20px -> +10px). */
+  .office-map-titlerow{position:absolute;left:0;right:0;top:calc(67% + 10px);transform:translateY(-50%);
                         display:flex;align-items:baseline;gap:1.8%}
   .office-map-titleline{flex:0 0 11%;height:1px;background:#8a8d91}
   .office-map-title{margin:0;font-size:45px;font-weight:400;color:#666;font-family:'Dala Moa',Georgia,serif;line-height:1}

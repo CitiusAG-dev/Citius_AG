@@ -475,8 +475,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   /* Pedido explícito del usuario: el separador de Submarket (este renglón) se veía "más grande y oscuro" que
      el header de columnas de la misma tabla — ahora usa exactamente la misma tipografía/color que
      `.mkt-table th` (arriba: fondo var(--panel-2), texto var(--muted), 9px) en vez de su propio fondo/tamaño/
-     color (antes #eee de fondo y el color de texto por defecto, más oscuro que var(--muted)). */
-  .mkt-group-row td{background:#cfcfcf;color:var(--muted);font-weight:700;text-transform:uppercase;font-size:9px;letter-spacing:.3px}
+     color (antes #eee de fondo y el color de texto por defecto, más oscuro que var(--muted)). Luego, pedido
+     explícito del usuario: fondo más claro que el de los headers de columna (#cfcfcf) y color de letra igual
+     al de esos headers (#404040) en vez de var(--muted). */
+  .mkt-group-row td{background:#e4e5e7;color:#404040;font-weight:700;text-transform:uppercase;font-size:9px;letter-spacing:.3px}
   /* Bug real reportado por el usuario (con captura): Completed/Available Detail paginan en varias
      `.mkt-table` SEPARADAS (una por página, ver mktPaginateDetailPages()) — con table-layout:auto (el
      default), cada `<table>` calcula el ancho de sus columnas SOLO a partir de las filas que le tocaron a

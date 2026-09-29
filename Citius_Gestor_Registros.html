@@ -12764,10 +12764,16 @@ function officeDeckSpaceInfoRows(opt, unitPref){
   const u=unitPref==="metric"?"m²":"SF";
   // v4.4.9, pedido explícito del usuario: "Floor(s)"/"Nivel(es)" se mueve de 1er lugar a justo debajo de
   // "Delivery Condition"/"Condición de Entrega" — el resto del orden no cambia.
+  // Etiquetas actualizadas (pedido explícito del usuario, con 2 capturas de referencia en inglés/español):
+  // se homologa la REDACCIÓN a esas capturas (ej. "Net Rentable Area", "Parking Spaces", "Asking Price"),
+  // pero se mantiene el Title Case que ya usaba el resto de esta pantalla en vez de copiar el sentence case
+  // de las capturas -- así no queda una mezcla de estilos de mayúsculas dentro de la misma tarjeta. "Floor(s)"/
+  // "Nivel(es)" (la fila de abajo) NO estaba en esas capturas -- el usuario aclaró explícitamente que se
+  // queda igual, no se debía quitar solo por no aparecer ahí.
   return [
-    {label:{en:`Net Leasable Area (${u})`,es:`Área Neta Rentable (${u})`},
+    {label:{en:`Net Rentable Area (${u})`,es:`Área Neta Rentable (${u})`},
      value: officeDeckAreaText(sumSpacesAreaSF(recs,"NET_LEASABLE_AREA_VALUE"), unitPref, false)},
-    {label:{en:`Net Useable Area (${u})`,es:`Área Neta Útil (${u})`},
+    {label:{en:`Net Usable Area (${u})`,es:`Área Neta Útil (${u})`},
      value: officeDeckAreaText(sumSpacesAreaSF(recs,"NET_USEABLE_AREA_VALUE"), unitPref, false)},
     {label:{en:"Delivery Condition",es:"Condición de Entrega"},
      value: officeDeckPlainFmt(officePresTranslateValue("CONDITION", primary&&primary.CONDITION))},
@@ -12779,17 +12785,17 @@ function officeDeckSpaceInfoRows(opt, unitPref){
     {label:{en:`Floor(s) (${u})`,es:`Nivel(es) (${u})`}, value: officeDeckFloorsWithArea(recs, unitPref)||"—"},
     {label:{en:"Parking Ratio",es:"Radio de Estacionamiento"},
      value: officeDeckPlainFmt(office&&office.PARKING_RATIO)},
-    {label:{en:"Included Parking Spots",es:"Cajones Incluidos"},
+    {label:{en:"Parking Spaces",es:"Cajones Incluídos"},
      value: officeDeckPlainFmt(sumSpacesNumber(recs,"ASSIGNED_PARKING_SPOTS"))},
     // v8.12.x, corrección del usuario sobre el fix anterior: el campo correcto es Additional Spot Price DE
     // LA OFICINA (ADDITIONAL_SPOT_PRICE_VALUE/UNIT, ver `office` arriba), no el de Spaces -- se lee del
     // registro de Oficina, no del Space primario. Pedido explícito del usuario: vacío -> "TBC", 0 -> "No
     // disponible"/"Not available" (antes 0 se formateaba como cualquier tarifa, "US $ 0.00").
-    {label:{en:"Additional Spot Cost ($/spot/month)",es:"Costo de Cajón Adicional ($/cajón/mes)"},
+    {label:{en:"Additional Parking ($/space/month)",es:"Costo de Cajón Adicional ($/cajón/mes)"},
      value: officeDeckRateText("OFICINAS","ADDITIONAL_SPOT_PRICE_VALUE","ADDITIONAL_SPOT_PRICE_UNIT",office,unitPref,"TBC",officePresLangPref==="es"?"No disponible":"Not available")},
     {label:{en:"Availability",es:"Disponibilidad"},
      value: officeDeckPlainFmt(officePresTranslateValue("AVAILABILITY_DELIVERY", primary&&primary.AVAILABILITY_DELIVERY))},
-    {label:{en:`Asking Rent ($/${u}/month)`,es:`Precio de Renta ($/${u}/mes)`},
+    {label:{en:`Asking Price ($/${u}/month)`,es:`Precio de Renta ($/${u}/mes)`},
      value: officeDeckRateText("SPACES","ASKING_RATE_VALUE","ASKING_RATE_UNIT",primary,unitPref)},
     {label:{en:`Maintenance ($/${u}/month)`,es:`Mantenimiento ($/${u}/mes)`},
      value: officeDeckRateText("SPACES","COMMON_AREA_MAINTENANCE_CAM_VALUE","COMMON_AREA_MAINTENANCE_CAM_UNIT",primary,unitPref)},
@@ -12798,14 +12804,19 @@ function officeDeckSpaceInfoRows(opt, unitPref){
 function officeDeckBuildingInfoRows(office, unitPref){
   if(!office) return [];
   const u=unitPref==="metric"?"m²":"SF";
+  // Etiquetas actualizadas (pedido explícito del usuario, con 2 capturas de referencia en inglés/español) —
+  // ver el mismo comentario en officeDeckSpaceInfoRows(). "Total Levels" pasa a "Building Height (Floors)"
+  // en inglés (así aparece en la captura), pero en español se queda "Niveles Totales" (la captura en
+  // español también la deja igual) — no es un descuido, las 2 capturas simplemente no son una traducción
+  // literal palabra por palabra entre sí en esa fila puntual.
   return [
     {label:{en:"Developer",es:"Desarrollador"}, value: officeDeckPlainFmt(officePresTranslateValue("DEVELOPER", office.DEVELOPER))},
-    {label:{en:"Building Use",es:"Uso del Edificio"}, value: officeDeckPlainFmt(officePresTranslateValue("CATEGORY_OFFICES", office.CATEGORY_OFFICES))},
-    {label:{en:"Total Levels",es:"Niveles Totales"}, value: officeDeckPlainFmt(office.TOTAL_BUILDING_LEVELS)},
+    {label:{en:"Building Type",es:"Uso del Edificio"}, value: officeDeckPlainFmt(officePresTranslateValue("CATEGORY_OFFICES", office.CATEGORY_OFFICES))},
+    {label:{en:"Building Height (Floors)",es:"Niveles Totales"}, value: officeDeckPlainFmt(office.TOTAL_BUILDING_LEVELS)},
     {label:{en:"Office Levels",es:"Niveles de Oficina"}, value: officeDeckPlainFmt(office.TOTAL_OFFICE_LEVELS)},
-    {label:{en:`Total Rentable Area (${u})`,es:`Área Rentable Total (${u})`},
+    {label:{en:`Total Gross Area (${u})`,es:`Área Rentable Total (${u})`},
      value: officeDeckUnitConvertedText("OFICINAS","LEASABLE_AREA_GLA_VALUE","LEASABLE_AREA_GLA_UNIT",office,unitPref,false)},
-    {label:{en:`Typical Floor Plate (${u})`,es:`Planta Tipo (${u})`},
+    {label:{en:`Floor Plate (${u})`,es:`Planta Tipo (${u})`},
      value: officeDeckUnitConvertedText("OFICINAS","FLOOR_PLATE_VALUE","FLOOR_PLATE_UNIT",office,unitPref,false)},
     // v8.12.x, pedido explícito del usuario: si Amenities no tiene ninguna capturada, cae a Nearby Amenities
     // (ambas son listas multi-select -- ver MULTI_LIST_FIELD_KEYS/officePresTranslateMulti).
@@ -12844,8 +12855,8 @@ function buildOfficeOptionDetailPageHtml(opt, idx){
       </div>
     </div>
     <p class="office-detail-note">${t(
-      "Note: This information was created by Citius AG analysts and brokers. However, Citius AG offers no guarantee as to the accuracy of the data until a formal quote.",
-      "Nota: Esta información ha sido creada por analistas y brokers de Citius AG. Sin embargo, Citius AG no ofrece garantía en cuanto a la exactitud de los datos hasta una cotización formal."
+      "Note: *This information has been provided to Citius AG by developers and brokers. However, Citius AG makes no warranties or representations as to the accuracy of the data until a formal quotation.",
+      "Nota: *Esta información ha sido creada por analistas y brokers de Citius AG. Sin embargo, Citius AG no ofrece garantía en cuanto a la exactitud de los datos hasta una cotización formal."
     )}</p>
   </div>`;
 }

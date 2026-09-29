@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Prueba: aplicar config automáticamente (sin botón)</title>
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.17.0/mapbox-gl.js"></script>
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.17.0/mapbox-gl.css" rel="stylesheet">
+<style>
+  body{margin:0;padding:0;font-family:sans-serif}
+  #map{position:absolute;top:0;bottom:0;width:100%}
+  #info{position:absolute;top:8px;left:8px;z-index:9;background:#fff;padding:6px 10px;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,.3);font-size:13px;max-width:640px;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<div id="info">Prueba: aplicar el config guardado automáticamente (sin botón), reintentando en style.load / load / idle</div>
+<div id="map"></div>
+<script>
+  const info = document.getElementById('info');
+  function log(msg, color){ info.innerHTML += '<br><b'+(color?' style="color:'+color+'"':'')+'>'+msg+'</b>'; }
+  window.onerror = function(msg, src, line, col, err){ log('window.onerror: '+msg+' @'+line+':'+col, 'red'); };
+
+  mapboxgl.accessToken = 'pk.eyJ1IjoiY2l0aXVzYWciLCJhIjoiY21ucDh6OTF6MTRibjJzb25qd2ltcjhlYyJ9.LvtTn6DeoONC0MNlU1ACVw';
+  const map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/citiusag/cmnp9hetd008s01sga4jxhlfo',
+    center: [-100.31, 25.67],
+    zoom: 11
+  });
+  map.on('error', (e)=>{ log('map error: '+(e&&e.error&&e.error.message||JSON.stringify(e)), 'red'); });
+
+  let applyCount = 0;
+  const applyStandardConfig = function(){
+    applyCount++;
+    try{
+      const imports = map.getStyle().imports || [];
+      log('llamada #' + applyCount + ' — imports encontrados: ' + imports.map(i=>i.id).join(','));
+      imports.forEach(function(imp){
+        if(!imp.config){ log('  import "'+imp.id+'" NO tiene config'); return; }
+        let okCount=0, errCount=0, firstErr='';
+        Object.keys(imp.config).forEach(function(k){
+          try{ map.setConfigProperty(imp.id, k, imp.config[k]); okCount++; }
+          catch(e){ errCount++; if(!firstErr) firstErr=k+': '+e.message; }
+        });
+        log('  import "'+imp.id+'": '+okCount+' props OK, '+errCount+' con error'+(firstErr?' (primer error: '+firstErr+')':''));
+        // Verificación: leer de vuelta un valor tras el set, para ver si realmente quedó aplicado
+        try{ log('  colorLand leído tras set: ' + map.getConfigProperty(imp.id, 'colorLand')); }catch(e){ log('  getConfigProperty falló: '+e.message,'red'); }
+      });
+    }catch(e){
+      log('EXCEPTION en applyStandardConfig #' + applyCount + ': ' + e.message, 'red');
+    }
+  };
+  map.on('style.load', applyStandardConfig);
+  map.once('load', applyStandardConfig);
+  map.once('idle', applyStandardConfig);
+</script>
+</body>
+</html>

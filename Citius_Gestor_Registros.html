@@ -325,6 +325,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      recortado). overflow:visible en los 2 ejes sí evita el recorte — confirmado con Page.printToPDF que la
      dona (con min-height:0 en el padre) no empuja el alto de la columna ni cambia el conteo de páginas. */
   .mkt-box-avail{flex:1;min-height:0;display:flex;flex-direction:column;overflow:visible}
+  /* v8.12.x, pedido explícito del usuario: bajar un poco el título "Availability" (separado del resto de
+     títulos de sección, que comparten .mkt-box-title sin este margin-top extra). */
+  .mkt-box-avail .mkt-box-title{margin-top:12px}
   /* v7.3.5x: 4 -> 2px, mismo ajuste de espacio de sobra para Significant Transactions (ver .mkt-cover-main). */
   .mkt-box-absorption>div:not(.mkt-box-title){display:flex;flex-direction:column;gap:2px}
   /* Reusa resumenQuarterTableHtml()/resumenAvailabilityDonutHtml() TAL CUAL (mismo HTML que ya genera KPI's,
@@ -345,23 +348,34 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-box-avail .mkt-donut-panel{flex:1;display:flex;flex-direction:column;justify-content:center;min-height:0}
   /* v7.3.19, pedido explícito del usuario: dona de Availability más grande y gruesa (max-width 190 -> 240px
      — al ser el mismo SVG con viewBox fijo, escalarlo también engruesa el anillo proporcionalmente, sin
-     tocar el SW compartido con las 8 donas de las páginas 2/4). */
-  .mkt-box-avail .mkt-donut-svg{max-width:240px;margin:0 auto}
+     tocar el SW compartido con las 8 donas de las páginas 2/4).
+     v8.12.x, pedido explícito del usuario ("sube un poco más la gráfica y hazla más grande"): 240 -> 280px
+     (más grande) + margin-top negativo (la sube dentro de su caja centrada, .mkt-donut-panel sigue en
+     justify-content:center) -- el grosor del anillo en sí (cada rebanada "más ancha") se ajusta aparte, ver
+     el 4º argumento de mktDonutHtml() en mktBuildCoverPage(). */
+  .mkt-box-avail .mkt-donut-svg{max-width:280px;margin:-14px auto 0}
   /* v7.3.20, pedido explícito del usuario: etiquetas de la dona de Availability con letra más grande — solo
      ahí (no las 8 donas de páginas 2/4, ya muy compactas para caber en una sola hoja al imprimir). */
   .mkt-box-avail .mkt-donut-out-label,.mkt-box-avail .mkt-donut-out-pct{font-size:12px}
+  /* v8.12.x, pedido explícito del usuario: colores unificados y "un poco más oscuros" para TODOS los headers
+     de tabla y líneas divisorias del Market Report (antes cada estilo de tabla tenía su propio gris: #e6e6e6
+     en Absorption/tablas matriz, var(--panel-2) #f0f1f4 en .mkt-table/.mkt-group-row — visiblemente más claro
+     que el resto, según reportó el usuario). MKT_HEADER_BG/MKT_LINE son valores LITERALES (no se toca
+     var(--panel-2)/var(--line), que son variables GLOBALES usadas en el resto de la app, fuera del Market
+     Report) -- se definen aquí como referencia de comentario, el valor real se repite en cada regla de abajo
+     porque CSS no tiene variables locales a un bloque de comentario. MKT_HEADER_BG=#cfcfcf, MKT_LINE=#c3c6cc. */
   .mkt-table{width:100%;border-collapse:collapse;font-size:10.5px}
-  .mkt-table th{background:var(--panel-2);color:var(--muted);font-weight:700;text-transform:uppercase;
-                 font-size:9px;letter-spacing:.3px;padding:5px 6px;text-align:left;border-bottom:1px solid var(--line);line-height:1.35}
+  .mkt-table th{background:#cfcfcf;color:var(--muted);font-weight:700;text-transform:uppercase;
+                 font-size:9px;letter-spacing:.3px;padding:5px 6px;text-align:left;border-bottom:1px solid #c3c6cc;line-height:1.35}
   /* Pedido explícito del usuario: unidad de la columna (ej. "(SF)") en su propio renglón dentro del header,
      ver mktTh() — un poco más chica/menos pesada que la etiqueta para que se note que es la unidad, no una
      2da etiqueta igual de importante. */
   .mkt-th-unit{font-size:8px;font-weight:400}
-  .mkt-table td{padding:4px 6px;border-bottom:1px solid var(--line)}
+  .mkt-table td{padding:4px 6px;border-bottom:1px solid #c3c6cc}
   .mkt-table td.num-cell{text-align:right;font-variant-numeric:tabular-nums}
   .mkt-table .mkt-center{text-align:center}
   .mkt-table-plain{font-size:11px}
-  .mkt-table-plain td{border-bottom:1px dotted var(--line);padding:4.5px 0}
+  .mkt-table-plain td{border-bottom:1px dotted #c3c6cc;padding:4.5px 0}
   .mkt-table-plain tr:last-child td{border-bottom:none}
   /* v7.3.23, pedido explícito del usuario: Significant Transactions (portada) con el MISMO diseño que las
      tablas de Absorption — antes tenía su propia clase .mkt-sigtx-table con estilo distinto; ahora reusa
@@ -382,8 +396,12 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      el usuario: "el tamaño de letra... no lo veo igual" entre Market y Absorption). */
   .mkt-box .mkt-table-plain{font-size:9px}
   .mkt-box .mkt-table-plain td{padding:6px 10px}
-  .mkt-box .mkt-table-plain td:first-child{border-right:1px solid var(--line)}
+  .mkt-box .mkt-table-plain td:first-child{border-right:1px solid #c3c6cc}
   .mkt-box .mkt-table-plain tr.mkt-row-strong td{font-weight:700}
+  /* v8.12.x, pedido explícito del usuario: un poco más de espacio antes de "Inventory"/"Lease Transactions"/
+     "Land Prices Min - Max" (ver gapBefore en marketRowsHtml, mktBuildCoverPage) -- solo padding-top extra en
+     la celda, no cambia el resto del espaciado de la tabla. */
+  .mkt-box .mkt-table-plain tr.mkt-row-gap-before td{padding-top:11px}
   .mkt-label-normal{font-weight:400}
   /* Absorción (GROSS/NEGATIVE/NET) — v7.3.17/18, pedido explícito del usuario (con imagen de referencia):
      más aire que el resto de tablas compactas de .mkt-box (ver .mkt-box .mkt-table más abajo, esas siguen
@@ -423,9 +441,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      Flores") se recortaba a la mitad ("CIENEGA DE F") sin ningún aviso visual. white-space:normal deja que
      el encabezado pase a 2 líneas en vez de cortarse — las tablas de Absorption (1Q/2Q/etc., texto corto)
      no lo notan. */
-  .mkt-box .mkt-absorption-table th{background:#e6e6e6;padding:3px 8px;font-size:9.5px;color:#404040;text-align:center;white-space:normal;line-height:1.25}
+  .mkt-box .mkt-absorption-table th{background:#cfcfcf;padding:3px 8px;font-size:9.5px;color:#404040;text-align:center;white-space:normal;line-height:1.25}
   .mkt-box .mkt-absorption-table th.mkt-absorption-th-label{text-align:left}
-  .mkt-box .mkt-absorption-table td{padding:2px 8px;border-right:1px solid var(--line)}
+  .mkt-box .mkt-absorption-table td{padding:2px 8px;border-right:1px solid #c3c6cc}
   /* v7.3.5x, pedido explícito del usuario: filas un poco menos altas SOLO en las tablas "matriz" de las
      páginas 2/4 (Completed Transactions/Building Count/Building Type/Deal, Available Inventory/Class/
      Building Count/Status/Generation — ver mktMatrixTableHtml) — sin tocar las de la portada (Absorption/
@@ -458,7 +476,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      el header de columnas de la misma tabla — ahora usa exactamente la misma tipografía/color que
      `.mkt-table th` (arriba: fondo var(--panel-2), texto var(--muted), 9px) en vez de su propio fondo/tamaño/
      color (antes #eee de fondo y el color de texto por defecto, más oscuro que var(--muted)). */
-  .mkt-group-row td{background:var(--panel-2);color:var(--muted);font-weight:700;text-transform:uppercase;font-size:9px;letter-spacing:.3px}
+  .mkt-group-row td{background:#cfcfcf;color:var(--muted);font-weight:700;text-transform:uppercase;font-size:9px;letter-spacing:.3px}
   /* Bug real reportado por el usuario (con captura): Completed/Available Detail paginan en varias
      `.mkt-table` SEPARADAS (una por página, ver mktPaginateDetailPages()) — con table-layout:auto (el
      default), cada `<table>` calcula el ancho de sus columnas SOLO a partir de las filas que le tocaron a
@@ -7793,7 +7811,11 @@ function mktMatrixTableHtml(rowCategories, computeFn, opts){
   // + Total), que siguen exactamente iguales entre sí (82% -> 84%).
   const dataColPct=(84/(subs.length+1)).toFixed(3);
   const colgroupHtml=`<colgroup><col style="width:16%">${subs.map(()=>`<col style="width:${dataColPct}%">`).join("")}<col style="width:${dataColPct}%"></colgroup>`;
-  return `<table class="mkt-table mkt-absorption-table">${colgroupHtml}<thead><tr>${headerCells}</tr></thead><tbody>${bodyRows}${totalRow}</tbody></table>`;
+  // hideTotalRow (v8.12.x, pedido explícito del usuario): quita el renglón "Total" de abajo (suma de TODAS
+  // las categorías por submercado) -- Building Type y Deal lo pasan en true porque ese gran total ya se ve en
+  // la tabla "Completed Transactions" de al lado, redundante aquí. La columna "TOTAL" de la derecha (suma de
+  // CADA categoría a través de los submercados) no se toca, sigue igual en las 4 tablas.
+  return `<table class="mkt-table mkt-absorption-table">${colgroupHtml}<thead><tr>${headerCells}</tr></thead><tbody>${bodyRows}${opts.hideTotalRow?"":totalRow}</tbody></table>`;
 }
 /* Top N transacciones (por "Transaction Area") del año/filtro activo — "Significant Transactions" de la
    portada (página 1). Solo "Absorption Type"="Gross" (mismo criterio que "Lease Transactions" del KPI y
@@ -7828,27 +7850,31 @@ function mktBuildCoverPage(){
   // v7.3.14, pedido explícito del usuario: solo 3 renglones (Total Market, Vacancy Rate, Average Asking
   // Price) van en negritas — antes TODOS los valores (no las etiquetas) iban en <b>. El 3er elemento de cada
   // fila marca cuáles.
+  // v8.12.x, pedido explícito del usuario: un poco más de espacio ANTES de "Inventory", "Lease Transactions"
+  // y "Land Prices Min - Max" (4º elemento `gapBefore`) -- separa visualmente esos 3 renglones del que viene
+  // justo antes ("+ Class C", "Availability Rate", "Average Asking Price"), sin tocar el resto de la tabla.
   const marketRowsHtml=[
     ["Total Market (Class A & B Bldgs)", area(k.marketAB), true],
     ["+ Class C", area(k.marketABC), false],
-    ["Inventory", area(k.inventory), false],
+    ["Inventory", area(k.inventory), false, true],
     ["Vacancy Rate", pct(k.vacancyRate), true],
     ["Under Construction", area(k.underConstruction), false],
     ["Sublease", area(k.sublease), false],
     ["Availability", area(k.availability), false],
     ["Availability Rate", pct(k.availabilityRate), false],
-    ["Lease Transactions", area(k.leaseTx), false],
+    ["Lease Transactions", area(k.leaseTx), false, true],
     ["Average Asking Price ("+resumenAreaUnitLabel()+"/Mo)", money(k.avgAsking), true],
     // Pedido explícito del usuario: Land Price en la portada del Market Report siempre en m² — a diferencia
     // del resto de esta tabla (que sigue el selector Imperial/Metric vía resumenRateVal()), este renglón
     // ignora ese selector a propósito, así que la conversión va directo (k.landPriceMin/Max ya vienen en
     // base USD/SF, ver resumenKpis()) en vez de resumenRateVal().
-    ["Land Prices Min - Max ("+UNIT_CONVERSIONS.SF_M2.metric+")", k.landPriceMin||k.landPriceMax?`US $ ${(k.landPriceMin/UNIT_CONVERSIONS.SF_M2.toMetric).toFixed(2)} - ${(k.landPriceMax/UNIT_CONVERSIONS.SF_M2.toMetric).toFixed(2)}`:"—", false]
+    ["Land Prices Min - Max ("+UNIT_CONVERSIONS.SF_M2.metric+")", k.landPriceMin||k.landPriceMax?`US $ ${(k.landPriceMin/UNIT_CONVERSIONS.SF_M2.toMetric).toFixed(2)} - ${(k.landPriceMax/UNIT_CONVERSIONS.SF_M2.toMetric).toFixed(2)}`:"—", false, true]
   // v7.3.16, pedido explícito del usuario: dentro de "Total Market (Class A & B Bldgs)" (fila en negritas),
   // el paréntesis va en peso normal — solo "Total Market" se queda en negritas.
-  ].map(([label,value,strong])=>{
+  ].map(([label,value,strong,gapBefore])=>{
     const labelHtml=strong?escapeHtml(label).replace(/(\(.*\))/, '<span class="mkt-label-normal">$1</span>'):escapeHtml(label);
-    return `<tr class="${strong?"mkt-row-strong":""}"><td>${labelHtml}</td><td class="num-cell">${value}</td></tr>`;
+    const cls=[strong?"mkt-row-strong":"",gapBefore?"mkt-row-gap-before":""].filter(Boolean).join(" ");
+    return `<tr class="${cls}"><td>${labelHtml}</td><td class="num-cell">${value}</td></tr>`;
   }).join("");
   const sigTx=mktSignificantTransactions(4);
   const sigTxRows=sigTx.length?sigTx.map(t=>`<tr><td>${escapeHtml(t.tenant)}</td><td>${escapeHtml(t.buildingType)}</td><td>${escapeHtml(t.dealType)}</td><td class="num-cell">${num(resumenAreaVal(t.areaSF))} ${resumenAreaUnitLabel()}</td></tr>`).join("")
@@ -7897,7 +7923,7 @@ function mktBuildCoverPage(){
           </div>
           <div class="mkt-box mkt-box-avail">
             <div class="mkt-box-title">Availability</div>
-            ${mktDonutHtml("", resumenAvailabilityBySubmarket().map(d=>({label:d.submarket.toUpperCase(), value:d.value})), resumenAreaUnitLabel(), 40, 12, true)}
+            ${mktDonutHtml("", resumenAvailabilityBySubmarket().map(d=>({label:d.submarket.toUpperCase(), value:d.value})), resumenAreaUnitLabel(), 52, 12, true)}
           </div>
         </div>
         <div class="mkt-cover-col">
@@ -7950,13 +7976,13 @@ function mktBuildTxSummaryPage(){
   const typeCategories=[{key:"Inventory",label:"Inventory"},{key:"Expansion",label:"Expansion"},{key:"STS",label:"Spec to Suit"},{key:"BTS",label:"Build to Suit"}];
   const typeTable=mktMatrixTableHtml(typeCategories,
     (sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.BUILDING_TYPE,type)&&txGross(r)),
-    {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:"Building Type"});
+    {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:"Building Type", hideTotalRow:true});
   // v7.3.5x, pedido explícito del usuario: solo Lease/Sublease/Sale en vez de TODAS las categorías
   // configuradas en la lista (antes también salían Sale & Leaseback/Confidential/Renewal/etc.).
   const dealCategories=["Lease","Sublease","Sale"].map(t=>({key:t,label:t}));
   const dealTable=mktMatrixTableHtml(dealCategories,
     (sm,type)=>sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,type)&&txGross(r)),
-    {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:"Deal"});
+    {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:"Deal", hideTotalRow:true});
   const T=(state.TRANSACCIONES||[]).filter(r=>resumenMarketMatches(r,"TRANSACCIONES")&&txGross(r));
   const quarterDonutData=[1,2,3,4].map(q=>({label:"Q"+q, value:sumByPredicate(T,"TRANSACTION_AREA", r=>quarterOfDate(r.TRANSACTION_DATE)===q)}));
   const countDonutData=RESUMEN_SIZE_BUCKETS.map(b=>({label:resumenSizeBucketLabel(b), value:countByPredicate(T, r=>inSizeBucket(resumenAreaVal(areaValueInSF(r,"TRANSACTION_AREA")),b))}));
@@ -8077,7 +8103,7 @@ function mktBuildTxDetailPage(){
 function mktBuildAvailSummaryPage(){
   const isAB=r=>ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B");
   const availTable=mktMatrixTableHtml([{key:"__avail__",label:"Availability"}],
-    (sm)=>resumenAvailabilityForSubmarket(sm), {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:"Available Inventory"});
+    (sm)=>resumenAvailabilityForSubmarket(sm), {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:"Available Inventory", hideTotalRow:true});
   const classCategories=[{key:"A",label:"Class A"},{key:"B",label:"Class B"}];
   const classTable=mktMatrixTableHtml(classCategories,
     (sm,cls)=>resumenAvailabilityForSubmarket(sm, r=>ciEq(r.CLASSIFICATION,cls)), {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:"Class"});
@@ -8089,10 +8115,10 @@ function mktBuildAvailSummaryPage(){
   const statusComputeFn=(sm,status)=>status==="Under Construction"
     ? sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.STATUS,status)&&ciEq(r.MARKET_STATUS,"Available"))
     : sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.STATUS,status)&&ciEq(r.MARKET_STATUS,"Available"));
-  const statusTable=mktMatrixTableHtml(statusCategories, statusComputeFn, {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:"Status"});
+  const statusTable=mktMatrixTableHtml(statusCategories, statusComputeFn, {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:"Status", hideTotalRow:true});
   const genCategories=[{key:"New",label:"New"},{key:"2nd",label:"2nd Gen"}];
   const genTable=mktMatrixTableHtml(genCategories,
-    (sm,gen)=>resumenAvailabilityForSubmarket(sm, r=>isAB(r)&&ciEq(r.BUILDING_GENERATION,gen)), {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:"Generation"});
+    (sm,gen)=>resumenAvailabilityForSubmarket(sm, r=>isAB(r)&&ciEq(r.BUILDING_GENERATION,gen)), {isArea:true, unitSuffix:resumenAreaUnitLabel(), tableLabel:"Generation", hideTotalRow:true});
   const P=(state.PROPIEDADES||[]).filter(r=>resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.MARKET_STATUS,"Available"));
   const classDonutData=classCategories.map(c=>({label:c.label, value:resumenSubmarkets().reduce((a,sm)=>a+resumenAvailabilityForSubmarket(sm, r=>ciEq(r.CLASSIFICATION,c.key)),0)}));
   const countDonutData=bucketCategories.map(b=>({label:b.label, value:countByPredicate(P, r=>inSizeBucket(resumenAreaVal(areaValueInSF(r,"AVAILABLE_AREA_VALUE")),b.key))}));

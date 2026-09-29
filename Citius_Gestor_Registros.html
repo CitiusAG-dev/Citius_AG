@@ -1241,12 +1241,20 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      `.map-page-badge` (v4.2.2, el mapa chico de Propiedades) NO era la referencia correcta; ahora reusa la
      MISMA especificación que `.deck-header`/`.deck-logo`/`.deck-header h2` de la tabla "Building Options"
      (fila, gap 14px, ícono 34x34, texto 32px/400/#666/'Dala Moa'). */
-  .office-map-topbar{position:absolute;left:0;top:0;right:24%;height:14%;background:#fff;z-index:10;
-                      display:flex;align-items:center;gap:14px;
-                      padding:0 4%;box-sizing:border-box}
-  .office-map-logo{width:34px;height:34px;object-fit:contain;flex-shrink:0}
-  .office-map-title{margin:0;font-size:32px;font-weight:400;color:#666;font-family:'Dala Moa',Georgia,serif}
-  .office-map-canvas{position:absolute;left:0;top:14%;right:24%;bottom:0;background:#eee;z-index:0}
+  /* v8.13.x, pedido explícito del usuario (con referencia visual, "el acomodo del banner amarillo"): el
+     banner blanco ya no es una sola fila logo+título -- ahora el isotipo va SOLO arriba a la izquierda y
+     debajo una línea delgada (que arranca desde el borde izquierdo de la hoja) seguida del nombre del
+     Mercado, más grande. El banner pasa de 14% a 19% del alto, así que el mapa (y la leyenda, ver
+     .office-map-legend-inner) arrancan más abajo. Medidas tomadas por proporción sobre la referencia
+     (1054x811): banner 153px alto (19%), isotipo en x=2.8%/y=20% del banner, línea ~8% del ancho del
+     banner, título centrado a ~67% del alto del banner. */
+  .office-map-topbar{position:absolute;left:0;top:0;right:24%;height:19%;background:#fff;z-index:10;box-sizing:border-box}
+  .office-map-logo{position:absolute;left:2.8%;top:20%;width:40px;height:40px;object-fit:contain}
+  .office-map-titlerow{position:absolute;left:0;right:0;top:67%;transform:translateY(-50%);
+                        display:flex;align-items:center;gap:1.8%}
+  .office-map-titleline{flex:0 0 8%;height:1px;background:#8a8d91;margin-top:10px}
+  .office-map-title{margin:0;font-size:45px;font-weight:400;color:#666;font-family:'Dala Moa',Georgia,serif;line-height:1}
+  .office-map-canvas{position:absolute;left:0;top:19%;right:24%;bottom:0;background:#eee;z-index:0}
   /* v4.2.2, pedido explícito del usuario: "que empiecen más abajo... más abajo tipo en donde empieza el
      mapa, y con un tamaño de letra más grande". v4.2.4: 2do incremento de letra (13px/14px → 15px/17px).
      v4.2.5, bug real reportado por el usuario ("empiece un poco más arriba, a la misma altura de como
@@ -1259,7 +1267,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      SÍ se resuelve contra el alto del contenedor posicionado — en vez de padding-top en el contenedor. */
   .office-map-legend{position:absolute;right:0;top:0;bottom:0;width:24%;background:#62676b; /* v8.12.x, pedido explícito del usuario: gris en vez de amarillo (var(--accent)) */
                       color:#fff;z-index:10}
-  .office-map-legend-inner{position:absolute;left:0;right:0;top:14%;bottom:0;overflow-y:auto;
+  .office-map-legend-inner{position:absolute;left:0;right:0;top:19%;bottom:0; /* v8.13.x: 14% -> 19%, mismo alto nuevo del banner blanco */overflow-y:auto;
                             padding:20px 20px 24px;box-sizing:border-box}
   .office-map-legend-group{margin-bottom:22px}
   .office-map-legend-group:last-child{margin-bottom:0}
@@ -12716,7 +12724,7 @@ function buildOfficeMapPageHtml(grouped, unresolvedCount){
   return `<div class="deck-page map-page office-map-page">
     <div class="office-map-topbar">
       <img class="office-map-logo" src="${DECK_LOGO_SRC}" alt="Citius AG">
-      <h2 class="office-map-title">${escapeHtml(market||"Location Map")}</h2>
+      <div class="office-map-titlerow"><span class="office-map-titleline"></span><h2 class="office-map-title">${escapeHtml(market||"Location Map")}</h2></div>
     </div>
     <div class="office-map-canvas" id="officePresMapCanvas"></div>
     <div class="office-map-attribution">&copy; Mapbox &copy; OpenStreetMap contributors</div>

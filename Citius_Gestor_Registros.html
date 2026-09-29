@@ -1248,8 +1248,8 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      .office-map-legend-inner) arrancan más abajo. Medidas tomadas por proporción sobre la referencia
      (1054x811): banner 153px alto (19%), isotipo en x=2.8%/y=20% del banner, línea ~8% del ancho del
      banner, título centrado a ~67% del alto del banner. */
-  .office-map-topbar{position:absolute;left:0;top:0;right:24%;height:calc(21% - 20px);background:#fff;z-index:10;box-sizing:border-box}
-  .office-map-logo{position:absolute;left:2.8%;top:calc(20% + 4px);width:40px;height:40px;object-fit:contain}
+  .office-map-topbar{position:absolute;left:0;top:0;right:24%;height:calc(21% - 40px);background:#fff;z-index:10;box-sizing:border-box}
+  .office-map-logo{position:absolute;left:2.8%;top:calc(20% + 8px);width:40px;height:40px;object-fit:contain}
   /* v8.13.x, pedido explícito del usuario: línea + Mercado 20px más abajo (top:calc(67% + 20px)) y la línea
      pegada a la base del texto -- align-items:baseline: un flex item sin texto (la línea) toma como
      "baseline" su borde inferior, así que queda justo sobre la línea base del nombre del Mercado.
@@ -1258,12 +1258,13 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      en 2 pasos (+20px -> +10px -> 0), y otros 20px (-20px).
      Luego el banner 20px MENOS alto (calc(21% - 20px)) para darle ese espacio al mapa, sin mover isotipo
      ni línea/Mercado de donde estaban: como su `top` es % del banner, se compensa (20% de 20px = +4px en
-     el isotipo; 67% de 20px = +13.4px en la fila, -20px + 13.4px = -6.6px). */
-  .office-map-titlerow{position:absolute;left:0;right:0;top:calc(67% - 6.6px);transform:translateY(-50%);
+     el isotipo; 67% de 20px = +13.4px en la fila, -20px + 13.4px = -6.6px). Después otros 20px menos
+     (calc(21% - 40px)), mismo criterio: isotipo +8px, fila -20px + 26.8px = +6.8px. */
+  .office-map-titlerow{position:absolute;left:0;right:0;top:calc(67% + 6.8px);transform:translateY(-50%);
                         display:flex;align-items:baseline;gap:1.8%}
   .office-map-titleline{flex:0 0 11%;height:1px;background:#8a8d91}
   .office-map-title{margin:0;font-size:45px;font-weight:400;color:#666;font-family:'Dala Moa',Georgia,serif;line-height:1}
-  .office-map-canvas{position:absolute;left:0;top:calc(21% - 20px);right:24%;bottom:0;background:#eee;z-index:0}
+  .office-map-canvas{position:absolute;left:0;top:calc(21% - 40px);right:24%;bottom:0;background:#eee;z-index:0}
   /* v4.2.2, pedido explícito del usuario: "que empiecen más abajo... más abajo tipo en donde empieza el
      mapa, y con un tamaño de letra más grande". v4.2.4: 2do incremento de letra (13px/14px → 15px/17px).
      v4.2.5, bug real reportado por el usuario ("empiece un poco más arriba, a la misma altura de como
@@ -1276,7 +1277,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      SÍ se resuelve contra el alto del contenedor posicionado — en vez de padding-top en el contenedor. */
   .office-map-legend{position:absolute;right:0;top:0;bottom:0;width:24%;background:#62676b; /* v8.12.x, pedido explícito del usuario: gris en vez de amarillo (var(--accent)) */
                       color:#fff;z-index:10}
-  .office-map-legend-inner{position:absolute;left:0;right:0;top:calc(21% - 20px);bottom:0; /* v8.13.x: 14% -> 19% -> 21% -> 21%-20px, mismo alto del banner blanco */overflow-y:auto;
+  .office-map-legend-inner{position:absolute;left:0;right:0;top:calc(21% - 40px);bottom:0; /* v8.13.x: 14% -> 19% -> 21% -> 21%-20px -> 21%-40px, mismo alto del banner blanco */overflow-y:auto;
                             padding:20px 20px 24px;box-sizing:border-box}
   .office-map-legend-group{margin-bottom:22px}
   .office-map-legend-group:last-child{margin-bottom:0}

@@ -12764,18 +12764,20 @@ function officeDeckSpaceInfoRows(opt, unitPref){
   const u=unitPref==="metric"?"m²":"SF";
   // v4.4.9, pedido explícito del usuario: "Floor(s)"/"Nivel(es)" se mueve de 1er lugar a justo debajo de
   // "Delivery Condition"/"Condición de Entrega" — el resto del orden no cambia.
-  // Etiquetas actualizadas (pedido explícito del usuario, con 2 capturas de referencia en inglés/español):
-  // se homologa la REDACCIÓN a esas capturas (ej. "Net Rentable Area", "Parking Spaces", "Asking Price"),
-  // pero se mantiene el Title Case que ya usaba el resto de esta pantalla en vez de copiar el sentence case
-  // de las capturas -- así no queda una mezcla de estilos de mayúsculas dentro de la misma tarjeta. "Floor(s)"/
-  // "Nivel(es)" (la fila de abajo) NO estaba en esas capturas -- el usuario aclaró explícitamente que se
-  // queda igual, no se debía quitar solo por no aparecer ahí.
+  // Etiquetas en sentence case (pedido explícito del usuario, con 2 capturas de referencia en inglés/
+  // español, y confirmado después que TODAS las etiquetas de esta pantalla deben ir en sentence case, no
+  // solo las de esas 2 capturas) — solo la PRIMERA palabra de cada etiqueta va en mayúscula, el resto en
+  // minúscula (salvo nombres propios/unidades que ya vienen así, ej. "$/space/month"). Los VALORES que
+  // vienen de la base de datos (nombres de edificios, condición, disponibilidad, etc.) NO se tocan, se
+  // muestran tal cual están capturados -- la única excepción es Amenities (ver officeDeckSentenceCase() más
+  // abajo), pedido explícito del usuario. "Floor(s)"/"Nivel(es)" (la fila de abajo) se queda igual, el
+  // usuario aclaró explícitamente que no se debía quitar/tocar solo por no aparecer en esas capturas.
   return [
-    {label:{en:`Net Rentable Area (${u})`,es:`Área Neta Rentable (${u})`},
+    {label:{en:`Net rentable area (${u})`,es:`Área neta rentable (${u})`},
      value: officeDeckAreaText(sumSpacesAreaSF(recs,"NET_LEASABLE_AREA_VALUE"), unitPref, false)},
-    {label:{en:`Net Usable Area (${u})`,es:`Área Neta Útil (${u})`},
+    {label:{en:`Net usable area (${u})`,es:`Área neta útil (${u})`},
      value: officeDeckAreaText(sumSpacesAreaSF(recs,"NET_USEABLE_AREA_VALUE"), unitPref, false)},
-    {label:{en:"Delivery Condition",es:"Condición de Entrega"},
+    {label:{en:"Delivery condition",es:"Condición de entrega"},
      value: officeDeckPlainFmt(officePresTranslateValue("CONDITION", primary&&primary.CONDITION))},
     // v4.4.10, pedido explícito del usuario: cada piso ahora muestra su propia área entre paréntesis
     // (ej. "Nivel 7 (500), Nivel 8 (300)") — ver officeDeckFloorsWithArea(), ya no reusa
@@ -12783,45 +12785,60 @@ function officeDeckSpaceInfoRows(opt, unitPref){
     // v4.4.12, pedido explícito del usuario: la unidad se movió al TÍTULO de la fila ("Floor(s) (SF)"),
     // una sola vez, en vez de repetirse en cada piso — mismo criterio que las demás filas de área.
     {label:{en:`Floor(s) (${u})`,es:`Nivel(es) (${u})`}, value: officeDeckFloorsWithArea(recs, unitPref)||"—"},
-    {label:{en:"Parking Ratio",es:"Radio de Estacionamiento"},
+    {label:{en:"Parking ratio",es:"Radio de estacionamiento"},
      value: officeDeckPlainFmt(office&&office.PARKING_RATIO)},
-    {label:{en:"Parking Spaces",es:"Cajones Incluídos"},
+    {label:{en:"Parking spaces",es:"Cajones incluídos"},
      value: officeDeckPlainFmt(sumSpacesNumber(recs,"ASSIGNED_PARKING_SPOTS"))},
     // v8.12.x, corrección del usuario sobre el fix anterior: el campo correcto es Additional Spot Price DE
     // LA OFICINA (ADDITIONAL_SPOT_PRICE_VALUE/UNIT, ver `office` arriba), no el de Spaces -- se lee del
     // registro de Oficina, no del Space primario. Pedido explícito del usuario: vacío -> "TBC", 0 -> "No
     // disponible"/"Not available" (antes 0 se formateaba como cualquier tarifa, "US $ 0.00").
-    {label:{en:"Additional Parking ($/space/month)",es:"Costo de Cajón Adicional ($/cajón/mes)"},
+    {label:{en:"Additional parking ($/space/month)",es:"Costo de cajón adicional ($/cajón/mes)"},
      value: officeDeckRateText("OFICINAS","ADDITIONAL_SPOT_PRICE_VALUE","ADDITIONAL_SPOT_PRICE_UNIT",office,unitPref,"TBC",officePresLangPref==="es"?"No disponible":"Not available")},
     {label:{en:"Availability",es:"Disponibilidad"},
      value: officeDeckPlainFmt(officePresTranslateValue("AVAILABILITY_DELIVERY", primary&&primary.AVAILABILITY_DELIVERY))},
-    {label:{en:`Asking Price ($/${u}/month)`,es:`Precio de Renta ($/${u}/mes)`},
+    {label:{en:`Asking price ($/${u}/month)`,es:`Precio de renta ($/${u}/mes)`},
      value: officeDeckRateText("SPACES","ASKING_RATE_VALUE","ASKING_RATE_UNIT",primary,unitPref)},
     {label:{en:`Maintenance ($/${u}/month)`,es:`Mantenimiento ($/${u}/mes)`},
      value: officeDeckRateText("SPACES","COMMON_AREA_MAINTENANCE_CAM_VALUE","COMMON_AREA_MAINTENANCE_CAM_UNIT",primary,unitPref)},
   ];
 }
+// Sentence case simple, por ítem: sube la 1ra letra de cada ítem separado por coma, baja el resto --
+// pedido explícito del usuario SOLO para el valor de Amenities (ningún otro dato capturado se toca, ver
+// comentario grande en officeDeckSpaceInfoRows). Aviso: esto baja también las mayúsculas internas de un
+// acrónimo si lo hubiera en la lista (ej. "EV Charging" -> "Ev charging") -- es el resultado esperado de
+// aplicar sentence case de verdad, no un descuido; si el usuario prefiere que los acrónimos conocidos se
+// mantengan en mayúsculas habría que armar una lista de excepciones, que no se pidió.
+function officeDeckSentenceCase(text){
+  if(!text) return text;
+  return text.split(", ").map(part=>{
+    const t=part.trim();
+    return t ? t.charAt(0).toUpperCase()+t.slice(1).toLowerCase() : t;
+  }).join(", ");
+}
 function officeDeckBuildingInfoRows(office, unitPref){
   if(!office) return [];
   const u=unitPref==="metric"?"m²":"SF";
-  // Etiquetas actualizadas (pedido explícito del usuario, con 2 capturas de referencia en inglés/español) —
-  // ver el mismo comentario en officeDeckSpaceInfoRows(). "Total Levels" pasa a "Building Height (Floors)"
-  // en inglés (así aparece en la captura), pero en español se queda "Niveles Totales" (la captura en
-  // español también la deja igual) — no es un descuido, las 2 capturas simplemente no son una traducción
-  // literal palabra por palabra entre sí en esa fila puntual.
+  // Etiquetas en sentence case (pedido explícito del usuario) — ver el comentario grande en
+  // officeDeckSpaceInfoRows(). "Total Levels" pasa a "Building height (floors)" en inglés (así aparece en
+  // la captura de referencia), pero en español se queda "Niveles totales" (la captura en español también
+  // la deja igual) — no es un descuido, las 2 capturas simplemente no son una traducción literal palabra
+  // por palabra entre sí en esa fila puntual.
   return [
     {label:{en:"Developer",es:"Desarrollador"}, value: officeDeckPlainFmt(officePresTranslateValue("DEVELOPER", office.DEVELOPER))},
-    {label:{en:"Building Type",es:"Uso del Edificio"}, value: officeDeckPlainFmt(officePresTranslateValue("CATEGORY_OFFICES", office.CATEGORY_OFFICES))},
-    {label:{en:"Building Height (Floors)",es:"Niveles Totales"}, value: officeDeckPlainFmt(office.TOTAL_BUILDING_LEVELS)},
-    {label:{en:"Office Levels",es:"Niveles de Oficina"}, value: officeDeckPlainFmt(office.TOTAL_OFFICE_LEVELS)},
-    {label:{en:`Total Gross Area (${u})`,es:`Área Rentable Total (${u})`},
+    {label:{en:"Building type",es:"Uso del edificio"}, value: officeDeckPlainFmt(officePresTranslateValue("CATEGORY_OFFICES", office.CATEGORY_OFFICES))},
+    {label:{en:"Building height (floors)",es:"Niveles totales"}, value: officeDeckPlainFmt(office.TOTAL_BUILDING_LEVELS)},
+    {label:{en:"Office levels",es:"Niveles de oficina"}, value: officeDeckPlainFmt(office.TOTAL_OFFICE_LEVELS)},
+    {label:{en:`Total gross area (${u})`,es:`Área rentable total (${u})`},
      value: officeDeckUnitConvertedText("OFICINAS","LEASABLE_AREA_GLA_VALUE","LEASABLE_AREA_GLA_UNIT",office,unitPref,false)},
-    {label:{en:`Floor Plate (${u})`,es:`Planta Tipo (${u})`},
+    {label:{en:`Floor plate (${u})`,es:`Planta tipo (${u})`},
      value: officeDeckUnitConvertedText("OFICINAS","FLOOR_PLATE_VALUE","FLOOR_PLATE_UNIT",office,unitPref,false)},
     // v8.12.x, pedido explícito del usuario: si Amenities no tiene ninguna capturada, cae a Nearby Amenities
-    // (ambas son listas multi-select -- ver MULTI_LIST_FIELD_KEYS/officePresTranslateMulti).
-    {label:{en:"Amenities",es:"Amenidades"}, value: officeDeckPlainFmt(officePresTranslateMulti("OFFICE_AMENITIES", office.AMENITIES) || officePresTranslateMulti("NEARBY_AMENITIES", office.NEARBY_AMENITIES))},
-    {label:{en:"Year Built",es:"Año de Construcción"}, value: (office.YEAR_BUITL_DEVELOPED===undefined||office.YEAR_BUITL_DEVELOPED===null||office.YEAR_BUITL_DEVELOPED==="")?"—":String(office.YEAR_BUITL_DEVELOPED)},
+    // (ambas son listas multi-select -- ver MULTI_LIST_FIELD_KEYS/officePresTranslateMulti). El VALOR (no la
+    // etiqueta) pasa por officeDeckSentenceCase() -- pedido explícito del usuario, único dato capturado que
+    // se reformatea en toda esta pantalla.
+    {label:{en:"Amenities",es:"Amenidades"}, value: officeDeckPlainFmt(officeDeckSentenceCase(officePresTranslateMulti("OFFICE_AMENITIES", office.AMENITIES) || officePresTranslateMulti("NEARBY_AMENITIES", office.NEARBY_AMENITIES)))},
+    {label:{en:"Year built",es:"Año de construcción"}, value: (office.YEAR_BUITL_DEVELOPED===undefined||office.YEAR_BUITL_DEVELOPED===null||office.YEAR_BUITL_DEVELOPED==="")?"—":String(office.YEAR_BUITL_DEVELOPED)},
   ];
 }
 /* v4.4.8: ya no es una <table> (ver comentario largo en el CSS, `.office-detail-rows`) — 2 <div> en fila
@@ -12843,14 +12860,14 @@ function buildOfficeOptionDetailPageHtml(opt, idx){
     <div class="office-detail-grid">
       <div class="office-detail-photo" id="officeDetailPhoto_${idx}"><div class="image-placeholder">${noPhotoText}</div></div>
       <div>
-        <div class="office-detail-section-title">${t("Space Information","Información del Espacio")}</div>
+        <div class="office-detail-section-title">${t("Space information","Información del espacio")}</div>
         ${officeDeckInfoTableHtml(officeDeckSpaceInfoRows(opt, officePresUnitPref))}
       </div>
       <div>
         <div class="office-detail-photo office-detail-plan" id="officeDetailPlan_${idx}"><div class="image-placeholder">${noPhotoText}</div></div>
       </div>
       <div>
-        <div class="office-detail-section-title">${t("Building Information","Información del Edificio")}</div>
+        <div class="office-detail-section-title">${t("Building information","Información del edificio")}</div>
         ${officeDeckInfoTableHtml(officeDeckBuildingInfoRows(office, officePresUnitPref))}
       </div>
     </div>

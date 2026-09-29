@@ -1134,7 +1134,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      x=880px (53.3%) y la línea amarilla delgada del medio de la hoja está en y=634px (50%). Logo del cliente
      y texto se alinean a la izquierda con ese x=53.3%; el texto arranca a la altura de la línea amarilla. */
   .office-cover-logo-overlay{position:absolute;left:53.3%;top:19%;width:40%}
-  .office-cover-overlay{position:absolute;left:53.3%;top:50%;width:40%;font-family:'Unitext',sans-serif}
+  .office-cover-overlay{position:absolute;left:53.3%;top:50%;width:44%;font-family:'Unitext',sans-serif}
   /* Logo del cliente (subido en Cover Data, ver officePresCoverInfo.logo) -- tamaño tope fijo, la imagen se
      encoge para caber (object-fit:contain) sin importar qué tan grande sea la que suba el usuario; si no hay
      logo cargado este bloque ni siquiera se imprime (ver buildOfficeCoverPageHtml), el título simplemente
@@ -1142,14 +1142,20 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   /* v8.13.x, pedido explícito del usuario: el doble de tamaño (190x64 -> 380x128). processLogoImageDataUrl
      guarda hasta 900x300, así que no se pixelea. */
   .office-cover-client-logo-box{max-width:380px;max-height:128px}
-  .office-cover-client-logo-box img{max-width:100%;max-height:128px;object-fit:contain;display:block}
+  /* v8.13.x, bug real reportado por el usuario (logo no empezaba donde la esfera de Citius AG): la regla
+     general `.cover-page img{width:100%;height:100%;object-fit:cover}` (pensada para la foto de fondo) también
+     le pegaba a este <img> -- lo estiraba al ancho completo de la caja (380px) y object-fit:contain centraba el
+     logo adentro, así que cualquier logo que no fuera 3:1 quedaba corrido a la derecha. width/height:auto
+     regresa el <img> a su tamaño natural (topado por max-*) pegado a la izquierda. */
+  .office-cover-client-logo-box img{width:auto;height:auto;max-width:100%;max-height:128px;object-fit:contain;object-position:left center;display:block}
   /* Título dinámico según idioma (ver OFFICE_COVER_TITLE/officePresLangPref) -- reemplaza el "Análisis de
      Mercado"/"Market Availability" que antes venía quemado en la foto. Color claro (antes era oscuro,
      #3f4550 -- pensado para la portada VIEJA, con fondo claro ahí; el panel de esta foto es gris oscuro). */
-  /* v8.13.x, pedido explícito del usuario: 1.5x (38px -> 57px). */
-  .office-cover-title{font-family:'Dala Moa',Georgia,serif;font-size:57px;font-weight:400;color:#fff;line-height:1.1}
-  .office-cover-overlay-client{font-size:18px;font-weight:400;color:#e4e4e6;margin-top:6px}
-  .office-cover-overlay-date{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#c3c5c9;margin-top:38px}
+  /* v8.13.x, pedido explícito del usuario: 1.5x (38px -> 57px), y después +40% a título/cliente/fecha
+     (57->80, 18->25, 12->17). */
+  .office-cover-title{font-family:'Dala Moa',Georgia,serif;font-size:80px;font-weight:400;color:#fff;line-height:1.1}
+  .office-cover-overlay-client{font-size:25px;font-weight:400;color:#e4e4e6;margin-top:6px}
+  .office-cover-overlay-date{font-size:17px;letter-spacing:1px;text-transform:uppercase;color:#c3c5c9;margin-top:38px}
   /* Aviso legal, esquina inferior del panel gris -- mismo left que el resto del overlay (54%). */
   .office-cover-footer{position:absolute;left:54%;bottom:5%;font-size:11px;color:#c3c5c9;font-family:'Unitext',sans-serif}
   /* Divisor de Submercado -- v8.12.x, imagen nueva (OFICINA_SEPARADOR_NEW): el ícono amarillo y la línea

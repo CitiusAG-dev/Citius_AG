@@ -495,19 +495,11 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      Transactions / Available Inventory) — las celdas de datos NO se tocan (siguen a la izquierda, o a la
      derecha las numéricas vía .num-cell). */
   .mkt-detail-table th{position:static;text-align:center}
-  /* v8.12.x, pedido explícito del usuario: ya no hacen falta líneas entre cada renglón de datos (el
-     "interlineado" de abajo las reemplaza) -- pero el separador de Submercado conserva una línea propia.
-     Color actualizado (otra pasada, pedido explícito del usuario, "la línea... era para cada submercado"):
-     mismo color que la línea del header de la tabla (#c3c6cc, border-bottom de .mkt-table th) en vez del gris
-     más claro que tenía antes (#dfe1e5). */
-  .mkt-detail-table td{border-bottom:none}
-  .mkt-detail-table tr.mkt-group-row td{border-bottom:1px solid #c3c6cc}
-  /* "Interlineado" (v8.12.x, pedido explícito del usuario): renglón blanco / gris clarito alternados en vez
-     de líneas divisorias -- se reinicia en blanco al empezar cada Submercado (ver stripeIdx en
-     mktBuildTxDetailPage()/mktBuildAvailDetailPage()). Color actualizado (otra pasada, pedido explícito del
-     usuario) para que sea el mismo gris que usa el renglón de Submercado (.mkt-group-row, #e4e5e7) en vez de
-     su propio gris más claro (antes #f2f3f5). */
-  .mkt-detail-table tr.mkt-detail-stripe td{background:#e4e5e7}
+  /* v8.12.x, pedido explícito del usuario: se quita el "interlineado" (renglones blanco/gris alternados) --
+     todos los renglones quedan en blanco, y en su lugar CADA renglón (dato o Submercado) lleva su propia línea
+     divisoria, del mismo color que ya usa el renglón de Submercado (#c3c6cc, el mismo de border-bottom de
+     .mkt-table th -- el header general de la tabla, #cfcfcf de fondo, no cambia). */
+  .mkt-detail-table td{border-bottom:1px solid #c3c6cc}
   .mkt-empty{color:var(--muted);font-style:italic;padding:8px 0;text-align:center}
   /* v7.3.38, pedido explícito del usuario (con imagen de referencia): el header de las páginas 2-5 pasa a
      parecerse al de la portada — nombre del Mercado con la misma tipografía/tamaño que .mkt-cover-title
@@ -8104,11 +8096,6 @@ function mktBuildTxDetailPage(){
     // v7.3.5x, pedido explícito del usuario: orden Submarket (el agrupado de arriba) -> Q -> Developer
     // (antes solo por fecha completa, que ordenaba por Q pero sin desempatar por Developer dentro del
     // mismo trimestre).
-    // v8.12.x, pedido explícito del usuario: "interlineado" (renglón blanco, renglón gris clarito, blanco...)
-    // en vez de líneas divisorias entre renglones (ver .mkt-detail-stripe/.mkt-detail-table td en el CSS) --
-    // el contador se reinicia en 0 (blanco) al empezar CADA submercado nuevo, para que el primer renglón de
-    // cada grupo siempre arranque igual, sin importar cuántos renglones tuvo el submercado anterior.
-    let stripeIdx=0;
     rows.slice().sort((a,b)=>{
       const qa=quarterOfDate(a.TRANSACTION_DATE)||0, qb=quarterOfDate(b.TRANSACTION_DATE)||0;
       if(qa!==qb) return qa-qb;
@@ -8117,10 +8104,9 @@ function mktBuildTxDetailPage(){
       const areaSF=areaValueInSF(r,"TRANSACTION_AREA");
       grandTotalSF+=areaSF;
       const q=quarterOfDate(r.TRANSACTION_DATE);
-      const stripeCls=stripeIdx%2===1?" mkt-detail-stripe":""; stripeIdx++;
       // Location ahora es SOLO el Parque (igual que Available Inventory — Detail) — Property Name (el
       // edificio) ya tiene su propia columna, mostrarlo también aquí sería redundante.
-      lines.push(`<tr class="${stripeCls.trim()}"><td>${escapeHtml(r.TENANT_BUYER_USER||"Confidential")}</td><td>${escapeHtml(r.PROPERTY_NAME||"")}</td><td>${escapeHtml(r.DEVELOPER||"")}</td><td>${escapeHtml(r.PARK_NAME||"")}</td><td class="num-cell">${num(resumenAreaVal(areaSF))}</td><td>${escapeHtml(r.BUILDING_TYPE||"")}</td><td class="mkt-center">${q?q+"Q":"—"}</td><td>${escapeHtml(r.TRANSACCION_TYPE||"")}</td><td>${escapeHtml(r.TENANT_REP_BROKER||"")}</td></tr>`);
+      lines.push(`<tr><td>${escapeHtml(r.TENANT_BUYER_USER||"Confidential")}</td><td>${escapeHtml(r.PROPERTY_NAME||"")}</td><td>${escapeHtml(r.DEVELOPER||"")}</td><td>${escapeHtml(r.PARK_NAME||"")}</td><td class="num-cell">${num(resumenAreaVal(areaSF))}</td><td>${escapeHtml(r.BUILDING_TYPE||"")}</td><td class="mkt-center">${q?q+"Q":"—"}</td><td>${escapeHtml(r.TRANSACCION_TYPE||"")}</td><td>${escapeHtml(r.TENANT_REP_BROKER||"")}</td></tr>`);
     });
   });
   if(!lines.length){
@@ -8213,9 +8199,6 @@ function mktBuildAvailDetailPage(){
     // separador (colspan ahora cubre las 11 columnas completas).
     lines.push(`<tr class="mkt-group-row"><td colspan="11">▼ ${escapeHtml(sm.toUpperCase())}</td></tr>`);
     // v7.3.5x, pedido explícito del usuario: orden Submarket (el agrupado de arriba) -> Developer.
-    // v8.12.x, pedido explícito del usuario: mismo "interlineado" que Completed Transactions — Detail (ver
-    // ese comentario grande) -- se reinicia en 0 (blanco) al empezar cada submercado.
-    let stripeIdx=0;
     rows.slice().sort((a,b)=>String(a.DEVELOPER||"").localeCompare(String(b.DEVELOPER||""))).forEach(r=>{
       const availSF=areaValueInSF(r,"AVAILABLE_AREA_VALUE");
       grandTotalSF+=availSF;
@@ -8227,8 +8210,7 @@ function mktBuildAvailDetailPage(){
       // Pedido explícito del usuario: "Under Construction" se abrevia a "UC" en esta tabla (el resto de la
       // app sigue mostrando el valor completo — es solo el texto de despliegue de este reporte).
       const statusText=ciEq(r.STATUS,"Under Construction")?"UC":(r.STATUS||"—");
-      const stripeCls=stripeIdx%2===1?" mkt-detail-stripe":""; stripeIdx++;
-      lines.push(`<tr class="${stripeCls.trim()}"><td>${escapeHtml(r.PROPERTY_NAME||r.MAPPING_CODE||"")}</td><td>${escapeHtml(r.DEVELOPER||"")}</td><td>${escapeHtml(r.PARK_NAME||"")}</td>
+      lines.push(`<tr><td>${escapeHtml(r.PROPERTY_NAME||r.MAPPING_CODE||"")}</td><td>${escapeHtml(r.DEVELOPER||"")}</td><td>${escapeHtml(r.PARK_NAME||"")}</td>
         <td class="num-cell">${num(resumenAreaVal(areaValueInSF(r,"LEASABLE_AREA_GLA_VALUE")))}</td>
         <td class="num-cell">${num(resumenAreaVal(areaValueInSF(r,"OCCUPIED_AREA_VALUE")))}</td>
         <td class="num-cell">${num(resumenAreaVal(availSF))}</td>

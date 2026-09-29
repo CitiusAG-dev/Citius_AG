@@ -12542,11 +12542,11 @@ function toggleOfficeCoverEditPanel(evt){
     e.target.value="";
     if(!file) return;
     try{
-      // v8.13.x, pedido explícito del usuario: tope de 1000x1000px (antes 900x300, luego 3500x3500, luego 2000x2000) -- si la imagen es más
+      // v8.13.x, pedido explícito del usuario: tope de 300x300px (antes 900x300, luego 3500x3500, 2000x2000, 1000x1000) -- si la imagen es más
       // grande se encoge a ese tope manteniendo su proporción; si es más chica se queda tal cual. Un PNG de
       // ese tamaño puede pasarse del espacio de localStorage (~5MB): si no cabe, se avisa en vez de perderlo
       // en silencio al recargar (saveOfficePresCoverInfo regresa false).
-      officePresCoverInfo.logo=await processLogoImageDataUrl(file, 1000, 1000);
+      officePresCoverInfo.logo=await processLogoImageDataUrl(file, 300, 300);
       if(!saveOfficePresCoverInfo()) toast("The logo is too large to be saved in this browser — it will be lost when the page reloads. Try a smaller or lighter image.","err");
       renderOfficePresentationView();
       renderOfficeCoverEditLogoPreview();

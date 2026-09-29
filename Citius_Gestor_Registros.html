@@ -1397,6 +1397,35 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .office-detail-note{font-size:12px;color:var(--muted);text-align:left;margin-top:8px}
   .office-photos-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   .office-photos-grid .office-detail-photo{aspect-ratio:4/3}
+  /* v8.13.x, pedido explícito del usuario: título de las 2 hojas de Opción (detalle foto+tablas y galería
+     de 4 fotos) con el MISMO diseño que el banner blanco del Mapa (.office-map-topbar): isotipo solo arriba
+     a la izquierda y debajo línea desde el borde de la hoja + nombre de la propiedad. El Mapa usa % de su
+     propio alto (aspect-ratio fijo 1652/1269), pero estas hojas NO tienen alto fijo (lo da el contenido),
+     así que todo se expresa en función del ANCHO de la hoja con unidades de contenedor (cqw = 1% del
+     content-box de .office-detail-page, que es el ancho de la hoja menos 60px de padding): W = 100cqw + 60px.
+     Equivalencias contra el Mapa (alto de hoja = 0.768W; banner = 0.21*alto - 20px = 0.1613W - 20px;
+     isotipo left 2.8% x 76% de ancho = 0.0213W, top 20% del banner + 4px = 0.0323W; fila del título al
+     67% del banner - 6.6px = 0.1081W - 20px; línea 11% x 76% = 0.0836W; gap 1.8% x 76% = 0.0137W) --
+     así el isotipo, la línea y el título caen EXACTAMENTE en el mismo lugar que en la hoja del Mapa.
+     margin negativo = el padding de .deck-page (26px 30px), para que el banner arranque en el borde real
+     de la hoja (la línea sale desde el borde, igual que en el Mapa). */
+  .office-detail-page{container-type:inline-size}
+  .office-opt-topbar{position:relative;margin:-26px -30px 0;height:calc(16.13cqw - 10.32px)}
+  .office-opt-topbar .office-opt-logo{position:absolute;left:calc(2.128cqw + 1.28px);top:calc(3.226cqw + 1.94px);
+                                       width:40px;height:40px;object-fit:contain}
+  .office-opt-titlerow{position:absolute;left:0;right:0;top:calc(10.81cqw - 13.52px);transform:translateY(-50%);
+                        display:flex;align-items:baseline;gap:calc(1.368cqw + .82px)}
+  .office-opt-titleline{flex:0 0 calc(8.36cqw + 5.02px);height:1px;background:#8a8d91}
+  .office-opt-title{margin:0;font-size:45px;font-weight:400;color:#666;font-family:'Dala Moa',Georgia,serif;line-height:1;
+                     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  /* v8.13.x, mismo pedido: el banner nuevo es más alto que el .deck-header de antes, así que para que las
+     2 hojas no crezcan (su alto lo da el contenido y define el tamaño de hoja al imprimir, grupo
+     "tablePage"), las fotos pasan de 4:3 a 600/405 -- la proporción REAL con la que se guardan las fotos
+     (PHOTO_TARGET_W/H y el override de OFICINAS 900x608, ver photoTargetFor), así que además ya no se
+     recorta nada arriba/abajo con object-fit:cover. El hueco vertical de la grilla de detalle baja 24 -> 12px. */
+  .office-detail-grid{row-gap:12px}
+  .office-detail-photo{aspect-ratio:600/405}
+  .office-photos-grid .office-detail-photo{aspect-ratio:600/405}
   .map-pin{background:#e03131;width:26px;height:26px;border-radius:50% 50% 50% 0;border:2px solid #fff;
            transform:rotate(-45deg);box-shadow:0 2px 5px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center}
   .map-pin a{transform:rotate(45deg);color:#fff;font-weight:700;font-size:11px;font-family:'Unitext',sans-serif;text-decoration:none}
@@ -13069,7 +13098,7 @@ function buildOfficeOptionDetailPageHtml(opt, idx){
   const t=(en,es)=>officePresLangPref==="es"?es:en;
   const noPhotoText=t("No photo","Sin foto");
   return `<div class="deck-page office-detail-page">
-    <div class="deck-header"><img class="deck-logo" src="${DECK_LOGO_SRC}"><h2>${idx+1}. ${escapeHtml(info.buildings||"")}</h2></div>
+    <div class="office-opt-topbar"><img class="office-opt-logo" src="${DECK_LOGO_SRC}" alt="Citius AG"><div class="office-opt-titlerow"><span class="office-opt-titleline"></span><h2 class="office-opt-title">${idx+1}. ${escapeHtml(info.buildings||"")}</h2></div></div>
     <div class="office-detail-grid">
       <div class="office-detail-photo" id="officeDetailPhoto_${idx}"><div class="image-placeholder">${noPhotoText}</div></div>
       <div>
@@ -13099,7 +13128,7 @@ function buildOfficeOptionPhotosPageHtml(opt, idx){
   const t=(en,es)=>officePresLangPref==="es"?es:en;
   const noPhotoText=t("No photo","Sin foto");
   let html=`<div class="deck-page office-detail-page">
-    <div class="deck-header"><img class="deck-logo" src="${DECK_LOGO_SRC}"><h2>${idx+1}. ${escapeHtml(info.buildings||"")}</h2></div>
+    <div class="office-opt-topbar"><img class="office-opt-logo" src="${DECK_LOGO_SRC}" alt="Citius AG"><div class="office-opt-titlerow"><span class="office-opt-titleline"></span><h2 class="office-opt-title">${idx+1}. ${escapeHtml(info.buildings||"")}</h2></div></div>
     <div class="office-photos-grid">`;
   for(let s=0;s<4;s++) html+=`<div class="office-detail-photo" id="officePhotosSlot_${idx}_${s}"><div class="image-placeholder">${noPhotoText}</div></div>`;
   html+=`</div></div>`;

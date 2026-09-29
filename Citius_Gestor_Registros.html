@@ -477,8 +477,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      `.mkt-table th` (arriba: fondo var(--panel-2), texto var(--muted), 9px) en vez de su propio fondo/tamaño/
      color (antes #eee de fondo y el color de texto por defecto, más oscuro que var(--muted)). Luego, pedido
      explícito del usuario: fondo más claro que el de los headers de columna (#cfcfcf) y color de letra igual
-     al de esos headers (#404040) en vez de var(--muted). */
-  .mkt-group-row td{background:#e4e5e7;color:#404040;font-weight:700;text-transform:uppercase;font-size:9px;letter-spacing:.3px}
+     al de esos headers (#404040) en vez de var(--muted). Fondo actualizado otra vez (pedido explícito del
+     usuario) a blanco. */
+  .mkt-group-row td{background:#fff;color:#404040;font-weight:700;text-transform:uppercase;font-size:9px;letter-spacing:.3px}
   /* Bug real reportado por el usuario (con captura): Completed/Available Detail paginan en varias
      `.mkt-table` SEPARADAS (una por página, ver mktPaginateDetailPages()) — con table-layout:auto (el
      default), cada `<table>` calcula el ancho de sus columnas SOLO a partir de las filas que le tocaron a
@@ -489,19 +490,18 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      ancho en TODAS las páginas, sin importar su contenido — el texto
      que no quepa se envuelve a una 2da línea (comportamiento normal de <td>, nunca se activó un
      white-space:nowrap aquí) en vez de forzar el ancho de su columna hacia arriba. */
-  /* v8.12.x, pedido explícito del usuario: línea inferior a lo ancho de toda la tabla (cada página de detalle
-     es su propia <table>, ver mktPaginateDetailPages()), mismo color que la línea del header (#c3c6cc,
-     border-bottom de .mkt-table th más abajo). */
-  .mkt-detail-table{font-size:10px;table-layout:fixed;border-bottom:1px solid #c3c6cc}
+  .mkt-detail-table{font-size:10px;table-layout:fixed}
   /* v7.3.5x, pedido explícito del usuario: headers centrados en las tablas de detalle (Completed
      Transactions / Available Inventory) — las celdas de datos NO se tocan (siguen a la izquierda, o a la
      derecha las numéricas vía .num-cell). */
   .mkt-detail-table th{position:static;text-align:center}
   /* v8.12.x, pedido explícito del usuario: ya no hacen falta líneas entre cada renglón de datos (el
-     "interlineado" de abajo las reemplaza) -- pero el separador de Submercado conserva una línea propia, más
-     clara que el gris general de líneas divisorias del resto del reporte (#c3c6cc). */
+     "interlineado" de abajo las reemplaza) -- pero el separador de Submercado conserva una línea propia.
+     Color actualizado (otra pasada, pedido explícito del usuario, "la línea... era para cada submercado"):
+     mismo color que la línea del header de la tabla (#c3c6cc, border-bottom de .mkt-table th) en vez del gris
+     más claro que tenía antes (#dfe1e5). */
   .mkt-detail-table td{border-bottom:none}
-  .mkt-detail-table tr.mkt-group-row td{border-bottom:1px solid #dfe1e5}
+  .mkt-detail-table tr.mkt-group-row td{border-bottom:1px solid #c3c6cc}
   /* "Interlineado" (v8.12.x, pedido explícito del usuario): renglón blanco / gris clarito alternados en vez
      de líneas divisorias -- se reinicia en blanco al empezar cada Submercado (ver stripeIdx en
      mktBuildTxDetailPage()/mktBuildAvailDetailPage()). Color actualizado (otra pasada, pedido explícito del

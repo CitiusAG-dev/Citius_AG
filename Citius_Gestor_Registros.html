@@ -12682,10 +12682,24 @@ function sumSpacesNumber(recs, key){ let t=0; recs.forEach(r=>{ const n=Number(r
    ("Floor(s) (SF)"/"Nivel(es) (SF)", ver officeDeckSpaceInfoRows) en vez de repetida en cada piso — mismo
    criterio que ya se aplicó a Net Leasable/Useable Area y Total Rentable Area/Typical Floor Plate en
    v4.4.11 (`includeUnit=false`, agregado ahí mismo a officeDeckAreaText). */
+/* v8.12.x, pedido explícito del usuario: "PB" (Planta Baja) se traduce a "GF" (Ground Floor) SOLO cuando el
+   deck está en inglés -- en español se deja "PB" tal cual, es el mismo idioma. */
+function officeDeckFloorLabel(floor){
+  if(officePresLangPref!=="es" && ciEq(floor,"PB")) return "GF";
+  return floor;
+}
+/* v8.12.x, pedido explícito del usuario: si la Opción es un solo Space (individual), el área entre paréntesis
+   ya no se muestra (queda redundante con "Net Leasable Area" arriba, que para 1 solo Space es ese mismo
+   número) -- si es un grupo de 2+ Spaces, sí se muestra por piso como antes (necesario ahí para poder
+   distinguir cuánto aporta cada uno al total). */
 function officeDeckFloorsWithArea(recs, unitPref){
   if(!recs.length) return "";
+  if(recs.length===1){
+    const floor=officeDeckFloorLabel(recs[0].LEVEL_FLOOR);
+    return (floor!=null && floor!=="") ? String(floor) : "";
+  }
   return recs.map(r=>{
-    const floor=r.LEVEL_FLOOR;
+    const floor=officeDeckFloorLabel(r.LEVEL_FLOOR);
     const areaText=officeDeckAreaText(areaValueInSF(r,"NET_LEASABLE_AREA_VALUE"), unitPref, false);
     return (floor!=null && floor!=="") ? `${floor} (${areaText})` : areaText;
   }).join(", ");
@@ -12726,8 +12740,13 @@ function officeDeckUnitConvertedText(ent, valueKey, unitKey, rec, unitPref, incl
    Propiedades para sus filas "RATE" (presValueFor): 2 decimales siempre, prefijo "MX $"/"US $" según la
    moneda real capturada (presCurrencyPrefix, agnóstica de entidad), convertido a la unidad de área elegida
    (convertCellForView ya sabe convertir la lista CON_COMERCIAL, ej. "MXN/SF" <-> "MXN/m²"). */
-function officeDeckRateText(ent, valueKey, unitKey, rec, unitPref){
-  if(!rec || rec[valueKey]==null || rec[valueKey]==="") return "—";
+/* emptyText/zeroText (opcionales, v8.12.x, pedido explícito del usuario para "Additional Spot Cost"): por
+   default se comportan igual que antes ("—" en vacío, cero se formatea como cualquier tarifa normal) -- solo
+   Additional Spot Cost los pasa distintos (vacío -> "TBC", 0 -> "No disponible"/"Not available"), Asking
+   Rent/Maintenance no cambian. */
+function officeDeckRateText(ent, valueKey, unitKey, rec, unitPref, emptyText, zeroText){
+  if(!rec || rec[valueKey]==null || rec[valueKey]==="") return emptyText!==undefined?emptyText:"—";
+  if(zeroText!=null && Number(rec[valueKey])===0) return zeroText;
   const conv=convertCellForView(ent, valueKey, unitKey, rec[valueKey], rec[unitKey], unitPref);
   // v4.4.11, pedido explícito del usuario ("MX $ 4.18" -> "MX $4.18"): presCurrencyPrefix() regresa el
   // prefijo con un espacio final ("MX $ "/"US $ ") — es una función AGNÓSTICA DE ENTIDAD, compartida con
@@ -12762,8 +12781,13 @@ function officeDeckSpaceInfoRows(opt, unitPref){
      value: officeDeckPlainFmt(office&&office.PARKING_RATIO)},
     {label:{en:"Included Parking Spots",es:"Cajones Incluidos"},
      value: officeDeckPlainFmt(sumSpacesNumber(recs,"ASSIGNED_PARKING_SPOTS"))},
+    // v8.12.x, fix real (la clave estaba mal desde siempre -- ADDITIONAL_SPOT_PRICE_VALUE/UNIT son de
+    // Oficinas, no de Spaces, así que esta fila SIEMPRE mostraba "—" sin importar lo capturado; el campo real
+    // en Spaces es MAINTENANCE_ADDITIONAL_SPOT_PRICE_VALUE/UNIT). Pedido explícito del usuario, además:
+    // vacío -> "TBC", 0 -> "No disponible"/"Not available" (antes 0 se formateaba como cualquier tarifa,
+    // "US $ 0.00").
     {label:{en:"Additional Spot Cost ($/spot/month)",es:"Costo de Cajón Adicional ($/cajón/mes)"},
-     value: officeDeckRateText("SPACES","ADDITIONAL_SPOT_PRICE_VALUE","ADDITIONAL_SPOT_PRICE_UNIT",primary,unitPref)},
+     value: officeDeckRateText("SPACES","MAINTENANCE_ADDITIONAL_SPOT_PRICE_VALUE","MAINTENANCE_ADDITIONAL_SPOT_PRICE_UNIT",primary,unitPref,"TBC",officePresLangPref==="es"?"No disponible":"Not available")},
     {label:{en:"Availability",es:"Disponibilidad"},
      value: officeDeckPlainFmt(officePresTranslateValue("AVAILABILITY_DELIVERY", primary&&primary.AVAILABILITY_DELIVERY))},
     {label:{en:`Asking Rent ($/${u}/month)`,es:`Precio de Renta ($/${u}/mes)`},
@@ -12784,7 +12808,9 @@ function officeDeckBuildingInfoRows(office, unitPref){
      value: officeDeckUnitConvertedText("OFICINAS","LEASABLE_AREA_GLA_VALUE","LEASABLE_AREA_GLA_UNIT",office,unitPref,false)},
     {label:{en:`Typical Floor Plate (${u})`,es:`Planta Tipo (${u})`},
      value: officeDeckUnitConvertedText("OFICINAS","FLOOR_PLATE_VALUE","FLOOR_PLATE_UNIT",office,unitPref,false)},
-    {label:{en:"Amenities",es:"Amenidades"}, value: officeDeckPlainFmt(officePresTranslateMulti("OFFICE_AMENITIES", office.AMENITIES))},
+    // v8.12.x, pedido explícito del usuario: si Amenities no tiene ninguna capturada, cae a Nearby Amenities
+    // (ambas son listas multi-select -- ver MULTI_LIST_FIELD_KEYS/officePresTranslateMulti).
+    {label:{en:"Amenities",es:"Amenidades"}, value: officeDeckPlainFmt(officePresTranslateMulti("OFFICE_AMENITIES", office.AMENITIES) || officePresTranslateMulti("NEARBY_AMENITIES", office.NEARBY_AMENITIES))},
     {label:{en:"Year Built",es:"Año de Construcción"}, value: (office.YEAR_BUITL_DEVELOPED===undefined||office.YEAR_BUITL_DEVELOPED===null||office.YEAR_BUITL_DEVELOPED==="")?"—":String(office.YEAR_BUITL_DEVELOPED)},
   ];
 }

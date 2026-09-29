@@ -12483,7 +12483,7 @@ function loadOfficePresCoverInfo(){
   try{ const s=localStorage.getItem(OFFICE_PRES_COVER_KEY); if(s) return {...defaults, ...JSON.parse(s)}; }catch(e){}
   return defaults;
 }
-function saveOfficePresCoverInfo(){ try{ localStorage.setItem(OFFICE_PRES_COVER_KEY, JSON.stringify(officePresCoverInfo)); }catch(e){} }
+function saveOfficePresCoverInfo(){ try{ localStorage.setItem(OFFICE_PRES_COVER_KEY, JSON.stringify(officePresCoverInfo)); return true; }catch(e){ return false; } }
 let officePresCoverInfo=loadOfficePresCoverInfo();
 function closeOfficeCoverEditPanel(){
   const el=document.getElementById("officeCoverEditPanel");
@@ -12540,8 +12540,12 @@ function toggleOfficeCoverEditPanel(evt){
     e.target.value="";
     if(!file) return;
     try{
-      officePresCoverInfo.logo=await processLogoImageDataUrl(file, 900, 300);
-      saveOfficePresCoverInfo();
+      // v8.13.x, pedido explícito del usuario: tope de 3500x3500px (antes 900x300) -- si la imagen es más
+      // grande se encoge a ese tope manteniendo su proporción; si es más chica se queda tal cual. Un PNG de
+      // ese tamaño puede pasarse del espacio de localStorage (~5MB): si no cabe, se avisa en vez de perderlo
+      // en silencio al recargar (saveOfficePresCoverInfo regresa false).
+      officePresCoverInfo.logo=await processLogoImageDataUrl(file, 3500, 3500);
+      if(!saveOfficePresCoverInfo()) toast("The logo is too large to be saved in this browser — it will be lost when the page reloads. Try a smaller or lighter image.","err");
       renderOfficePresentationView();
       renderOfficeCoverEditLogoPreview();
     }catch(err){ toast("Couldn't process the logo image: "+err.message,"err"); }

@@ -8893,23 +8893,26 @@ function recomputeOfficeDerivedFields(office){
   office.OCCUPIED_AREA_UNIT=targetUnit;
 }
 function recomputeAllOfficeDerivedFields(){ (state.OFICINAS||[]).forEach(recomputeOfficeDerivedFields); }
-/* Spaces (v8.10.x, pedido explícito del usuario): "Assigned Parking Spots" pasa a ser CALCULADO -- Net
-   Leasable Area (convertida a m², ver officeAreaValueToSF/PARKING_RATIO abajo) × Parking Ratio, redondeado a
-   un entero (Parking Ratio está en "#/m²", ver fieldLabel PARKING_RATIO -- así que hace falta el área en m²
-   para que la multiplicación tenga sentido, sin importar en qué unidad se haya capturado Net Leasable Area de
-   ESTE Space en particular). Usa el Parking Ratio propio del Space (SPACE_AUTOFILL_PREFILL_KEYS lo prellena
-   desde la Oficina al elegirla, pero es editable por Space después y nunca se vuelve a sincronizar solo -- ver
-   ese comentario), no el de la Oficina. VIP_PARKING_SPOTS/POOL_SPOTS no se tocan, siguen siendo captura
-   manual -- no se pidió calcularlos. */
+/* Spaces (v8.10.x, corregido en v8.12.x a pedido explícito del usuario): "Assigned Parking Spots" pasa a ser
+   CALCULADO -- Net Leasable Area (convertida a m², ver officeAreaValueToSF abajo) ÷ Parking Ratio, redondeado
+   a un entero. v8.12.x: la fórmula original (área × ratio) era incorrecta -- Parking Ratio es "m² por cajón",
+   así que hay que DIVIDIR el área entre el ratio para obtener el número de cajones, no multiplicar. El área
+   sigue convirtiéndose a m² primero (sin importar en qué unidad se haya capturado Net Leasable Area de ESTE
+   Space en particular) para que la división tenga sentido. Usa el Parking Ratio propio del Space
+   (SPACE_AUTOFILL_PREFILL_KEYS lo prellena desde la Oficina al elegirla, pero es editable por Space después y
+   nunca se vuelve a sincronizar solo -- ver ese comentario), no el de la Oficina. VIP_PARKING_SPOTS/
+   POOL_SPOTS no se tocan, siguen siendo captura manual -- no se pidió calcularlos. */
 const SPACES_COMPUTED_FIELD_KEYS = new Set(["ASSIGNED_PARKING_SPOTS"]);
 function recomputeSpaceDerivedFields(space){
   const ratio=Number(space.PARKING_RATIO);
-  const hasRatio = space.PARKING_RATIO!=null && space.PARKING_RATIO!=="" && !isNaN(ratio);
+  // v8.12.x: ratio>0 explícito (no solo !isNaN) -- un Ratio de 0 dividiría el área entre 0 (Infinity), que no
+  // tiene sentido como cantidad de cajones; se trata igual que "sin ratio capturado".
+  const hasRatio = space.PARKING_RATIO!=null && space.PARKING_RATIO!=="" && !isNaN(ratio) && ratio>0;
   const areaSF=officeAreaValueToSF(space.NET_LEASABLE_AREA_VALUE, space.NET_LEASABLE_AREA_UNIT);
   const hasArea = space.NET_LEASABLE_AREA_VALUE!=null && space.NET_LEASABLE_AREA_VALUE!=="";
   if(hasRatio && hasArea){
     const areaM2=areaSF*UNIT_CONVERSIONS.SF_M2.toMetric;
-    space.ASSIGNED_PARKING_SPOTS=Math.round(areaM2*ratio);
+    space.ASSIGNED_PARKING_SPOTS=Math.round(areaM2/ratio);
   } else {
     space.ASSIGNED_PARKING_SPOTS="";
   }

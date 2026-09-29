@@ -1423,9 +1423,25 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      "tablePage"), las fotos pasan de 4:3 a 600/405 -- la proporción REAL con la que se guardan las fotos
      (PHOTO_TARGET_W/H y el override de OFICINAS 900x608, ver photoTargetFor), así que además ya no se
      recorta nada arriba/abajo con object-fit:cover. El hueco vertical de la grilla de detalle baja 24 -> 12px. */
-  .office-detail-grid{row-gap:12px}
-  .office-detail-photo{aspect-ratio:600/405}
-  .office-photos-grid .office-detail-photo{aspect-ratio:600/405}
+  /* v8.13.x, bug real reportado por el usuario (con capturas del PDF: isotipo/línea de estas hojas corridos
+     a la derecha vs. el Separador): estas hojas tenían alto libre (lo daba el contenido, ~10.4in con el
+     banner nuevo) mientras Portada/Mapa/Separador miden 1652/1269 (9.44in) -- al imprimir, Chrome terminó
+     poniéndolas en la hoja del tamaño de la Portada y ENCOGIÓ todo su contenido (~90%) para que cupiera,
+     centrado, lo que dejaba un margen blanco a la izquierda (ya pasaba antes con ~3% y no se notaba). Fix:
+     las 2 hojas de Opción ahora tienen EXACTAMENTE la misma proporción que las demás (aspect-ratio
+     1652/1269) y su contenido se reparte adentro: banner fijo arriba, grilla con flex:1 y 2 filas iguales,
+     fotos llenando su celda (object-fit:cover, ya no aspect-ratio propio) y la nota al pie. */
+  .deck-page.office-detail-page{aspect-ratio:1652/1269;display:flex;flex-direction:column;overflow:hidden}
+  .office-opt-topbar{flex:0 0 auto}
+  .office-detail-page .office-detail-grid{flex:1;min-height:0;grid-template-rows:minmax(0,1fr) minmax(0,1fr);row-gap:12px;margin-bottom:0}
+  .office-detail-grid>div{min-height:0}
+  .office-detail-grid .office-detail-photo{aspect-ratio:auto;height:100%}
+  .office-detail-note{flex:0 0 auto}
+  .office-detail-page .office-photos-grid{flex:1;min-height:0;grid-template-rows:minmax(0,1fr) minmax(0,1fr)}
+  .office-photos-grid .office-detail-photo{aspect-ratio:auto;height:100%}
+  /* Mismo fix: con la hoja a alto fijo, la tabla de "Space information" (10 renglones) ya no cabía en su
+     mitad de la grilla con 7px de padding por renglón -- baja a 4px (la letra se queda en 15px). */
+  .office-detail-page .office-detail-row{padding:4px 0}
   .map-pin{background:#e03131;width:26px;height:26px;border-radius:50% 50% 50% 0;border:2px solid #fff;
            transform:rotate(-45deg);box-shadow:0 2px 5px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center}
   .map-pin a{transform:rotate(45deg);color:#fff;font-weight:700;font-size:11px;font-family:'Unitext',sans-serif;text-decoration:none}

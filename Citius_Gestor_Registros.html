@@ -12781,13 +12781,12 @@ function officeDeckSpaceInfoRows(opt, unitPref){
      value: officeDeckPlainFmt(office&&office.PARKING_RATIO)},
     {label:{en:"Included Parking Spots",es:"Cajones Incluidos"},
      value: officeDeckPlainFmt(sumSpacesNumber(recs,"ASSIGNED_PARKING_SPOTS"))},
-    // v8.12.x, fix real (la clave estaba mal desde siempre -- ADDITIONAL_SPOT_PRICE_VALUE/UNIT son de
-    // Oficinas, no de Spaces, así que esta fila SIEMPRE mostraba "—" sin importar lo capturado; el campo real
-    // en Spaces es MAINTENANCE_ADDITIONAL_SPOT_PRICE_VALUE/UNIT). Pedido explícito del usuario, además:
-    // vacío -> "TBC", 0 -> "No disponible"/"Not available" (antes 0 se formateaba como cualquier tarifa,
-    // "US $ 0.00").
+    // v8.12.x, corrección del usuario sobre el fix anterior: el campo correcto es Additional Spot Price DE
+    // LA OFICINA (ADDITIONAL_SPOT_PRICE_VALUE/UNIT, ver `office` arriba), no el de Spaces -- se lee del
+    // registro de Oficina, no del Space primario. Pedido explícito del usuario: vacío -> "TBC", 0 -> "No
+    // disponible"/"Not available" (antes 0 se formateaba como cualquier tarifa, "US $ 0.00").
     {label:{en:"Additional Spot Cost ($/spot/month)",es:"Costo de Cajón Adicional ($/cajón/mes)"},
-     value: officeDeckRateText("SPACES","MAINTENANCE_ADDITIONAL_SPOT_PRICE_VALUE","MAINTENANCE_ADDITIONAL_SPOT_PRICE_UNIT",primary,unitPref,"TBC",officePresLangPref==="es"?"No disponible":"Not available")},
+     value: officeDeckRateText("OFICINAS","ADDITIONAL_SPOT_PRICE_VALUE","ADDITIONAL_SPOT_PRICE_UNIT",office,unitPref,"TBC",officePresLangPref==="es"?"No disponible":"Not available")},
     {label:{en:"Availability",es:"Disponibilidad"},
      value: officeDeckPlainFmt(officePresTranslateValue("AVAILABILITY_DELIVERY", primary&&primary.AVAILABILITY_DELIVERY))},
     {label:{en:`Asking Rent ($/${u}/month)`,es:`Precio de Renta ($/${u}/mes)`},

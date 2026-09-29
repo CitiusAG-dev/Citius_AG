@@ -11371,15 +11371,41 @@ function getOrderedLandPresentationList(){
    mismo edificio ofrecidos como un solo paquete de 1,200 m²) o agregados individualmente (1 Opción por
    Space — ej. 5 pisos de 300 m² cada uno en el mismo edificio, ofrecidos como 5 opciones separadas, NUNCA
    sumados automáticamente). Esa decisión nunca es automática por edificio — confirmado explícitamente por
-   el usuario. `officePresOptions` (las Opciones ya armadas) y `officeSpaceStaging` viven solo en memoria:
-   pedido explícito del usuario, "no necesita guardarse" — no hay localStorage aquí, a propósito, a
-   diferencia de PRES_ORDER_KEY/LAND_PRES_ORDER_KEY.
-   La Etapa 2 (diseño/generación del deck en sí, formato aún por confirmar contra la referencia de Citius AG)
-   consumirá `officePresOptions` — cada Opción ya trae todo lo necesario (los Space __id incluidos), así que
-   no debería requerir cambios a esta Etapa 1. */
-let officeSpaceStaging=[]; // Space __id marcados, pendientes de convertirse en Opción(es)
-let officePresOptions=[]; // {id, spaceIds:[...]} — 1 spaceId = Opción individual; 2+ = Opción agrupada
-let officeOptionIdSeq=1;
+   el usuario.
+   v8.12.x, pedido explícito del usuario (reversa de la decisión original de arriba): "se me borra la
+   selección de Spaces al actualizar el explorador" -- `officePresOptions`/`officeSpaceStaging`/
+   `officeSubmarketOrder` pasan a persistirse en localStorage (OFFICE_PRES_STAGING_KEY), mismo criterio que
+   PRES_ORDER_KEY/LAND_PRES_ORDER_KEY, que sí sobreviven un refresh. `officeOptionIdSeq` se guarda junto para
+   que un ID nuevo nunca choque con uno ya restaurado. La Etapa 2 (diseño/generación del deck en sí)
+   consume `officePresOptions` — cada Opción ya trae todo lo necesario (los Space __id incluidos), así que
+   no requiere cambios por esto. */
+const OFFICE_PRES_STAGING_KEY="citius_office_pres_staging_v1";
+function loadOfficePresStagingState(){
+  try{
+    const s=localStorage.getItem(OFFICE_PRES_STAGING_KEY);
+    if(s){
+      const d=JSON.parse(s);
+      return {
+        staging: Array.isArray(d.staging)?d.staging:[],
+        options: Array.isArray(d.options)?d.options:[],
+        submarketOrder: Array.isArray(d.submarketOrder)?d.submarketOrder:[],
+        optionIdSeq: typeof d.optionIdSeq==="number"?d.optionIdSeq:1
+      };
+    }
+  }catch(e){}
+  return {staging:[], options:[], submarketOrder:[], optionIdSeq:1};
+}
+function saveOfficePresStagingState(){
+  try{
+    localStorage.setItem(OFFICE_PRES_STAGING_KEY, JSON.stringify({
+      staging:officeSpaceStaging, options:officePresOptions, submarketOrder:officeSubmarketOrder, optionIdSeq:officeOptionIdSeq
+    }));
+  }catch(e){}
+}
+const officePresStagingInit=loadOfficePresStagingState();
+let officeSpaceStaging=officePresStagingInit.staging; // Space __id marcados, pendientes de convertirse en Opción(es)
+let officePresOptions=officePresStagingInit.options; // {id, spaceIds:[...]} — 1 spaceId = Opción individual; 2+ = Opción agrupada
+let officeOptionIdSeq=officePresStagingInit.optionIdSeq;
 /* v_pendiente, pedido explícito del usuario (con captura: el panel de Opciones y la numeración del mapa/
    páginas del deck no coincidían) — las Opciones ahora se agrupan SIEMPRE por Submarket, en vez de vivir en
    una sola lista plana en el orden en que se fueron agregando. `officeSubmarketOrder` es el orden de los
@@ -11391,7 +11417,7 @@ let officeOptionIdSeq=1;
    Opción dentro de otro grupo). orderedOfficePresOptions() es la ÚNICA fuente de verdad para cualquier
    numeración (panel, mapa, páginas del deck) — nunca se debe volver a iterar `officePresOptions` crudo donde
    el orden/número importe. */
-let officeSubmarketOrder=[];
+let officeSubmarketOrder=officePresStagingInit.submarketOrder;
 function officeOptionSubmarketKey(opt){ return officeOptionSubmarket(opt)||"(No Submarket)"; }
 /* Si el conjunto de Submarkets presentes cambió (una Opción nueva trajo un Submarket que no había, o se quitó
    el último de alguno), se recalcula TODO el orden de grupos alfabético desde cero — pedido explícito del
@@ -11402,7 +11428,13 @@ function syncOfficeSubmarketOrder(){
   const current=[...new Set(officePresOptions.map(officeOptionSubmarketKey))];
   const currentSet=new Set(current);
   const sameSet=officeSubmarketOrder.length===current.length && officeSubmarketOrder.every(sm=>currentSet.has(sm));
-  if(!sameSet) officeSubmarketOrder=current.sort((a,b)=>a.localeCompare(b,"es"));
+  if(!sameSet){
+    officeSubmarketOrder=current.sort((a,b)=>a.localeCompare(b,"es"));
+    // Este recálculo corre DESPUÉS del saveOfficePresStagingState() explícito de quien haya llamado a
+    // orderedOfficePresOptions() (cambió officeSubmarketOrder recién aquí) -- se guarda de nuevo para que ese
+    // valor actualizado también sobreviva un refresh, no solo staging/options.
+    saveOfficePresStagingState();
+  }
 }
 /* Opciones en el orden de despliegue real (agrupadas por Submarket, en el orden de officeSubmarketOrder;
    dentro de cada grupo, en el orden relativo que ya tengan en officePresOptions) — usar esto, nunca
@@ -11414,6 +11446,7 @@ function orderedOfficePresOptions(){
 function toggleOfficeSpaceStaging(id, checked){
   if(checked){ if(!officeSpaceStaging.includes(id)) officeSpaceStaging.push(id); }
   else officeSpaceStaging=officeSpaceStaging.filter(x=>x!==id);
+  saveOfficePresStagingState();
   renderTable();
 }
 function toggleSelectAllOfficeSpaceStaging(checked){
@@ -11424,10 +11457,12 @@ function toggleSelectAllOfficeSpaceStaging(checked){
     const idsToRemove=new Set(rows.map(r=>r.__id));
     officeSpaceStaging=officeSpaceStaging.filter(id=>!idsToRemove.has(id));
   }
+  saveOfficePresStagingState();
   renderTable();
 }
 function clearAllOfficeSpaceStaging(){
   officeSpaceStaging=[];
+  saveOfficePresStagingState();
   renderTable();
 }
 /* Bug real reportado por el usuario: nada impedía marcar pisos de Oficinas (edificios/torres) DISTINTAS y
@@ -11450,6 +11485,7 @@ function groupOfficeStagingAsOption(){
   if(officeSpaceStaging.length<2 || !officeStagingIsSingleOffice()) return;
   officePresOptions.push({id:"opt"+(officeOptionIdSeq++), spaceIds:[...officeSpaceStaging]});
   officeSpaceStaging=[];
+  saveOfficePresStagingState();
   renderTable();
 }
 /* Un click crea 1 Opción POR CADA Space marcado — para "varios pisos, cada uno ofrecido por separado, sin
@@ -11458,10 +11494,12 @@ function addOfficeStagingIndividually(){
   if(!officeSpaceStaging.length) return;
   officeSpaceStaging.forEach(id=>{ officePresOptions.push({id:"opt"+(officeOptionIdSeq++), spaceIds:[id]}); });
   officeSpaceStaging=[];
+  saveOfficePresStagingState();
   renderTable();
 }
 function removeOfficePresOption(id){
   officePresOptions=officePresOptions.filter(o=>o.id!==id);
+  saveOfficePresStagingState();
   renderOfficeOptionsPanel();
   renderTable();
   // v4.2.0: si se quita una Opción mientras se está viendo el deck de Oficinas (no la tabla de Spaces),
@@ -11582,6 +11620,7 @@ function officeSubmarketGroupDrop(e, sm){
   if(fromIdx<0) return;
   officeSubmarketOrder.splice(fromIdx,1);
   officeSubmarketOrder.splice(officeSubmarketOrder.indexOf(sm),0,dragged);
+  saveOfficePresStagingState();
   renderOfficeOptionsPanel("officeOptionsList");
   if(officePresentationViewActive) renderOfficePresentationView();
 }
@@ -11599,6 +11638,7 @@ function officeOptionDrop(e, optId){
   if(officeOptionSubmarketKey(officePresOptions[movedIdx])!==officeOptionSubmarketKey(officePresOptions[targetIdx])) return;
   const [moved]=officePresOptions.splice(movedIdx,1);
   officePresOptions.splice(officePresOptions.findIndex(o=>o.id===optId),0,moved);
+  saveOfficePresStagingState();
   renderOfficeOptionsPanel("officeOptionsList");
   if(officePresentationViewActive) renderOfficePresentationView();
 }

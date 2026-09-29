@@ -592,8 +592,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      (220 -> 140px) a pedido explícito del usuario ("un poco más pequeña"). SW/margin-top negativo escalan
      de vuelta a juego.
      v7.3.5x (otra pasada): 15% más grande (140 -> 161px), pedido explícito del usuario.
-     v7.3.5x (otra pasada): 10% más grande todavía (161 -> 177px), pedido explícito del usuario. */
-  .mkt-donut-svg{width:100%;max-width:177px;overflow:visible;margin-top:-18px}
+     v7.3.5x (otra pasada): 10% más grande todavía (161 -> 177px), pedido explícito del usuario.
+     v8.12.x (otra pasada, "esas gráficas quiero que sean más anchas"): 177 -> 205px, dentro del límite de
+     ~235px de ancho de columna real a tamaño de impresión medido en la pasada de arriba. */
+  .mkt-donut-svg{width:100%;max-width:205px;overflow:visible;margin-top:-18px}
   /* v7.3.5x: la leyenda ya NO ocupa el ancho completo del panel (antes 100% vía bloque normal) — un
      max-width propio + margin auto la centra dentro de su panel, dejando aire real a los lados sin importar
      el ancho que le toque al panel (que crece con el ancho de la página) — esto es lo que de verdad resuelve
@@ -7598,14 +7600,19 @@ function mktMeasureTextWidth(text, fontPx, weight){
    proporción real, sin fusionar nada en "Others" — también confirmado). Solo Availability lo usa (6to
    argumento opcional `legendBelow`); las 8 donas compactas de páginas 2/4 siguen con etiquetas junto al
    anillo, sin cambio. */
-function mktDonutHtml(title, data, unitLabel, strokeWidth, labelFontSize, legendBelow, sliceOutline){
+// v8.12.x, pedido explícito del usuario: las 8 donas de Completed Transactions/Available Inventory (Quarter/
+// Size/Type/Deal y Class/Size/Status/Generation) usan su PROPIA paleta de 6 colores, en este orden, en vez de
+// la paleta de 14 colores de marca CAG (MKT_DONUT_COLORS, que sigue siendo la de Availability en portada) --
+// 8vo argumento opcional `colors`, ninguna llamada existente lo pasa así que no cambian.
+const MKT_DONUT_COLORS_TXAVAIL=["#efb222","#f08e1c","#c15953","#8e6085","#1f7bbc","#83a047"];
+function mktDonutHtml(title, data, unitLabel, strokeWidth, labelFontSize, legendBelow, sliceOutline, colors){
   const fmt=v=>Math.round(v).toLocaleString("en-US");
   const filtered=data.filter(d=>d.value>0);
   const total=filtered.reduce((a,d)=>a+d.value,0);
   if(!filtered.length||total<=0){
     return `<div class="mkt-donut-panel"><div class="mkt-donut-title">${escapeHtml(title)}</div><p class="mkt-donut-empty">No data.</p></div>`;
   }
-  const slices=filtered.map((d,i)=>({...d, color:mktDonutColorForIndex(i)}));
+  const slices=filtered.map((d,i)=>({...d, color:colors?colors[i%colors.length]:mktDonutColorForIndex(i)}));
   // v7.3.20, pedido explícito del usuario ("más gordita"): SW (grosor del anillo) ahora es un 4to argumento
   // opcional, default 28 (el mismo de siempre, para las 8 donas de las páginas 2/4 — a ese tamaño más chico,
   // un anillo más grueso se vería desproporcionado). Solo Availability (portada) pasa un valor mayor.
@@ -8015,13 +8022,13 @@ function mktBuildTxSummaryPage(){
            v7.3.5x, pedido explícito del usuario (con zoom a 400%, notó el contorno gris de cada slice —
            al revés que la portada, que NO lo tiene): sliceOutline (7mo argumento) pasa a false. -->
       <div class="mkt-donut-row">
-        ${mktDonutHtml("Quarter", quarterDonutData, resumenAreaUnitLabel(), 48, undefined, true, false)}
+        ${mktDonutHtml("Quarter", quarterDonutData, resumenAreaUnitLabel(), 48, undefined, true, false, MKT_DONUT_COLORS_TXAVAIL)}
         <!-- v7.3.5x, pedido explícito del usuario: título de esta dona "Count" -> "Size" (sus categorías
              son rangos de tamaño, bucketCategories — el título de la tabla arriba se queda igual,
              "Building Count", solo se renombra la dona). -->
-        ${mktDonutHtml("Size", countDonutData, "", 48, undefined, true, false)}
-        ${mktDonutHtml("Type", typeDonutData, resumenAreaUnitLabel(), 48, undefined, true, false)}
-        ${mktDonutHtml("Deal", dealDonutData, resumenAreaUnitLabel(), 48, undefined, true, false)}
+        ${mktDonutHtml("Size", countDonutData, "", 48, undefined, true, false, MKT_DONUT_COLORS_TXAVAIL)}
+        ${mktDonutHtml("Type", typeDonutData, resumenAreaUnitLabel(), 48, undefined, true, false, MKT_DONUT_COLORS_TXAVAIL)}
+        ${mktDonutHtml("Deal", dealDonutData, resumenAreaUnitLabel(), 48, undefined, true, false, MKT_DONUT_COLORS_TXAVAIL)}
       </div>
     </div>
   </div>`;
@@ -8155,12 +8162,12 @@ function mktBuildAvailSummaryPage(){
       <div class="mkt-box">${statusTable}</div>
       <div class="mkt-box">${genTable}</div>
       <div class="mkt-donut-row">
-        ${mktDonutHtml("Class", classDonutData, resumenAreaUnitLabel(), 48, undefined, true, false)}
+        ${mktDonutHtml("Class", classDonutData, resumenAreaUnitLabel(), 48, undefined, true, false, MKT_DONUT_COLORS_TXAVAIL)}
         <!-- v7.3.5x, pedido explícito del usuario: título de esta dona "Count" -> "Size" (mismo criterio
              que la de Completed Transactions, sus categorías también son rangos de tamaño). -->
-        ${mktDonutHtml("Size", countDonutData, "", 48, undefined, true, false)}
-        ${mktDonutHtml("Status", statusDonutData, resumenAreaUnitLabel(), 48, undefined, true, false)}
-        ${mktDonutHtml("Generation", genDonutData, resumenAreaUnitLabel(), 48, undefined, true, false)}
+        ${mktDonutHtml("Size", countDonutData, "", 48, undefined, true, false, MKT_DONUT_COLORS_TXAVAIL)}
+        ${mktDonutHtml("Status", statusDonutData, resumenAreaUnitLabel(), 48, undefined, true, false, MKT_DONUT_COLORS_TXAVAIL)}
+        ${mktDonutHtml("Generation", genDonutData, resumenAreaUnitLabel(), 48, undefined, true, false, MKT_DONUT_COLORS_TXAVAIL)}
       </div>
     </div>
   </div>`;

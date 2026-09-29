@@ -2128,7 +2128,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.12.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.13.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -4926,6 +4926,13 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.13.0", date:"2026-09-29", items:[
+    "Office Presentation: the selected Spaces/Options no longer get erased when the browser is refreshed.",
+    "Spaces: \"Assigned Parking Spots\" now divides Net Leasable Area by Parking Ratio (was multiplying), rounded to a whole number, and recalculates live as you type instead of only after Save.",
+    "Office Presentation, Building/Space Information: Amenities falls back to Nearby Amenities when empty; \"PB\" floor label translates to \"GF\" in English decks; the per-space area shown in parentheses under Floor(s) is now hidden for a single-space Option (still shown for a grouped Option); Additional Spot Cost now shows \"TBC\" when empty and \"No disponible\"/\"Not available\" when 0, reading the Office's own Additional Spot Price field.",
+    "Office Presentation: redesigned cover and divider pages -- new cover photo/separator image, repositioned client name, cover title now set automatically by language (\"Market Availability\"/\"Análisis de Mercado\"), a new Client Logo upload field (JPEG/PNG, auto-resized to fit), and the map page's side panel changed from yellow to gray.",
+    "Market Report: extensive styling pass -- more spacing between cover KPI rows, darker/unified header and divider-line colors across the whole report, a bigger/repositioned Availability donut on the cover, removed redundant Total rows from the Completed Transactions and Available Inventory summary tables, unified submarket group-row color, wider donut slices, a dedicated 6-color palette for the 8 Completed Transactions/Available Inventory donuts (now also wider), solid table dividing lines, and the detail tables' submarket row now uses the same light gray as the Total row with a divider line under every row (zebra striping removed); the donut % labels now match the tables' text color instead of a bluish tone."
+  ]},
   {version:"8.12.0", date:"2026-09-28", items:[
     "Fixed: Transactions' record form could collapse its 3 fixed tabs (Trans. Details/Property/Econ. Terms) into fewer, wrongly-merged tabs -- caused by a global section-rename tracker misinterpreting normal reorganization of OTHER entities' field groups (e.g. Spaces) as a rename that also applied to Transactions' fixed tabs.",
     "Fixed: the 4 hidden Location ID fields (Region/State/Market/Submarket ID) no longer count toward \"% Complete\", the pending-fields badge, or the \"still missing required fields\" save warning, for any entity -- they're calculated automatically against the Location catalog and can silently stay empty if a linked record's own IDs were never backfilled, with no way for the user to see or fix that from the record form.",

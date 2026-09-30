@@ -4051,9 +4051,10 @@ function recomputeTransactionsForLinkedRecord(ent, rec, previousCode){
 }
 function syncAllTransactionsFromLinked(){
   if(consolidatedMode){ toast("Not available in consolidated mode","err"); return; }
-  let touched=0, notFound=0, scanned=0;
-  (state.TRANSACCIONES||[]).forEach(t=>{
-    if(!String(t.MAPPING_CODE||"").trim()) return;
+  let touched=0, notFound=0, scanned=0, noCode=0;
+  const all=state.TRANSACCIONES||[];
+  all.forEach(t=>{
+    if(!String(t.MAPPING_CODE||"").trim()){ noCode++; return; }
     scanned++;
     const src=transactionLinkedRecord(t);
     if(!src){ notFound++; return; }
@@ -4061,7 +4062,11 @@ function syncAllTransactionsFromLinked(){
   });
   if(touched) saveState();
   renderTable();
-  const msg=`${touched} of ${scanned} transaction(s) updated.`+(notFound?` ${notFound} have a Mapping Code that doesn't exist in their linked table (marked in red, left as is).`:"");
+  // v8.14.x: el mensaje ahora parte del TOTAL de transacciones (antes solo contaba las que tenían Mapping
+  // Code, y el usuario lo leyó como si fuera el total del archivo).
+  const msg=`${all.length} transaction(s) in total: ${touched} updated, ${scanned-touched-notFound} already up to date`
+    +(notFound?`, ${notFound} with a Mapping Code that doesn't exist in their linked table (marked in red, left as is)`:"")
+    +(noCode?`, ${noCode} without a Mapping Code (nothing to sync from)`:"")+".";
   const resultEl=document.getElementById("syncTransactionsResult");
   if(resultEl) resultEl.textContent=msg;
   toast(msg, touched?"ok":"");

@@ -2244,7 +2244,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.13.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.14.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -5042,6 +5042,14 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.14.0", date:"2026-09-30", items:[
+    "Table column filters: Date fields now have their own filter instead of the text \"Contains\" box -- quick presets (This month, Last month, Last 12 months, This year, Last year), a From/To range with the browser's calendar picker, and an Excel-style Year > Month checklist with record counts.",
+    "Office Presentation, cover: client logo aligned with the Citius AG isotype and always shown at a fixed 250px (uploads are resized to at most 250x250px, keeping proportions; a warning appears if the logo is too large to be saved in the browser); title, client name and date enlarged and repositioned at the height of the yellow line.",
+    "Office Presentation, map page: new header layout -- isotype alone at the top left, with a thin line from the page edge followed by the market name underneath; the map area starts higher.",
+    "Office Presentation, divider page: the background image was replaced by the same layout drawn directly (isotype in the same spot as the map page + line + submarket name, larger).",
+    "Office Presentation, Option pages (detail and 4-photo gallery): same header design as the map page, showing the property name; photos now use their real saved proportion (no more top/bottom cropping of the photo boxes).",
+    "Fixed: when printing the Office Presentation, the Option pages came out slightly shrunk and off-center (a white margin on the left) -- they now have exactly the same page proportion as the cover, map and divider pages.",
+  ]},
   {version:"8.13.0", date:"2026-09-29", items:[
     "Office Presentation: the selected Spaces/Options no longer get erased when the browser is refreshed.",
     "Spaces: \"Assigned Parking Spots\" now divides Net Leasable Area by Parking Ratio (was multiplying), rounded to a whole number, and recalculates live as you type instead of only after Save.",

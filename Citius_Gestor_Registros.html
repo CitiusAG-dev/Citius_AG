@@ -4024,6 +4024,10 @@ function transactionLinkedRecord(t){
 function syncTransactionFields(t, src, cfg){
   let changed=false;
   const set=(k,v)=>{ v=v==null?"":v; if(String(t[k]==null?"":t[k])!==String(v)){ t[k]=v; changed=true; } };
+  // v8.14.x, caso real del usuario: "ERy0027\n" (carga histórica) enlazaba con el Building "ERY0027" (el match
+  // ignora mayúsculas/espacios) pero quedaba escrito distinto -- para el BI y el resto de la app son llaves
+  // diferentes. Se deja el Mapping Code EXACTO del registro enlazado.
+  if(src.MAPPING_CODE!=null && String(src.MAPPING_CODE).trim()) set("MAPPING_CODE", String(src.MAPPING_CODE).trim());
   TRANS_SYNC_KEYS.forEach(destKey=>{
     const srcKey=cfg && Object.prototype.hasOwnProperty.call(cfg.fieldMap,destKey) ? cfg.fieldMap[destKey] : destKey;
     set(destKey, srcKey ? src[srcKey] : "");

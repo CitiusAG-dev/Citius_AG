@@ -1927,6 +1927,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      borde+sombra rojos que .field-error además del fondo rojo clarito que ya tenía, para que se vea igual
      de "pendiente" que un campo vacío. */
   .field-value-mismatch{background-color:rgba(226,72,61,.14)!important;border-color:var(--red)!important;box-shadow:0 0 0 1px var(--red)}
+  .field-mismatch-note{color:var(--red);font-weight:600;font-size:11px;margin-left:4px} /* v8.14.x: Mapping Code de Transacción sin registro enlazado */
   .view-val{width:100%;padding:8px 10px;background:var(--panel-2);border:1px solid transparent;
             border-radius:8px;color:var(--txt);font-size:13px;min-height:35px;display:flex;align-items:center}
   .field .vu-group{display:flex;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;overflow:hidden}
@@ -2633,6 +2634,14 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
               <button class="btn ghost" id="recalcGeoIdsBtn">Fill in Location IDs…</button>
             </div>
             <p class="map-hint" id="recalcGeoIdsResult"></p>
+          </div>
+          <div class="files-card">
+            <h5>Sync Transactions from their linked records</h5>
+            <p class="map-hint">Copies Property Name, Developer, Park Name and Region/State/Market/Submarket from each transaction's linked Building/Park/Land/Office (by Mapping Code) — useful after loading historical transactions directly in Excel. Transaction Type, Listing Broker and Broker Building are left untouched (they reflect the moment of the transaction). This already happens automatically every time you save a Building/Park/Land/Office.</p>
+            <div class="settings-actions">
+              <button class="btn ghost" id="syncTransactionsBtn">Sync Transactions…</button>
+            </div>
+            <p class="map-hint" id="syncTransactionsResult"></p>
           </div>
           <div class="files-card">
             <h5>Update Location catalog (one-time migration)</h5>
@@ -3969,6 +3978,94 @@ function autofillSpaceFromMappingCode(inputEl){
    necesario para encontrar los Spaces que quedaron enlazados con el código VIEJO si el Mapping Code de la
    Oficina cambió — si no se buscara por el código viejo, esos Spaces quedarían huérfanos (su Mapping Code ya
    no calza con ninguna Oficina real) en vez de seguir la Oficina a su nuevo código. */
+/* ==== Transacciones <-> registro enlazado (v8.14.x, pedido explícito del usuario) ====
+   Al cargar transacciones históricas directo en el Excel, había Mapping Codes que ya no existen en la tabla
+   enlazada (Buildings/Parks/Land/Offices, según la Categoría — ver TRANS_CATEGORY_LINK) y el sistema no lo
+   marcaba porque el campo tenía texto. 2 cosas:
+   (1) Validación: fieldValueMismatch() marca MAPPING_CODE de Transacciones cuando el código no existe en la
+       tabla de su Categoría (sin Categoría capturada: cuando no existe en NINGUNA de las 4) — mismo
+       tratamiento que un valor fuera de lista (borde rojo + cuenta como pendiente, sin bloquear guardar).
+   (2) Sincronización: al guardar un Building/Park/Land/Office se actualizan solos los datos DESCRIPTIVOS de
+       sus transacciones (TRANS_SYNC_KEYS + Región/Estado/Mercado/Submercado y sus IDs ocultos). Confirmado con
+       el usuario: Transaction Type, Listing Broker y Broker Building NO se sincronizan -- reflejan el momento
+       de la transacción (histórico), no el estado actual del inmueble. Además, un botón de una sola vez en
+       Configuración (syncAllTransactionsFromLinked) para ponerse al día con las transacciones ya capturadas. */
+const TRANS_SYNC_KEYS=["PROPERTY_NAME","DEVELOPER","PARK_NAME"];
+function transCategoryCfgFor(rec){
+  const cat=rec && rec.PROPERTY_TYPE;
+  if(!cat) return null;
+  const k=Object.keys(TRANS_CATEGORY_LINK).find(k=>ciEq(k,cat));
+  return k ? TRANS_CATEGORY_LINK[k] : null;
+}
+const TRANS_LINK_ENTS=["PROPIEDADES","PARKS","LAND","OFICINAS"];
+// Índice código -> registro por entidad, cacheado (completionStats/fieldValueMismatch corren por CADA fila en
+// cada render). Se invalida solo: por referencia/tamaño del arreglo (cargar un Excel lo reemplaza) y por
+// linkedCodeIndexVersion, que saveState() incrementa en cada guardado (un código editado en su lugar).
+let linkedCodeIndexVersion=0;
+const linkedCodeIndexCache={};
+function linkedCodeIndex(ent){
+  const arr=state[ent]||[];
+  const c=linkedCodeIndexCache[ent];
+  if(c && c.arr===arr && c.len===arr.length && c.ver===linkedCodeIndexVersion) return c.map;
+  const map=new Map();
+  arr.forEach(r=>{ const code=String(r.MAPPING_CODE==null?"":r.MAPPING_CODE).trim().toLowerCase(); if(code && !map.has(code)) map.set(code,r); });
+  linkedCodeIndexCache[ent]={arr, len:arr.length, ver:linkedCodeIndexVersion, map};
+  return map;
+}
+function transactionLinkedRecord(t){
+  const code=String(t && t.MAPPING_CODE!=null ? t.MAPPING_CODE : "").trim().toLowerCase();
+  if(!code) return null;
+  const cfg=transCategoryCfgFor(t);
+  if(cfg) return linkedCodeIndex(cfg.ent).get(code)||null;
+  for(const ent of TRANS_LINK_ENTS){ const r=linkedCodeIndex(ent).get(code); if(r) return r; }
+  return null;
+}
+// Copia los datos descriptivos de `src` a la transacción `t`; regresa true si algo cambió.
+function syncTransactionFields(t, src, cfg){
+  let changed=false;
+  const set=(k,v)=>{ v=v==null?"":v; if(String(t[k]==null?"":t[k])!==String(v)){ t[k]=v; changed=true; } };
+  TRANS_SYNC_KEYS.forEach(destKey=>{
+    const srcKey=cfg && Object.prototype.hasOwnProperty.call(cfg.fieldMap,destKey) ? cfg.fieldMap[destKey] : destKey;
+    set(destKey, srcKey ? src[srcKey] : "");
+  });
+  CASCADE_ORDER.forEach(key=>{ set(key, src[key]); const idKey=CASCADE_ID_KEY[key]; if(idKey) set(idKey, src[idKey]); });
+  return changed;
+}
+// Al guardar un registro de `ent`: refresca TODAS las transacciones enlazadas a él (por su código anterior,
+// por si el Mapping Code cambió en este guardado — mismo criterio que recomputeAllSpaceLinkedFields).
+function recomputeTransactionsForLinkedRecord(ent, rec, previousCode){
+  const newCode=String(rec.MAPPING_CODE||"").trim();
+  const oldCode=previousCode!=null && String(previousCode).trim() ? String(previousCode).trim() : newCode;
+  if(!oldCode) return 0;
+  let n=0;
+  (state.TRANSACCIONES||[]).forEach(t=>{
+    if(!ciEq(String(t.MAPPING_CODE||"").trim(), oldCode)) return;
+    const cfg=transCategoryCfgFor(t);
+    if(cfg ? cfg.ent!==ent : false) return;
+    let changed=false;
+    if(newCode && newCode!==oldCode){ t.MAPPING_CODE=newCode; changed=true; }
+    if(syncTransactionFields(t, rec, cfg)) changed=true;
+    if(changed){ t.LAST_MODIFIED=new Date().toISOString(); n++; }
+  });
+  return n;
+}
+function syncAllTransactionsFromLinked(){
+  if(consolidatedMode){ toast("Not available in consolidated mode","err"); return; }
+  let touched=0, notFound=0, scanned=0;
+  (state.TRANSACCIONES||[]).forEach(t=>{
+    if(!String(t.MAPPING_CODE||"").trim()) return;
+    scanned++;
+    const src=transactionLinkedRecord(t);
+    if(!src){ notFound++; return; }
+    if(syncTransactionFields(t, src, transCategoryCfgFor(t))){ t.LAST_MODIFIED=new Date().toISOString(); touched++; }
+  });
+  if(touched) saveState();
+  renderTable();
+  const msg=`${touched} of ${scanned} transaction(s) updated.`+(notFound?` ${notFound} have a Mapping Code that doesn't exist in their linked table (marked in red, left as is).`:"");
+  const resultEl=document.getElementById("syncTransactionsResult");
+  if(resultEl) resultEl.textContent=msg;
+  toast(msg, touched?"ok":"");
+}
 function recomputeAllSpaceLinkedFields(office, previousMappingCode){
   const newCode=String(office.MAPPING_CODE||"").trim();
   const oldCode=previousMappingCode!=null?String(previousMappingCode).trim():newCode;
@@ -4701,6 +4798,7 @@ function loadState(){
 function saveState(){
   if(consolidatedMode) return; // defensa adicional: en modo consolidado nunca se persiste ni se escribe a disco
   invalidateSubmarketToMarketCache(); // el guardado pudo cambiar SUBMARKET/MARKET de algún registro
+  linkedCodeIndexVersion++; // idem para un Mapping Code editado (ver linkedCodeIndex)
   try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
   catch(e){ mem=state; } // crash backup
   // v6.5.10: Terrenos ya no tiene un archivo/writer aparte (ver el comentario grande donde vivía
@@ -6155,7 +6253,11 @@ function completionStats(ent, rec){
      estuviera. Ahora reusa photoMissingCount(), la misma lógica ya correcta que usa la pestaña Fotografía
      de la ficha (single source of truth, evita que se desincronicen otra vez). */
   if(trackPhoto && photoMissingCount(ent,rec)===0) filled++;
-  return {filled, total, pct:Math.round(filled/total*100)};
+  // v8.14.x, pedido explícito del usuario: un Mapping Code de Transacción que no existe en su tabla enlazada
+  // cuenta como pendiente aunque el campo NO esté marcado obligatorio en Configuración (si lo está, ya se
+  // cuenta arriba vía fieldValueMismatch).
+  const extra=transactionInvalidCodePending(ent, rec, req);
+  return {filled, total:total+extra, pct:Math.round(filled/(total+extra)*100)};
 }
 function completionPill(stats){
   if(!stats) return '<span class="pill completion gray">—</span>';
@@ -9389,8 +9491,17 @@ function pairFieldsByUnit(list){
    (no está en la lista)" en rojo que ya se ve en el formulario) — antes esos campos no sumaban aquí aunque
    se vieran marcados como error. Requiere `ent` (antes no lo recibía) porque fieldValueMismatch() lo
    necesita para resolver listas en cascada. */
+/* 1 si `rec` es una Transacción con Mapping Code capturado que no existe en su tabla enlazada y ese campo NO
+   está ya entre los obligatorios contados (`reqFields`) — ver completionStats/countMissingRequired. */
+function transactionInvalidCodePending(ent, rec, reqFields){
+  if(ent!=="TRANSACCIONES" || !rec) return 0;
+  if(reqFields && reqFields.some(f=>f.key==="MAPPING_CODE")) return 0;
+  const f=fields(ent).find(f=>f.key==="MAPPING_CODE");
+  return f && fieldValueMismatch(ent,f,rec) ? 1 : 0;
+}
 function countMissingRequired(ent, groupFields, record){
   let n=0;
+  if(groupFields.some(f=>f.key==="MAPPING_CODE")) n+=transactionInvalidCodePending(ent, record, groupFields.filter(isRealRequiredField));
   groupFields.forEach(f=>{
     if(!isRealRequiredField(f)) return;
     const v=record ? record[f.key] : undefined;
@@ -9429,6 +9540,8 @@ function isValidNumberString(v){ return /^-?\d*\.?\d+$/.test(String(v).trim().re
 function fieldValueMismatch(ent, f, record){
   const raw=record&&record[f.key]!=null?String(record[f.key]):"";
   if(!raw) return false;
+  // v8.14.x: Mapping Code de una Transacción que no existe en la tabla enlazada (ver transactionLinkedRecord).
+  if(ent==="TRANSACCIONES" && f.key==="MAPPING_CODE") return !!raw.trim() && !transactionLinkedRecord(record);
   if(CASCADE_ORDER.includes(f.key) && cascadeCatalog.length){
     const parentKey=cascadeParentKeyFor(ent,f.key);
     const parentValue=parentKey&&record?String(record[parentKey]||""):"";
@@ -9730,9 +9843,12 @@ function buildForm(ent, record){
       const linkCfg=TRANS_CATEGORY_LINK[category];
       const btnLabel=isOffices?"Select Floors…":(linkCfg?linkCfg.label:"Select…");
       const btnOnclick=isOffices?"openSpacesPickerForTransaction()":"openLinkedRecordPickerForTransaction()";
+      // v8.14.x: borde rojo + aviso si el código no existe en la tabla enlazada (ver transactionLinkedRecord).
+      const codeMissing=fieldValueMismatch(ent,f,record);
+      const linkName=linkCfg?linkCfg.label.replace(/^Select\s*/,"").replace(/…$/,"")+"s":"Buildings/Parks/Land/Offices";
       return `<div class="field field-recordpicker"><label>&nbsp;</label><button type="button" class="btn ghost" onclick="${btnOnclick}">${btnLabel}</button></div>
-        <div class="field"><label>${fieldLabel(f.key)}${reqMark}${helpIcon}</label>
-        <input type="text" data-key="${f.key}" value="${val}" readonly></div>`;
+        <div class="field"><label>${fieldLabel(f.key)}${reqMark}${helpIcon}${codeMissing?` <span class="field-mismatch-note">*Pending* (not found in ${escapeHtml(linkName)})</span>`:""}</label>
+        <input type="text" data-key="${f.key}" value="${val}" readonly${codeMissing?' class="field-value-mismatch" title="This Mapping Code does not exist in the linked table — use the Select button to link an existing record"':""}></div>`;
     }
     /* Floors/Spaces elegidos (v3.51.9) — de solo lectura, se llena SOLO desde openSpacesPickerForTransaction()
        (selección múltiple), nunca a mano. Solo aparece para categoría Offices (ver TRANSACCION_FIELDS_OFFICE),
@@ -14734,6 +14850,12 @@ function doSaveRecord(){
   // recomputeSpaceDerivedFields(rec) recalcula el Assigned Parking Spots de ESTE Space (ver
   // SPACES_COMPUTED_FIELD_KEYS) -- su propio Leasable Area/Parking Ratio pudieron cambiar en este guardado.
   else if(current==="SPACES"){ recomputeSpaceDerivedFields(rec); recomputeAllOfficeDerivedFields(); }
+  // v8.14.x: datos descriptivos de las Transacciones enlazadas a este Building/Park/Land/Office (ver
+  // recomputeTransactionsForLinkedRecord). editingOriginalPhotoId aún trae el Mapping Code anterior aquí.
+  if(TRANS_LINK_ENTS.includes(current)){
+    const nTrans=recomputeTransactionsForLinkedRecord(current, rec, PHOTO_ID_FIELD[current]==="MAPPING_CODE"?editingOriginalPhotoId:null);
+    if(nTrans) toast(`${nTrans} linked transaction(s) updated.`,"ok");
+  }
   const photoIdKey=PHOTO_ID_FIELD[current];
   if(photoIdKey && editingOriginalPhotoId && rec[photoIdKey] && rec[photoIdKey]!==editingOriginalPhotoId){
     renameImageFile(current, editingOriginalPhotoId, rec[photoIdKey]);
@@ -16299,6 +16421,7 @@ document.getElementById("unlinkFileBtn").onclick=async()=>{
   toast("Data Excel unlinked and local data erased.","ok");
 };
 document.getElementById("recalcGeoIdsBtn").onclick=recalcAllGeoIds;
+document.getElementById("syncTransactionsBtn").onclick=syncAllTransactionsFromLinked;
 document.getElementById("migrateLocationCatalogBtn").onclick=async()=>{
   if(!FSA){ toast("Your browser doesn't support this. Use Chrome or Edge.","err"); return; }
   try{

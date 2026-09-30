@@ -2125,6 +2125,23 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .col-filter-selectall{border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:4px}
   .col-filter-list{display:flex;flex-direction:column;max-height:220px;overflow-y:auto}
   .col-filter-empty{color:var(--muted);font-size:12px;padding:8px 2px}
+  /* Filtro de columna tipo Fecha (v8.13.x) -- ver renderColFilterDateBody. */
+  .col-filter-date{display:flex;flex-direction:column;gap:10px}
+  .col-filter-date-presets{display:flex;flex-wrap:wrap;gap:5px}
+  .col-filter-chip{border:1px solid var(--line);background:var(--panel-2);color:var(--txt);border-radius:999px;
+                   padding:3px 9px;font-size:11.5px;cursor:pointer}
+  .col-filter-chip:hover{border-color:var(--accent);background:rgba(240,179,35,.14)}
+  .col-filter-range.col-filter-date-range{flex-direction:row}
+  .col-filter-range.col-filter-date-range label{flex:1;min-width:0}
+  .col-filter-range.col-filter-date-range input{width:100%;box-sizing:border-box;padding:6px 7px;font-family:inherit}
+  .col-filter-date-sep{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);
+                       border-top:1px solid var(--line);padding-top:10px}
+  .col-filter-date .col-filter-selectall{margin-top:-4px}
+  .col-filter-date-year{display:flex;align-items:center;gap:2px}
+  .col-filter-date-year .col-filter-item{flex:1}
+  .col-filter-date-caret{background:none;border:none;cursor:pointer;color:var(--muted);width:18px;padding:0;font-size:12px}
+  .col-filter-date-month{padding-left:24px}
+  .col-filter-date-count{margin-left:auto;color:var(--muted);font-size:11.5px}
   .col-filter-range{display:flex;flex-direction:column;gap:8px}
   .col-filter-range label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
   .col-filter-range input{padding:7px 9px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:13px}
@@ -6468,6 +6485,10 @@ function detectFieldType(ent, key){
      (`maybeNum()` convierte cualquier texto con pinta de número al guardar, sin importar el tipo
      configurado) — el filtro debe reflejar lo que el usuario configuró, no el tipo de dato interno. */
   if(cfg && (cfg.type==="int" || cfg.type==="decimal")) return "number";
+  // v8.13.x, pedido explícito del usuario: los campos configurados como Fecha tenían el filtro de texto
+  // ("Contains…") por default — ahora tienen su propio filtro de fechas (rango con calendario + atajos +
+  // árbol Año > Mes, ver renderColFilterDateBody).
+  if(cfg && cfg.type==="date") return "date";
   if(cfg && cfg.type==="text") return "list";
   const rows=state[ent]||[];
   let numCount=0, total=0;
@@ -8476,7 +8497,33 @@ function onResumenSubmarketApply(){
   closeResumenSubmarketPanel();
   renderResumenView();
 }
+/* v8.13.x, filtro de columnas tipo Fecha: normaliza cualquier valor de fecha a "YYYY-MM-DD" (o null si no
+   se puede leer) para poder comparar como texto. Lo normal es que ya venga así (ver la conversión de
+   seriales de Excel a ISO al leer el archivo, `dateKeys` en loadFromWorkbook), pero se aceptan también
+   DD-MM-YYYY / DD/MM/YYYY, un serial de Excel suelto o un timestamp ISO con hora (se toma solo la fecha). */
+function parseFilterDate(v){
+  if(v==null||v==="") return null;
+  if(v instanceof Date) return isNaN(v) ? null : v.toISOString().slice(0,10);
+  if(typeof v==="number"){
+    if(v>20000 && v<80000){ const d=new Date(Math.round((v-25569)*86400000)); return d.toISOString().slice(0,10); }
+    return null;
+  }
+  const t=String(v).trim();
+  let m=t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return `${m[1]}-${m[2].padStart(2,"0")}-${m[3].padStart(2,"0")}`;
+  m=t.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+  if(m) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+  return null;
+}
 function fieldMatchesFilter(rowVal, filter){
+  if(filter.type==="date"){
+    const d=parseFilterDate(rowVal);
+    if(filter.months && filter.months.length && !filter.months.includes(d?d.slice(0,7):"")) return false;
+    if((filter.from||filter.to) && !d) return false;
+    if(filter.from && d<filter.from) return false;
+    if(filter.to && d>filter.to) return false;
+    return true;
+  }
   if(filter.type==="list"){
     if(!filter.values||!filter.values.length) return true;
     return filter.values.includes(rowVal==null?"":String(rowVal));
@@ -8655,6 +8702,16 @@ function toggleColumnFilter(evt, key){
   } else if(type==="number"){
     values={min: existing?existing.min:"", max: existing?existing.max:""};
     hist=buildColFilterHistogram(ent, key);
+  } else if(type==="date"){
+    const tree=buildColFilterDateTree(ent, key);
+    const ex=(existing && existing.type==="date") ? existing : null;
+    values={from: ex&&ex.from||"", to: ex&&ex.to||"",
+            sel: new Set(ex && ex.months && ex.months.length ? ex.months : tree.allKeys)};
+    colFilterState={ent, key, type, values, search:"", hist:null, dateTree:tree,
+                    expanded:new Set(tree.years.length===1 ? [tree.years[0].y] : [])};
+    renderColumnFilterDropdown(btn);
+    setTimeout(()=>document.addEventListener("click", onDocClickForColFilter, true), 0);
+    return;
   } else {
     values={text: existing?existing.text:""};
   }
@@ -8748,6 +8805,8 @@ function renderColumnFilterDropdown(anchorBtn){
         <label>Hasta<input type="text" inputmode="decimal" id="colFilterMax" value="${escapeAttr(fmtColFilterNum(colFilterState.values.max))}" oninput="onColFilterNumberTyped('max',this.value)" onblur="onColFilterNumberBlur('max',this)"${applyOnEnter}></label>
       </div>
     </div>`;
+  } else if(type==="date"){
+    bodyHtml=renderColFilterDateBody();
   } else {
     bodyHtml=`<input type="text" class="col-filter-search" placeholder="Contains…" value="${escapeAttr(colFilterState.values.text)}" oninput="colFilterState.values.text=this.value"${applyOnEnter}>`;
   }
@@ -8759,8 +8818,9 @@ function renderColumnFilterDropdown(anchorBtn){
       <button class="btn" onclick="applyColumnFilter()">Apply</button>
     </div>`;
   if(type==="list"){ renderColFilterListBody(); refreshColFilterSelectAllState(); }
+  if(type==="date") renderColFilterDateTree();
   const r=anchorBtn.getBoundingClientRect();
-  const width=(type==="number" && colFilterState.hist && colFilterState.hist.hasRange) ? 288 : 240;
+  const width=((type==="number" && colFilterState.hist && colFilterState.hist.hasRange) || type==="date") ? 288 : 240;
   el.style.width=width+"px";
   let left=Math.min(r.left, window.innerWidth-8-width);
   el.style.left=Math.max(8,left)+"px";
@@ -8842,6 +8902,13 @@ function applyColumnFilter(){
   } else if(type==="number"){
     const {min,max}=colFilterState.values;
     if((min!==""&&min!=null)||(max!==""&&max!=null)) newFilter={key, type:"number", min, max};
+  } else if(type==="date"){
+    let {from,to,sel}=colFilterState.values;
+    if(from && to && from>to){ const t=from; from=to; to=t; }
+    const all=colFilterState.dateTree.allKeys;
+    const months=[...sel].filter(k=>all.includes(k));
+    const monthsFilter=months.length<all.length ? months : null;
+    if(from||to||monthsFilter) newFilter={key, type:"date", from, to, months:monthsFilter};
   } else {
     if(colFilterState.values.text) newFilter={key, type:"text", text:colFilterState.values.text};
   }
@@ -8850,6 +8917,99 @@ function applyColumnFilter(){
   saveFilters();
   closeColumnFilterDropdown();
   renderTable();
+}
+/* ==== Filtro de columna tipo Fecha (v8.13.x, pedido explícito del usuario) ====
+   3 formas de filtrar que se combinan (AND): (1) atajos (este mes, mes pasado, este año, año pasado,
+   últimos 12 meses) que solo llenan el rango; (2) rango Desde/Hasta con el calendario nativo del navegador
+   (<input type="date">, guarda YYYY-MM-DD, el mismo formato en que se guardan las fechas); (3) árbol
+   Año > Mes estilo Autofiltro de Excel, con conteo, que respeta los DEMÁS filtros activos (mismo criterio
+   que columnFilterValuesInUse). El filtro guardado es {type:"date", from, to, months} — `months` es la
+   lista de "YYYY-MM" marcados (+ "" para vacíos) o null si están todos (= sin filtro por mes). */
+const COL_FILTER_MONTH_NAMES=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function buildColFilterDateTree(ent, key){
+  const otherFilters=(filters[ent]||[]).filter(f=>f.key!==key);
+  const unitKeyMap=otherFilters.length ? buildFieldRenderMeta(ent).byKey : null;
+  const rows=otherFilters.length
+    ? (state[ent]||[]).filter(r=> otherFilters.every(f=> fieldMatchesFilter(resolveFilterValue(ent,r,f.key,unitKeyMap), f)))
+    : (state[ent]||[]);
+  const byYear=new Map(); let blanks=0;
+  rows.forEach(r=>{
+    const d=parseFilterDate(r[key]);
+    if(!d){ blanks++; return; }
+    const y=d.slice(0,4), ym=d.slice(0,7);
+    if(!byYear.has(y)) byYear.set(y,new Map());
+    const mm=byYear.get(y); mm.set(ym,(mm.get(ym)||0)+1);
+  });
+  const years=[...byYear.keys()].sort((a,b)=>b.localeCompare(a)).map(y=>{
+    const months=[...byYear.get(y).entries()].sort((a,b)=>a[0].localeCompare(b[0])).map(([ym,count])=>({ym,count}));
+    return {y, months, count:months.reduce((t,m)=>t+m.count,0)};
+  });
+  const allKeys=years.flatMap(y=>y.months.map(m=>m.ym));
+  if(blanks) allKeys.push("");
+  return {years, blanks, allKeys};
+}
+function renderColFilterDateBody(){
+  const v=colFilterState.values;
+  const presets=[["thisMonth","This month"],["lastMonth","Last month"],["last12","Last 12 months"],["thisYear","This year"],["lastYear","Last year"]];
+  return `<div class="col-filter-date">
+    <div class="col-filter-date-presets">${presets.map(([k,l])=>`<button type="button" class="col-filter-chip" onclick="onColDatePreset('${k}')">${l}</button>`).join("")}</div>
+    <div class="col-filter-range col-filter-date-range">
+      <label>From<input type="date" id="colFilterDateFrom" value="${escapeAttr(v.from)}" oninput="colFilterState.values.from=this.value"></label>
+      <label>To<input type="date" id="colFilterDateTo" value="${escapeAttr(v.to)}" oninput="colFilterState.values.to=this.value"></label>
+    </div>
+    <div class="col-filter-date-sep">Year / month</div>
+    <label class="col-filter-item col-filter-selectall"><input type="checkbox" id="colFilterSelectAll" onchange="onColDateToggleAll(this.checked)"><b>Select all</b></label>
+    <div class="col-filter-list" id="colFilterDateTree"></div>
+  </div>`;
+}
+function renderColFilterDateTree(){
+  const el=document.getElementById("colFilterDateTree");
+  if(!el) return;
+  const {dateTree, values, expanded}=colFilterState;
+  const sel=values.sel;
+  let html=dateTree.years.map(y=>{
+    const n=y.months.filter(m=>sel.has(m.ym)).length;
+    const open=expanded.has(y.y);
+    const monthsHtml=open ? y.months.map(m=>`<label class="col-filter-item col-filter-date-month"><input type="checkbox" ${sel.has(m.ym)?"checked":""} onchange="onColDateToggleMonth('${m.ym}',this.checked)">${COL_FILTER_MONTH_NAMES[Number(m.ym.slice(5,7))-1]}<span class="col-filter-date-count">${m.count}</span></label>`).join("") : "";
+    return `<div class="col-filter-date-year">
+      <button type="button" class="col-filter-date-caret" onclick="onColDateExpand('${y.y}')" title="${open?"Collapse":"Expand"}">${open?"▾":"▸"}</button>
+      <label class="col-filter-item"><input type="checkbox" data-year="${y.y}" data-some="${n>0&&n<y.months.length?1:0}" ${n===y.months.length?"checked":""} onchange="onColDateToggleYear('${y.y}',this.checked)"><b>${y.y}</b><span class="col-filter-date-count">${y.count}</span></label>
+    </div>${monthsHtml}`;
+  }).join("");
+  if(dateTree.blanks) html+=`<label class="col-filter-item"><input type="checkbox" ${sel.has("")?"checked":""} onchange="onColDateToggleMonth('',this.checked)"><span class="col-filter-blank-label">${escapeHtml(colFilterValueLabel(""))}</span><span class="col-filter-date-count">${dateTree.blanks}</span></label>`;
+  el.innerHTML=html || `<div class="col-filter-empty">No dates</div>`;
+  el.querySelectorAll('input[data-some="1"]').forEach(cb=>{ cb.indeterminate=true; });
+  const all=document.getElementById("colFilterSelectAll");
+  if(all){
+    const c=dateTree.allKeys.filter(k=>sel.has(k)).length;
+    all.checked=dateTree.allKeys.length>0 && c===dateTree.allKeys.length;
+    all.indeterminate=c>0 && c<dateTree.allKeys.length;
+  }
+}
+function onColDateExpand(y){ const e=colFilterState.expanded; e.has(y)?e.delete(y):e.add(y); renderColFilterDateTree(); }
+function onColDateToggleAll(checked){ colFilterState.values.sel=new Set(checked?colFilterState.dateTree.allKeys:[]); renderColFilterDateTree(); }
+function onColDateToggleYear(y, checked){
+  const yr=colFilterState.dateTree.years.find(x=>x.y===y); if(!yr) return;
+  yr.months.forEach(m=> checked?colFilterState.values.sel.add(m.ym):colFilterState.values.sel.delete(m.ym));
+  renderColFilterDateTree();
+}
+function onColDateToggleMonth(ym, checked){ checked?colFilterState.values.sel.add(ym):colFilterState.values.sel.delete(ym); renderColFilterDateTree(); }
+/* Atajos: solo llenan Desde/Hasta (y regresan el árbol a "todo marcado" para que no se crucen con una
+   selección de meses previa que dejaría el resultado vacío sin que se note por qué). */
+function onColDatePreset(k){
+  const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  const now=new Date(), y=now.getFullYear(), m=now.getMonth();
+  let from, to;
+  if(k==="thisMonth"){ from=new Date(y,m,1); to=new Date(y,m+1,0); }
+  else if(k==="lastMonth"){ from=new Date(y,m-1,1); to=new Date(y,m,0); }
+  else if(k==="last12"){ from=new Date(y,m-11,1); to=new Date(y,m+1,0); }
+  else if(k==="thisYear"){ from=new Date(y,0,1); to=new Date(y,11,31); }
+  else if(k==="lastYear"){ from=new Date(y-1,0,1); to=new Date(y-1,11,31); }
+  colFilterState.values.from=iso(from); colFilterState.values.to=iso(to);
+  colFilterState.values.sel=new Set(colFilterState.dateTree.allKeys);
+  const f=document.getElementById("colFilterDateFrom"), t=document.getElementById("colFilterDateTo");
+  if(f) f.value=colFilterState.values.from; if(t) t.value=colFilterState.values.to;
+  renderColFilterDateTree();
 }
 /* Único botón secundario del filtro: si esa columna ya tenía un filtro, lo borra; si no, solo cierra (reemplaza a "Cancelar") */
 function clearColumnFilter(){

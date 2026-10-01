@@ -205,6 +205,14 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-page{background:#fff;color:#404040;width:100%;max-width:1056px;aspect-ratio:11/8.5;
             box-sizing:border-box;overflow:hidden;font-size:11px;border-top:2px dashed var(--line);margin-top:28px;padding-top:28px}
   .mkt-page:first-child{border-top:none;margin-top:0;padding-top:0}
+  /* v8.15.x, pedido explícito del usuario: pie de página "Pag. N" — claro, chico y centrado abajo de cada
+     hoja. Contador CSS (no un número fijo en el HTML) para que la numeración siga solo las hojas que
+     realmente se generan: secciones apagadas en "Design" no cuentan, y las de detalle que
+     mktPaginateDetailPages() parte en varias hojas cuentan una por una. */
+  .mkt-report-pages{counter-reset:mktpage}
+  .mkt-page{position:relative;counter-increment:mktpage}
+  .mkt-page::after{content:"Pag. " counter(mktpage);position:absolute;left:0;right:0;bottom:6px;
+                   text-align:center;font-size:8.5px;color:#8c8c8c;pointer-events:none} /* v8.15.x: #b3b3b3 -> #8c8c8c, pedido explícito del usuario (un poco más oscura) */
   /* v7.3.5, pedido explícito del usuario: height:100% — .mkt-cover-page es hijo directo de .mkt-page (alto
      fijo vía aspect-ratio), pero sin altura propia explícita solo tomaba el alto de SU contenido, no el de
      toda la hoja — el panel gris (align-items:stretch, default de flex, ya estiraba al sidebar a la altura
@@ -2254,7 +2262,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.15.1</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.16.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -5158,6 +5166,10 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.16.0", date:"2026-10-01", items:[
+    "Market Report (PDF): every page now has a small, light \"Pag. N\" footer centered at the bottom — numbering follows the pages actually generated (sections turned off in Design don't count; multi-page detail sections count each page).",
+    "Summary KPIs / Market Report: \"Sublease\" now sums \"Available Area\" instead of \"Leasable Area (GLA)\" — Total Availability, the Availability rate, the cover pie chart and the Availability/Class/Generation tables update accordingly."
+  ]},
   {version:"8.15.1", date:"2026-10-01", items:[
     "Market Report (PDF), cover: the Availability pie chart legend sits a bit higher (15px), closer to the chart."
   ]},
@@ -6897,7 +6909,9 @@ function resumenKpis(year){
   const inventory=sumByPredicate(P,"AVAILABLE_AREA_VALUE", r=>ciEq(r.STATUS,"Ready")&&ciEq(r.MARKET_STATUS,"Available")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B")));
   const vacancyRate=marketAB>0?inventory/marketAB:0;
   const underConstruction=sumByPredicate(P,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.STATUS,"Under Construction")&&ciEq(r.MARKET_STATUS,"Available")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B")));
-  const sublease=sumByPredicate(P,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.TRANSACTION_AVAILABLE,"Sublease")&&ciEq(r.MARKET_STATUS,"Available")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B")));
+  // v8.15.x, pedido explícito del usuario: Sublease suma "Available Area" (antes "Leasable Area (GLA)") —
+  // mismo cambio en resumenAvailabilityForSubmarket() para que dona/tablas sigan cuadrando con la tarjeta.
+  const sublease=sumByPredicate(P,"AVAILABLE_AREA_VALUE", r=>ciEq(r.TRANSACTION_AVAILABLE,"Sublease")&&ciEq(r.MARKET_STATUS,"Available")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B")));
   const availability=inventory+underConstruction+sublease;
   const availabilityRate=marketAB>0?availability/marketAB:0;
   const yearStart=`${year}-01-01`, yearEnd=`${year}-12-31`;
@@ -6946,7 +6960,7 @@ function resumenAvailabilityForSubmarket(sm, classPredicate){
   const isClass=classPredicate||(r=>ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B"));
   const inv=sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isClass(r)&&ciEq(r.STATUS,"Ready")&&ciEq(r.MARKET_STATUS,"Available"));
   const uc=sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isClass(r)&&ciEq(r.STATUS,"Under Construction")&&ciEq(r.MARKET_STATUS,"Available"));
-  const sub=sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isClass(r)&&ciEq(r.TRANSACTION_AVAILABLE,"Sublease")&&ciEq(r.MARKET_STATUS,"Available"));
+  const sub=sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isClass(r)&&ciEq(r.TRANSACTION_AVAILABLE,"Sublease")&&ciEq(r.MARKET_STATUS,"Available"));
   return inv+uc+sub;
 }
 function resumenAvailabilityBySubmarket(){
@@ -7557,7 +7571,7 @@ function renderResumenView(){
     ["Under Construction", area(k.underConstruction),
       `Sum of "Leasable Area (GLA)" for Properties with "Status" = "Under Construction", "Market Status" = "Available", and "Classification" = "A" or "B".`],
     ["Sublease", area(k.sublease),
-      `Sum of "Leasable Area (GLA)" for Properties with "Transaction Available" = "Sublease", "Market Status" = "Available", and "Classification" = "A" or "B".`],
+      `Sum of "Available Area" for Properties with "Transaction Available" = "Sublease", "Market Status" = "Available", and "Classification" = "A" or "B".`],
     ["Total Availability", area(k.availability),
       `Sum of "Available Inventory (Ready)" + "Under Construction" + "Sublease".`],
     ["Availability Rate", pct(k.availabilityRate),

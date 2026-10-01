@@ -627,6 +627,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      luego la columna 2 (grid-auto-flow:column — el HTML ya viene ordenado desc. y con grid-template-rows
      puesto inline según cuántos renglones necesite, ver mktDonutHtml/legendBelow). */
   .mkt-donut-legend{display:grid;grid-template-columns:1fr 1fr;grid-auto-flow:column;gap:3px 14px;margin-top:6px;text-align:left}
+  /* v8.15.x, pedido explícito del usuario: solo la leyenda de la dona de portada (Availability) sube 15px.
+     Offset relativo (no margin) porque .mkt-box-avail .mkt-donut-panel centra su contenido vertical —
+     con margin el bloque entero se recentraría y la dona bajaría la mitad. Páginas 2/4 no cambian. */
+  .mkt-box-avail .mkt-donut-legend{position:relative;top:-15px}
   /* v7.3.45, pedido explícito del usuario: letra más chica (11px -> 9.5px). */
   .mkt-donut-legend-item{display:flex;align-items:center;gap:6px;font-size:9.5px;min-width:0}
   .mkt-donut-legend-swatch{width:9px;height:9px;border-radius:2px;flex:0 0 auto}

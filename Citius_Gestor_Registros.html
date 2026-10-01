@@ -2250,7 +2250,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.14.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.15.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -5154,6 +5154,12 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.15.0", date:"2026-10-01", items:[
+    "Transactions: the Mapping Code is now highlighted in red and counts as pending when it doesn't exist in its linked table (Buildings/Parks/Land/Offices, by category) -- useful for historical transactions loaded directly in Excel. It doesn't block saving.",
+    "Transactions stay in sync with their property: saving a Building/Park/Land/Office now automatically updates Property Name, Developer, Park Name and Region/State/Market/Submarket on its transactions (Transaction Type, Listing Broker and Broker Building are kept as captured).",
+    "Settings: new \"Sync Transactions\" button to bring all existing transactions up to date from their linked records in one pass; it also fixes Mapping Codes written with different capitalization/spaces (e.g. \"ERy0027\" -> \"ERY0027\") and reports totals, already up-to-date, not found and without Mapping Code.",
+    "Summary > KPI > Compliance: the Transactions table now shows the % complete per transaction year (one column per year with data, plus Total), on its own full-width row.",
+  ]},
   {version:"8.14.0", date:"2026-09-30", items:[
     "Table column filters: Date fields now have their own filter instead of the text \"Contains\" box -- quick presets (This month, Last month, Last 12 months, This year, Last year), a From/To range with the browser's calendar picker, and an Excel-style Year > Month checklist with record counts.",
     "Office Presentation, cover: client logo aligned with the Citius AG isotype and always shown at a fixed 250px (uploads are resized to at most 250x250px, keeping proportions; a warning appears if the logo is too large to be saved in the browser); title, client name and date enlarged and repositioned at the height of the yellow line.",

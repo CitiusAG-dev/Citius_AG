@@ -212,7 +212,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-report-pages{counter-reset:mktpage}
   .mkt-page{position:relative;counter-increment:mktpage}
   .mkt-page::after{content:"Pag. " counter(mktpage);position:absolute;left:0;right:0;bottom:6px;
-                   text-align:center;font-size:8.5px;color:#b3b3b3;pointer-events:none}
+                   text-align:center;font-size:8.5px;color:#8c8c8c;pointer-events:none} /* v8.15.x: #b3b3b3 -> #8c8c8c, pedido explícito del usuario (un poco más oscura) */
   /* v7.3.5, pedido explícito del usuario: height:100% — .mkt-cover-page es hijo directo de .mkt-page (alto
      fijo vía aspect-ratio), pero sin altura propia explícita solo tomaba el alto de SU contenido, no el de
      toda la hoja — el panel gris (align-items:stretch, default de flex, ya estiraba al sidebar a la altura

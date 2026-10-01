@@ -2262,7 +2262,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.15.1</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.16.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -5166,6 +5166,10 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.16.0", date:"2026-10-01", items:[
+    "Market Report (PDF): every page now has a small, light \"Pag. N\" footer centered at the bottom — numbering follows the pages actually generated (sections turned off in Design don't count; multi-page detail sections count each page).",
+    "Summary KPIs / Market Report: \"Sublease\" now sums \"Available Area\" instead of \"Leasable Area (GLA)\" — Total Availability, the Availability rate, the cover pie chart and the Availability/Class/Generation tables update accordingly."
+  ]},
   {version:"8.15.1", date:"2026-10-01", items:[
     "Market Report (PDF), cover: the Availability pie chart legend sits a bit higher (15px), closer to the chart."
   ]},

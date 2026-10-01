@@ -6905,7 +6905,9 @@ function resumenKpis(year){
   const inventory=sumByPredicate(P,"AVAILABLE_AREA_VALUE", r=>ciEq(r.STATUS,"Ready")&&ciEq(r.MARKET_STATUS,"Available")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B")));
   const vacancyRate=marketAB>0?inventory/marketAB:0;
   const underConstruction=sumByPredicate(P,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.STATUS,"Under Construction")&&ciEq(r.MARKET_STATUS,"Available")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B")));
-  const sublease=sumByPredicate(P,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.TRANSACTION_AVAILABLE,"Sublease")&&ciEq(r.MARKET_STATUS,"Available")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B")));
+  // v8.15.x, pedido explícito del usuario: Sublease suma "Available Area" (antes "Leasable Area (GLA)") —
+  // mismo cambio en resumenAvailabilityForSubmarket() para que dona/tablas sigan cuadrando con la tarjeta.
+  const sublease=sumByPredicate(P,"AVAILABLE_AREA_VALUE", r=>ciEq(r.TRANSACTION_AVAILABLE,"Sublease")&&ciEq(r.MARKET_STATUS,"Available")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B")));
   const availability=inventory+underConstruction+sublease;
   const availabilityRate=marketAB>0?availability/marketAB:0;
   const yearStart=`${year}-01-01`, yearEnd=`${year}-12-31`;
@@ -6954,7 +6956,7 @@ function resumenAvailabilityForSubmarket(sm, classPredicate){
   const isClass=classPredicate||(r=>ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B"));
   const inv=sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isClass(r)&&ciEq(r.STATUS,"Ready")&&ciEq(r.MARKET_STATUS,"Available"));
   const uc=sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isClass(r)&&ciEq(r.STATUS,"Under Construction")&&ciEq(r.MARKET_STATUS,"Available"));
-  const sub=sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isClass(r)&&ciEq(r.TRANSACTION_AVAILABLE,"Sublease")&&ciEq(r.MARKET_STATUS,"Available"));
+  const sub=sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isClass(r)&&ciEq(r.TRANSACTION_AVAILABLE,"Sublease")&&ciEq(r.MARKET_STATUS,"Available"));
   return inv+uc+sub;
 }
 function resumenAvailabilityBySubmarket(){
@@ -7565,7 +7567,7 @@ function renderResumenView(){
     ["Under Construction", area(k.underConstruction),
       `Sum of "Leasable Area (GLA)" for Properties with "Status" = "Under Construction", "Market Status" = "Available", and "Classification" = "A" or "B".`],
     ["Sublease", area(k.sublease),
-      `Sum of "Leasable Area (GLA)" for Properties with "Transaction Available" = "Sublease", "Market Status" = "Available", and "Classification" = "A" or "B".`],
+      `Sum of "Available Area" for Properties with "Transaction Available" = "Sublease", "Market Status" = "Available", and "Classification" = "A" or "B".`],
     ["Total Availability", area(k.availability),
       `Sum of "Available Inventory (Ready)" + "Under Construction" + "Sublease".`],
     ["Availability Rate", pct(k.availabilityRate),

@@ -627,6 +627,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      luego la columna 2 (grid-auto-flow:column — el HTML ya viene ordenado desc. y con grid-template-rows
      puesto inline según cuántos renglones necesite, ver mktDonutHtml/legendBelow). */
   .mkt-donut-legend{display:grid;grid-template-columns:1fr 1fr;grid-auto-flow:column;gap:3px 14px;margin-top:6px;text-align:left}
+  /* v8.15.x, pedido explícito del usuario: solo la leyenda de la dona de portada (Availability) sube 15px.
+     Offset relativo (no margin) porque .mkt-box-avail .mkt-donut-panel centra su contenido vertical —
+     con margin el bloque entero se recentraría y la dona bajaría la mitad. Páginas 2/4 no cambian. */
+  .mkt-box-avail .mkt-donut-legend{position:relative;top:-15px}
   /* v7.3.45, pedido explícito del usuario: letra más chica (11px -> 9.5px). */
   .mkt-donut-legend-item{display:flex;align-items:center;gap:6px;font-size:9.5px;min-width:0}
   .mkt-donut-legend-swatch{width:9px;height:9px;border-radius:2px;flex:0 0 auto}
@@ -2250,7 +2254,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.15.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.15.1</div>
     </nav>
   </aside>
   <div class="main">
@@ -5154,6 +5158,9 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.15.1", date:"2026-10-01", items:[
+    "Market Report (PDF), cover: the Availability pie chart legend sits a bit higher (15px), closer to the chart."
+  ]},
   {version:"8.15.0", date:"2026-10-01", items:[
     "Transactions: the Mapping Code is now highlighted in red and counts as pending when it doesn't exist in its linked table (Buildings/Parks/Land/Offices, by category) -- useful for historical transactions loaded directly in Excel. It doesn't block saving.",
     "Transactions stay in sync with their property: saving a Building/Park/Land/Office now automatically updates Property Name, Developer, Park Name and Region/State/Market/Submarket on its transactions (Transaction Type, Listing Broker and Broker Building are kept as captured).",

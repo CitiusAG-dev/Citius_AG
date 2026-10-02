@@ -2262,7 +2262,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.16.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.16.1</div>
     </nav>
   </aside>
   <div class="main">
@@ -5166,6 +5166,9 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.16.1", date:"2026-10-02", items:[
+    "Layout photos (Properties, Parks, Land, Spaces) are now saved at 2400×1620 (same proportion as before) with higher JPEG quality, so plans keep their fine detail in presentations and print. Layouts already saved don't change — re-upload the original file to get the sharper version."
+  ]},
   {version:"8.16.0", date:"2026-10-01", items:[
     "Market Report (PDF): every page now has a small, light \"Pag. N\" footer centered at the bottom — numbering follows the pages actually generated (sections turned off in Design don't count; multi-page detail sections count each page).",
     "Summary KPIs / Market Report: \"Sublease\" now sums \"Available Area\" instead of \"Leasable Area (GLA)\" — Total Availability, the Availability rate, the cover pie chart and the Availability/Class/Generation tables update accordingly."
@@ -15480,7 +15483,16 @@ const PHOTO_DEFAULT_QUALITY=0.85;
    mecanismo (confirmPhotoEditSave/buildImageBlock) ya lee de photoTargetFor(ent), no de las constantes
    PHOTO_TARGET_W/H directo. */
 const PHOTO_SIZE_OVERRIDES={ OFICINAS:{w:900, h:608, quality:0.92} };
-function photoTargetFor(ent){ return PHOTO_SIZE_OVERRIDES[ent] || {w:PHOTO_TARGET_W, h:PHOTO_TARGET_H, quality:PHOTO_DEFAULT_QUALITY}; }
+/* v8.16.x, pedido explícito del usuario: los planos "Layout" se ven más grandes en Presentación (y al
+   imprimir) que el resto de las fotos, y a 600×405 / 85% se perdían detalles (cotas, líneas finas). Misma
+   proporción de siempre (2400:1620 = 600:405, mismo ajuste "fit por ancho" con fondo blanco), solo 4× la
+   resolución y JPEG 95% — aplica a CUALQUIER entidad (Propiedades/Parques/Terrenos/Spaces), gana sobre
+   PHOTO_SIZE_OVERRIDES. Las fotos ya guardadas no cambian: hay que volver a subir el original. */
+const LAYOUT_PHOTO_TARGET={w:2400, h:1620, quality:0.95};
+function photoTargetFor(ent, kindKey){
+  if(kindKey==="LAYOUT") return LAYOUT_PHOTO_TARGET;
+  return PHOTO_SIZE_OVERRIDES[ent] || {w:PHOTO_TARGET_W, h:PHOTO_TARGET_H, quality:PHOTO_DEFAULT_QUALITY};
+}
 let photoSet=null;
 let photoSetLoading=null;
 async function ensurePhotoSet(){
@@ -15607,7 +15619,7 @@ function buildImageBlock(ent){
   }).join("");
   const target=photoTargetFor(ent);
   return `<div class="image-blocks-grid${showTitles?" multi":""}">${blocks}</div>
-    <p class="map-hint" style="margin:16px 0 0">Arrastra una imagen sobre el recuadro, o usa "Subir foto" — en ambos casos se puede girar antes de guardar. Se guardan como ${target.w}×${target.h} JPG en la carpeta de imágenes, usando el ${escapeHtml(idLabel)}${kinds.length>1?" + un sufijo por tipo":""} como nombre de archivo.</p>`;
+    <p class="map-hint" style="margin:16px 0 0">Arrastra una imagen sobre el recuadro, o usa "Subir foto" — en ambos casos se puede girar antes de guardar. Se guardan como ${target.w}×${target.h} JPG en la carpeta de imágenes, usando el ${escapeHtml(idLabel)}${kinds.length>1?" + un sufijo por tipo":""} como nombre de archivo.${kinds.some(k=>k.key==="LAYOUT")?` El Layout se guarda a ${LAYOUT_PHOTO_TARGET.w}×${LAYOUT_PHOTO_TARGET.h} (más nítido para planos).`:""}</p>`;
 }
 function initImageField(){
   photoKindsFor(current).forEach(k=>loadImagePreview(k.key));
@@ -15889,7 +15901,7 @@ async function confirmPhotoEditSave(){
   if(!code||!imagesDirHandle){ closePhotoEditModal(); return; }
   if(!(await ensurePermission(imagesDirHandle,"readwrite"))){ toast("Permission denied for the images folder","err"); return; }
   const base=photoFileBase(code,kindKey);
-  const {w:targetW, h:targetH, quality}=photoTargetFor(current);
+  const {w:targetW, h:targetH, quality}=photoTargetFor(current, kindKey);
   try{
     const finalBlob = kindKey==="LAYOUT"
       ? await processImageFitWidthWhiteBg(rotatedBlob, targetW, targetH, quality)

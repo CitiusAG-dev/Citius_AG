@@ -2350,6 +2350,14 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
             <option value="si">Yes</option>
           </select>
         </div>
+        <!-- v8.16.x, pedido explícito del usuario: mapa de ubicación Citius o Satelital (ver presMapView). -->
+        <div class="unit-view-select" title="Basemap used in the presentation's location map">
+          <label for="presMapViewSelect">View</label>
+          <select id="presMapViewSelect">
+            <option value="citius">Citius</option>
+            <option value="satellite">Satellite</option>
+          </select>
+        </div>
         <button type="button" class="btn ghost" id="presCoverEditBtn" title="Edit the cover's month/year, m², markets, brokers, and company/project">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-3px"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="M15 5l4 4"/></svg>Cover data</button>
         <button class="btn ghost" id="presPrintBtn">
@@ -2372,6 +2380,14 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
             <label><input type="checkbox" id="landPresShowTable"> Table</label>
             <label><input type="checkbox" id="landPresShowClosing"> Closing</label>
           </div>
+        </div>
+        <!-- v8.16.x, pedido explícito del usuario: mapa de ubicación Citius o Satelital (ver presMapView). -->
+        <div class="unit-view-select" title="Basemap used in the presentation's location map">
+          <label for="landPresMapViewSelect">View</label>
+          <select id="landPresMapViewSelect">
+            <option value="citius">Citius</option>
+            <option value="satellite">Satellite</option>
+          </select>
         </div>
         <button type="button" class="btn ghost" id="landPresCoverEditBtn" title="Edit the cover's month/year, size, markets, brokers, and company/project">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-3px"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="M15 5l4 4"/></svg>Cover data</button>
@@ -2413,6 +2429,14 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
           <select id="officePresLangSelect">
             <option value="en">English</option>
             <option value="es">Español</option>
+          </select>
+        </div>
+        <!-- v8.16.x, pedido explícito del usuario: mapa de ubicación Citius o Satelital (ver presMapView). -->
+        <div class="unit-view-select" title="Basemap used in the presentation's location map">
+          <label for="officePresMapViewSelect">View</label>
+          <select id="officePresMapViewSelect">
+            <option value="citius">Citius</option>
+            <option value="satellite">Satellite</option>
           </select>
         </div>
         <button type="button" class="btn ghost" id="officePresCoverEditBtn" title="Edit the cover's client and date">
@@ -10950,6 +10974,25 @@ function addCitiusMapboxLayer(leafletMap){
   }
   return glLayer;
 }
+/* v8.16.x, pedido explícito del usuario: opción "View" en las 3 presentaciones (Propiedades/Terrenos/
+   Oficinas) para elegir el mapa de ubicación — SOLO "Citius" (Mapbox, el de siempre/default) o "Satellite"
+   (mismas tiles Esri que "Satellite" de la pestaña Mapa, ver MAP_BASEMAPS). Preferencia propia por deck,
+   guardada en localStorage. Regresa la capa GL si es Citius (para dispose/resync/print de cada deck, que
+   ya manejan null) o null si es Satellite (tiles raster, se van solas con map.remove()). */
+const PRES_MAP_VIEW_KEYS={pres:"citius_pres_map_view_v1", land:"citius_land_pres_map_view_v1", office:"citius_office_pres_map_view_v1"};
+function loadPresMapView(deck){
+  try{ const s=localStorage.getItem(PRES_MAP_VIEW_KEYS[deck]); if(s==="citius"||s==="satellite") return s; }catch(e){}
+  return "citius";
+}
+function savePresMapView(deck){ try{ localStorage.setItem(PRES_MAP_VIEW_KEYS[deck], presMapView[deck]); }catch(e){} }
+const presMapView={pres:loadPresMapView("pres"), land:loadPresMapView("land"), office:loadPresMapView("office")};
+function addPresMapBasemap(leafletMap, deck){
+  if(presMapView[deck]==="satellite"){
+    MAP_BASEMAPS.find(b=>b.key==="satellite").layers.forEach(l=>L.tileLayer(l.url,{maxZoom:19, attribution:l.attribution}).addTo(leafletMap));
+    return null;
+  }
+  return addCitiusMapboxLayer(leafletMap);
+}
 let currentBasemapGL=null; // capa mapbox-gl-leaflet activa (basemap tipo `gl`), separada de currentBasemapLayers
 function setMapBasemap(key){
   currentBasemapLayers.forEach(l=>allPolyMap.removeLayer(l));
@@ -10975,6 +11018,7 @@ const MAP_LAYERS=[
   {ent:"OFICINAS",    label:"Offices",    color:"#8b5cf6", titleField:"PROPERTY_NAME", subField:"MAPPING_CODE"}
 ];
 let mapLayerFilter={PROPIEDADES:true, PARKS:true, LAND:true, OFICINAS:true};
+const MAP_PIN_OCCUPIED_COLOR="#9e9e9e";
 /* La entidad puede no tener (todavía) un campo de polígono configurado (ej. si se quita desde Configuración > Campos) */
 function polygonKeyFor(ent){ const f=fields(ent).find(f=>POLYGON_FIELD_KEYS.has(f.key)); return f?f.key:null; }
 function hasValidLatLng(row){ const lat=Number(row.LATITUDE), lng=Number(row.LONGITUDE); return isFinite(lat)&&isFinite(lng); }
@@ -11628,7 +11672,10 @@ function renderAllPolygonsMap(keepView){
           // "map-pin-sm" (className del divIcon + clase propia del div interno) para achicarlos y quitarles
           // la sombra SOLO en este mapa de pines (ver CSS `.map-pin-sm`), sin tocar `.map-pin` en ningún otro
           // lado — los pines numerados de las presentaciones (Mapa/Layout/Terrenos) siguen igual.
-          const icon=L.divIcon({className:"map-pin-wrap map-pin-wrap-sm", html:`<div class="map-pin map-pin-sm" style="background:${l.color}"></div>`, iconSize:[18,18], iconAnchor:[9,18]});
+          // v8.16.x, pedido explícito del usuario: pin gris para registros con Market Status "Occupied" (no
+          // disponibles) en vez del color de su capa — solo el pin, el popup/etiqueta siguen con el de la capa.
+          const pinColor=ciEq(r.MARKET_STATUS,"Occupied") ? MAP_PIN_OCCUPIED_COLOR : l.color;
+          const icon=L.divIcon({className:"map-pin-wrap map-pin-wrap-sm", html:`<div class="map-pin map-pin-sm" style="background:${pinColor}"></div>`, iconSize:[18,18], iconAnchor:[9,18]});
           const marker=L.marker([lat,lng],{icon}).bindPopup(popupHtml);
           marker.addTo(allPolyLayerGroup);
           boundsList.push(L.latLngBounds([[lat,lng],[lat,lng]]));
@@ -12801,7 +12848,7 @@ function renderLandPresMap(list){
     pts.push({lat,lng,num:i+1,rec});
   });
   landPresMapInstance=L.map(canvas,{zoomControl:false,attributionControl:false,zoomSnap:0.25,zoomDelta:0.25,wheelPxPerZoomLevel:200,center:[25.5,-100.9],zoom:11});
-  landPresMapGL=addCitiusMapboxLayer(landPresMapInstance);
+  landPresMapGL=addPresMapBasemap(landPresMapInstance,"land");
   const markerData=[];
   pts.forEach(p=>{
     const mapsUrl=`https://www.google.com/maps?q=${encodeURIComponent(p.lat)},${encodeURIComponent(p.lng)}`;
@@ -13201,7 +13248,7 @@ function renderOfficePresMap(list){
     pts.push({lat,lng,num:i+1,rec});
   });
   officePresMapInstance=L.map(canvas,{zoomControl:false,attributionControl:false,zoomSnap:0.25,zoomDelta:0.25,wheelPxPerZoomLevel:200,center:[25.5,-100.9],zoom:11});
-  officePresMapGL=addCitiusMapboxLayer(officePresMapInstance);
+  officePresMapGL=addPresMapBasemap(officePresMapInstance,"office");
   const markerData=[];
   pts.forEach(p=>{
     const mapsUrl=`https://www.google.com/maps?q=${encodeURIComponent(p.lat)},${encodeURIComponent(p.lng)}`;
@@ -13671,6 +13718,8 @@ officePresShowCoverEl.onchange=()=>{ officePresShowState.cover=officePresShowCov
 officePresShowMapEl.onchange=()=>{ officePresShowState.map=officePresShowMapEl.checked; saveOfficePresShowState(); renderOfficePresentationView(); };
 officePresShowOptionsEl.onchange=()=>{ officePresShowState.options=officePresShowOptionsEl.checked; saveOfficePresShowState(); renderOfficePresentationView(); };
 officePresShowClosingEl.onchange=()=>{ officePresShowState.closing=officePresShowClosingEl.checked; saveOfficePresShowState(); renderOfficePresentationView(); };
+document.getElementById("officePresMapViewSelect").value=presMapView.office;
+document.getElementById("officePresMapViewSelect").onchange=function(){ presMapView.office=this.value; savePresMapView("office"); renderOfficePresentationView(); };
 document.getElementById("officePresUnitSelect").value=officePresUnitPref;
 document.getElementById("officePresUnitSelect").onchange=function(){ officePresUnitPref=this.value; saveOfficePresUnitPref(); renderOfficePresentationView(); };
 document.getElementById("officePresLangSelect").value=officePresLangPref;
@@ -13930,7 +13979,7 @@ function renderPresMap(list){
   // PILOTO — antes CARTO Voyager fijo (ver buildMapPageHtml), ahora el mismo basemap "Citius (Mapbox)" de
   // la pestaña Mapa (mismo estilo/token, ver MAP_BASEMAPS/addCitiusMapboxLayer). Land y Oficinas siguen en
   // CARTO por ahora — este cambio es SOLO de esta presentación, no toca setMapBasemap ni la pestaña Mapa.
-  presMapGL=addCitiusMapboxLayer(presMapInstance);
+  presMapGL=addPresMapBasemap(presMapInstance,"pres");
   const markerData=[];
   pts.forEach(p=>{
     const mapsUrl=`https://www.google.com/maps?q=${encodeURIComponent(p.lat)},${encodeURIComponent(p.lng)}`;
@@ -14539,6 +14588,8 @@ function doLandPresPrint(){
     proceedToPrint();
   }
 }
+document.getElementById("landPresMapViewSelect").value=presMapView.land;
+document.getElementById("landPresMapViewSelect").onchange=function(){ presMapView.land=this.value; savePresMapView("land"); renderLandPresentationView(); };
 document.getElementById("landPresPrintBtn").onclick=()=>{
   // v6.4.0, pedido explícito del usuario: no generar si falta algún dato de "Cover Data" — abre el panel
   // (con los campos faltantes ya marcados en rojo, ver refreshCoverDataErrors) en vez de solo avisar.
@@ -14625,6 +14676,8 @@ landPresShowMapEl.onchange=()=>{ landPresShowState.map=landPresShowMapEl.checked
 landPresShowTableEl.onchange=()=>{ landPresShowState.table=landPresShowTableEl.checked; saveLandPresShowState(); renderLandPresentationView(); };
 landPresShowClosingEl.onchange=()=>{ landPresShowState.closing=landPresShowClosingEl.checked; saveLandPresShowState(); renderLandPresentationView(); };
 document.getElementById("landPresCoverEditBtn").onclick=toggleLandCoverEditPanel;
+document.getElementById("presMapViewSelect").value=presMapView.pres;
+document.getElementById("presMapViewSelect").onchange=function(){ presMapView.pres=this.value; savePresMapView("pres"); renderPresentationView(); };
 document.getElementById("presUnitSelect").value=presUnitPref;
 document.getElementById("presUnitSelect").onchange=function(){ presUnitPref=this.value; savePresUnitPrefLocal(); renderPresentationView(); };
 document.getElementById("presPeriodSelect").value=presPeriodPref;

@@ -2262,7 +2262,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.16.1</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.17.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -5190,6 +5190,10 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.17.0", date:"2026-10-05", items:[
+    "Map (pin view): records with Market Status \"Occupied\" now show a gray pin instead of their layer color.",
+    "Presentations (Properties, Land, Offices): new \"View\" selector to choose the location map — Citius (default) or Satellite. Each presentation remembers its own choice."
+  ]},
   {version:"8.16.1", date:"2026-10-02", items:[
     "Layout photos (Properties, Parks, Land, Spaces) are now saved at 2400×1620 (same proportion as before) with higher JPEG quality, so plans keep their fine detail in presentations and print. Layouts already saved don't change — re-upload the original file to get the sharper version."
   ]},

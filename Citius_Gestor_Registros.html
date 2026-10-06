@@ -1078,6 +1078,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      es el ÚNICO activo entre los 4 de MAP_LAYERS, así nunca hay ambigüedad de a cuál presentación va. */
   .map-select-panel-actions{padding:10px 14px;border-top:1px solid var(--line);flex-shrink:0}
   .map-select-panel-actions .btn{width:100%}
+  .map-select-panel-actions .btn + .btn{margin-top:8px} /* v8.17.x: Send to Presentation + Export KML apilados */
   .map-select-group-label{padding:8px 14px 4px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--muted)}
   .map-select-item{display:flex;align-items:center;gap:8px;padding:6px 14px;font-size:12.5px;color:var(--txt);cursor:pointer;border:none;background:none;width:100%;text-align:left}
   .map-select-item:hover{background:var(--panel-2)}
@@ -2285,6 +2286,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
             <button type="button" class="btn ghost" id="officeStagingGroupBtn" onclick="groupOfficeStagingAsOption()"></button>
           </div>
           <span class="pill amber" id="presSelectedChip" style="display:none"></span>
+          <!-- v8.17.x, pedido explícito del usuario: exportar la selección a KML — solo en modo consolidado y
+               solo en Buildings/Parks/Land/Offices (ver KML_EXPORT_ENTS/exportKmlFromTable en el JS). -->
+          <button type="button" class="btn ghost" id="kmlExportBtn" style="display:none" onclick="exportKmlFromTable()">Export KML</button>
         </div>
         <div class="topbar-controls-right" style="margin-left:auto">
           <span class="count" id="count"></span>
@@ -6453,12 +6457,17 @@ function renderTable(){
      (Presentación de Oficinas, Etapa 1, v4.1.0 en construcción) reusa el MISMO checkbox de columna, pero con
      `officeSpaceStaging` — una selección transitoria (no un deck en sí) que el analista convierte en Opciones
      vía groupOfficeStagingAsOption()/addOfficeStagingIndividually(), ver esas funciones más abajo. */
-  const showSelect=current==="PROPIEDADES" || current==="LAND" || current==="SPACES";
-  const presOrder=current==="LAND" ? landPresentationOrder : (current==="SPACES" ? officeSpaceStaging : presentationOrder);
-  const toggleOneFn=current==="LAND" ? "toggleLandPresentationSelection" : (current==="SPACES" ? "toggleOfficeSpaceStaging" : "togglePresentationSelection");
-  const toggleAllFn=current==="LAND" ? "toggleSelectAllLandPresentation" : (current==="SPACES" ? "toggleSelectAllOfficeSpaceStaging" : "toggleSelectAllPresentation");
+  /* v8.17.x, pedido explícito del usuario (Export KML): Parks y Offices no tienen deck que alimente una
+     selección — en modo consolidado (único modo donde existe el botón Export KML) reciben su PROPIO checkbox,
+     con una selección guardada solo para exportar (kmlSelection). Buildings/Land reusan la de su
+     presentación (pedido explícito: "reusar la de presentación"). */
+  const isKmlOnlySel=consolidatedMode && KML_SELECTION_ONLY_ENTS.includes(current);
+  const showSelect=current==="PROPIEDADES" || current==="LAND" || current==="SPACES" || isKmlOnlySel;
+  const presOrder=isKmlOnlySel ? kmlSelection[current] : (current==="LAND" ? landPresentationOrder : (current==="SPACES" ? officeSpaceStaging : presentationOrder));
+  const toggleOneFn=isKmlOnlySel ? "toggleKmlSelection" : (current==="LAND" ? "toggleLandPresentationSelection" : (current==="SPACES" ? "toggleOfficeSpaceStaging" : "togglePresentationSelection"));
+  const toggleAllFn=isKmlOnlySel ? "toggleSelectAllKml" : (current==="LAND" ? "toggleSelectAllLandPresentation" : (current==="SPACES" ? "toggleSelectAllOfficeSpaceStaging" : "toggleSelectAllPresentation"));
   const selectAllChecked=showSelect && rows.length>0 && rows.every(r=>presOrder.includes(r.__id));
-  const selectTitle=current==="SPACES" ? "Select to build a presentation option" : "Use in presentation";
+  const selectTitle=isKmlOnlySel ? "Select for KML export" : (current==="SPACES" ? "Select to build a presentation option" : "Use in presentation");
   const activeFilterKeys=new Set((filters[current]||[]).map(f=>f.key));
   // Presentation Log (Bitácora): sin "Days Since Update" ni "% Complete" — no aplican a un log de solo
   // lectura (no tiene LAST_MODIFIED que envejezca, ni campos obligatorios que "completar").
@@ -6549,12 +6558,22 @@ function renderTable(){
   document.getElementById("count").textContent=`${rows.length} of ${(state[current]||[]).length} record(s)`;
   const presChip=document.getElementById("presSelectedChip");
   if(presChip){
-    const clearFn=current==="LAND" ? "clearAllLandPresentationSelection" : (current==="SPACES" ? "clearAllOfficeSpaceStaging" : "clearAllPresentationSelection");
-    const chipLabel=current==="SPACES" ? "selected" : "in presentation";
+    const clearFn=isKmlOnlySel ? "clearAllKmlSelection" : (current==="LAND" ? "clearAllLandPresentationSelection" : (current==="SPACES" ? "clearAllOfficeSpaceStaging" : "clearAllPresentationSelection"));
+    const chipLabel=(current==="SPACES"||isKmlOnlySel) ? "selected" : "in presentation";
     if(showSelect && presOrder.length){
       presChip.style.display="";
       presChip.innerHTML=`${presOrder.length} ${chipLabel}<span class="chip-x" onclick="${clearFn}()" title="Remove all from the selection">&times;</span>`;
     } else presChip.style.display="none";
+  }
+  const kmlBtn=document.getElementById("kmlExportBtn");
+  if(kmlBtn){
+    const showKml=consolidatedMode && KML_EXPORT_ENTS.includes(current);
+    kmlBtn.style.display=showKml?"":"none";
+    if(showKml){
+      kmlBtn.disabled=!presOrder.length;
+      kmlBtn.textContent=presOrder.length ? `Export ${presOrder.length} to KML` : "Export KML";
+      kmlBtn.title=presOrder.length ? "Download the selected records as a KML file (Google Earth)" : "Select records with the checkboxes to export them";
+    }
   }
   /* Presentación de Oficinas, Etapa 1 — barra de acciones (Add Group / Add Individually) y botón
      de "Presentation options" con el conteo de Opciones ya armadas. Ver comentario extenso más arriba, junto
@@ -11536,11 +11555,17 @@ function mapSelectExclusiveEnt(){
 }
 function mapSelectPanelActionsHtml(matches){
   const ent=mapSelectExclusiveEnt();
-  if(ent!=="PROPIEDADES" && ent!=="LAND") return "";
-  const count=matches.filter(m=>m.ent===ent).length;
-  if(!count) return "";
-  const label=ent==="PROPIEDADES"?"Buildings":"Land";
-  return `<button type="button" class="btn" onclick="sendMapSelectionToPresentation('${ent}')">Send ${count} ${label} to Presentation</button>`;
+  let html="";
+  if(ent==="PROPIEDADES" || ent==="LAND"){
+    const count=matches.filter(m=>m.ent===ent).length;
+    const label=ent==="PROPIEDADES"?"Buildings":"Land";
+    if(count) html+=`<button type="button" class="btn" onclick="sendMapSelectionToPresentation('${ent}')">Send ${count} ${label} to Presentation</button>`;
+  }
+  // v8.17.x, pedido explícito del usuario: Export KML de lo seleccionado con lazo/polígono/radio — solo en
+  // modo consolidado, con cualquier combinación de capas visibles (a diferencia de Send to Presentation).
+  const kmlCount=matches.filter(m=>KML_EXPORT_ENTS.includes(m.ent)).length;
+  if(consolidatedMode && kmlCount) html+=`<button type="button" class="btn ghost" onclick="exportKmlFromMapSelection()">Export ${kmlCount} to KML</button>`;
+  return html;
 }
 /* REEMPLAZA la selección de presentación existente (no la fusiona) — pedido explícito del usuario ("si
    hay algo previamente seleccionado... se borre y tome lo del mapa"). Mismo criterio destructivo que
@@ -11872,6 +11897,111 @@ function syncPresentationOrderToTableSort(){
 function handleRowClick(evt, id){
   if(evt.target.closest(".td-select,.actions")) return;
   openView(id);
+}
+/* ==== Export KML — v8.17.x, pedido explícito del usuario ====
+   Botón "Export KML" en las tablas de Buildings/Parks/Land/Offices y en el panel de selección del Mapa, SOLO
+   en modo consolidado. Decisiones confirmadas con el usuario vía AskUserQuestion:
+   - Tablas: Buildings/Land exportan su selección de presentación de siempre (presentationOrder/
+     landPresentationOrder); Parks/Offices (sin deck propio) usan su propia selección `kmlSelection`.
+   - Mapa: exporta lo seleccionado con lazo/polígono/radio (cualquier capa visible).
+   - Por registro: Nombre + Mapping Code + Región + Mercado + Submercado (ExtendedData, Google Earth lo
+     muestra como tabla en el globo) y su geometría: pin (LATITUDE/LONGITUDE) y/o polígono (GEO_JSON) — ambos
+     si tiene los 2. Una carpeta por tipo, mismos colores que las capas del Mapa (MAP_LAYERS).
+   No se registra en Bitácora: en modo consolidado nada se persiste (ver blockIfConsolidated/saveState). */
+const KML_EXPORT_ENTS=["PROPIEDADES","PARKS","LAND","OFICINAS"];
+const KML_SELECTION_ONLY_ENTS=["PARKS","OFICINAS"];
+const KML_FOLDER_LABELS={PROPIEDADES:"Buildings", PARKS:"Parks", LAND:"Land", OFICINAS:"Offices"};
+const KML_SEL_KEYS={PARKS:"citius_parks_kml_sel_v1", OFICINAS:"citius_offices_kml_sel_v1"};
+function loadKmlSelection(ent){ try{ const s=localStorage.getItem(KML_SEL_KEYS[ent]); if(s) return JSON.parse(s); }catch(e){} return []; }
+function saveKmlSelection(ent){ try{ localStorage.setItem(KML_SEL_KEYS[ent], JSON.stringify(kmlSelection[ent])); }catch(e){} }
+const kmlSelection={PARKS:loadKmlSelection("PARKS"), OFICINAS:loadKmlSelection("OFICINAS")};
+function toggleKmlSelection(id, checked){
+  const sel=kmlSelection[current]; if(!sel) return;
+  kmlSelection[current]=checked ? (sel.includes(id)?sel:sel.concat(id)) : sel.filter(x=>x!==id);
+  saveKmlSelection(current); renderTable();
+}
+function toggleSelectAllKml(checked){
+  if(!kmlSelection[current]) return;
+  const rows=applyFilters(state[current]||[], current);
+  if(checked){ const set=new Set(kmlSelection[current]); rows.forEach(r=>set.add(r.__id)); kmlSelection[current]=[...set]; }
+  else { const rm=new Set(rows.map(r=>r.__id)); kmlSelection[current]=kmlSelection[current].filter(id=>!rm.has(id)); }
+  saveKmlSelection(current); renderTable();
+}
+function clearAllKmlSelection(){
+  if(!kmlSelection[current] || !kmlSelection[current].length) return;
+  kmlSelection[current]=[]; saveKmlSelection(current); renderTable();
+}
+function kmlEsc(v){ return String(v==null?"":v).replace(/[<>&'"]/g, c=>({"<":"&lt;",">":"&gt;","&":"&amp;","'":"&apos;",'"':"&quot;"}[c])); }
+// KML usa aabbggrr (alfa + BGR), no #rrggbb
+function kmlColor(hex, alpha){ const h=hex.replace("#",""); return alpha+h.slice(4,6)+h.slice(2,4)+h.slice(0,2); }
+function kmlRing(coords){ return `<LinearRing><coordinates>${coords.map(c=>`${Number(c[0])},${Number(c[1])},0`).join(" ")}</coordinates></LinearRing>`; }
+function kmlPolygon(rings){
+  if(!rings||!rings.length) return "";
+  return `<Polygon><outerBoundaryIs>${kmlRing(rings[0])}</outerBoundaryIs>${rings.slice(1).map(r=>`<innerBoundaryIs>${kmlRing(r)}</innerBoundaryIs>`).join("")}</Polygon>`;
+}
+// GeoJSON (Feature/FeatureCollection/geometría suelta) -> lista de geometrías KML (Polygon/LineString/Point)
+function geoJsonToKmlGeoms(gj){
+  if(!gj) return [];
+  if(gj.type==="FeatureCollection") return (gj.features||[]).flatMap(geoJsonToKmlGeoms);
+  if(gj.type==="Feature") return geoJsonToKmlGeoms(gj.geometry);
+  if(gj.type==="GeometryCollection") return (gj.geometries||[]).flatMap(geoJsonToKmlGeoms);
+  const c=gj.coordinates;
+  switch(gj.type){
+    case "Polygon": return [kmlPolygon(c)];
+    case "MultiPolygon": return (c||[]).map(kmlPolygon);
+    case "LineString": return [`<LineString><coordinates>${c.map(p=>`${p[0]},${p[1]},0`).join(" ")}</coordinates></LineString>`];
+    case "MultiLineString": return (c||[]).map(l=>`<LineString><coordinates>${l.map(p=>`${p[0]},${p[1]},0`).join(" ")}</coordinates></LineString>`);
+    case "Point": return [`<Point><coordinates>${c[0]},${c[1]},0</coordinates></Point>`];
+    default: return [];
+  }
+}
+function kmlPlacemark(ent, r){
+  const geoms=[];
+  if(hasValidLatLng(r)) geoms.push(`<Point><coordinates>${Number(r.LONGITUDE)},${Number(r.LATITUDE)},0</coordinates></Point>`);
+  const polyKey=polygonKeyFor(ent);
+  if(polyKey && r[polyKey]){ try{ geoms.push(...geoJsonToKmlGeoms(JSON.parse(r[polyKey])).filter(Boolean)); }catch(e){} }
+  if(!geoms.length) return null;
+  const data=[["Mapping Code",r.MAPPING_CODE],["Region",r.REGION],["Market",r.MARKET],["Submarket",r.SUBMARKET]]
+    .map(([k,v])=>`<Data name="${kmlEsc(k)}"><value>${kmlEsc(v)}</value></Data>`).join("");
+  const geomXml=geoms.length===1 ? geoms[0] : `<MultiGeometry>${geoms.join("")}</MultiGeometry>`;
+  return `<Placemark><name>${kmlEsc(r.PROPERTY_NAME||r.MAPPING_CODE||"(unnamed)")}</name><styleUrl>#style_${ent}</styleUrl><ExtendedData>${data}</ExtendedData>${geomXml}</Placemark>`;
+}
+// recsByEnt: {ENT:[rows]} — arma el documento, lo descarga y avisa cuántos se omitieron por no tener ubicación
+function downloadKml(recsByEnt, docName){
+  let exported=0, skipped=0;
+  const styles=[], folders=[];
+  KML_EXPORT_ENTS.forEach(ent=>{
+    const rows=recsByEnt[ent]||[];
+    if(!rows.length) return;
+    const color=(MAP_LAYERS.find(l=>l.ent===ent)||{color:"#f0b323"}).color;
+    styles.push(`<Style id="style_${ent}"><IconStyle><color>${kmlColor(color,"ff")}</color><Icon><href>https://maps.google.com/mapfiles/kml/paddle/wht-blank.png</href></Icon></IconStyle><LineStyle><color>${kmlColor(color,"ff")}</color><width>2</width></LineStyle><PolyStyle><color>${kmlColor(color,"55")}</color></PolyStyle></Style>`);
+    const pms=rows.map(r=>kmlPlacemark(ent,r)).filter(pm=>{ if(pm){ exported++; return true; } skipped++; return false; });
+    if(pms.length) folders.push(`<Folder><name>${kmlEsc(KML_FOLDER_LABELS[ent])}</name>${pms.join("")}</Folder>`);
+  });
+  if(!exported){ toast("None of the selected records has a pin or polygon to export","err"); return; }
+  const xml=`<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>${kmlEsc(docName)}</name>${styles.join("")}${folders.join("")}</Document></kml>`;
+  const blob=new Blob([xml],{type:"application/vnd.google-earth.kml+xml"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`${docName.replace(/[\\/:*?"<>|]/g,"-")}.kml`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+  toast(`Exported ${exported} record(s) to KML`+(skipped?` — ${skipped} skipped (no pin or polygon)`:""), "ok");
+}
+function kmlDocName(){ return `Citius AG - KML Export ${new Date().toISOString().slice(0,10)}`; }
+function exportKmlFromTable(){
+  if(!consolidatedMode || !KML_EXPORT_ENTS.includes(current)) return;
+  const ids=KML_SELECTION_ONLY_ENTS.includes(current) ? kmlSelection[current] : (current==="LAND" ? landPresentationOrder : presentationOrder);
+  const byId=new Map((state[current]||[]).map(r=>[r.__id,r]));
+  const rows=ids.filter(id=>byId.has(id)).map(id=>byId.get(id));
+  if(!rows.length){ toast("Select records with the checkboxes to export them","err"); return; }
+  downloadKml({[current]:rows}, kmlDocName());
+}
+function exportKmlFromMapSelection(){
+  if(!consolidatedMode) return;
+  const recsByEnt={};
+  (currentMapSelectMatches||[]).forEach(m=>{ if(KML_EXPORT_ENTS.includes(m.ent)) (recsByEnt[m.ent]=recsByEnt[m.ent]||[]).push(m.row); });
+  downloadKml(recsByEnt, kmlDocName());
 }
 function togglePresentationSelection(id, checked){
   if(checked){ if(!presentationOrder.includes(id)) presentationOrder.push(id); }

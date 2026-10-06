@@ -2262,7 +2262,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.18.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.18.1</div>
     </nav>
   </aside>
   <div class="main">
@@ -5195,6 +5195,9 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.18.1", date:"2026-10-06", items:[
+    "Market Report (PDF), Significant Transactions: transactions with the same Tenant/Buyer, Building Type and Transaction Type are now combined into one row with their areas added up (before, only the largest per tenant was shown). Same tenant with a different type/transaction shows as separate rows; transactions without a Tenant/Buyer are never combined."
+  ]},
   {version:"8.18.0", date:"2026-10-06", items:[
     "Presentations (Properties, Land): the Print/PDF window now has an \"Also export KML (Google Earth)\" option. The KML has the same name as the PDF and one pin per option, labeled with the same number used in the presentation; clicking a pin shows Property Name, Available Size (same unit as the presentation) and Market.",
     "Pres. Log: new \"KML Exported\" column — \"Yes\" when the KML was exported with that presentation."

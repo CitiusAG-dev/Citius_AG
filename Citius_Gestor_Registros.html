@@ -16466,15 +16466,19 @@ function processImageFitWidthWhiteBg(file, targetW, targetH, quality){
     const url=URL.createObjectURL(file);
     img.onload=()=>{
       URL.revokeObjectURL(url);
-      const scale=targetW/img.naturalWidth;
-      const drawW=targetW, drawH=img.naturalHeight*scale;
-      const dy=(targetH-drawH)/2;
+      // v8.19.x, bug real reportado por el usuario ("se está recortando la imagen del Layout"): antes escalaba
+      // SIEMPRE al ancho — un plano más vertical que targetW:targetH quedaba más alto que el lienzo y se le
+      // cortaba arriba y abajo. Ahora es "contain": escala al lado que limite (ancho o alto), centrado en los 2
+      // ejes, con blanco en lo que sobre — nunca recorta. (El nombre de la función se conserva por sus usos.)
+      const scale=Math.min(targetW/img.naturalWidth, targetH/img.naturalHeight);
+      const drawW=img.naturalWidth*scale, drawH=img.naturalHeight*scale;
+      const dx=(targetW-drawW)/2, dy=(targetH-drawH)/2;
       const canvas=document.createElement("canvas");
       canvas.width=targetW; canvas.height=targetH;
       const ctx=canvas.getContext("2d");
       ctx.fillStyle="#ffffff";
       ctx.fillRect(0, 0, targetW, targetH);
-      ctx.drawImage(img, 0, dy, drawW, drawH);
+      ctx.drawImage(img, dx, dy, drawW, drawH);
       canvas.toBlob(b=> b?resolve(b):reject(new Error("No se pudo procesar la imagen")), "image/jpeg", quality);
     };
     img.onerror=()=>{ URL.revokeObjectURL(url); reject(new Error("Imagen inválida")); };

@@ -1098,6 +1098,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .pres-item-num{font-weight:700;color:var(--accent-ink);width:20px;flex-shrink:0}
   .pres-item-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
   .pres-item-name:hover{color:var(--accent-ink);text-decoration:underline}
+  /* Park Land (v8.19.x): Proposed Area capturada a mano por parque */
+  .pres-item-proposed{width:68px;flex-shrink:0;padding:3px 6px;font-size:12px;text-align:right;background:#fff;border:1px solid var(--line);border-radius:6px;color:var(--txt)}
+  .pres-item-proposed:focus{outline:none;border-color:var(--accent)}
+  .pres-item-unit{font-size:11px;color:var(--muted);flex-shrink:0}
   .pres-item button{background:none;border:1px solid var(--line);border-radius:6px;width:22px;height:22px;
                      cursor:pointer;color:var(--muted);font-size:11px;padding:0;flex-shrink:0}
   .pres-item button:hover{color:var(--txt);border-color:var(--accent)}
@@ -12043,7 +12047,7 @@ function presCellHtml(rec,row){
 function getOrderedPresentationList(){
   const byId=new Map((state.PROPIEDADES||[]).map(r=>[r.__id,r]));
   const valid=(presentationOrder||[]).filter(id=>byId.has(id));
-  if(valid.length!==presentationOrder.length){ presentationOrder=valid; savePresentationOrder(); }
+  if(byId.size && valid.length!==presentationOrder.length){ presentationOrder=valid; savePresentationOrder(); } // ver PRES_ORDER_PRUNE_NOTE
   return valid.map(id=>byId.get(id));
 }
 /* Sincroniza presentationOrder para que calce con el orden ACTUAL de la tabla de Propiedades (respetando
@@ -12054,8 +12058,15 @@ function getOrderedPresentationList(){
    se resincroniza y el ajuste manual se pierde — pedido explícito del usuario). Sin sort activo,
    applySort(...) regresa las filas en el mismo orden en que ya venían, así que esto es un no-op para
    cualquiera que nunca haya tocado el sort. */
+/* PRES_ORDER_PRUNE_NOTE (v8.19.x, bug real reportado por el usuario: "cuando refresco se quitan las opciones
+   marcadas del parque"): el Excel de datos es más grande que el límite de localStorage, así que tras refrescar
+   el navegador `state` arranca VACÍO hasta que se vuelve a leer el archivo vinculado — y si en ese momento se
+   pintaba una presentación (la última vista se restaura sola), el "limpiar ids que ya no existen" de
+   getOrdered*PresentationList()/esta función borraba TODA la selección guardada. Ahora solo se limpia cuando
+   la tabla correspondiente sí tiene registros cargados. */
 function syncPresentationOrderToTableSort(){
   if(!presentationOrder || !presentationOrder.length) return;
+  if(!(state.PROPIEDADES||[]).length) return; // datos aún no cargados — no tocar la selección guardada
   const byId=new Map((state.PROPIEDADES||[]).map(r=>[r.__id,r]));
   const selectedRecs=presentationOrder.filter(id=>byId.has(id)).map(id=>byId.get(id));
   const sorted=applySort(selectedRecs, "PROPIEDADES");
@@ -12132,7 +12143,7 @@ function clearAllLandPresentationSelection(){
 function getOrderedLandPresentationList(){
   const byId=new Map((state.LAND||[]).map(r=>[r.__id,r]));
   const valid=(landPresentationOrder||[]).filter(id=>byId.has(id));
-  if(valid.length!==landPresentationOrder.length){ landPresentationOrder=valid; saveLandPresentationOrder(); }
+  if(byId.size && valid.length!==landPresentationOrder.length){ landPresentationOrder=valid; saveLandPresentationOrder(); } // ver PRES_ORDER_PRUNE_NOTE
   return valid.map(id=>byId.get(id));
 }
 /* ==== Selección para la Presentación "Park Land" (v8.19.x, pedido explícito del usuario: "el método de
@@ -12169,7 +12180,7 @@ function clearAllParkPresentationSelection(){
 function getOrderedParkPresentationList(){
   const byId=new Map((state.PARKS||[]).map(r=>[r.__id,r]));
   const valid=(parkPresentationOrder||[]).filter(id=>byId.has(id));
-  if(valid.length!==parkPresentationOrder.length){ parkPresentationOrder=valid; saveParkPresentationOrder(); }
+  if(byId.size && valid.length!==parkPresentationOrder.length){ parkPresentationOrder=valid; saveParkPresentationOrder(); } // ver PRES_ORDER_PRUNE_NOTE
   return valid.map(id=>byId.get(id));
 }
 /* ==== Presentación de Oficinas — Etapa 1 (v4.1.0 en construcción, pedido explícito del usuario) ====
@@ -13213,7 +13224,10 @@ const PRESENTATION_ROWS_PARK = [
   {spacer:true},
   {label:"Total Land Size", key:"TOTAL_LAND_SIZE_VALUE", unit:"has", area:true, subtotal:true},
   {label:"Available Land", key:"AVAILABLE_AREA_VALUE", unit:"has", area:true, highlight:true},
-  {label:"Minimum Divisible", key:"MINIMUM_DIVISIBLE_VALUE", unit:"has", area:true, bold:true},
+  // v8.19.x, pedido explícito del usuario: en lugar de Minimum Divisible, "Proposed Area" — NO viene del
+  // registro del parque, se captura a mano por parque en el panel lateral de la presentación (ver
+  // parkPresProposedArea / renderParkPresSelectedList).
+  {label:"Proposed Area", key:"__PROPOSED_AREA__", unit:"has", bold:true},
   {label:"Infrastructure Status", key:"INFRAESTRUCTURE_STATUS"},
   {label:"Security", key:"SECURITY"},
   {label:"Park Substation Capacity", key:"INSTALLED_CAPACITY_TRANSFORMER_KVA", unit:"kVA"},
@@ -13242,7 +13256,25 @@ function parkAreaInHas(rec,key){
   if(u==="sf"||u==="ft²") return raw*UNIT_CONVERSIONS.SF_M2.toMetric/10000;
   return raw; // "has" (o vacío)
 }
+const PARK_PRES_PROPOSED_KEY="citius_park_pres_proposed_v1";
+function loadParkPresProposedArea(){ try{ const s=localStorage.getItem(PARK_PRES_PROPOSED_KEY); if(s) return JSON.parse(s)||{}; }catch(e){} return {}; }
+function saveParkPresProposedArea(){ try{ localStorage.setItem(PARK_PRES_PROPOSED_KEY, JSON.stringify(parkPresProposedArea)); }catch(e){} }
+let parkPresProposedArea=loadParkPresProposedArea(); // park __id -> texto capturado (has)
+function parkProposedAreaText(id){
+  const v=String(parkPresProposedArea[id]||"").trim();
+  if(!v) return "—";
+  const n=Number(v.replace(/,/g,""));
+  return isNaN(n) ? v : n.toLocaleString("en-US",{maximumFractionDigits:2});
+}
+// Se llama en cada tecla: actualiza solo las celdas de "Proposed Area" de ese parque, sin re-renderizar todo
+// el deck (re-renderizar reconstruiría el panel lateral y el input perdería el foco).
+function onParkProposedAreaInput(id, value){
+  if(String(value).trim()) parkPresProposedArea[id]=value; else delete parkPresProposedArea[id];
+  saveParkPresProposedArea();
+  document.querySelectorAll(`#parkPresPages [data-proposed-id="${id}"]`).forEach(el=>{ el.textContent=parkProposedAreaText(id); });
+}
 function presParkValueFor(rec,row){
+  if(row.key==="__PROPOSED_AREA__") return parkProposedAreaText(rec.__id);
   if(row.key==="__LOCATION_PIN__"){
     const lat=rec.LATITUDE, lng=rec.LONGITUDE;
     if(lat==null||lat===""||lng==null||lng==="") return "—";
@@ -13306,7 +13338,8 @@ function buildParkDeckPageHtml(chunk,pageIndex,logoSrc){
         const cellCls=["deck-cell",...extra];
         if(row.bold) cellCls.push("deck-bold");
         if(row.smallValue) cellCls.push("deck-cell-sm");
-        html+=`<div class="${cellCls.join(" ")}">${presParkCellHtml(chunk[i],row)}</div>`;
+        const proposedAttr=row.key==="__PROPOSED_AREA__"?` data-proposed-id="${chunk[i].__id}"`:"";
+        html+=`<div class="${cellCls.join(" ")}"${proposedAttr}>${presParkCellHtml(chunk[i],row)}</div>`;
       } else {
         html+=`<div class="deck-cell deck-empty-slot"></div>`;
       }
@@ -13439,6 +13472,7 @@ function renderParkPresSelectedList(list){
       ${FC_DRAG_ICON}
       <span class="pres-item-num">${String(i+1).padStart(2,"0")}</span>
       <span class="pres-item-name" title="Open record to edit" onclick="editFromParkPresentation('${rec.__id}')">${escapeHtml(rec.PROPERTY_NAME||rec.MAPPING_CODE||"Unnamed")}</span>
+      <input type="text" class="pres-item-proposed" draggable="false" placeholder="Proposed" title="Proposed Area (has) — shown in the comparison table" value="${escapeAttr(parkPresProposedArea[rec.__id]||"")}" oninput="onParkProposedAreaInput('${rec.__id}',this.value)" ondragstart="event.preventDefault();event.stopPropagation()"><span class="pres-item-unit">has</span>
       <button title="Remove from the presentation" onclick="removeFromParkPresentation('${rec.__id}')">✕</button>
     </div>
   `).join("");

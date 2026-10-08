@@ -1483,6 +1483,12 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .deck-photo{width:100%;aspect-ratio:400/270;background:#eee;border-radius:0;overflow:hidden;
               display:flex;align-items:center;justify-content:center;position:relative;z-index:0}
   .deck-photo img{width:100%;height:100%;object-fit:cover;display:block}
+  /* Park Land (v8.19.x): la foto de la tabla es el plano Layout — se ajusta completo (sin recortar) sobre blanco */
+  .deck-photo.deck-photo-contain{background:#fff}
+  .deck-photo.deck-photo-contain img{object-fit:contain}
+  .deck-page.park-layout-page{aspect-ratio:1652/1269;display:flex;flex-direction:column}
+  .park-layout-full{flex:1;min-height:0;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .park-layout-full img{width:100%;height:100%;object-fit:contain;display:block}
   .deck-photo .image-placeholder{font-size:10px;padding:6px}
   /* v3.44.0: el propio div `.deck-photo` (id `landDeckPhoto_*`) ahora es DIRECTAMENTE el contenedor de un
      mapa Leaflet en la tabla de Terrenos (ver renderLandDeckAerialMaps) — mismo patrón EXACTO que
@@ -2412,6 +2418,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
           <div class="pres-design-panel" id="parkPresDesignPanel">
             <label><input type="checkbox" id="parkPresShowCover"> Cover</label>
             <label><input type="checkbox" id="parkPresShowTable"> Table</label>
+            <label><input type="checkbox" id="parkPresShowLayout"> Layout</label>
             <label><input type="checkbox" id="parkPresShowClosing"> Closing</label>
           </div>
         </div>
@@ -13279,7 +13286,7 @@ function buildParkDeckPageHtml(chunk,pageIndex,logoSrc){
     if(i<n){
       html+=`<div class="deck-col-head">
         <div class="deck-num">${pageIndex*SLOTS+i+1}</div>
-        <div class="deck-photo" id="parkDeckPhoto_${pageIndex}_${i}"><div class="image-placeholder">No photo</div></div>
+        <div class="deck-photo deck-photo-contain" id="parkDeckPhoto_${pageIndex}_${i}"><div class="image-placeholder">No layout</div></div>
       </div>`;
     } else {
       html+=`<div class="deck-col-head deck-empty-slot"></div>`;
@@ -13416,7 +13423,7 @@ function buildParkCoverPageHtml(){
 }
 const PARK_PRES_SHOW_KEY="citius_park_pres_show_v1";
 function loadParkPresShowState(){
-  const defaults={cover:true, table:true, closing:true};
+  const defaults={cover:true, table:true, layout:true, closing:true};
   try{ const s=localStorage.getItem(PARK_PRES_SHOW_KEY); if(s) return {...defaults, ...JSON.parse(s)}; }catch(e){}
   return defaults;
 }
@@ -13460,6 +13467,23 @@ function removeFromParkPresentation(id){
   renderParkPresentationView();
   if(current==="PARKS") renderTable();
 }
+/* Hoja "Layout" (v8.19.x, pedido explícito del usuario): 1 hoja por parque con su foto LAYOUT a hoja
+   completa; mismo encabezado que la hoja Layout de Industrial (nombre + developer, número de opción a la
+   derecha — reusa .layout-header/.layout-num). Proporción fija de portada (1652/1269) para que Chrome no la
+   encoja al imprimir (ver preparePrintPageSize, grupo "layoutPage"). */
+function buildParkLayoutPageHtml(rec,idx,logoSrc){
+  return `<div class="deck-page layout-page park-layout-page">
+    <div class="layout-header">
+      <img class="deck-logo" src="${logoSrc}">
+      <div class="layout-header-text">
+        <div class="layout-title">${escapeHtml(rec.PROPERTY_NAME||"")}</div>
+        <div class="layout-subtitle">${escapeHtml(rec.DEVELOPER||"")}</div>
+      </div>
+    </div>
+    <div class="layout-num">${idx+1}</div>
+    <div class="park-layout-full" id="parkLayoutFull_${idx}"><div class="image-placeholder">No layout</div></div>
+  </div>`;
+}
 function renderParkPresentationView(){
   revokeAllDeckPhotoUrls();
   const list=getOrderedParkPresentationList();
@@ -13474,8 +13498,8 @@ function renderParkPresentationView(){
     pagesEl.innerHTML=`<div class="filters-empty">You haven't marked any parks for the presentation yet.<br>In the Parks table, check "Use in presentation".</div>`;
     return;
   }
-  if(!parkPresShowState.cover && !parkPresShowState.table && !parkPresShowState.closing){
-    pagesEl.innerHTML=`<div class="filters-empty">Check "Cover", "Table", and/or "Closing" above to see the presentation.</div>`;
+  if(!parkPresShowState.cover && !parkPresShowState.table && !parkPresShowState.layout && !parkPresShowState.closing){
+    pagesEl.innerHTML=`<div class="filters-empty">Check "Cover", "Table", "Layout", and/or "Closing" above to see the presentation.</div>`;
     return;
   }
   const logoSrc=DECK_LOGO_SRC;
@@ -13486,9 +13510,13 @@ function renderParkPresentationView(){
     for(let i=0;i<list.length;i+=6) chunks.push(list.slice(i,i+6));
     html+=chunks.map((chunk,pi)=>buildParkDeckPageHtml(chunk,pi,logoSrc)).join("");
   }
+  if(parkPresShowState.layout) html+=list.map((rec,i)=>buildParkLayoutPageHtml(rec,i,logoSrc)).join("");
   if(parkPresShowState.closing) html+=buildClosingPageHtml();
   pagesEl.innerHTML=html;
-  chunks.forEach((chunk,pi)=>{ chunk.forEach((rec,i)=>{ if(rec.MAPPING_CODE) loadDeckPhotoInto(`parkDeckPhoto_${pi}_${i}`, photoFileBase(rec.MAPPING_CODE,"FACHADA")); }); });
+  // v8.19.x, pedido explícito del usuario: la imagen de la tabla y de la hoja "Layout" es la foto LAYOUT del
+  // parque (no la Fachada) — misma resolución que Industrial (LAYOUT_PHOTO_TARGET aplica a cualquier entidad).
+  chunks.forEach((chunk,pi)=>{ chunk.forEach((rec,i)=>{ if(rec.MAPPING_CODE) loadDeckPhotoInto(`parkDeckPhoto_${pi}_${i}`, photoFileBase(rec.MAPPING_CODE,"LAYOUT")); }); });
+  if(parkPresShowState.layout) list.forEach((rec,i)=>{ if(rec.MAPPING_CODE) loadDeckPhotoInto(`parkLayoutFull_${i}`, photoFileBase(rec.MAPPING_CODE,"LAYOUT")); });
 }
 function buildParkPresPdfFilename(){
   const company=(parkPresCoverInfo.company||"").trim();
@@ -13539,7 +13567,7 @@ document.getElementById("parkPresPrintBtn").onclick=()=>{
     doParkPresPrint();
   }, {kml:true});
 };
-[["parkPresShowCover","cover"],["parkPresShowTable","table"],["parkPresShowClosing","closing"]].forEach(([id,key])=>{
+[["parkPresShowCover","cover"],["parkPresShowTable","table"],["parkPresShowLayout","layout"],["parkPresShowClosing","closing"]].forEach(([id,key])=>{
   const el=document.getElementById(id);
   el.checked=!!parkPresShowState[key];
   el.onchange=()=>{ parkPresShowState[key]=el.checked; saveParkPresShowState(); renderParkPresentationView(); };

@@ -2262,7 +2262,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.18.1</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.18.2</div>
     </nav>
   </aside>
   <div class="main">
@@ -5195,6 +5195,10 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.18.2", date:"2026-10-08", items:[
+    "Market Report (PDF), Significant Transactions: confidential transactions (Tenant/Buyer blank or \"Confidential\") are no longer listed.",
+    "Market Report (PDF), Completed Transactions — Detail: now only lists transactions with Property Type = \"Industrial\"."
+  ]},
   {version:"8.18.1", date:"2026-10-06", items:[
     "Market Report (PDF), Significant Transactions: transactions with the same Tenant/Buyer, Building Type and Transaction Type are now combined into one row with their areas added up (before, only the largest per tenant was shown). Same tenant with a different type/transaction shows as separate rows; transactions without a Tenant/Buyer are never combined."
   ]},
@@ -8208,12 +8212,19 @@ function mktMatrixTableHtml(rowCategories, computeFn, opts){
    se queda con "la más grande por inquilino" — se agrupa por Tenant/Buyer + Building Type + Transaction Type
    y SE SUMAN las áreas en un solo renglón; mismo cliente con distinto tipo/transacción = renglones separados.
    Transacciones sin Tenant/Buyer ("Confidential") nunca se suman entre sí (pueden ser clientes distintos),
-   cada una compite sola por el top N. */
+   cada una compite sola por el top N.
+   v8.18.x, pedido explícito del usuario: ya no se listan las transacciones confidenciales — Tenant/Buyer
+   vacío (que se mostraba como "Confidential") o capturado literalmente como "Confidential"/"Confidencial"
+   se excluyen de la tabla por completo (no compiten por el top N). */
+function mktIsConfidentialTenant(r){
+  const t=String(r.TENANT_BUYER_USER||"").trim();
+  return !t || ciEq(t,"Confidential") || ciEq(t,"Confidencial");
+}
 function mktSignificantTransactions(limit){
   const yearStart=`${resumenYear}-01-01`, yearEnd=`${resumenYear}-12-31`;
   const groups=new Map();
   (state.TRANSACCIONES||[])
-    .filter(r=>resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd)
+    .filter(r=>resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd&&!mktIsConfidentialTenant(r))
     .forEach((r,i)=>{
       const areaSF=areaValueInSF(r,"TRANSACTION_AREA");
       if(areaSF<=0) return;
@@ -8449,7 +8460,9 @@ function mktBuildTxDetailPage(){
   subs.forEach(sm=>{
     // v7.3.5x, pedido explícito del usuario: solo Lease/Sublease/Sale (antes salían todos los tipos, ej.
     // Renewal/Confidential) — mismo criterio ya usado en la tabla "Deal" de la página 2 (dealCategories).
-    const rows=(state.TRANSACCIONES||[]).filter(r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd&&["Lease","Sublease","Sale"].some(t=>ciEq(r.TRANSACCION_TYPE,t)));
+    // v8.18.x, pedido explícito del usuario: solo Property Type = "Industrial" (antes entraban también
+    // Offices/Land/Retail si coincidían en mercado/submercado).
+    const rows=(state.TRANSACCIONES||[]).filter(r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd&&["Lease","Sublease","Sale"].some(t=>ciEq(r.TRANSACCION_TYPE,t))&&ciEq(r.PROPERTY_TYPE,"Industrial"));
     if(!rows.length) return;
     // v7.3.5x, bug real reportado por el usuario (con captura): colspan=7 dejaba SIN celda la 8va columna
     // (Trans) en este renglón — como .mkt-group-row pinta de fondo vía `td{background:...}`, esa columna sin

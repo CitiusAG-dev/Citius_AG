@@ -16176,7 +16176,15 @@ const PHOTO_KINDS_SPACES=[
   {key:"INTERIOR_3", label:"Interior Photo (3)", required:false},
   {key:"INTERIOR_4", label:"Interior Photo (4)", required:false},
 ];
-const PHOTO_KINDS_BY_ENTITY={PROPIEDADES:PHOTO_KINDS_PROPIEDADES_PARKS, PARKS:PHOTO_KINDS_PROPIEDADES_PARKS, LAND:PHOTO_KINDS_LAND, OFICINAS:PHOTO_KINDS_OFICINAS, SPACES:PHOTO_KINDS_SPACES};
+/* Parques (v8.19.x, pedido explícito del usuario): solo 2 fotos, en este orden — Layout primero (la que usa la
+   presentación Park Land, obligatoria: misma convención de "1 foto insignia obligatoria") y Access Photo
+   (opcional). Fachada/Exterior/Interior/Aérea/Docks ya no aplican a Parques — los archivos viejos con esos
+   sufijos se quedan en la carpeta, intactos pero sin usarse (mismo criterio que Terrenos en v3.34.1). */
+const PHOTO_KINDS_PARKS=[
+  {key:"LAYOUT", label:"Layout", required:true},
+  {key:"ACCESS", label:"Access Photo", required:false},
+];
+const PHOTO_KINDS_BY_ENTITY={PROPIEDADES:PHOTO_KINDS_PROPIEDADES_PARKS, PARKS:PHOTO_KINDS_PARKS, LAND:PHOTO_KINDS_LAND, OFICINAS:PHOTO_KINDS_OFICINAS, SPACES:PHOTO_KINDS_SPACES};
 const MULTI_PHOTO_ENTITIES=new Set(Object.keys(PHOTO_KINDS_BY_ENTITY));
 function photoKindsFor(ent){ return PHOTO_KINDS_BY_ENTITY[ent] || [{key:"", label:"", required:true}]; }
 function photoFileBase(code, kindKey){ return kindKey ? code+"_"+kindKey : code; }

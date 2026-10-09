@@ -2279,7 +2279,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.18.2</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.19.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -5278,6 +5278,15 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.19.0", date:"2026-10-08", items:[
+    "New presentation \"Park Land\" (Presentation menu, below Industrial Buildings): select parks with \"Use in presentation\" in the Parks table (or from the Map). Includes Cover and Closing (same as Industrial Buildings), the comparison Table, and a full-page Layout sheet per park (with the park name, developer, and option number in the header). The table shows each park's Layout image; its \"Proposed Area\" row is typed by hand per park in the presentation side panel.",
+    "\"Buildings\" renamed to \"Industrial Buildings\" (sidebar and Presentation menu).",
+    "Notes moved to their own \"Internal Notes\" section (after Photos) on every table that has it, as a large multi-line text box.",
+    "Parks: new \"Comm. Condition Notes\" field (end of Comm. Conditions); \"Installed Capacity Transformer KVA\" now shows as \"Park Substation Capacity KVA\" (Parks only).",
+    "Parks photos are now just Layout (first, required) and Access Photo.",
+    "Layout photos are now scaled to fit without cropping anything (white fill on the sides or top/bottom); before, plans taller than the 2400×1620 frame were cut at the top and bottom. Re-upload any Layout that was already saved cropped.",
+    "Fixed: the parks/buildings/land marked for a presentation were lost after refreshing the browser."
+  ]},
   {version:"8.18.2", date:"2026-10-08", items:[
     "Market Report (PDF), Significant Transactions: confidential transactions (Tenant/Buyer blank or \"Confidential\") are no longer listed.",
     "Market Report (PDF), Completed Transactions — Detail: now only lists transactions with Property Type = \"Industrial\"."

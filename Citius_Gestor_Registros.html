@@ -2714,7 +2714,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
               <span id="consolidatedChip" style="padding:4px 10px;border-radius:20px;background:rgba(107,116,128,.15);color:var(--muted);font-size:12px">Inactive</span>
             </div>
             <div class="path-note" id="consolidatedPathNote"></div>
-            <p class="map-hint">Connect the root folder that contains one subfolder per office (e.g. "Market Information") to see records from <b>every market at once</b> across Properties, Parks, Land, and Transactions — you can still filter by Market/Submarket like you already do. While it's active, the system is read-only (nothing can be created, edited, or deleted) and your individual Excel gets unlinked: the two are mutually exclusive, only one at a time.</p>
+            <p class="map-hint">Connect the root folder that contains one subfolder per office (e.g. "Market Information") — or a single folder with all the Excel files directly inside (each file counts as one office) — to see records from <b>every market at once</b> across Properties, Parks, Land, and Transactions — you can still filter by Market/Submarket like you already do. While it's active, the system is read-only (nothing can be created, edited, or deleted) and your individual Excel gets unlinked: the two are mutually exclusive, only one at a time.</p>
             <div class="settings-actions">
               <button class="btn ghost" id="openConsolidatedBtn">Choose root folder…</button>
               <button class="btn ghost" id="refreshConsolidatedBtn" style="display:none">↻ Refresh</button>
@@ -17113,26 +17113,42 @@ async function loadConsolidatedFromRoot(rootHandle, onProgress){
   // Bitácora se perdía. El usuario preguntó explícitamente si Pres. Log se consolidaba (no) y pidió que sí.
   const merged={PROPIEDADES:[],PARKS:[],TRANSACCIONES:[],LAND:[],OFICINAS:[],SPACES:[],BITACORA:[]};
   let officeCount=0, fileCount=0, skipped=[], officeIdx=0;
-  for await (const [officeName, officeHandle] of rootHandle.entries()){
-    if(officeHandle.kind!=="directory") continue;
-    officeIdx++;
-    let sawFileInOffice=false, fileIdx=0;
-    for await (const [fileName, fh] of officeHandle.entries()){
-      if(fh.kind!=="file" || !/\.xlsx?$/i.test(fileName) || fileName.startsWith("~$")) continue;
-      fileIdx++;
-      try{
-        if(!(await ensurePermission(fh,"read"))) { skipped.push(officeName+"/"+fileName); continue; }
-        const file=await fh.getFile();
-        const wb=XLSX.read(await file.arrayBuffer(),{type:"array",cellFormula:false,cellHTML:false});
-        extractEntityRowsReadOnly(wb, officeIdx+"_"+fileIdx, officeName, fileName, merged);
-        fileCount++; sawFileInOffice=true;
-      }catch(e){ skipped.push(officeName+"/"+fileName); }
+  const isExcel=(fh,name)=>fh.kind==="file" && /\.xlsx?$/i.test(name) && !name.startsWith("~$");
+  // Lee 1 archivo y lo vuelca a `merged`; regresa true si se pudo leer.
+  async function readOne(fh, officeName, fileName, tag){
+    try{
+      if(!(await ensurePermission(fh,"read"))) { skipped.push(officeName+"/"+fileName); return false; }
+      const file=await fh.getFile();
+      const wb=XLSX.read(await file.arrayBuffer(),{type:"array",cellFormula:false,cellHTML:false});
+      extractEntityRowsReadOnly(wb, tag, officeName, fileName, merged);
+      fileCount++;
+      return true;
+    }catch(e){ skipped.push(officeName+"/"+fileName); return false; }
+    finally{
       // v3.45.1: cede el hilo principal después de CADA archivo — XLSX.read() es síncrono y puede tardar
-      // cientos de ms por archivo; sin este respiro, el navegador ve un solo bloqueo continuo a lo largo de
-      // decenas de archivos y ofrece "la página no responde". El tiempo total de lectura es el mismo, solo
-      // se reparte en varios turnos del hilo — y de paso permite refrescar el toast de progreso.
+      // cientos de ms por archivo; sin este respiro el navegador ofrece "la página no responde".
       if(onProgress) onProgress(officeName, fileCount);
       await new Promise(r=>setTimeout(r,0));
+    }
+  }
+  for await (const [entryName, entryHandle] of rootHandle.entries()){
+    // v8.19.x, pedido explícito del usuario: la raíz también puede traer los Excel SUELTOS (una sola carpeta con
+    // todos los documentos, sin subcarpeta por oficina) — cada archivo cuenta como su propia oficina, con el
+    // nombre del archivo sin extensión como OFFICE. Las subcarpetas por oficina siguen funcionando igual, y se
+    // pueden mezclar ambas formas en la misma raíz.
+    if(isExcel(entryHandle, entryName)){
+      officeIdx++;
+      if(await readOne(entryHandle, entryName.replace(/\.xlsx?$/i,""), entryName, officeIdx+"_1")) officeCount++;
+      continue;
+    }
+    if(entryHandle.kind!=="directory") continue;
+    const officeName=entryName;
+    officeIdx++;
+    let sawFileInOffice=false, fileIdx=0;
+    for await (const [fileName, fh] of entryHandle.entries()){
+      if(!isExcel(fh, fileName)) continue;
+      fileIdx++;
+      if(await readOne(fh, officeName, fileName, officeIdx+"_"+fileIdx)) sawFileInOffice=true;
     }
     if(sawFileInOffice) officeCount++;
   }

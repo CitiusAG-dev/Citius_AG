@@ -2284,7 +2284,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.19.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.20.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -5284,6 +5284,11 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.20.0", date:"2026-10-13", items:[
+    "Records: new satellite \"Location Map\" at the bottom of the Location tab, showing the record's pin and polygon (Industrial Buildings also show their park's polygon, dashed). Works for Industrial Buildings, Parks, Land, and Offices, in view and edit mode; while editing it updates when you change latitude/longitude, the park, or save the pin/polygon. Clicking the pin opens Google Maps.",
+    "Settings > Consolidated — all markets: new \"Export to Excel\" button (visible while consolidated mode is active). Downloads one Excel with a sheet per table from all markets, same headers as each office's file, plus OFFICE and SOURCE_FILE columns.",
+    "Consolidated mode now also accepts a single folder with all the Excel files directly inside (each file counts as one office), not just one subfolder per office — both can be mixed."
+  ]},
   {version:"8.19.0", date:"2026-10-08", items:[
     "New presentation \"Park Land\" (Presentation menu, below Industrial Buildings): select parks with \"Use in presentation\" in the Parks table (or from the Map). Includes Cover and Closing (same as Industrial Buildings), the comparison Table, and a full-page Layout sheet per park (with the park name, developer, and option number in the header). The table shows each park's Layout image; its \"Proposed Area\" row is typed by hand per park in the presentation side panel.",
     "\"Buildings\" renamed to \"Industrial Buildings\" (sidebar and Presentation menu).",

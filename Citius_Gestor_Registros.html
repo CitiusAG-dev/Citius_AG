@@ -2719,6 +2719,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
               <button class="btn ghost" id="openConsolidatedBtn">Choose root folder…</button>
               <button class="btn ghost" id="refreshConsolidatedBtn" style="display:none">↻ Refresh</button>
               <button class="btn ghost" id="exitConsolidatedBtn" style="display:none">Exit consolidated mode</button>
+              <button class="btn" id="exportConsolidatedBtn" style="display:none" title="Download one Excel with every table from all markets (one sheet per table)">Export to Excel</button>
             </div>
           </div>
           <div class="files-card">
@@ -17158,6 +17159,7 @@ function applyConsolidatedUIState(){
   document.getElementById("openConsolidatedBtn").style.display = consolidatedMode?"none":"";
   document.getElementById("refreshConsolidatedBtn").style.display = consolidatedMode?"":"none";
   document.getElementById("exitConsolidatedBtn").style.display = consolidatedMode?"":"none";
+  document.getElementById("exportConsolidatedBtn").style.display = consolidatedMode?"":"none";
   const banner=document.getElementById("consolidatedBanner");
   if(banner) banner.style.display = consolidatedMode?"":"none";
   if(mapViewActive) renderAllPolygonsMap();
@@ -17247,6 +17249,45 @@ async function exitConsolidatedMode(){
 }
 document.getElementById("exitConsolidatedBtn").onclick=async()=>{ await exitConsolidatedMode(); toast("Consolidated mode deactivated.","ok"); };
 document.getElementById("exitConsolidatedBannerBtn").onclick=async()=>{ await exitConsolidatedMode(); toast("Consolidated mode deactivated.","ok"); };
+
+/* ==== Exportar el consolidado a Excel (v8.19.x, pedido explícito del usuario: "al tener todos los mercados
+   consolidados pueda exportar un excel con toda la información", botón en la misma tarjeta de Settings) ====
+   1 hoja por tabla, con el MISMO nombre de hoja y los MISMOS encabezados (keys) que los Excel de cada oficina —
+   así el archivo se puede volver a abrir en la app o usar en el BI sin mapear columnas — más 2 columnas al
+   inicio: OFFICE (carpeta de la oficina) y SOURCE_FILE (archivo del que salió cada registro). Antes de exportar
+   se recalculan los campos derivados (Available Area de Parks/Buildings, etc.), igual que al ver cada tabla. */
+function buildConsolidatedExportWorkbook(){
+  recomputeAllParkDerivedFields(); recomputeAllPropertyDerivedFields(); recomputeAllOfficeDerivedFields();
+  recomputeAllSpacesFromOffices(); recomputeAllSpaceDerivedFields();
+  const wb=XLSX.utils.book_new();
+  const counts=[];
+  for(const ent in ENTITIES){
+    const rows=state[ent]||[];
+    const keys=fields(ent).map(f=>f.key);
+    const aoa=[["OFFICE","SOURCE_FILE",...keys]];
+    rows.forEach(r=>{
+      aoa.push([r.__consolidatedOffice||"", r.__sourceDoc||"", ...keys.map(k=>(r[k]!==undefined && r[k]!==null) ? r[k] : "")]);
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), ent);
+    counts.push(`${ENTITIES[ent].label}: ${rows.length}`);
+  }
+  return {wb, counts};
+}
+document.getElementById("exportConsolidatedBtn").onclick=()=>{
+  if(!consolidatedMode){ toast("Activate consolidated mode first","err"); return; }
+  try{
+    const {wb, counts}=buildConsolidatedExportWorkbook();
+    const d=new Date(), pad=n=>String(n).padStart(2,"0");
+    const name=`Consolidated_All_Markets_${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}.xlsx`;
+    const buf=XLSX.write(wb,{bookType:"xlsx",type:"array",compression:true});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
+    a.download=name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+    toast("Exported "+name+" — "+counts.join(" · "),"ok");
+  }catch(e){ toast("Couldn't export: "+e.message,"err"); }
+};
 
 /* ==== Core: write current state to the bound file ==== */
 let writing=false, pendingWrite=false;

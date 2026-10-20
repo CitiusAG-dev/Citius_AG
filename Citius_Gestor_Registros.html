@@ -1378,7 +1378,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .office-detail-section-title{font-size:19px;font-weight:700;color:var(--accent);margin-bottom:4px}
   /* Pedido explícito del usuario: "Building information" empieza un poco más abajo (separada de la tabla
      de "Space information" de arriba). */
-  .office-detail-building{padding-top:22px}
+  .office-detail-building{padding-top:12px}
   /* v4.4.2, pedido explícito del usuario ("no está alineado donde comienzan los datos... quiero que
      empiecen igual"): "Información del Espacio" y "Información del Edificio" son 2 <table> DISTINTAS —
      sin un ancho fijo, cada una autoajustaba su columna de etiqueta al texto MÁS LARGO de ESA tabla nada
@@ -1412,15 +1412,15 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      lista"), pero el usuario quiere justo lo contrario: que la tabla cierre con la misma línea que ya
      separa cada valor. Se quita esa excepción — ahora la última fila también lleva su `border-bottom`. */
   .office-detail-rows{width:100%}
-  .office-detail-row{display:flex;align-items:baseline;gap:18px;padding:4px 0;border-bottom:1px solid var(--line)}
+  .office-detail-row{display:flex;align-items:baseline;gap:18px;padding:3px 0;border-bottom:1px solid var(--line)}
   /* v4.4.11, pedido explícito del usuario ("más grande la letra de etiquetas y datos") — hasta ahora
      ninguna de las 2 declaraba su propio font-size, así que caían en los 14px heredados de `body` (el
      `<table>` original SÍ tenía un font-size explícito, 14px desde v4.4.4 — se perdió al reemplazar la
      tabla por estos 2 <div> en v4.4.8, sin que nadie lo notara porque 14px heredado de `body` coincidía por
      casualidad con el valor que ya traía). Subieron a 16px explícitos; v4.4.13, pedido explícito del
      usuario ("pásala a 15px"), un ajuste fino hacia abajo — 16px quedó un poco grande. */
-  .office-detail-row-label{flex:0 0 270px;min-width:0;color:var(--muted);font-weight:700;font-size:15px}
-  .office-detail-row-value{flex:1;min-width:0;font-weight:400;overflow-wrap:break-word;font-size:15px}
+  .office-detail-row-label{flex:0 0 270px;min-width:0;color:var(--muted);font-weight:700;font-size:14px}
+  .office-detail-row-value{flex:1;min-width:0;font-weight:400;overflow-wrap:break-word;font-size:14px}
   /* v4.4.2: 2do incremento de letra pedido explícito ("quiero que las notas sean un poco más grandes"),
      tras el primer incremento de v4.4.1 (9px -> 11px) resultar insuficiente. */
   /* v4.4.3: reducida un poco, pedido explícito del usuario — 13px (v4.4.2) se sentía grande. */

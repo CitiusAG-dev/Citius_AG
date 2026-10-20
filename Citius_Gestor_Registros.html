@@ -14353,6 +14353,13 @@ function officeDeckRateText(ent, valueKey, unitKey, rec, unitPref, emptyText, ze
   const numText=isNaN(num)?String(conv.value):num.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
   return prefix+numText;
 }
+function officeDeckParkingRatioText(office, unitPref){
+  const raw=office&&office.PARKING_RATIO;
+  const v=Number(raw);
+  if(raw==null || raw==="" || isNaN(v)) return officeDeckPlainFmt(raw);
+  if(unitPref==="metric") return officeDeckPlainFmt(v);
+  return officeDeckPlainFmt(Math.round(v/UNIT_CONVERSIONS.SF_M2.toMetric));
+}
 function officeDeckSpaceInfoRows(opt, unitPref){
   const recs=officeOptionSpaceRecords(opt);
   const primary=officeOptionPrimarySpace(opt);
@@ -14386,8 +14393,11 @@ function officeDeckSpaceInfoRows(opt, unitPref){
     // Pedido explícito del usuario: la etiqueta queda solo "Floor"/"Nivel", sin "(s)"/"(es)" ni la unidad --
     // por eso officeDeckFloorsWithArea() vuelve a poner la unidad junto al área de cada piso (Opción agrupada).
     {label:{en:"Floor",es:"Nivel"}, value: officeDeckFloorsWithArea(recs, unitPref)||"—"},
-    {label:{en:"Parking ratio",es:"Radio de estacionamiento"},
-     value: officeDeckPlainFmt(office&&office.PARKING_RATIO)},
+    // Pedido explícito del usuario: Parking ratio se captura en m² por cajón — en la vista Imperial se convierte
+    // a SF por cajón (antes se mostraba el número en m² tal cual). La unidad va en la etiqueta, igual que las
+    // filas de área.
+    {label:{en:`Parking ratio (${u}/space)`,es:`Radio de estacionamiento (${u}/cajón)`},
+     value: officeDeckParkingRatioText(office, unitPref)},
     {cell:"parking", label:{en:"Parking spaces",es:"Cajones incluídos"},
      value: officeDeckPlainFmt(proposedSpots!=null?proposedSpots:sumSpacesNumber(recs,"ASSIGNED_PARKING_SPOTS"))},
     // v8.12.x, corrección del usuario sobre el fix anterior: el campo correcto es Additional Spot Price DE

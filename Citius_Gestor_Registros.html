@@ -9390,6 +9390,11 @@ const POLYGON_FIELD_KEYS = new Set(["GEOJSON_POLIGONO","GEO_JSON","GEOJSON_POLYG
    mecanismo EXACTO que el selector de fecha (openDatePicker/closeDatePicker/onDocClickForDatePicker un poco
    más arriba), solo que el popover muestra una lista de checkboxes en vez de un calendario. */
 const MULTI_LIST_FIELD_KEYS = new Set(["AMENITIES", "BUILDING_CERTIFICATIONS", "NEARBY_AMENITIES"]);
+// Pedido explícito del usuario: TRANSACTION_AVAILABLE es multi-select SOLO en Spaces (un espacio puede estar
+// disponible para Lease y Sale a la vez) — el mismo key en Buildings/Offices sigue siendo de un solo valor, por
+// eso va aparte por entidad en vez de en MULTI_LIST_FIELD_KEYS (que aplica a cualquier entidad con ese key).
+const MULTI_LIST_FIELD_KEYS_BY_ENTITY = { SPACES: new Set(["TRANSACTION_AVAILABLE"]) };
+function isMultiListField(ent, key){ return MULTI_LIST_FIELD_KEYS.has(key) || !!(MULTI_LIST_FIELD_KEYS_BY_ENTITY[ent] && MULTI_LIST_FIELD_KEYS_BY_ENTITY[ent].has(key)); }
 function multiListValues(raw){ return String(raw||"").split(",").map(s=>s.trim()).filter(Boolean); }
 let multiListPickerState=null; // {key}
 function closeMultiListPicker(){
@@ -9788,7 +9793,7 @@ function fieldValueMismatch(ent, f, record){
     const parentValue=parentKey&&record?String(record[parentKey]||""):"";
     return !cascadeOptionsFor(f.key,parentKey,parentValue,ent,record).includes(raw);
   }
-  if(MULTI_LIST_FIELD_KEYS.has(f.key) && f.list && lists[f.list]){
+  if(isMultiListField(ent, f.key) && f.list && lists[f.list]){
     // valor guardado como "A, B, C" (ver MULTI_LIST_FIELD_KEYS) — "no está en la lista" solo si ALGUNO de
     // los valores capturados ya no está en el catálogo configurado, no la cadena completa contra la lista.
     return multiListValues(raw).some(v=>!lists[f.list].includes(v));
@@ -10278,7 +10283,7 @@ function buildForm(ent, record){
       return `<div class="field"><label>${fieldLabel(f.key)}${reqMark}${helpIcon}</label>
         <select data-key="${f.key}" class="${mismatchCls.trim()}"${mismatchTitle} onchange="onCascadeFieldChange(this)">${cascadeSelectOptionsHtml(options,rawVal)}</select></div>`;
     }
-    if(MULTI_LIST_FIELD_KEYS.has(f.key) && f.list){
+    if(isMultiListField(ent, f.key) && f.list){
       const rawVal=record&&record[f.key]!=null?String(record[f.key]):"";
       return `<div class="field"><label>${fieldLabel(f.key)}${reqMark}${helpIcon}</label>
         <div class="multilist-field">

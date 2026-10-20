@@ -14061,18 +14061,19 @@ function buildOfficeMapPageHtml(grouped, unresolvedCount){
   const market=[...new Set(ordered.map(r=>r.MARKET).filter(v=>v!=null && v!==""))].join(", ");
   let counter=1;
   const legendHtml=groups.map(g=>{
-    const items=g.buildings.map(b=>`<li>${escapeHtml(b.PROPERTY_NAME||b.MAPPING_CODE||"")}</li>`).join("");
+    // Sin acentos en inglés (ver officeDeckLangText) — también nombres de edificio, mercado y submercado.
+    const items=g.buildings.map(b=>`<li>${escapeHtml(officeDeckLangText(b.PROPERTY_NAME||b.MAPPING_CODE||""))}</li>`).join("");
     const startNum=counter;
     counter+=g.buildings.length;
     return `<div class="office-map-legend-group">
-      <div class="office-map-legend-heading">${escapeHtml(g.submarket)}</div>
+      <div class="office-map-legend-heading">${escapeHtml(officeDeckLangText(g.submarket))}</div>
       <ol class="office-map-legend-list" start="${startNum}">${items}</ol>
     </div>`;
   }).join("");
   return `<div class="deck-page map-page office-map-page">
     <div class="office-map-topbar">
       <img class="office-map-logo" src="${DECK_LOGO_SRC}" alt="Citius AG">
-      <div class="office-map-titlerow"><span class="office-map-titleline"></span><h2 class="office-map-title">${escapeHtml(market||"Location Map")}</h2></div>
+      <div class="office-map-titlerow"><span class="office-map-titleline"></span><h2 class="office-map-title">${escapeHtml(officeDeckLangText(market||"Location Map"))}</h2></div>
     </div>
     <div class="office-map-canvas" id="officePresMapCanvas"></div>
     <div class="office-map-attribution">&copy; Mapbox &copy; OpenStreetMap contributors</div>
@@ -14460,7 +14461,7 @@ function buildOfficeDividerPageHtml(submarket){
   return `<div class="deck-page cover-page office-divider-page">
     <img class="office-divider-logo" src="${DECK_LOGO_SRC}" alt="Citius AG">
     <div class="office-divider-line"></div>
-    <div class="office-divider-overlay">${escapeHtml(submarket||"")}</div>
+    <div class="office-divider-overlay">${escapeHtml(officeDeckLangText(submarket||""))}</div>
   </div>`;
 }
 /* Carga real de las fotos de las 2 páginas de Opción de arriba — separada de build*Html() porque

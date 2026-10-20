@@ -1375,7 +1375,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      no el amarillo en sí). */
   /* v4.4.5: 2do incremento, pedido explícito ("tienen que resaltar más"), tras el primero (v4.4.3,
      13px -> 15px) no ser suficiente. */
-  .office-detail-section-title{font-size:19px;font-weight:700;color:var(--accent);margin-bottom:8px}
+  .office-detail-section-title{font-size:19px;font-weight:700;color:var(--accent);margin-bottom:4px}
+  /* Pedido explícito del usuario: "Building information" empieza un poco más abajo (separada de la tabla
+     de "Space information" de arriba). */
+  .office-detail-building{padding-top:22px}
   /* v4.4.2, pedido explícito del usuario ("no está alineado donde comienzan los datos... quiero que
      empiecen igual"): "Información del Espacio" y "Información del Edificio" son 2 <table> DISTINTAS —
      sin un ancho fijo, cada una autoajustaba su columna de etiqueta al texto MÁS LARGO de ESA tabla nada
@@ -1409,7 +1412,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      lista"), pero el usuario quiere justo lo contrario: que la tabla cierre con la misma línea que ya
      separa cada valor. Se quita esa excepción — ahora la última fila también lleva su `border-bottom`. */
   .office-detail-rows{width:100%}
-  .office-detail-row{display:flex;align-items:baseline;gap:18px;padding:7px 0;border-bottom:1px solid var(--line)}
+  .office-detail-row{display:flex;align-items:baseline;gap:18px;padding:4px 0;border-bottom:1px solid var(--line)}
   /* v4.4.11, pedido explícito del usuario ("más grande la letra de etiquetas y datos") — hasta ahora
      ninguna de las 2 declaraba su propio font-size, así que caían en los 14px heredados de `body` (el
      `<table>` original SÍ tenía un font-size explícito, 14px desde v4.4.4 — se perdió al reemplazar la
@@ -2290,7 +2293,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.23.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.23.1</div>
     </nav>
   </aside>
   <div class="main">
@@ -5301,6 +5304,12 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.23.1", date:"2026-10-20", items:[
+    "Spaces: \"Common Area Maintenance (CAM)\" is hidden when Transaction Available is sale-only (Sale / Sale & Leaseback without Lease or Sublease).",
+    "Office Presentation, Options page: more compact info tables (the Space information table no longer overlaps \"Building information\"), and \"Building information\" starts a bit lower.",
+    "Office Presentation, Options page: Delivery condition, Availability and Building type values now use sentence case (only the first letter capitalized), like Amenities.",
+    "Office Presentation, Options page: in English, accents are removed from all table text and the option title."
+  ]},
   {version:"8.23.0", date:"2026-10-20", items:[
     "Settings > Fields: new \"Visible\" column to remove a field from the record form. A hidden field doesn't show in the form (edit or view) and doesn't count as pending or in % Complete, but its data is kept in the Excel. Fields the system depends on (record ID, title, Mapping Code, and Category/Absorption Type in Transactions) can't be hidden.",
     "Spaces: \"Asking Rate\" (Comm. Conditions) only shows when Transaction Available includes Lease or Sublease, and \"Asking Sale Price\" only when it includes Sale or Sale & Leaseback — updates live while editing.",
@@ -9974,6 +9983,10 @@ function isSpaceTransactionAvailableHidden(record){ return ciEq(record&&record.M
    no aparece ninguno de los dos. El valor ya capturado NO se borra al ocultarse (ver doSaveRecord). */
 const SPACE_LEASE_PRICE_KEYS=new Set(["ASKING_RATE_VALUE","ASKING_RATE_UNIT"]);
 const SPACE_SALE_PRICE_KEYS=new Set(["ASKING_SALE_PRICE_VALUE","ASKING_SALE_PRICE_UNIT"]);
+// Pedido explícito del usuario: CAM (mantenimiento) es de renta — se oculta cuando el espacio es SOLO de venta
+// (Sale/Sale & Leaseback sin Lease/Sublease). En cualquier otro caso (incluido nada marcado u Occupied) se
+// muestra como siempre.
+const SPACE_CAM_KEYS=new Set(["COMMON_AREA_MAINTENANCE_CAM_VALUE","COMMON_AREA_MAINTENANCE_CAM_UNIT"]);
 function spaceTransactionKinds(record){
   const vals=isSpaceTransactionAvailableHidden(record)?[]:multiListValues(record&&record.TRANSACTION_AVAILABLE);
   return { lease: vals.some(v=>ciEq(v,"Lease")||ciEq(v,"Sublease")),
@@ -9997,6 +10010,7 @@ function transactionVisibleFields(ent, record, allFields){
       if(f.key==="TRANSACTION_AVAILABLE") return !isSpaceTransactionAvailableHidden(record);
       if(SPACE_LEASE_PRICE_KEYS.has(f.key)) return k.lease;
       if(SPACE_SALE_PRICE_KEYS.has(f.key)) return k.sale;
+      if(SPACE_CAM_KEYS.has(f.key)) return !(k.sale && !k.lease);
       return true;
     });
   }
@@ -14279,7 +14293,7 @@ function officeDeckSpaceInfoRows(opt, unitPref){
     {label:{en:`Net usable area (${u})`,es:`Área neta útil (${u})`},
      value: officeDeckAreaText(sumSpacesAreaSF(recs,"NET_USEABLE_AREA_VALUE"), unitPref, false)},
     {label:{en:"Delivery condition",es:"Condición de entrega"},
-     value: officeDeckPlainFmt(officePresTranslateValue("CONDITION", primary&&primary.CONDITION))},
+     value: officeDeckPlainFmt(officeDeckSentenceCase(officePresTranslateValue("CONDITION", primary&&primary.CONDITION)))},
     // v4.4.10, pedido explícito del usuario: cada piso ahora muestra su propia área entre paréntesis
     // (ej. "Nivel 7 (500), Nivel 8 (300)") — ver officeDeckFloorsWithArea(), ya no reusa
     // officeOptionInfo(opt).floors (que solo daba los nombres de piso, sin ningún dato de área).
@@ -14299,15 +14313,17 @@ function officeDeckSpaceInfoRows(opt, unitPref){
     {label:{en:"Additional parking ($/space/month)",es:"Costo de cajón adicional ($/cajón/mes)"},
      value: officeDeckRateText("OFICINAS","ADDITIONAL_SPOT_PRICE_VALUE","ADDITIONAL_SPOT_PRICE_UNIT",office,unitPref,"TBC",officePresLangPref==="es"?"No disponible":"Not available")},
     {label:{en:"Availability",es:"Disponibilidad"},
-     value: officeDeckPlainFmt(officePresTranslateValue("AVAILABILITY_DELIVERY", primary&&primary.AVAILABILITY_DELIVERY))},
+     value: officeDeckPlainFmt(officeDeckSentenceCase(officePresTranslateValue("AVAILABILITY_DELIVERY", primary&&primary.AVAILABILITY_DELIVERY)))},
     {label:{en:`Asking price ($/${u}/month)`,es:`Precio de renta ($/${u}/mes)`},
      value: officeDeckRateText("SPACES","ASKING_RATE_VALUE","ASKING_RATE_UNIT",primary,unitPref)},
     {label:{en:`Maintenance ($/${u}/month)`,es:`Mantenimiento ($/${u}/mes)`},
      value: officeDeckRateText("SPACES","COMMON_AREA_MAINTENANCE_CAM_VALUE","COMMON_AREA_MAINTENANCE_CAM_UNIT",primary,unitPref)},
   ];
 }
+// Pedido explícito del usuario (posterior): ahora también Delivery condition, Availability y Building type
+// (valores de lista). Developer y el nombre del edificio NO, son nombres propios.
 // Sentence case simple, por ítem: sube la 1ra letra de cada ítem separado por coma, baja el resto --
-// pedido explícito del usuario SOLO para el valor de Amenities (ningún otro dato capturado se toca, ver
+// pedido explícito del usuario originalmente SOLO para el valor de Amenities (ningún otro dato capturado se toca, ver
 // comentario grande en officeDeckSpaceInfoRows). Aviso: esto baja también las mayúsculas internas de un
 // acrónimo si lo hubiera en la lista (ej. "EV Charging" -> "Ev charging") -- es el resultado esperado de
 // aplicar sentence case de verdad, no un descuido; si el usuario prefiere que los acrónimos conocidos se
@@ -14329,7 +14345,7 @@ function officeDeckBuildingInfoRows(office, unitPref){
   // por palabra entre sí en esa fila puntual.
   return [
     {label:{en:"Developer",es:"Desarrollador"}, value: officeDeckPlainFmt(officePresTranslateValue("DEVELOPER", office.DEVELOPER))},
-    {label:{en:"Building type",es:"Uso del edificio"}, value: officeDeckPlainFmt(officePresTranslateValue("CATEGORY_OFFICES", office.CATEGORY_OFFICES))},
+    {label:{en:"Building type",es:"Uso del edificio"}, value: officeDeckPlainFmt(officeDeckSentenceCase(officePresTranslateValue("CATEGORY_OFFICES", office.CATEGORY_OFFICES)))},
     {label:{en:"Building height (floors)",es:"Niveles totales"}, value: officeDeckPlainFmt(office.TOTAL_BUILDING_LEVELS)},
     {label:{en:"Office levels",es:"Niveles de oficina"}, value: officeDeckPlainFmt(office.TOTAL_OFFICE_LEVELS)},
     {label:{en:`Total gross area (${u})`,es:`Área rentable total (${u})`},
@@ -14347,9 +14363,17 @@ function officeDeckBuildingInfoRows(office, unitPref){
 /* v4.4.8: ya no es una <table> (ver comentario largo en el CSS, `.office-detail-rows`) — 2 <div> en fila
    (flexbox) por cada dato, mismo look, pero un texto largo (ej. Amenidades) envuelve dentro de su columna
    de forma confiable en vez de desbordarse. */
+/* Pedido explícito del usuario: con la presentación en inglés no debe aparecer ninguna tilde/acento (ni en
+   etiquetas ni en datos capturados, que a veces vienen en español, ej. Amenidades sin traducción) — se
+   quitan las marcas diacríticas (NFD) solo en inglés; en español el texto se deja tal cual. */
+function officeDeckLangText(text){
+  if(text==null) return text;
+  text=String(text);
+  return officePresLangPref==="es" ? text : text.normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+}
 function officeDeckInfoTableHtml(rows){
   return `<div class="office-detail-rows">${rows.map(r=>
-    `<div class="office-detail-row"><div class="office-detail-row-label">${escapeHtml(officePresLangPref==="es"?r.label.es:r.label.en)}</div><div class="office-detail-row-value">${escapeHtml(r.value)}</div></div>`
+    `<div class="office-detail-row"><div class="office-detail-row-label">${escapeHtml(officeDeckLangText(officePresLangPref==="es"?r.label.es:r.label.en))}</div><div class="office-detail-row-value">${escapeHtml(officeDeckLangText(r.value))}</div></div>`
   ).join("")}</div>`;
 }
 function buildOfficeOptionDetailPageHtml(opt, idx){
@@ -14359,7 +14383,7 @@ function buildOfficeOptionDetailPageHtml(opt, idx){
   const t=(en,es)=>officePresLangPref==="es"?es:en;
   const noPhotoText=t("No photo","Sin foto");
   return `<div class="deck-page office-detail-page">
-    <div class="office-opt-topbar"><img class="office-opt-logo" src="${DECK_LOGO_SRC}" alt="Citius AG"><div class="office-opt-titlerow"><span class="office-opt-titleline"></span><h2 class="office-opt-title">${idx+1}. ${escapeHtml(info.buildings||"")}</h2></div></div>
+    <div class="office-opt-topbar"><img class="office-opt-logo" src="${DECK_LOGO_SRC}" alt="Citius AG"><div class="office-opt-titlerow"><span class="office-opt-titleline"></span><h2 class="office-opt-title">${idx+1}. ${escapeHtml(officeDeckLangText(info.buildings||""))}</h2></div></div>
     <div class="office-detail-grid">
       <div class="office-detail-photo" id="officeDetailPhoto_${idx}"><div class="image-placeholder">${noPhotoText}</div></div>
       <div>
@@ -14369,7 +14393,7 @@ function buildOfficeOptionDetailPageHtml(opt, idx){
       <div>
         <div class="office-detail-photo office-detail-plan" id="officeDetailPlan_${idx}"><div class="image-placeholder">${noPhotoText}</div></div>
       </div>
-      <div>
+      <div class="office-detail-building">
         <div class="office-detail-section-title">${t("Building information","Información del edificio")}</div>
         ${officeDeckInfoTableHtml(officeDeckBuildingInfoRows(office, officePresUnitPref))}
       </div>
@@ -14389,7 +14413,7 @@ function buildOfficeOptionPhotosPageHtml(opt, idx){
   const t=(en,es)=>officePresLangPref==="es"?es:en;
   const noPhotoText=t("No photo","Sin foto");
   let html=`<div class="deck-page office-detail-page">
-    <div class="office-opt-topbar"><img class="office-opt-logo" src="${DECK_LOGO_SRC}" alt="Citius AG"><div class="office-opt-titlerow"><span class="office-opt-titleline"></span><h2 class="office-opt-title">${idx+1}. ${escapeHtml(info.buildings||"")}</h2></div></div>
+    <div class="office-opt-topbar"><img class="office-opt-logo" src="${DECK_LOGO_SRC}" alt="Citius AG"><div class="office-opt-titlerow"><span class="office-opt-titleline"></span><h2 class="office-opt-title">${idx+1}. ${escapeHtml(officeDeckLangText(info.buildings||""))}</h2></div></div>
     <div class="office-photos-grid">`;
   for(let s=0;s<4;s++) html+=`<div class="office-detail-photo" id="officePhotosSlot_${idx}_${s}"><div class="image-placeholder">${noPhotoText}</div></div>`;
   html+=`</div></div>`;

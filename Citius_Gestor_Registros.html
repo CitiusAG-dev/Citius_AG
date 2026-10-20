@@ -869,7 +869,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
 
   .fc-table{border:1px solid var(--line);border-radius:12px;background:var(--panel);flex:1;min-height:0;
             overflow-y:auto;overflow-x:hidden}
-  .fc-col-header{display:grid;grid-template-columns:26px 1.6fr 30px 100px 120px 1fr 1fr 30px;gap:10px;align-items:center;
+  .fc-col-header{display:grid;grid-template-columns:26px 1.6fr 30px 70px 80px 120px 1fr 1fr 30px;gap:10px;align-items:center;
                  padding:11px 16px;position:sticky;top:0;z-index:2;background:var(--panel-2);
                  border-bottom:1px solid var(--line);border-radius:12px 12px 0 0}
   .fc-col-header span{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
@@ -885,11 +885,12 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .fc-drag-icon{color:var(--muted);flex-shrink:0;display:flex;opacity:.55;transition:opacity .15s,color .15s}
   .fc-group-head:hover .fc-drag-icon, .fc-field-row:hover .fc-drag-icon{opacity:1;color:var(--accent-ink)}
 
-  .fc-field-row{display:grid;grid-template-columns:26px 1.6fr 30px 100px 120px 1fr 1fr 30px;gap:10px;align-items:center;
+  .fc-field-row{display:grid;grid-template-columns:26px 1.6fr 30px 70px 80px 120px 1fr 1fr 30px;gap:10px;align-items:center;
                 padding:8px 16px;border-top:1px solid var(--line);cursor:grab;background:var(--panel);
                 transition:background .12s}
   .fc-field-row:hover{background:var(--panel-2)}
   .fc-field-row.dragover{outline:2px dashed var(--accent);outline-offset:-2px}
+  .fc-field-row.fc-hidden .fc-field-key{color:var(--muted);text-decoration:line-through}
   .fc-field-key{font-size:12.5px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .fc-cascade-note{font-size:11px;color:var(--muted);font-style:italic;line-height:1.3}
   .fc-req-cell{display:flex;justify-content:center}
@@ -2289,7 +2290,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.22.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.23.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -2762,6 +2763,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
             <span></span>
             <span>Field</span>
             <span></span>
+            <span style="text-align:center">Visible</span>
             <span style="text-align:center">Required</span>
             <span>Type</span>
             <span>List</span>
@@ -4278,7 +4280,7 @@ function loadFieldConfigFromSheet(wb){
   const header=aoa[0].map(h=>String(h||"").trim().toUpperCase());
   const ci={ ent:header.indexOf("ENTIDAD"), key:header.indexOf("CLAVE"), group:header.indexOf("GRUPO"),
              orden:header.indexOf("ORDEN"), req:header.indexOf("REQUERIDO"), type:header.indexOf("TIPO"), list:header.indexOf("LISTA"),
-             help:header.indexOf("AYUDA") };
+             help:header.indexOf("AYUDA"), hidden:header.indexOf("OCULTO") };
   if(ci.ent<0||ci.key<0) return false;
   const byEnt={};
   for(let r=1;r<aoa.length;r++){
@@ -4312,6 +4314,7 @@ function loadFieldConfigFromSheet(wb){
       type:(["text","int","decimal","date"].includes(String(row[ci.type]||"").trim().toLowerCase())?String(row[ci.type]).trim().toLowerCase():"text"),
       list:rawList,
       help:ci.help>=0?String(row[ci.help]||"").trim():"",
+      hidden:ci.hidden>=0 && String(row[ci.hidden]||"").trim().toUpperCase()==="SI",
       __orden:Number(row[ci.orden])||0
     });
   }
@@ -4458,7 +4461,7 @@ function fcFieldRowHtml(f,gi,fi,allGroupNames){
   const groupOptions=allGroupNames.map(gn=>`<option value="${escapeAttr(gn)}" ${gn===f.group?"selected":""}>${escapeHtml(gn)}</option>`).join("");
   const listNames=Object.keys(lists).sort();
   const listOptions=`<option value="">— None —</option>`+listNames.map(ln=>`<option value="${escapeAttr(ln)}" ${ln===f.list?"selected":""}>${escapeHtml(ln)}</option>`).join("");
-  return `<div class="fc-field-row" draggable="true" data-gidx="${gi}" data-fidx="${fi}" title="Arrastra para reordenar o mover de grupo"
+  return `<div class="fc-field-row${f.hidden&&isFieldHideable(fcEntity,f.key)?" fc-hidden":""}" draggable="true" data-gidx="${gi}" data-fidx="${fi}" title="Arrastra para reordenar o mover de grupo"
        ondragstart="fcFieldDragStart(event,${gi},${fi})" ondragover="fcFieldDragOver(event,${gi},${fi})"
        ondrop="fcFieldDrop(event,${gi},${fi})" ondragleave="fcDragLeave(event)">
     ${FC_DRAG_ICON}
@@ -4466,6 +4469,9 @@ function fcFieldRowHtml(f,gi,fi,allGroupNames){
     <button type="button" class="fc-help-btn${customFieldLabels[f.key]?" has-help":""}" onclick="event.stopPropagation();editFieldLabel(${gi},${fi})" title="${customFieldLabels[f.key]?"Cambiar etiqueta visible":"Renombrar etiqueta visible"}">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>
     </button>
+    ${isFieldHideable(fcEntity,f.key)
+      ?`<label class="fc-req-cell" title="Show this field in the record form (unchecked = removed from the form; its data is kept)"><input type="checkbox" ${f.hidden?"":"checked"} onchange="fcSetField(${gi},${fi},'hidden',!this.checked);renderFieldConfigGroups()"></label>`
+      :`<label class="fc-req-cell" title="This field can't be hidden — the system depends on it"><input type="checkbox" checked disabled></label>`}
     <label class="fc-req-cell" title="Obligatorio"><input type="checkbox" ${f.required?"checked":""} onchange="fcSetField(${gi},${fi},'required',this.checked)"></label>
     <select onchange="fcSetField(${gi},${fi},'type',this.value)">
       <option value="text" ${f.type==="text"?"selected":""}>Texto</option>
@@ -5295,6 +5301,13 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.23.0", date:"2026-10-20", items:[
+    "Settings > Fields: new \"Visible\" column to remove a field from the record form. A hidden field doesn't show in the form (edit or view) and doesn't count as pending or in % Complete, but its data is kept in the Excel. Fields the system depends on (record ID, title, Mapping Code, and Category/Absorption Type in Transactions) can't be hidden.",
+    "Spaces: \"Asking Rate\" (Comm. Conditions) only shows when Transaction Available includes Lease or Sublease, and \"Asking Sale Price\" only when it includes Sale or Sale & Leaseback — updates live while editing.",
+    "Summary > Compliance: new tables for Offices (by market) and Spaces (by market and market status).",
+    "Saving a record no longer erases fields that aren't shown in the form (hidden or conditional fields, or extra Excel columns the system doesn't recognize) — their values are kept.",
+    "When the record form rearranges itself while editing (e.g. changing Market Status or Transaction Available in Spaces), it now stays on the same section instead of jumping back to the first one."
+  ]},
   {version:"8.22.0", date:"2026-10-20", items:[
     "Transactions (Offices): the link is now by Space instead of by floor — the button is \"Select Spaces…\", the picker shows the Space Code first, and \"Transacted Spaces\" stores the selected Space Codes (e.g. \"SP-0001, SP-0002\") instead of floor/office text. Spaces without a Space Code are not linked (a warning is shown). Existing transactions keep their previous text until the spaces are selected again."
   ]},
@@ -7856,6 +7869,10 @@ function renderResumenView(){
   const complianceHtmlProp=resumenComplianceTableHtml("Properties", "Average % of required fields captured (same calculation as the table's \"% Complete\" column), by market and market status", "PROPIEDADES");
   const complianceHtmlParks=resumenComplianceFullTableHtml("Parks", "Average % of required fields captured (same calculation as the table's \"% Complete\" column), by market, over all the data", "PARKS");
   const complianceHtmlTx=resumenComplianceByYearTableHtml("Transactions", "Average % of required fields captured (same calculation as the table's \"% Complete\" column), by market and transaction year (Transaction Date); Total includes all transactions, even those without a date", "TRANSACCIONES", "TRANSACTION_DATE");
+  // Pedido explícito del usuario: cumplimiento también para Offices (por mercado, como Parks/Land) y Spaces
+  // (mercado × Market Status, como Properties — Spaces sí captura Market Status, Offices no).
+  const complianceHtmlOffices=resumenComplianceFullTableHtml("Offices", "Average % of required fields captured (same calculation as the table's \"% Complete\" column), by market, over all the data", "OFICINAS");
+  const complianceHtmlSpaces=resumenComplianceTableHtml("Spaces", "Average % of required fields captured (same calculation as the table's \"% Complete\" column), by market and market status", "SPACES");
   const complianceHtmlLand=resumenComplianceFullTableHtml("Land", "Average % of required fields captured (same calculation as the table's \"% Complete\" column), by market, over all the data", "LAND");
 
   // v4.5.0, pedido explícito del usuario: gráfica de barras de "uso de la herramienta", al fondo de Resumen.
@@ -7982,7 +7999,7 @@ function renderResumenView(){
     <h3 class="resumen-section-title">Available Inventory</h3>
     ${resumenRowsOf3([availHtml, availClassHtml, availBucketHtml, availStatusHtml, availGenHtml])}
     <h3 class="resumen-section-title">Compliance</h3>
-    ${resumenRowsOf3([complianceHtmlProp, complianceHtmlParks, complianceHtmlLand])}
+    ${resumenRowsOf3([complianceHtmlProp, complianceHtmlParks, complianceHtmlLand, complianceHtmlOffices, complianceHtmlSpaces])}
     <div class="resumen-row-full">${complianceHtmlTx}</div>
     <div class="resumen-usage-header">
       <div>
@@ -9951,8 +9968,38 @@ const TRANSACCION_FIELD_GROUP={
 // mostrar/exigir mientras el status siga en Occupied -- ver también completionStats() para el mismo criterio
 // en la columna "% Completado" de la tabla.
 function isSpaceTransactionAvailableHidden(record){ return ciEq(record&&record.MARKET_STATUS,"Occupied"); }
+/* Pedido explícito del usuario: en Spaces, Asking Rate (Comm. Conditions) solo aparece si Transaction
+   Available incluye Lease, y Asking Sale Price solo si incluye Sale. Sublease cuenta como renta y "Sale &
+   Leaseback" como venta. Sin nada marcado (o con Market Status = Occupied, que oculta Transaction Available)
+   no aparece ninguno de los dos. El valor ya capturado NO se borra al ocultarse (ver doSaveRecord). */
+const SPACE_LEASE_PRICE_KEYS=new Set(["ASKING_RATE_VALUE","ASKING_RATE_UNIT"]);
+const SPACE_SALE_PRICE_KEYS=new Set(["ASKING_SALE_PRICE_VALUE","ASKING_SALE_PRICE_UNIT"]);
+function spaceTransactionKinds(record){
+  const vals=isSpaceTransactionAvailableHidden(record)?[]:multiListValues(record&&record.TRANSACTION_AVAILABLE);
+  return { lease: vals.some(v=>ciEq(v,"Lease")||ciEq(v,"Sublease")),
+           sale:  vals.some(v=>ciEq(v,"Sale")||ciEq(v,"Sale & Leaseback")) };
+}
+/* Pedido explícito del usuario: quitar campos de la ficha desde Configuración > Campos (columna "Visible").
+   Un campo oculto no se muestra en la ficha (edición ni vista) ni cuenta como pendiente/% completado, pero
+   su dato se conserva en el Excel. Algunos campos no se pueden ocultar porque el sistema depende de ellos
+   (ID del registro, título, enlace Mapping Code, y Categoría/Absorption de Transacciones). */
+function isFieldHideable(ent, key){
+  if(key===PHOTO_ID_FIELD[ent] || key==="MAPPING_CODE") return false;
+  if(ENTITIES[ent] && key===ENTITIES[ent].titleField) return false;
+  if(ent==="TRANSACCIONES" && (key==="PROPERTY_TYPE"||key==="ABSORPTION_TYPE")) return false;
+  return true;
+}
 function transactionVisibleFields(ent, record, allFields){
-  if(ent==="SPACES") return isSpaceTransactionAvailableHidden(record) ? allFields.filter(f=>f.key!=="TRANSACTION_AVAILABLE") : allFields;
+  allFields=allFields.filter(f=>!(f.hidden && isFieldHideable(ent,f.key)));
+  if(ent==="SPACES"){
+    const k=spaceTransactionKinds(record);
+    return allFields.filter(f=>{
+      if(f.key==="TRANSACTION_AVAILABLE") return !isSpaceTransactionAvailableHidden(record);
+      if(SPACE_LEASE_PRICE_KEYS.has(f.key)) return k.lease;
+      if(SPACE_SALE_PRICE_KEYS.has(f.key)) return k.sale;
+      return true;
+    });
+  }
   if(ent!=="TRANSACCIONES") return allFields;
   const category=normalizeStateText(record&&record.PROPERTY_TYPE);
   const absorption=normalizeStateText(record&&record.ABSORPTION_TYPE);
@@ -10514,7 +10561,7 @@ document.getElementById("mBody").addEventListener("input", e=>{
    reRenderTransactionForm() ya es genérica (lee `current`, no algo hardcodeado a Transacciones), así que se
    reusa tal cual, sin escribir una función aparte. */
 document.getElementById("mBody").addEventListener("input", e=>{
-  if(current==="SPACES" && e.target && e.target.dataset && e.target.dataset.key==="MARKET_STATUS") reRenderTransactionForm();
+  if(current==="SPACES" && e.target && e.target.dataset && (e.target.dataset.key==="MARKET_STATUS" || e.target.dataset.key==="TRANSACTION_AVAILABLE")) reRenderTransactionForm();
 });
 /* v8.12.x, pedido explícito del usuario ("que se vea desde que se está capturando el valor de Parking Ratio,
    hacer el cálculo en vivo"): antes Assigned Parking Spots (ver SPACES_COMPUTED_FIELD_KEYS/
@@ -15517,12 +15564,25 @@ function markEmptyRequiredFields(){
    pantalla (mismo patrón de lectura que updateFormNavBadges(), no del registro original) — se llama al
    cambiar Absorption Type en Transacciones, para no perder lo que el usuario ya haya llenado en los campos
    que sigan visibles después del cambio (ver el listener en #mBody más arriba en el archivo). */
+/* formValueStash: últimos valores conocidos de TODOS los campos de la ficha en edición, incluidos los que en
+   este momento no se muestran (condicionales) — así, si un campo se oculta y luego vuelve a aparecer en la
+   misma edición, regresa con su valor en vez de vacío. Se reinicia en enterEditMode(). */
+let formValueStash={};
 function reRenderTransactionForm(){
   const rec={};
   document.querySelectorAll("#mBody [data-key]").forEach(inp=>{
     rec[inp.dataset.key]=inp.type==="checkbox"?(inp.checked?"SI":""):inp.value;
   });
-  document.getElementById("mBody").innerHTML=buildForm(current, rec);
+  formValueStash={...formValueStash, ...rec};
+  // Se queda en la misma sección (antes regresaba siempre a la primera al reconstruir el formulario).
+  const activeBtn=document.querySelector("#mBody .form-nav button.active");
+  const activeGroup=activeBtn?activeBtn.dataset.group:null;
+  document.getElementById("mBody").innerHTML=buildForm(current, {...formValueStash});
+  if(activeGroup){
+    const btns=[...document.querySelectorAll("#mBody .form-nav button")];
+    const idx=btns.findIndex(b=>b.dataset.group===activeGroup);
+    if(idx>0) switchFormPanel(idx);
+  }
   if(PHOTO_ID_FIELD[current]) initImageField();
   markEmptyRequiredFields();
 }
@@ -15530,6 +15590,7 @@ function enterEditMode(rec){
   if(current==="PARKS" && rec) recomputeParkDerivedFields(rec);
   if(current==="PROPIEDADES" && rec) recomputePropertyDerivedFields(rec);
   editingOriginalPhotoId=(rec&&PHOTO_ID_FIELD[current])?rec[PHOTO_ID_FIELD[current]]:null;
+  formValueStash={...(rec||{})};
   document.getElementById("mTitle").textContent=rec?"Edit · "+(rec[ENTITIES[current].titleField]||ENTITIES[current].label):"New · "+ENTITIES[current].label;
   document.getElementById("mBody").innerHTML=buildForm(current,rec);
   recordLocMapRec=rec||{}; renderRecordLocMap();
@@ -15755,6 +15816,21 @@ function doSaveRecord(){
   const isNew=!editingId;
   if(editingId){
     const arr=state[current]; const i=arr.findIndex(r=>r.__id===editingId);
+    // Pedido explícito del usuario (ocultar campos desde Configuración + campos condicionales de Spaces): antes
+    // el registro se REEMPLAZABA completo con lo que había en pantalla, así que cualquier campo que no se
+    // mostraba en la ficha (oculto, condicional, o una columna desconocida del Excel vía __row) se borraba al
+    // guardar. Ahora se conservan del registro anterior los que no estaban en el formulario. Transacciones
+    // mantiene su comportamiento de siempre para sus campos por Categoría/Absorption (los que no aplican se
+    // limpian), salvo los ocultos desde Configuración.
+    const prev=arr[i];
+    if(prev){
+      const domKeys=new Set([...inputs].map(inp=>inp.dataset.key));
+      Object.keys(prev).forEach(k=>{
+        if(k==="__id" || domKeys.has(k) || (k in rec)) return;
+        const fc=cfgByKey[k];
+        if(!fc || fc.hidden || current!=="TRANSACCIONES") rec[k]=prev[k];
+      });
+    }
     rec.__id=editingId; arr[i]=rec;
   } else {
     rec.__id=current+"_"+Date.now(); state[current].unshift(rec); editingId=rec.__id;
@@ -15868,10 +15944,10 @@ function buildWorkbook(){
     const listRows=[["TABLA","EN"]];
     Object.keys(lists).sort().forEach(name=>{ (lists[name]||[]).forEach(v=>listRows.push([name, v])); });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(listRows), "(LD) Lista Desp");
-    const cfgRows=[["ENTIDAD","CLAVE","GRUPO","ORDEN","REQUERIDO","TIPO","LISTA","AYUDA"]];
+    const cfgRows=[["ENTIDAD","CLAVE","GRUPO","ORDEN","REQUERIDO","TIPO","LISTA","AYUDA","OCULTO"]];
     for(const ent in ENTITIES){
       (fieldConfig[ent]||[]).forEach((f,i)=>{
-        cfgRows.push([ent, f.key, f.group||"", i+1, f.required?"SI":"", f.type||"text", f.list||"", f.help||""]);
+        cfgRows.push([ent, f.key, f.group||"", i+1, f.required?"SI":"", f.type||"text", f.list||"", f.help||"", f.hidden?"SI":""]);
       });
     }
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(cfgRows), "CONFIG_CAMPOS");
@@ -16050,10 +16126,10 @@ function buildConfigWorkbook(){
   const listRows=[["TABLA","EN","ES"]];
   Object.keys(lists).sort().forEach(name=>{ (lists[name]||[]).forEach(v=>listRows.push([name, v, (listTranslationsEs[name]&&listTranslationsEs[name][v])||""])); });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(listRows), "(LD) Lista Desp");
-  const cfgRows=[["ENTIDAD","CLAVE","GRUPO","ORDEN","REQUERIDO","TIPO","LISTA","AYUDA"]];
+  const cfgRows=[["ENTIDAD","CLAVE","GRUPO","ORDEN","REQUERIDO","TIPO","LISTA","AYUDA","OCULTO"]];
   for(const ent in ENTITIES){
     (fieldConfig[ent]||[]).forEach((f,i)=>{
-      cfgRows.push([ent, f.key, f.group||"", i+1, f.required?"SI":"", f.type||"text", f.list||"", f.help||""]);
+      cfgRows.push([ent, f.key, f.group||"", i+1, f.required?"SI":"", f.type||"text", f.list||"", f.help||"", f.hidden?"SI":""]);
     });
   }
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(cfgRows), "CONFIG_CAMPOS");

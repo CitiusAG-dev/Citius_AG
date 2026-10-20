@@ -14354,12 +14354,12 @@ function officeDeckSpaceInfoRows(opt, unitPref){
 // acrónimo si lo hubiera en la lista (ej. "EV Charging" -> "Ev charging") -- es el resultado esperado de
 // aplicar sentence case de verdad, no un descuido; si el usuario prefiere que los acrónimos conocidos se
 // mantengan en mayúsculas habría que armar una lista de excepciones, que no se pidió.
+// Pedido explícito del usuario: con varios valores (ej. Amenities) SOLO el primero lleva mayúscula inicial —
+// la lista entera se lee como una sola oración ("Dining room, event hall, terrace"), no "Dining room, Event hall".
 function officeDeckSentenceCase(text){
   if(!text) return text;
-  return text.split(", ").map(part=>{
-    const t=part.trim();
-    return t ? t.charAt(0).toUpperCase()+t.slice(1).toLowerCase() : t;
-  }).join(", ");
+  const t=String(text).split(",").map(part=>part.trim()).filter(Boolean).join(", ").toLowerCase();
+  return t ? t.charAt(0).toUpperCase()+t.slice(1) : t;
 }
 function officeDeckBuildingInfoRows(office, unitPref){
   if(!office) return [];

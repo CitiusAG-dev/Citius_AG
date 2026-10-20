@@ -2293,7 +2293,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.23.1</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.23.2</div>
     </nav>
   </aside>
   <div class="main">
@@ -5312,6 +5312,11 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.23.2", date:"2026-10-20", items:[
+    "Summary > Compliance: tables were empty (\"No data\") for an Excel without Industrial Buildings (e.g. an offices-only file) — each table now uses the markets of its own data, and the Market filter lists the markets from every table.",
+    "Location IDs now respect the \"Tipo\" column of the location catalog: Offices (and Office transactions) get the Offices row's IDs and everything else the Industrial row's, instead of the first name match. Run Settings > \"Fill in Location IDs…\" once per market file to update existing records.",
+    "Office Presentation, Options page: info tables slightly smaller so long Amenities no longer push \"Year built\" over the footnote."
+  ]},
   {version:"8.23.1", date:"2026-10-20", items:[
     "Spaces: \"Common Area Maintenance (CAM)\" is hidden when Transaction Available is sale-only (Sale / Sale & Leaseback without Lease or Sublease).",
     "Office Presentation, Options page: more compact info tables (the Space information table no longer overlaps \"Building information\"), and \"Building information\" starts a bit lower.",

@@ -14135,7 +14135,7 @@ function officeDeckFloorsWithArea(recs, unitPref){
   }
   return recs.map(r=>{
     const floor=officeDeckFloorLabel(r.LEVEL_FLOOR);
-    const areaText=officeDeckAreaText(areaValueInSF(r,"NET_LEASABLE_AREA_VALUE"), unitPref, false);
+    const areaText=officeDeckAreaText(areaValueInSF(r,"NET_LEASABLE_AREA_VALUE"), unitPref, true);
     return (floor!=null && floor!=="") ? `${floor} (${areaText})` : areaText;
   }).join(", ");
 }
@@ -14219,7 +14219,9 @@ function officeDeckSpaceInfoRows(opt, unitPref){
     // officeOptionInfo(opt).floors (que solo daba los nombres de piso, sin ningún dato de área).
     // v4.4.12, pedido explícito del usuario: la unidad se movió al TÍTULO de la fila ("Floor(s) (SF)"),
     // una sola vez, en vez de repetirse en cada piso — mismo criterio que las demás filas de área.
-    {label:{en:`Floor(s) (${u})`,es:`Nivel(es) (${u})`}, value: officeDeckFloorsWithArea(recs, unitPref)||"—"},
+    // Pedido explícito del usuario: la etiqueta queda solo "Floor"/"Nivel", sin "(s)"/"(es)" ni la unidad --
+    // por eso officeDeckFloorsWithArea() vuelve a poner la unidad junto al área de cada piso (Opción agrupada).
+    {label:{en:"Floor",es:"Nivel"}, value: officeDeckFloorsWithArea(recs, unitPref)||"—"},
     {label:{en:"Parking ratio",es:"Radio de estacionamiento"},
      value: officeDeckPlainFmt(office&&office.PARKING_RATIO)},
     {label:{en:"Parking spaces",es:"Cajones incluídos"},

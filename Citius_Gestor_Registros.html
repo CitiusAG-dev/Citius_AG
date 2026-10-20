@@ -4035,15 +4035,16 @@ function autofillTransactionFromLinkedRecord(cfg, sourceRec){
    elegido — todos comparten la misma Oficina de todas formas, gracias al lockGroupBy. */
 function openSpacesPickerForTransaction(){
   openRecordPicker({
-    title:"Select Floors",
+    title:"Select Spaces",
     ent:"SPACES",
     multi:true,
     lockGroupBy:"MAPPING_CODE",
     columns:[
+      {key:"SPACE_CODE", label:"Space Code", width:"1fr"},
       {key:"MAPPING_CODE", label:"Mapping Code", width:"1fr"},
       {key:"PROPERTY_NAME", label:"Property Name", width:"1.5fr"},
-      {key:"LEVEL_FLOOR", label:"Floor", width:"1fr"},
-      {key:"OFFICE_NO", label:"Office No.", width:"1fr"},
+      {key:"LEVEL_FLOOR", label:"Floor", width:"0.8fr"},
+      {key:"OFFICE_NO", label:"Office No.", width:"0.8fr"},
       {key:"MARKET", label:"Market", width:"1fr"}
     ],
     onSelectMulti:(spaces)=>{
@@ -4052,7 +4053,12 @@ function openSpacesPickerForTransaction(){
       if(codeInp) codeInp.value=spaces[0].MAPPING_CODE||"";
       const office=(state.OFICINAS||[]).find(o=>ciEq(o.MAPPING_CODE, spaces[0].MAPPING_CODE));
       if(office) autofillTransactionFromLinkedRecord(TRANS_CATEGORY_LINK.Offices, office);
-      const summary=spaces.map(s=>[s.LEVEL_FLOOR,s.OFFICE_NO].filter(Boolean).join("-")).filter(Boolean).join(", ");
+      // Pedido explícito del usuario: la relación Transacción -> Spaces es por ESPACIO (su SPACE_CODE, ID único),
+      // ya no por piso — antes se guardaba "Piso-Oficina" (ej. "7-701"), que no identifica un Space de forma
+      // única ni se puede ligar de vuelta a su registro.
+      const noCode=spaces.filter(s=>!String(s.SPACE_CODE==null?"":s.SPACE_CODE).trim());
+      if(noCode.length) alert(`${noCode.length} selected space(s) have no Space Code and were not linked. Capture their Space Code in Spaces first.`);
+      const summary=spaces.map(s=>String(s.SPACE_CODE==null?"":s.SPACE_CODE).trim()).filter(Boolean).join(", ");
       const spacesInp=document.querySelector('#mBody [data-key="TRANSACTED_SPACES"]');
       if(spacesInp) spacesInp.value=summary;
       updateFormNavBadges();
@@ -10198,7 +10204,7 @@ function buildForm(ent, record){
       const category=record&&record.PROPERTY_TYPE;
       const isOffices=ciEq(category,"Offices");
       const linkCfg=TRANS_CATEGORY_LINK[category];
-      const btnLabel=isOffices?"Select Floors…":(linkCfg?linkCfg.label:"Select…");
+      const btnLabel=isOffices?"Select Spaces…":(linkCfg?linkCfg.label:"Select…");
       const btnOnclick=isOffices?"openSpacesPickerForTransaction()":"openLinkedRecordPickerForTransaction()";
       // v8.14.x: borde rojo + aviso si el código no existe en la tabla enlazada (ver transactionLinkedRecord).
       const codeMissing=fieldValueMismatch(ent,f,record);
@@ -10213,7 +10219,7 @@ function buildForm(ent, record){
        visibles ya implica que estamos en esa categoría. */
     if(f.key==="TRANSACTED_SPACES"){
       return `<div class="field"><label>${fieldLabel(f.key)}${reqMark}${helpIcon}</label>
-        <input type="text" data-key="${f.key}" value="${val}" readonly placeholder="No floors selected"></div>`;
+        <input type="text" data-key="${f.key}" value="${val}" readonly placeholder="No spaces selected"></div>`;
     }
     /* MAPPING_CODE de Spaces (v3.48.2) — mismo criterio EXACTO que el de arriba, pero enlaza a OFICINAS. */
     if(ent==="SPACES" && f.key==="MAPPING_CODE"){

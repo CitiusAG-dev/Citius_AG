@@ -9974,6 +9974,10 @@ function isSpaceTransactionAvailableHidden(record){ return ciEq(record&&record.M
    no aparece ninguno de los dos. El valor ya capturado NO se borra al ocultarse (ver doSaveRecord). */
 const SPACE_LEASE_PRICE_KEYS=new Set(["ASKING_RATE_VALUE","ASKING_RATE_UNIT"]);
 const SPACE_SALE_PRICE_KEYS=new Set(["ASKING_SALE_PRICE_VALUE","ASKING_SALE_PRICE_UNIT"]);
+// Pedido explícito del usuario: CAM (mantenimiento) es de renta — se oculta cuando el espacio es SOLO de venta
+// (Sale/Sale & Leaseback sin Lease/Sublease). En cualquier otro caso (incluido nada marcado u Occupied) se
+// muestra como siempre.
+const SPACE_CAM_KEYS=new Set(["COMMON_AREA_MAINTENANCE_CAM_VALUE","COMMON_AREA_MAINTENANCE_CAM_UNIT"]);
 function spaceTransactionKinds(record){
   const vals=isSpaceTransactionAvailableHidden(record)?[]:multiListValues(record&&record.TRANSACTION_AVAILABLE);
   return { lease: vals.some(v=>ciEq(v,"Lease")||ciEq(v,"Sublease")),
@@ -9997,6 +10001,7 @@ function transactionVisibleFields(ent, record, allFields){
       if(f.key==="TRANSACTION_AVAILABLE") return !isSpaceTransactionAvailableHidden(record);
       if(SPACE_LEASE_PRICE_KEYS.has(f.key)) return k.lease;
       if(SPACE_SALE_PRICE_KEYS.has(f.key)) return k.sale;
+      if(SPACE_CAM_KEYS.has(f.key)) return !(k.sale && !k.lease);
       return true;
     });
   }

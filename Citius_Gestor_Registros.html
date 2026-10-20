@@ -1364,6 +1364,11 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      del edificio/interiores, que sí lo conservan. */
   .office-detail-plan{aspect-ratio:600/405;border:none}
   .office-detail-plan img{object-fit:contain}
+  /* Pedido explícito del usuario: en la página de Opción el recuadro ya no mide 600/405 (ver
+     `.office-detail-grid .office-detail-photo{aspect-ratio:auto;height:100%}` más abajo), así que `contain`
+     sí deja orillas libres alrededor del plano — se pintan de blanco (igual que el fondo de la página) en vez
+     del gris #eee genérico, para que no se note dónde termina la imagen. */
+  .office-detail-photo.office-detail-plan{background:#fff}
   /* v4.4.3, pedido explícito del usuario: título de tabla más grande (13px -> 15px) y en el amarillo real
      de Citius (`--accent`, no `--accent-ink` — ese es el tono oscuro pensado para texto SOBRE el amarillo,
      no el amarillo en sí). */
@@ -2284,7 +2289,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.20.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.21.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -5284,6 +5289,11 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.21.0", date:"2026-10-20", items:[
+    "Spaces: \"Transaction Available\" is now multi-select (e.g. Lease and Sale at the same time). Industrial Buildings and Offices keep it as a single choice.",
+    "Office Presentation, space information table: the \"Floor(s) (SF/m²)\" label is now just \"Floor\" / \"Nivel\"; for grouped options the unit now shows next to each floor's area (e.g. \"7 (500 m²), 8 (300 m²)\").",
+    "Office Presentation, Options page: the empty edges around the Layout plan are now white instead of gray, so the edge of the image no longer shows."
+  ]},
   {version:"8.20.0", date:"2026-10-13", items:[
     "Records: new satellite \"Location Map\" at the bottom of the Location tab, showing the record's pin and polygon (Industrial Buildings also show their park's polygon, dashed). Works for Industrial Buildings, Parks, Land, and Offices, in view and edit mode; while editing it updates when you change latitude/longitude, the park, or save the pin/polygon. Clicking the pin opens Google Maps.",
     "Settings > Consolidated — all markets: new \"Export to Excel\" button (visible while consolidated mode is active). Downloads one Excel with a sheet per table from all markets, same headers as each office's file, plus OFFICE and SOURCE_FILE columns.",
@@ -9390,6 +9400,11 @@ const POLYGON_FIELD_KEYS = new Set(["GEOJSON_POLIGONO","GEO_JSON","GEOJSON_POLYG
    mecanismo EXACTO que el selector de fecha (openDatePicker/closeDatePicker/onDocClickForDatePicker un poco
    más arriba), solo que el popover muestra una lista de checkboxes en vez de un calendario. */
 const MULTI_LIST_FIELD_KEYS = new Set(["AMENITIES", "BUILDING_CERTIFICATIONS", "NEARBY_AMENITIES"]);
+// Pedido explícito del usuario: TRANSACTION_AVAILABLE es multi-select SOLO en Spaces (un espacio puede estar
+// disponible para Lease y Sale a la vez) — el mismo key en Buildings/Offices sigue siendo de un solo valor, por
+// eso va aparte por entidad en vez de en MULTI_LIST_FIELD_KEYS (que aplica a cualquier entidad con ese key).
+const MULTI_LIST_FIELD_KEYS_BY_ENTITY = { SPACES: new Set(["TRANSACTION_AVAILABLE"]) };
+function isMultiListField(ent, key){ return MULTI_LIST_FIELD_KEYS.has(key) || !!(MULTI_LIST_FIELD_KEYS_BY_ENTITY[ent] && MULTI_LIST_FIELD_KEYS_BY_ENTITY[ent].has(key)); }
 function multiListValues(raw){ return String(raw||"").split(",").map(s=>s.trim()).filter(Boolean); }
 let multiListPickerState=null; // {key}
 function closeMultiListPicker(){
@@ -9788,7 +9803,7 @@ function fieldValueMismatch(ent, f, record){
     const parentValue=parentKey&&record?String(record[parentKey]||""):"";
     return !cascadeOptionsFor(f.key,parentKey,parentValue,ent,record).includes(raw);
   }
-  if(MULTI_LIST_FIELD_KEYS.has(f.key) && f.list && lists[f.list]){
+  if(isMultiListField(ent, f.key) && f.list && lists[f.list]){
     // valor guardado como "A, B, C" (ver MULTI_LIST_FIELD_KEYS) — "no está en la lista" solo si ALGUNO de
     // los valores capturados ya no está en el catálogo configurado, no la cadena completa contra la lista.
     return multiListValues(raw).some(v=>!lists[f.list].includes(v));
@@ -10278,7 +10293,7 @@ function buildForm(ent, record){
       return `<div class="field"><label>${fieldLabel(f.key)}${reqMark}${helpIcon}</label>
         <select data-key="${f.key}" class="${mismatchCls.trim()}"${mismatchTitle} onchange="onCascadeFieldChange(this)">${cascadeSelectOptionsHtml(options,rawVal)}</select></div>`;
     }
-    if(MULTI_LIST_FIELD_KEYS.has(f.key) && f.list){
+    if(isMultiListField(ent, f.key) && f.list){
       const rawVal=record&&record[f.key]!=null?String(record[f.key]):"";
       return `<div class="field"><label>${fieldLabel(f.key)}${reqMark}${helpIcon}</label>
         <div class="multilist-field">
@@ -14130,7 +14145,7 @@ function officeDeckFloorsWithArea(recs, unitPref){
   }
   return recs.map(r=>{
     const floor=officeDeckFloorLabel(r.LEVEL_FLOOR);
-    const areaText=officeDeckAreaText(areaValueInSF(r,"NET_LEASABLE_AREA_VALUE"), unitPref, false);
+    const areaText=officeDeckAreaText(areaValueInSF(r,"NET_LEASABLE_AREA_VALUE"), unitPref, true);
     return (floor!=null && floor!=="") ? `${floor} (${areaText})` : areaText;
   }).join(", ");
 }
@@ -14214,7 +14229,9 @@ function officeDeckSpaceInfoRows(opt, unitPref){
     // officeOptionInfo(opt).floors (que solo daba los nombres de piso, sin ningún dato de área).
     // v4.4.12, pedido explícito del usuario: la unidad se movió al TÍTULO de la fila ("Floor(s) (SF)"),
     // una sola vez, en vez de repetirse en cada piso — mismo criterio que las demás filas de área.
-    {label:{en:`Floor(s) (${u})`,es:`Nivel(es) (${u})`}, value: officeDeckFloorsWithArea(recs, unitPref)||"—"},
+    // Pedido explícito del usuario: la etiqueta queda solo "Floor"/"Nivel", sin "(s)"/"(es)" ni la unidad --
+    // por eso officeDeckFloorsWithArea() vuelve a poner la unidad junto al área de cada piso (Opción agrupada).
+    {label:{en:"Floor",es:"Nivel"}, value: officeDeckFloorsWithArea(recs, unitPref)||"—"},
     {label:{en:"Parking ratio",es:"Radio de estacionamiento"},
      value: officeDeckPlainFmt(office&&office.PARKING_RATIO)},
     {label:{en:"Parking spaces",es:"Cajones incluídos"},

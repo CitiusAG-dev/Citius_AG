@@ -2293,7 +2293,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.23.2</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.23.3</div>
     </nav>
   </aside>
   <div class="main">
@@ -5312,6 +5312,10 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.23.3", date:"2026-10-20", items:[
+    "Office Presentation (English): accents are also removed from the market, submarkets and building names on the map page and from the submarket on divider pages.",
+    "Office Presentation: lists with several values (e.g. Amenities) now read as one sentence — only the first item starts with a capital letter (\"Dining room, event hall, terrace\")."
+  ]},
   {version:"8.23.2", date:"2026-10-20", items:[
     "Summary > Compliance: tables were empty (\"No data\") for an Excel without Industrial Buildings (e.g. an offices-only file) — each table now uses the markets of its own data, and the Market filter lists the markets from every table.",
     "Location IDs now respect the \"Tipo\" column of the location catalog: Offices (and Office transactions) get the Offices row's IDs and everything else the Industrial row's, instead of the first name match. Run Settings > \"Fill in Location IDs…\" once per market file to update existing records.",
@@ -14061,18 +14065,19 @@ function buildOfficeMapPageHtml(grouped, unresolvedCount){
   const market=[...new Set(ordered.map(r=>r.MARKET).filter(v=>v!=null && v!==""))].join(", ");
   let counter=1;
   const legendHtml=groups.map(g=>{
-    const items=g.buildings.map(b=>`<li>${escapeHtml(b.PROPERTY_NAME||b.MAPPING_CODE||"")}</li>`).join("");
+    // Sin acentos en inglés (ver officeDeckLangText) — también nombres de edificio, mercado y submercado.
+    const items=g.buildings.map(b=>`<li>${escapeHtml(officeDeckLangText(b.PROPERTY_NAME||b.MAPPING_CODE||""))}</li>`).join("");
     const startNum=counter;
     counter+=g.buildings.length;
     return `<div class="office-map-legend-group">
-      <div class="office-map-legend-heading">${escapeHtml(g.submarket)}</div>
+      <div class="office-map-legend-heading">${escapeHtml(officeDeckLangText(g.submarket))}</div>
       <ol class="office-map-legend-list" start="${startNum}">${items}</ol>
     </div>`;
   }).join("");
   return `<div class="deck-page map-page office-map-page">
     <div class="office-map-topbar">
       <img class="office-map-logo" src="${DECK_LOGO_SRC}" alt="Citius AG">
-      <div class="office-map-titlerow"><span class="office-map-titleline"></span><h2 class="office-map-title">${escapeHtml(market||"Location Map")}</h2></div>
+      <div class="office-map-titlerow"><span class="office-map-titleline"></span><h2 class="office-map-title">${escapeHtml(officeDeckLangText(market||"Location Map"))}</h2></div>
     </div>
     <div class="office-map-canvas" id="officePresMapCanvas"></div>
     <div class="office-map-attribution">&copy; Mapbox &copy; OpenStreetMap contributors</div>
@@ -14353,12 +14358,12 @@ function officeDeckSpaceInfoRows(opt, unitPref){
 // acrónimo si lo hubiera en la lista (ej. "EV Charging" -> "Ev charging") -- es el resultado esperado de
 // aplicar sentence case de verdad, no un descuido; si el usuario prefiere que los acrónimos conocidos se
 // mantengan en mayúsculas habría que armar una lista de excepciones, que no se pidió.
+// Pedido explícito del usuario: con varios valores (ej. Amenities) SOLO el primero lleva mayúscula inicial —
+// la lista entera se lee como una sola oración ("Dining room, event hall, terrace"), no "Dining room, Event hall".
 function officeDeckSentenceCase(text){
   if(!text) return text;
-  return text.split(", ").map(part=>{
-    const t=part.trim();
-    return t ? t.charAt(0).toUpperCase()+t.slice(1).toLowerCase() : t;
-  }).join(", ");
+  const t=String(text).split(",").map(part=>part.trim()).filter(Boolean).join(", ").toLowerCase();
+  return t ? t.charAt(0).toUpperCase()+t.slice(1) : t;
 }
 function officeDeckBuildingInfoRows(office, unitPref){
   if(!office) return [];
@@ -14460,7 +14465,7 @@ function buildOfficeDividerPageHtml(submarket){
   return `<div class="deck-page cover-page office-divider-page">
     <img class="office-divider-logo" src="${DECK_LOGO_SRC}" alt="Citius AG">
     <div class="office-divider-line"></div>
-    <div class="office-divider-overlay">${escapeHtml(submarket||"")}</div>
+    <div class="office-divider-overlay">${escapeHtml(officeDeckLangText(submarket||""))}</div>
   </div>`;
 }
 /* Carga real de las fotos de las 2 páginas de Opción de arriba — separada de build*Html() porque

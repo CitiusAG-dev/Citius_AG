@@ -1378,7 +1378,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .office-detail-section-title{font-size:19px;font-weight:700;color:var(--accent);margin-bottom:4px}
   /* Pedido explícito del usuario: "Building information" empieza un poco más abajo (separada de la tabla
      de "Space information" de arriba). */
-  .office-detail-building{padding-top:22px}
+  .office-detail-building{padding-top:12px}
   /* v4.4.2, pedido explícito del usuario ("no está alineado donde comienzan los datos... quiero que
      empiecen igual"): "Información del Espacio" y "Información del Edificio" son 2 <table> DISTINTAS —
      sin un ancho fijo, cada una autoajustaba su columna de etiqueta al texto MÁS LARGO de ESA tabla nada
@@ -1412,15 +1412,15 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      lista"), pero el usuario quiere justo lo contrario: que la tabla cierre con la misma línea que ya
      separa cada valor. Se quita esa excepción — ahora la última fila también lleva su `border-bottom`. */
   .office-detail-rows{width:100%}
-  .office-detail-row{display:flex;align-items:baseline;gap:18px;padding:4px 0;border-bottom:1px solid var(--line)}
+  .office-detail-row{display:flex;align-items:baseline;gap:18px;padding:3px 0;border-bottom:1px solid var(--line)}
   /* v4.4.11, pedido explícito del usuario ("más grande la letra de etiquetas y datos") — hasta ahora
      ninguna de las 2 declaraba su propio font-size, así que caían en los 14px heredados de `body` (el
      `<table>` original SÍ tenía un font-size explícito, 14px desde v4.4.4 — se perdió al reemplazar la
      tabla por estos 2 <div> en v4.4.8, sin que nadie lo notara porque 14px heredado de `body` coincidía por
      casualidad con el valor que ya traía). Subieron a 16px explícitos; v4.4.13, pedido explícito del
      usuario ("pásala a 15px"), un ajuste fino hacia abajo — 16px quedó un poco grande. */
-  .office-detail-row-label{flex:0 0 270px;min-width:0;color:var(--muted);font-weight:700;font-size:15px}
-  .office-detail-row-value{flex:1;min-width:0;font-weight:400;overflow-wrap:break-word;font-size:15px}
+  .office-detail-row-label{flex:0 0 270px;min-width:0;color:var(--muted);font-weight:700;font-size:14px}
+  .office-detail-row-value{flex:1;min-width:0;font-weight:400;overflow-wrap:break-word;font-size:14px}
   /* v4.4.2: 2do incremento de letra pedido explícito ("quiero que las notas sean un poco más grandes"),
      tras el primer incremento de v4.4.1 (9px -> 11px) resultar insuficiente. */
   /* v4.4.3: reducida un poco, pedido explícito del usuario — 13px (v4.4.2) se sentía grande. */
@@ -2293,7 +2293,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.23.1</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.23.2</div>
     </nav>
   </aside>
   <div class="main">
@@ -3792,14 +3792,22 @@ function onCascadeFieldChange(selEl){
 /* Núcleo compartido entre syncGeoIdFields() (ficha abierta, lee del DOM) y recalcAllGeoIds() (backfill
    masivo, lee de un objeto en `state` directo) — `getVal(key)` es el único punto que cambia entre los dos.
    Regresa {REGION_ID,STATE_ID,MARKET_ID,SUBMARKET_ID}. */
-function resolveGeoIds(getVal){
+/* `tipo` ("INDUSTRIAL"/"OFICINAS", ver cascadeEntityTipo): pedido explícito del usuario — el catálogo ahora
+   trae IDs DISTINTOS para la misma ubicación según la columna Tipo (ej. Submercado "Apodaca" de Monterrey es
+   SUB_00266 en Industrial y SUB_03001 en Oficinas, para que no se dupliquen en el BI). Antes se tomaba la
+   PRIMERA fila del catálogo que coincidiera por nombre, sin mirar Tipo, así que una Oficina recibía el ID
+   industrial. Ahora se prefiere la fila del Tipo de la entidad (o una sin Tipo capturado); solo si no hay
+   ninguna se cae a cualquier coincidencia por nombre, como antes. */
+function resolveGeoIds(getVal, tipo){
   const cur=CASCADE_ORDER.map(getVal);
   const out={};
   CASCADE_ORDER.forEach((key,i)=>{
     const idKey=CASCADE_ID_KEY[key];
     if(!cur[i]){ out[idKey]=""; return; }
     const prefix=CASCADE_ORDER.slice(0,i+1);
-    const match=cascadeCatalog.find(entry=>prefix.every((k,j)=>ciEq(entry[k],cur[j])));
+    const nameMatch=entry=>prefix.every((k,j)=>ciEq(entry[k],cur[j]));
+    const match=(tipo && cascadeCatalog.find(entry=>nameMatch(entry) && entry[idKey] && (!entry.TIPO || entry.TIPO===tipo)))
+             || cascadeCatalog.find(nameMatch);
     out[idKey]=match?(match[idKey]||""):"";
   });
   return out;
@@ -3807,7 +3815,7 @@ function resolveGeoIds(getVal){
 function syncGeoIdFields(){
   const val=key=>{ const el=document.querySelector('#mBody [data-key="'+key+'"]'); return el?el.value:""; };
   const setVal=(key,v)=>{ const el=document.querySelector('#mBody [data-key="'+key+'"]'); if(el) el.value=v||""; };
-  const ids=resolveGeoIds(val);
+  const ids=resolveGeoIds(val, cascadeEntityTipo(current, {PROPERTY_TYPE: val("PROPERTY_TYPE")}));
   Object.keys(ids).forEach(idKey=>setVal(idKey, ids[idKey]));
 }
 /* v3.5x.x, pedido explícito del usuario: botón "Fill in Location IDs…" en Configuración > Archivos —
@@ -3829,7 +3837,7 @@ function recalcAllGeoIds(){
   ["PROPIEDADES","PARKS","LAND","OFICINAS","TRANSACCIONES"].forEach(ent=>{
     (state[ent]||[]).forEach(rec=>{
       scanned++;
-      const ids=resolveGeoIds(key=>String(rec[key]||"").trim());
+      const ids=resolveGeoIds(key=>String(rec[key]||"").trim(), cascadeEntityTipo(ent, rec));
       let changed=false;
       Object.keys(ids).forEach(idKey=>{
         const v=ids[idKey];
@@ -5304,6 +5312,11 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.23.2", date:"2026-10-20", items:[
+    "Summary > Compliance: tables were empty (\"No data\") for an Excel without Industrial Buildings (e.g. an offices-only file) — each table now uses the markets of its own data, and the Market filter lists the markets from every table.",
+    "Location IDs now respect the \"Tipo\" column of the location catalog: Offices (and Office transactions) get the Offices row's IDs and everything else the Industrial row's, instead of the first name match. Run Settings > \"Fill in Location IDs…\" once per market file to update existing records.",
+    "Office Presentation, Options page: info tables slightly smaller so long Amenities no longer push \"Year built\" over the footnote."
+  ]},
   {version:"8.23.1", date:"2026-10-20", items:[
     "Spaces: \"Common Area Maintenance (CAM)\" is hidden when Transaction Available is sale-only (Sale / Sale & Leaseback without Lease or Sublease).",
     "Office Presentation, Options page: more compact info tables (the Space information table no longer overlaps \"Building information\"), and \"Building information\" starts a bit lower.",
@@ -6989,6 +7002,18 @@ function resumenMarketForSubmarket(submarket){
 function resumenMarkets(){
   return fieldValuesInUse("PROPIEDADES","MARKET");
 }
+/* Bug real reportado por el usuario (Compliance vacío con un Excel solo de Oficinas, ej. OF_MTY_OFFICES):
+   resumenMarkets() sale SOLO de Industrial Buildings — con 0 naves, la lista de mercados quedaba vacía y
+   todas las tablas de Compliance decían "No data", y el filtro Market no ofrecía ninguna opción. Las tablas
+   de Compliance ahora usan los mercados de SU propia entidad, y el filtro Market junta los de todas. El resto
+   del Summary (absorción, inventario, etc. — todo de naves industriales) sigue con resumenMarkets(). */
+const RESUMEN_MARKET_ENTITIES=["PROPIEDADES","PARKS","LAND","OFICINAS","SPACES","TRANSACCIONES"];
+function resumenEntityMarkets(ent){ return fieldValuesInUse(ent,"MARKET"); }
+function resumenAllMarkets(){
+  const set=new Set();
+  RESUMEN_MARKET_ENTITIES.forEach(ent=>fieldValuesInUse(ent,"MARKET").forEach(m=>set.add(m)));
+  return [...set].sort((a,b)=>a.localeCompare(b));
+}
 /* ¿Esta fila (de `ent`) pertenece al mercado filtrado en Resumen? true si no hay filtro activo.
    v3.45.25, bug real corregido (reportado por el usuario con datos reales de Matamoros): antes solo
    PROPIEDADES/PARKS comparaban `row.MARKET` directo — TRANSACCIONES (que también trae su propio MARKET,
@@ -7306,7 +7331,7 @@ function resumenComplianceTableHtml(title, subtitle, ent){
     return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(title)}</h4><p class="muted">This entity doesn't have any field marked as required yet.</p></div>`;
   }
   const statuses=lists.MARKET_STATUS||[];
-  const markets=resumenMarket?[resumenMarket]:resumenMarkets();
+  const markets=resumenMarket?[resumenMarket]:resumenEntityMarkets(ent);
   if(!markets.length || !statuses.length){
     return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(title)}</h4><p class="muted">No data.</p></div>`;
   }
@@ -7357,7 +7382,7 @@ function resumenComplianceFullTableHtml(title, subtitle, ent){
   if(!entityHasRequiredFields(ent)){
     return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(title)}</h4><p class="muted">This entity doesn't have any field marked as required yet.</p></div>`;
   }
-  const markets=resumenMarket?[resumenMarket]:resumenMarkets();
+  const markets=resumenMarket?[resumenMarket]:resumenEntityMarkets(ent);
   if(!markets.length){
     return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(title)}</h4><p class="muted">No data.</p></div>`;
   }
@@ -7388,7 +7413,7 @@ function resumenComplianceByYearTableHtml(title, subtitle, ent, dateKey){
   if(!entityHasRequiredFields(ent)){
     return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(title)}</h4><p class="muted">This entity doesn't have any field marked as required yet.</p></div>`;
   }
-  const markets=resumenMarket?[resumenMarket]:resumenMarkets();
+  const markets=resumenMarket?[resumenMarket]:resumenEntityMarkets(ent);
   if(!markets.length){
     return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(title)}</h4><p class="muted">No data.</p></div>`;
   }
@@ -7721,7 +7746,7 @@ function renderResumenView(){
   closeResumenSubmarketPanel(); // defensivo: si el checklist quedó abierto, no dejarlo huérfano al re-renderizar el toolbar
   const years=resumenYearsAvailable();
   if(!years.includes(resumenYear)) resumenYear=years[0];
-  const markets=resumenMarkets();
+  const markets=resumenAllMarkets();
   if(resumenMarket && !markets.includes(resumenMarket)) resumenMarket="";
   // v6.5.21: si cambiar de Market (o los datos mismos) deja seleccionado un submercado que ya no aplica
   // aquí, se quita solo — mismo criterio que la línea de arriba para resumenMarket.

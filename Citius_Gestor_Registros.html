@@ -2296,7 +2296,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.23.3</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.24.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -5315,6 +5315,10 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.24.0", date:"2026-10-20", items:[
+    "Office Presentation: each option now has \"Rentable\" and \"Usable\" boxes (Options panel, in the deck and in the Spaces table) to type the area being offered. They replace Net rentable area and Net usable area on that option's page, and Parking spaces is calculated as proposed rentable area ÷ parking ratio. Leave a box empty to use the spaces' real area. Values are typed in the current unit and convert automatically when switching Imperial/Metric.",
+    "Office Presentation: Parking ratio (captured in m² per space) is now converted to SF per space in the Imperial view, with the unit shown in the label."
+  ]},
   {version:"8.23.3", date:"2026-10-20", items:[
     "Office Presentation (English): accents are also removed from the market, submarkets and building names on the map page and from the submarket on divider pages.",
     "Office Presentation: lists with several values (e.g. Amenities) now read as one sentence — only the first item starts with a capital letter (\"Dining room, event hall, terrace\")."

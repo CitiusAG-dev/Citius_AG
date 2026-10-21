@@ -6614,6 +6614,15 @@ const DATA_QUALITY_RULES=[
       if(y==null || y<=now) return [];
       return [{fields:["YEAR_BUITL_DEVELOPED"], msg:`Year Built / Developed (${rec.YEAR_BUITL_DEVELOPED}) can't be later than the current year (${now})`}];
     } },
+  // Pedido explícito del usuario: el GLA no puede ser 0 (tampoco negativo). Vacío no aplica aquí (eso lo cubre
+  // "requerido"/la regla de valor+unidad).
+  { id:"gla_zero", ents:["PROPIEDADES"], short:"GLA = 0", label:"Leasable Area (GLA) is 0",
+    check(ent, rec){
+      if(DQ_EMPTY(rec.LEASABLE_AREA_GLA_VALUE)) return [];
+      const g=DQ_NUM(rec.LEASABLE_AREA_GLA_VALUE);
+      if(g==null || g>0) return [];
+      return [{fields:["LEASABLE_AREA_GLA_VALUE"], msg:`Leasable Area (GLA) can't be ${g<0?"negative":"0"} (${rec.LEASABLE_AREA_GLA_VALUE})`}];
+    } },
   { id:"pin_polygon", ents:["PROPIEDADES"], short:"Pin / polygon", label:"Pin is outside the polygon",
     check(ent, rec){
       const pk=polygonKeyFor(ent);

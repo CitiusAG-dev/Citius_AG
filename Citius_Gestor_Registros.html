@@ -1102,6 +1102,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   /* Park Land (v8.19.x): Proposed Area capturada a mano por parque */
   .pres-item-proposed{width:68px;flex-shrink:0;padding:3px 6px;font-size:12px;text-align:right;background:#fff;border:1px solid var(--line);border-radius:6px;color:var(--txt)}
   .pres-item-proposed:focus{outline:none;border-color:var(--accent)}
+  .office-option-proposed-box{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:6px}
+  .office-proposed-field{display:flex;align-items:center;gap:6px;margin:0}
+  .office-proposed-field span{font-size:10px;color:var(--muted);font-weight:600}
   .pres-item-unit{font-size:11px;color:var(--muted);flex-shrink:0}
   .pres-item button{background:none;border:1px solid var(--line);border-radius:6px;width:22px;height:22px;
                      cursor:pointer;color:var(--muted);font-size:11px;padding:0;flex-shrink:0}
@@ -2293,7 +2296,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.23.3</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.24.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -5312,6 +5315,10 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.24.0", date:"2026-10-20", items:[
+    "Office Presentation: each option now has \"Rentable\" and \"Usable\" boxes (Options panel, in the deck and in the Spaces table) to type the area being offered. They replace Net rentable area and Net usable area on that option's page, and Parking spaces is calculated as proposed rentable area ÷ parking ratio. Leave a box empty to use the spaces' real area. Values are typed in the current unit and convert automatically when switching Imperial/Metric.",
+    "Office Presentation: Parking ratio (captured in m² per space) is now converted to SF per space in the Imperial view, with the unit shown in the label."
+  ]},
   {version:"8.23.3", date:"2026-10-20", items:[
     "Office Presentation (English): accents are also removed from the market, submarkets and building names on the map page and from the submarket on divider pages.",
     "Office Presentation: lists with several values (e.g. Amenities) now read as one sentence — only the first item starts with a capital letter (\"Dining room, event hall, terrace\")."
@@ -12601,6 +12608,59 @@ function officeOptionInfo(opt, unitPref){
    de la Etapa 1) para poder pintar la MISMA lista dentro del sidebar del deck de Oficinas
    (#officePresSelectedList, ver renderOfficePresentationView()) sin duplicar este HTML/lógica una 2da vez —
    una sola fuente de verdad (officePresOptions), 2 lugares donde se puede ver. */
+/* ==== Área propuesta por Opción (pedido explícito del usuario, "similar a la de Parks") ====
+   2 cajitas por Opción en el panel de Opciones (panel acoplado de Spaces y sidebar del deck): "Rentable"
+   reemplaza Net rentable area y "Usable" reemplaza Net usable area en la página de esa Opción (cada una por su
+   cuenta — pedido explícito del usuario, antes era una sola cajita para las 2). Parking spaces se calcula con
+   la RENTABLE propuesta: área (m²) / Parking ratio (el mismo ratio que muestra la tabla, el de la Oficina; si
+   no tiene, el del Space primario). Se guardan en la Opción misma (opt.proposedArea/proposedUnit para
+   rentable — nombre previo, se conserva para no perder lo ya capturado — y opt.proposedUsable/
+   proposedUsableUnit), con la unidad de la vista donde se tecleó, y se convierten si después se cambia
+   Imperial/Métrico. Vacía = se usa el área real de los Spaces, como siempre. */
+const OFFICE_PROPOSED_FIELDS={ rentable:{v:"proposedArea", u:"proposedUnit"}, usable:{v:"proposedUsable", u:"proposedUsableUnit"} };
+function officeProposedUnitLabel(unitPref){ return unitPref==="metric"?"m²":"SF"; }
+function officeProposedAreaSF(opt, kind){
+  const fk=OFFICE_PROPOSED_FIELDS[kind||"rentable"];
+  const raw=String(opt&&opt[fk.v]||"").trim();
+  if(!raw) return null;
+  const n=Number(raw.replace(/,/g,""));
+  if(isNaN(n)) return null;
+  return opt[fk.u]==="metric" ? n/UNIT_CONVERSIONS.SF_M2.toMetric : n;
+}
+function officeProposedInputValue(opt, kind, unitPref){
+  const fk=OFFICE_PROPOSED_FIELDS[kind];
+  const sf=officeProposedAreaSF(opt, kind);
+  if(sf==null) return String(opt&&opt[fk.v]||"");
+  const wantMetric=unitPref==="metric";
+  if((opt[fk.u]==="metric")===wantMetric) return String(opt[fk.v]);
+  const v=wantMetric ? sf*UNIT_CONVERSIONS.SF_M2.toMetric : sf;
+  return String(Math.round(v));
+}
+function officeProposedParkingSpots(opt){
+  const sf=officeProposedAreaSF(opt, "rentable");
+  if(sf==null) return null;
+  const office=officeOptionOfficeRecord(opt), primary=officeOptionPrimarySpace(opt);
+  const pick=r=>{ const n=Number(r&&r.PARKING_RATIO); return (r && r.PARKING_RATIO!=="" && r.PARKING_RATIO!=null && !isNaN(n) && n>0) ? n : null; };
+  const ratio=pick(office)||pick(primary);
+  if(!ratio) return "";
+  return Math.round(sf*UNIT_CONVERSIONS.SF_M2.toMetric/ratio);
+}
+// En cada tecla: guarda y actualiza SOLO las celdas afectadas del deck (re-renderizar todo haría perder el
+// foco de la cajita), y sincroniza la otra cajita de la misma Opción si el panel está pintado en 2 lugares.
+function onOfficeProposedAreaInput(optId, kind, value, unit){
+  const opt=officePresOptions.find(o=>o.id===optId);
+  if(!opt) return;
+  const fk=OFFICE_PROPOSED_FIELDS[kind];
+  if(String(value).trim()){ opt[fk.v]=String(value).trim(); opt[fk.u]=unit; }
+  else { delete opt[fk.v]; delete opt[fk.u]; }
+  saveOfficePresStagingState();
+  document.querySelectorAll(`[data-proposed-opt="${optId}"][data-proposed-kind="${kind}"]`).forEach(inp=>{ if(inp!==document.activeElement) inp.value=String(value); });
+  const rows=officeDeckSpaceInfoRows(opt, officePresUnitPref);
+  rows.forEach(r=>{
+    if(!r.cell) return;
+    document.querySelectorAll(`[data-office-cell="${optId}:${r.cell}"]`).forEach(el=>{ el.textContent=officeDeckLangText(r.value); });
+  });
+}
 function renderOfficeOptionsPanel(targetId, unitPref){
   const list=document.getElementById(targetId||"officeOptionsList");
   if(!list) return;
@@ -12632,6 +12692,16 @@ function renderOfficeOptionsPanel(targetId, unitPref){
           <div class="office-option-title">${counter}. ${escapeHtml(info.buildings)} ${badge}</div>
           <div class="office-option-sub">${info.submarket?`${escapeHtml(info.submarket)} — `:""}${fmt(Math.round(info.area))} ${info.areaUnit}</div>
           <div class="office-option-sub">${info.floors?`Floor(s): ${escapeHtml(info.floors)}`:"—"}</div>
+          <div class="office-option-proposed-box">
+            <label class="office-proposed-field"><span>Rentable</span><input type="text" class="pres-item-proposed office-option-proposed" draggable="false" data-proposed-opt="${opt.id}" data-proposed-kind="rentable"
+              placeholder="${officeProposedUnitLabel(unitPref)}" title="Proposed net rentable area (${officeProposedUnitLabel(unitPref)}) — replaces Net rentable area in this option's page; parking spaces = this area / parking ratio"
+              value="${escapeAttr(officeProposedInputValue(opt, "rentable", unitPref))}" oninput="onOfficeProposedAreaInput('${opt.id}','rentable',this.value,'${unitPref==="metric"?"metric":"imperial"}')"
+              ondragstart="event.preventDefault();event.stopPropagation()"></label>
+            <label class="office-proposed-field"><span>Usable</span><input type="text" class="pres-item-proposed office-option-proposed" draggable="false" data-proposed-opt="${opt.id}" data-proposed-kind="usable"
+              placeholder="${officeProposedUnitLabel(unitPref)}" title="Proposed net usable area (${officeProposedUnitLabel(unitPref)}) — replaces Net usable area in this option's page"
+              value="${escapeAttr(officeProposedInputValue(opt, "usable", unitPref))}" oninput="onOfficeProposedAreaInput('${opt.id}','usable',this.value,'${unitPref==="metric"?"metric":"imperial"}')"
+              ondragstart="event.preventDefault();event.stopPropagation()"></label>
+          </div>
         </div>
         <button type="button" class="icon-btn" title="Remove this option" onclick="removeOfficePresOption('${opt.id}')">✕</button>
       </div>`;
@@ -14302,6 +14372,13 @@ function officeDeckRateText(ent, valueKey, unitKey, rec, unitPref, emptyText, ze
   const numText=isNaN(num)?String(conv.value):num.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
   return prefix+numText;
 }
+function officeDeckParkingRatioText(office, unitPref){
+  const raw=office&&office.PARKING_RATIO;
+  const v=Number(raw);
+  if(raw==null || raw==="" || isNaN(v)) return officeDeckPlainFmt(raw);
+  if(unitPref==="metric") return officeDeckPlainFmt(v);
+  return officeDeckPlainFmt(Math.round(v/UNIT_CONVERSIONS.SF_M2.toMetric));
+}
 function officeDeckSpaceInfoRows(opt, unitPref){
   const recs=officeOptionSpaceRecords(opt);
   const primary=officeOptionPrimarySpace(opt);
@@ -14317,11 +14394,15 @@ function officeDeckSpaceInfoRows(opt, unitPref){
   // muestran tal cual están capturados -- la única excepción es Amenities (ver officeDeckSentenceCase() más
   // abajo), pedido explícito del usuario. "Floor(s)"/"Nivel(es)" (la fila de abajo) se queda igual, el
   // usuario aclaró explícitamente que no se debía quitar/tocar solo por no aparecer en esas capturas.
+  // Área propuesta (ver officeProposedAreaSF): si se capturó, reemplaza las 2 áreas y Parking spaces.
+  const proposedSF=officeProposedAreaSF(opt, "rentable");
+  const proposedUsableSF=officeProposedAreaSF(opt, "usable");
+  const proposedSpots=officeProposedParkingSpots(opt);
   return [
-    {label:{en:`Net rentable area (${u})`,es:`Área neta rentable (${u})`},
-     value: officeDeckAreaText(sumSpacesAreaSF(recs,"NET_LEASABLE_AREA_VALUE"), unitPref, false)},
-    {label:{en:`Net usable area (${u})`,es:`Área neta útil (${u})`},
-     value: officeDeckAreaText(sumSpacesAreaSF(recs,"NET_USEABLE_AREA_VALUE"), unitPref, false)},
+    {cell:"nra", label:{en:`Net rentable area (${u})`,es:`Área neta rentable (${u})`},
+     value: officeDeckAreaText(proposedSF!=null?proposedSF:sumSpacesAreaSF(recs,"NET_LEASABLE_AREA_VALUE"), unitPref, false)},
+    {cell:"nua", label:{en:`Net usable area (${u})`,es:`Área neta útil (${u})`},
+     value: officeDeckAreaText(proposedUsableSF!=null?proposedUsableSF:sumSpacesAreaSF(recs,"NET_USEABLE_AREA_VALUE"), unitPref, false)},
     {label:{en:"Delivery condition",es:"Condición de entrega"},
      value: officeDeckPlainFmt(officeDeckSentenceCase(officePresTranslateValue("CONDITION", primary&&primary.CONDITION)))},
     // v4.4.10, pedido explícito del usuario: cada piso ahora muestra su propia área entre paréntesis
@@ -14332,10 +14413,13 @@ function officeDeckSpaceInfoRows(opt, unitPref){
     // Pedido explícito del usuario: la etiqueta queda solo "Floor"/"Nivel", sin "(s)"/"(es)" ni la unidad --
     // por eso officeDeckFloorsWithArea() vuelve a poner la unidad junto al área de cada piso (Opción agrupada).
     {label:{en:"Floor",es:"Nivel"}, value: officeDeckFloorsWithArea(recs, unitPref)||"—"},
-    {label:{en:"Parking ratio",es:"Radio de estacionamiento"},
-     value: officeDeckPlainFmt(office&&office.PARKING_RATIO)},
-    {label:{en:"Parking spaces",es:"Cajones incluídos"},
-     value: officeDeckPlainFmt(sumSpacesNumber(recs,"ASSIGNED_PARKING_SPOTS"))},
+    // Pedido explícito del usuario: Parking ratio se captura en m² por cajón — en la vista Imperial se convierte
+    // a SF por cajón (antes se mostraba el número en m² tal cual). La unidad va en la etiqueta, igual que las
+    // filas de área.
+    {label:{en:`Parking ratio (${u}/space)`,es:`Radio de estacionamiento (${u}/cajón)`},
+     value: officeDeckParkingRatioText(office, unitPref)},
+    {cell:"parking", label:{en:"Parking spaces",es:"Cajones incluídos"},
+     value: officeDeckPlainFmt(proposedSpots!=null?proposedSpots:sumSpacesNumber(recs,"ASSIGNED_PARKING_SPOTS"))},
     // v8.12.x, corrección del usuario sobre el fix anterior: el campo correcto es Additional Spot Price DE
     // LA OFICINA (ADDITIONAL_SPOT_PRICE_VALUE/UNIT, ver `office` arriba), no el de Spaces -- se lee del
     // registro de Oficina, no del Space primario. Pedido explícito del usuario: vacío -> "TBC", 0 -> "No
@@ -14401,9 +14485,9 @@ function officeDeckLangText(text){
   text=String(text);
   return officePresLangPref==="es" ? text : text.normalize("NFD").replace(/[\u0300-\u036f]/g,"");
 }
-function officeDeckInfoTableHtml(rows){
+function officeDeckInfoTableHtml(rows, optId){
   return `<div class="office-detail-rows">${rows.map(r=>
-    `<div class="office-detail-row"><div class="office-detail-row-label">${escapeHtml(officeDeckLangText(officePresLangPref==="es"?r.label.es:r.label.en))}</div><div class="office-detail-row-value">${escapeHtml(officeDeckLangText(r.value))}</div></div>`
+    `<div class="office-detail-row"><div class="office-detail-row-label">${escapeHtml(officeDeckLangText(officePresLangPref==="es"?r.label.es:r.label.en))}</div><div class="office-detail-row-value"${r.cell&&optId?` data-office-cell="${optId}:${r.cell}"`:""}>${escapeHtml(officeDeckLangText(r.value))}</div></div>`
   ).join("")}</div>`;
 }
 function buildOfficeOptionDetailPageHtml(opt, idx){
@@ -14418,7 +14502,7 @@ function buildOfficeOptionDetailPageHtml(opt, idx){
       <div class="office-detail-photo" id="officeDetailPhoto_${idx}"><div class="image-placeholder">${noPhotoText}</div></div>
       <div>
         <div class="office-detail-section-title">${t("Space information","Información del espacio")}</div>
-        ${officeDeckInfoTableHtml(officeDeckSpaceInfoRows(opt, officePresUnitPref))}
+        ${officeDeckInfoTableHtml(officeDeckSpaceInfoRows(opt, officePresUnitPref), opt.id)}
       </div>
       <div>
         <div class="office-detail-photo office-detail-plan" id="officeDetailPlan_${idx}"><div class="image-placeholder">${noPhotoText}</div></div>

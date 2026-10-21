@@ -2306,7 +2306,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.24.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.25.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -5326,6 +5326,12 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.25.0", date:"2026-10-21", items:[
+    "New Data Quality checks for Industrial Buildings and Industrial Parks: a record with a data issue can't be saved until it's fixed, and the record shows the list of issues at the top with the fields highlighted.",
+    "Rules: value without unit / unit without value; Total, Occupied and Available area (GLA in Buildings, land in Parks) in the same unit; Occupied + Available exactly equal to the total; total area can't be 0; no extra spaces at the start/end of a value; Min clear height not greater than Max clear height (Buildings); year built not in the future; pin inside the polygon.",
+    "New \"Data Issues\" column in the Buildings and Parks tables, with its own filter (with issues, no issues, or a specific rule).",
+    "Summary: new \"Data Quality\" section with, per market, the records with issues, % clean and how many records break each rule."
+  ]},
   {version:"8.24.0", date:"2026-10-20", items:[
     "Office Presentation: each option now has \"Rentable\" and \"Usable\" boxes (Options panel, in the deck and in the Spaces table) to type the area being offered. They replace Net rentable area and Net usable area on that option's page, and Parking spaces is calculated as proposed rentable area ÷ parking ratio. Leave a box empty to use the spaces' real area. Values are typed in the current unit and convert automatically when switching Imperial/Metric.",
     "Office Presentation: Parking ratio (captured in m² per space) is now converted to SF per space in the Imperial view, with the unit shown in the label."

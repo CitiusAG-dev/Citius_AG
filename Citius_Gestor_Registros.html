@@ -6535,7 +6535,7 @@ function completionPill(stats){
    todo lo demás (columna "Data Issues" + su filtro, aviso en la ficha, bloqueo al guardar, sección "Data
    Quality" del Summary) sale solo de este catálogo. Decisiones confirmadas con el usuario: los problemas
    BLOQUEAN el guardado (si no se conoce el dato correcto se cancela y el registro se queda pendiente), y la suma
-   de áreas debe ser EXACTA (sin margen). Se empezó por Industrial Buildings.
+   de áreas debe ser EXACTA (sin margen). Se empezó por Industrial Buildings; después Parks.
    Nota: en Buildings, Available Area es CALCULADO (GLA - Occupied, ver recomputePropertyDerivedFields) y copia
    la unidad de GLA — resta los números SIN convertir, así que si Occupied viene en otra unidad el resultado es
    incorrecto; por eso la regla de unidades es la que de verdad protege esa suma. */
@@ -6548,10 +6548,42 @@ function dqComputedKeys(ent){
   if(ent==="SPACES") return SPACES_COMPUTED_FIELD_KEYS;
   return new Set();
 }
-const DQ_AREA_SHORT={LEASABLE_AREA_GLA_VALUE:"GLA", OCCUPIED_AREA_VALUE:"Occupied", AVAILABLE_AREA_VALUE:"Available"};
-const DQ_AREA_GROUP=[["LEASABLE_AREA_GLA_VALUE","LEASABLE_AREA_GLA_UNIT"],["OCCUPIED_AREA_VALUE","OCCUPIED_AREA_UNIT"],["AVAILABLE_AREA_VALUE","AVAILABLE_AREA_UNIT"]];
+/* Grupos de área por entidad (total / ocupado / disponible). Buildings: GLA; Parks (pedido explícito del
+   usuario, mismas validaciones que Buildings): terreno. En los 2 casos Available es CALCULADO (total - ocupado). */
+const DQ_AREA_GROUPS={
+  PROPIEDADES:{total:"LEASABLE_AREA_GLA", occ:"OCCUPIED_AREA", avail:"AVAILABLE_AREA", names:{total:"Leasable Area (GLA)", occ:"Occupied Area", avail:"Available Area"}, short:{total:"GLA", occ:"Occupied", avail:"Available"}},
+  PARKS:{total:"TOTAL_LAND_SIZE", occ:"OCCUPIED_LAND", avail:"AVAILABLE_AREA", names:{total:"Total Land Size", occ:"Occupied Land", avail:"Available Area"}, short:{total:"Total Land", occ:"Occupied", avail:"Available"}},
+};
+function dqAreaUnitsCheck(ent, rec){
+  const g=DQ_AREA_GROUPS[ent], parts=["total","occ","avail"].map(k=>({k, v:g[k]+"_VALUE", u:g[k]+"_UNIT"}));
+  const filled=parts.filter(p=>!DQ_EMPTY(rec[p.u]));
+  if(new Set(filled.map(p=>String(rec[p.u]).trim().toLowerCase())).size<=1) return [];
+  return [{fields:filled.filter(p=>p.k!=="avail").map(p=>p.u),
+    msg:`${g.names.total}, ${g.names.occ} and ${g.names.avail} must all use the same unit — now: ${filled.map(p=>`${g.short[p.k]} in ${rec[p.u]}`).join(", ")}`}];
+}
+function dqAreaSumCheck(ent, rec){
+  const g=DQ_AREA_GROUPS[ent], [gk,ok,ak]=[g.total+"_VALUE", g.occ+"_VALUE", g.avail+"_VALUE"], n=g.names;
+  if(DQ_EMPTY(rec[gk])){
+    if(!DQ_EMPTY(rec[ok])) return [{fields:[gk], msg:`${n.total} is empty but ${n.occ} has a value`}];
+    return [];
+  }
+  const t=DQ_NUM(rec[gk]), o=DQ_EMPTY(rec[ok])?0:DQ_NUM(rec[ok]), a=DQ_EMPTY(rec[ak])?0:DQ_NUM(rec[ak]);
+  if(t==null||o==null||a==null) return [];
+  if(o>t) return [{fields:[ok,gk], msg:`${n.occ} (${fmtDqNum(o)}) is larger than ${n.total} (${fmtDqNum(t)})`}];
+  if(Math.abs((o+a)-t)>1e-6) return [{fields:[ok,gk], msg:`${g.short.occ} (${fmtDqNum(o)}) + ${g.short.avail} (${fmtDqNum(a)}) = ${fmtDqNum(o+a)}, but ${n.total} is ${fmtDqNum(t)}`}];
+  return [];
+}
+// Total (GLA / Total Land Size) no puede ser 0 ni negativo. Vacío no aplica aquí (eso lo cubre "requerido"/la
+// regla de valor+unidad).
+function dqAreaZeroCheck(ent, rec){
+  const g=DQ_AREA_GROUPS[ent], k=g.total+"_VALUE";
+  if(DQ_EMPTY(rec[k])) return [];
+  const v=DQ_NUM(rec[k]);
+  if(v==null || v>0) return [];
+  return [{fields:[k], msg:`${g.names.total} can't be ${v<0?"negative":"0"} (${rec[k]})`}];
+}
 const DATA_QUALITY_RULES=[
-  { id:"value_unit", ents:["PROPIEDADES"], short:"Value / unit", label:"Value without unit / unit without value",
+  { id:"value_unit", ents:["PROPIEDADES","PARKS"], short:"Value / unit", label:"Value without unit / unit without value",
     check(ent, rec){
       const out=[], computed=dqComputedKeys(ent);
       fields(ent).forEach(f=>{
@@ -6565,30 +6597,14 @@ const DATA_QUALITY_RULES=[
       });
       return out;
     } },
-  { id:"area_units", ents:["PROPIEDADES"], short:"Area units", label:"Area units don't match (GLA / Occupied / Available)",
-    check(ent, rec){
-      const filled=DQ_AREA_GROUP.filter(([,u])=>!DQ_EMPTY(rec[u]));
-      if(new Set(filled.map(([,u])=>String(rec[u]).trim().toLowerCase())).size<=1) return [];
-      return [{fields:filled.filter(([v])=>v!=="AVAILABLE_AREA_VALUE").map(([,u])=>u),
-        msg:`Leasable Area (GLA), Occupied Area and Available Area must all use the same unit — now: ${filled.map(([v,u])=>`${DQ_AREA_SHORT[v]} in ${rec[u]}`).join(", ")}`}];
-    } },
-  { id:"area_sum", ents:["PROPIEDADES"], short:"Area sum", label:"Occupied + Available ≠ Leasable Area (GLA)",
-    check(ent, rec){
-      const [gk,ok,ak]=["LEASABLE_AREA_GLA_VALUE","OCCUPIED_AREA_VALUE","AVAILABLE_AREA_VALUE"];
-      if(DQ_EMPTY(rec[gk])){
-        if(!DQ_EMPTY(rec[ok])) return [{fields:[gk], msg:"Leasable Area (GLA) is empty but Occupied Area has a value"}];
-        return [];
-      }
-      const g=DQ_NUM(rec[gk]), o=DQ_EMPTY(rec[ok])?0:DQ_NUM(rec[ok]), a=DQ_EMPTY(rec[ak])?0:DQ_NUM(rec[ak]);
-      if(g==null||o==null||a==null) return [];
-      if(o>g) return [{fields:[ok,gk], msg:`Occupied Area (${fmtDqNum(o)}) is larger than Leasable Area (GLA) (${fmtDqNum(g)})`}];
-      if(Math.abs((o+a)-g)>1e-6) return [{fields:[ok,gk], msg:`Occupied (${fmtDqNum(o)}) + Available (${fmtDqNum(a)}) = ${fmtDqNum(o+a)}, but Leasable Area (GLA) is ${fmtDqNum(g)}`}];
-      return [];
-    } },
+  { id:"area_units", ents:["PROPIEDADES"], short:"Area units", label:"Area units don't match (GLA / Occupied / Available)", check:dqAreaUnitsCheck },
+  { id:"land_units", ents:["PARKS"], short:"Land units", label:"Land units don't match (Total / Occupied / Available)", check:dqAreaUnitsCheck },
+  { id:"area_sum", ents:["PROPIEDADES"], short:"Area sum", label:"Occupied + Available ≠ Leasable Area (GLA)", check:dqAreaSumCheck },
+  { id:"land_sum", ents:["PARKS"], short:"Land sum", label:"Occupied + Available ≠ Total Land Size", check:dqAreaSumCheck },
   /* Pedido explícito del usuario: ningún valor con espacios al inicio o al final. Al guardar desde la ficha el
      sistema ya los quita (doSaveRecord hace trim de todo lo capturado, y también de los valores que no están en
      pantalla), así que esta regla nunca bloquea: sirve para encontrar los que vienen de cargas directas al Excel. */
-  { id:"trim", ents:["PROPIEDADES"], short:"Extra spaces", label:"Extra spaces at the start/end of a value",
+  { id:"trim", ents:["PROPIEDADES","PARKS"], short:"Extra spaces", label:"Extra spaces at the start/end of a value",
     check(ent, rec){
       const out=[];
       fields(ent).forEach(f=>{
@@ -6607,23 +6623,17 @@ const DATA_QUALITY_RULES=[
       if(a<=b) return [];
       return [{fields:["MIN_CLEAR_HEIGHT_VALUE","MAX_CLEAR_HEIGHT_VALUE"], msg:`Min Clear Height (${fmtDqNum(mn.v)} ${rec.MIN_CLEAR_HEIGHT_UNIT||""}) is greater than Max Clear Height (${fmtDqNum(mx.v)} ${rec.MAX_CLEAR_HEIGHT_UNIT||""})`}];
     } },
-  { id:"year_built", ents:["PROPIEDADES"], short:"Year built", label:"Year built is in the future",
+  { id:"year_built", ents:["PROPIEDADES","PARKS"], short:"Year built", label:"Year built is in the future",
     check(ent, rec){
       if(DQ_EMPTY(rec.YEAR_BUITL_DEVELOPED)) return [];
       const y=DQ_NUM(rec.YEAR_BUITL_DEVELOPED), now=new Date().getFullYear();
       if(y==null || y<=now) return [];
       return [{fields:["YEAR_BUITL_DEVELOPED"], msg:`Year Built / Developed (${rec.YEAR_BUITL_DEVELOPED}) can't be later than the current year (${now})`}];
     } },
-  // Pedido explícito del usuario: el GLA no puede ser 0 (tampoco negativo). Vacío no aplica aquí (eso lo cubre
-  // "requerido"/la regla de valor+unidad).
-  { id:"gla_zero", ents:["PROPIEDADES"], short:"GLA = 0", label:"Leasable Area (GLA) is 0",
-    check(ent, rec){
-      if(DQ_EMPTY(rec.LEASABLE_AREA_GLA_VALUE)) return [];
-      const g=DQ_NUM(rec.LEASABLE_AREA_GLA_VALUE);
-      if(g==null || g>0) return [];
-      return [{fields:["LEASABLE_AREA_GLA_VALUE"], msg:`Leasable Area (GLA) can't be ${g<0?"negative":"0"} (${rec.LEASABLE_AREA_GLA_VALUE})`}];
-    } },
-  { id:"pin_polygon", ents:["PROPIEDADES"], short:"Pin / polygon", label:"Pin is outside the polygon",
+  // Pedido explícito del usuario: el GLA no puede ser 0 (tampoco negativo); lo mismo para el terreno de Parks.
+  { id:"gla_zero", ents:["PROPIEDADES"], short:"GLA = 0", label:"Leasable Area (GLA) is 0", check:dqAreaZeroCheck },
+  { id:"land_zero", ents:["PARKS"], short:"Land = 0", label:"Total Land Size is 0", check:dqAreaZeroCheck },
+  { id:"pin_polygon", ents:["PROPIEDADES","PARKS"], short:"Pin / polygon", label:"Pin is outside the polygon",
     check(ent, rec){
       const pk=polygonKeyFor(ent);
       if(!pk || DQ_EMPTY(rec[pk]) || DQ_EMPTY(rec.LATITUDE) || DQ_EMPTY(rec.LONGITUDE)) return [];
@@ -8307,6 +8317,7 @@ function renderResumenView(){
     <div class="resumen-row-full">${complianceHtmlTx}</div>
     <h3 class="resumen-section-title">Data Quality</h3>
     <div class="resumen-row-full">${resumenDataQualityTableHtml("Industrial Buildings","PROPIEDADES")}</div>
+    <div class="resumen-row-full">${resumenDataQualityTableHtml("Industrial Parks","PARKS")}</div>
     <div class="resumen-usage-header">
       <div>
         <h3 class="resumen-section-title" style="margin-top:0">Tool Usage</h3>
@@ -16220,6 +16231,7 @@ function doSaveRecord(){
   if(dqEntityHasRules(current)){
     const probe={...rec};
     if(current==="PROPIEDADES") recomputePropertyDerivedFields(probe);
+    if(current==="PARKS") recomputeParkDerivedFields(probe);
     const onForm=new Set([...inputs].map(inp=>inp.dataset.key));
     const blocking=dataIssues(current, probe).filter(i=>i.fields.some(k=>onForm.has(k)));
     if(blocking.length){

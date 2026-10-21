@@ -6585,7 +6585,70 @@ const DATA_QUALITY_RULES=[
       if(Math.abs((o+a)-g)>1e-6) return [{fields:[ok,gk], msg:`Occupied (${fmtDqNum(o)}) + Available (${fmtDqNum(a)}) = ${fmtDqNum(o+a)}, but Leasable Area (GLA) is ${fmtDqNum(g)}`}];
       return [];
     } },
+  /* Pedido explícito del usuario: ningún valor con espacios al inicio o al final. Al guardar desde la ficha el
+     sistema ya los quita (doSaveRecord hace trim de todo lo capturado, y también de los valores que no están en
+     pantalla), así que esta regla nunca bloquea: sirve para encontrar los que vienen de cargas directas al Excel. */
+  { id:"trim", ents:["PROPIEDADES"], short:"Extra spaces", label:"Extra spaces at the start/end of a value",
+    check(ent, rec){
+      const out=[];
+      fields(ent).forEach(f=>{
+        const v=rec[f.key];
+        if(typeof v==="string" && v!==v.trim()) out.push({fields:[f.key], msg:`${fieldLabel(f.key, ent)}: has extra spaces at the start or end ("${v}")`});
+      });
+      return out;
+    } },
+  { id:"clear_height", ents:["PROPIEDADES"], short:"Clear height", label:"Min clear height greater than max clear height",
+    check(ent, rec){
+      const mn=dqLengthInM(rec.MIN_CLEAR_HEIGHT_VALUE, rec.MIN_CLEAR_HEIGHT_UNIT), mx=dqLengthInM(rec.MAX_CLEAR_HEIGHT_VALUE, rec.MAX_CLEAR_HEIGHT_UNIT);
+      if(mn==null || mx==null) return [];
+      // Si las 2 unidades no se pueden convertir entre sí (ni son la misma), no se compara.
+      if(mn.unit!==mx.unit && (mn.m==null || mx.m==null)) return [];
+      const a=mn.unit===mx.unit?mn.v:mn.m, b=mn.unit===mx.unit?mx.v:mx.m;
+      if(a<=b) return [];
+      return [{fields:["MIN_CLEAR_HEIGHT_VALUE","MAX_CLEAR_HEIGHT_VALUE"], msg:`Min Clear Height (${fmtDqNum(mn.v)} ${rec.MIN_CLEAR_HEIGHT_UNIT||""}) is greater than Max Clear Height (${fmtDqNum(mx.v)} ${rec.MAX_CLEAR_HEIGHT_UNIT||""})`}];
+    } },
+  { id:"year_built", ents:["PROPIEDADES"], short:"Year built", label:"Year built is in the future",
+    check(ent, rec){
+      if(DQ_EMPTY(rec.YEAR_BUITL_DEVELOPED)) return [];
+      const y=DQ_NUM(rec.YEAR_BUITL_DEVELOPED), now=new Date().getFullYear();
+      if(y==null || y<=now) return [];
+      return [{fields:["YEAR_BUITL_DEVELOPED"], msg:`Year Built / Developed (${rec.YEAR_BUITL_DEVELOPED}) can't be later than the current year (${now})`}];
+    } },
+  { id:"pin_polygon", ents:["PROPIEDADES"], short:"Pin / polygon", label:"Pin is outside the polygon",
+    check(ent, rec){
+      const pk=polygonKeyFor(ent);
+      if(!pk || DQ_EMPTY(rec[pk]) || DQ_EMPTY(rec.LATITUDE) || DQ_EMPTY(rec.LONGITUDE)) return [];
+      const lat=DQ_NUM(rec.LATITUDE), lng=DQ_NUM(rec.LONGITUDE);
+      if(lat==null || lng==null) return [];
+      const rings=dqPolygonOuterRings(rec[pk]);
+      if(!rings.length) return [];
+      if(rings.some(r=>pointInPolygon({lat,lng}, r))) return [];
+      return [{fields:["LATITUDE","LONGITUDE",pk], msg:`The pin (${lat}, ${lng}) is outside the polygon — move the pin or redraw the polygon`}];
+    } },
 ];
+/* Longitud a metros (para comparar Min/Max Clear Height aunque vengan en m y ft). `m` es null si la unidad no
+   se reconoce; en ese caso solo se compara si las 2 unidades son la misma. */
+function dqLengthInM(value, unit){
+  if(DQ_EMPTY(value)) return null;
+  const v=DQ_NUM(value);
+  if(v==null) return null;
+  const u=String(unit||"").trim().toLowerCase();
+  const m = u==="m"||u==="mts"||u==="meters" ? v : (u==="ft"||u==="feet"||u==="pies") ? v*UNIT_CONVERSIONS.FT_M.toMetric : null;
+  return {v, m, unit:u};
+}
+// Anillos exteriores de un polígono GeoJSON guardado como texto (Feature o geometría; Polygon o MultiPolygon),
+// como arreglos de {lat,lng} para pointInPolygon(). Texto inválido -> [] (no se valida).
+function dqPolygonOuterRings(raw){
+  try{
+    const gj=typeof raw==="string"?JSON.parse(raw):raw;
+    const g=gj && (gj.type==="FeatureCollection" ? (gj.features[0]||{}).geometry : (gj.geometry||gj));
+    if(!g || !g.coordinates) return [];
+    const toLatLng=ring=>ring.map(c=>({lng:Number(c[0]), lat:Number(c[1])}));
+    if(g.type==="Polygon") return [toLatLng(g.coordinates[0])];
+    if(g.type==="MultiPolygon") return g.coordinates.map(poly=>toLatLng(poly[0]));
+    return [];
+  }catch(e){ return []; }
+}
 function fmtDqNum(n){ return Number(n).toLocaleString("en-US",{maximumFractionDigits:2}); }
 function dqRulesFor(ent){ return DATA_QUALITY_RULES.filter(r=>r.ents.includes(ent)); }
 function dqEntityHasRules(ent){ return dqRulesFor(ent).length>0; }
@@ -16176,7 +16239,8 @@ function doSaveRecord(){
       Object.keys(prev).forEach(k=>{
         if(k==="__id" || domKeys.has(k) || (k in rec)) return;
         const fc=cfgByKey[k];
-        if(!fc || fc.hidden || current!=="TRANSACCIONES") rec[k]=prev[k];
+        // Pedido explícito del usuario: nunca guardar espacios al inicio/final — también en lo que no está en pantalla.
+        if(!fc || fc.hidden || current!=="TRANSACCIONES") rec[k]=(typeof prev[k]==="string" && k!=="__row") ? prev[k].trim() : prev[k];
       });
     }
     rec.__id=editingId; arr[i]=rec;

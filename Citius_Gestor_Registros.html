@@ -1102,6 +1102,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   /* Park Land (v8.19.x): Proposed Area capturada a mano por parque */
   .pres-item-proposed{width:68px;flex-shrink:0;padding:3px 6px;font-size:12px;text-align:right;background:#fff;border:1px solid var(--line);border-radius:6px;color:var(--txt)}
   .pres-item-proposed:focus{outline:none;border-color:var(--accent)}
+  .office-option-proposed-box{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:6px}
+  .office-proposed-field{display:flex;align-items:center;gap:6px;margin:0}
+  .office-proposed-field span{font-size:10px;color:var(--muted);font-weight:600}
   .pres-item-unit{font-size:11px;color:var(--muted);flex-shrink:0}
   .pres-item button{background:none;border:1px solid var(--line);border-radius:6px;width:22px;height:22px;
                      cursor:pointer;color:var(--muted);font-size:11px;padding:0;flex-shrink:0}
@@ -12602,30 +12605,35 @@ function officeOptionInfo(opt, unitPref){
    (#officePresSelectedList, ver renderOfficePresentationView()) sin duplicar este HTML/lógica una 2da vez —
    una sola fuente de verdad (officePresOptions), 2 lugares donde se puede ver. */
 /* ==== Área propuesta por Opción (pedido explícito del usuario, "similar a la de Parks") ====
-   Cajita por Opción en el panel de Opciones (panel acoplado de Spaces y sidebar del deck): el valor capturado
-   reemplaza Net rentable area y Net usable area en la página de esa Opción, y Parking spaces se calcula como
-   área (m²) / Parking ratio (el mismo ratio que muestra la tabla, el de la Oficina; si no tiene, el del Space
-   primario). Se guarda en la Opción misma (opt.proposedArea + opt.proposedUnit, la unidad de la vista donde se
-   tecleó) junto con el resto del staging, y se convierte si después se cambia Imperial/Métrico. Vacío = se
-   usan las áreas reales de los Spaces, como siempre. */
+   2 cajitas por Opción en el panel de Opciones (panel acoplado de Spaces y sidebar del deck): "Rentable"
+   reemplaza Net rentable area y "Usable" reemplaza Net usable area en la página de esa Opción (cada una por su
+   cuenta — pedido explícito del usuario, antes era una sola cajita para las 2). Parking spaces se calcula con
+   la RENTABLE propuesta: área (m²) / Parking ratio (el mismo ratio que muestra la tabla, el de la Oficina; si
+   no tiene, el del Space primario). Se guardan en la Opción misma (opt.proposedArea/proposedUnit para
+   rentable — nombre previo, se conserva para no perder lo ya capturado — y opt.proposedUsable/
+   proposedUsableUnit), con la unidad de la vista donde se tecleó, y se convierten si después se cambia
+   Imperial/Métrico. Vacía = se usa el área real de los Spaces, como siempre. */
+const OFFICE_PROPOSED_FIELDS={ rentable:{v:"proposedArea", u:"proposedUnit"}, usable:{v:"proposedUsable", u:"proposedUsableUnit"} };
 function officeProposedUnitLabel(unitPref){ return unitPref==="metric"?"m²":"SF"; }
-function officeProposedAreaSF(opt){
-  const raw=String(opt&&opt.proposedArea||"").trim();
+function officeProposedAreaSF(opt, kind){
+  const fk=OFFICE_PROPOSED_FIELDS[kind||"rentable"];
+  const raw=String(opt&&opt[fk.v]||"").trim();
   if(!raw) return null;
   const n=Number(raw.replace(/,/g,""));
   if(isNaN(n)) return null;
-  return opt.proposedUnit==="metric" ? n/UNIT_CONVERSIONS.SF_M2.toMetric : n;
+  return opt[fk.u]==="metric" ? n/UNIT_CONVERSIONS.SF_M2.toMetric : n;
 }
-function officeProposedInputValue(opt, unitPref){
-  const sf=officeProposedAreaSF(opt);
-  if(sf==null) return String(opt&&opt.proposedArea||"");
+function officeProposedInputValue(opt, kind, unitPref){
+  const fk=OFFICE_PROPOSED_FIELDS[kind];
+  const sf=officeProposedAreaSF(opt, kind);
+  if(sf==null) return String(opt&&opt[fk.v]||"");
   const wantMetric=unitPref==="metric";
-  if((opt.proposedUnit==="metric")===wantMetric) return String(opt.proposedArea);
+  if((opt[fk.u]==="metric")===wantMetric) return String(opt[fk.v]);
   const v=wantMetric ? sf*UNIT_CONVERSIONS.SF_M2.toMetric : sf;
   return String(Math.round(v));
 }
 function officeProposedParkingSpots(opt){
-  const sf=officeProposedAreaSF(opt);
+  const sf=officeProposedAreaSF(opt, "rentable");
   if(sf==null) return null;
   const office=officeOptionOfficeRecord(opt), primary=officeOptionPrimarySpace(opt);
   const pick=r=>{ const n=Number(r&&r.PARKING_RATIO); return (r && r.PARKING_RATIO!=="" && r.PARKING_RATIO!=null && !isNaN(n) && n>0) ? n : null; };
@@ -12635,13 +12643,14 @@ function officeProposedParkingSpots(opt){
 }
 // En cada tecla: guarda y actualiza SOLO las celdas afectadas del deck (re-renderizar todo haría perder el
 // foco de la cajita), y sincroniza la otra cajita de la misma Opción si el panel está pintado en 2 lugares.
-function onOfficeProposedAreaInput(optId, value, unit){
+function onOfficeProposedAreaInput(optId, kind, value, unit){
   const opt=officePresOptions.find(o=>o.id===optId);
   if(!opt) return;
-  if(String(value).trim()){ opt.proposedArea=String(value).trim(); opt.proposedUnit=unit; }
-  else { delete opt.proposedArea; delete opt.proposedUnit; }
+  const fk=OFFICE_PROPOSED_FIELDS[kind];
+  if(String(value).trim()){ opt[fk.v]=String(value).trim(); opt[fk.u]=unit; }
+  else { delete opt[fk.v]; delete opt[fk.u]; }
   saveOfficePresStagingState();
-  document.querySelectorAll(`[data-proposed-opt="${optId}"]`).forEach(inp=>{ if(inp!==document.activeElement) inp.value=String(value); });
+  document.querySelectorAll(`[data-proposed-opt="${optId}"][data-proposed-kind="${kind}"]`).forEach(inp=>{ if(inp!==document.activeElement) inp.value=String(value); });
   const rows=officeDeckSpaceInfoRows(opt, officePresUnitPref);
   rows.forEach(r=>{
     if(!r.cell) return;
@@ -12679,11 +12688,17 @@ function renderOfficeOptionsPanel(targetId, unitPref){
           <div class="office-option-title">${counter}. ${escapeHtml(info.buildings)} ${badge}</div>
           <div class="office-option-sub">${info.submarket?`${escapeHtml(info.submarket)} — `:""}${fmt(Math.round(info.area))} ${info.areaUnit}</div>
           <div class="office-option-sub">${info.floors?`Floor(s): ${escapeHtml(info.floors)}`:"—"}</div>
+          <div class="office-option-proposed-box">
+            <label class="office-proposed-field"><span>Rentable</span><input type="text" class="pres-item-proposed office-option-proposed" draggable="false" data-proposed-opt="${opt.id}" data-proposed-kind="rentable"
+              placeholder="${officeProposedUnitLabel(unitPref)}" title="Proposed net rentable area (${officeProposedUnitLabel(unitPref)}) — replaces Net rentable area in this option's page; parking spaces = this area / parking ratio"
+              value="${escapeAttr(officeProposedInputValue(opt, "rentable", unitPref))}" oninput="onOfficeProposedAreaInput('${opt.id}','rentable',this.value,'${unitPref==="metric"?"metric":"imperial"}')"
+              ondragstart="event.preventDefault();event.stopPropagation()"></label>
+            <label class="office-proposed-field"><span>Usable</span><input type="text" class="pres-item-proposed office-option-proposed" draggable="false" data-proposed-opt="${opt.id}" data-proposed-kind="usable"
+              placeholder="${officeProposedUnitLabel(unitPref)}" title="Proposed net usable area (${officeProposedUnitLabel(unitPref)}) — replaces Net usable area in this option's page"
+              value="${escapeAttr(officeProposedInputValue(opt, "usable", unitPref))}" oninput="onOfficeProposedAreaInput('${opt.id}','usable',this.value,'${unitPref==="metric"?"metric":"imperial"}')"
+              ondragstart="event.preventDefault();event.stopPropagation()"></label>
+          </div>
         </div>
-        <input type="text" class="pres-item-proposed office-option-proposed" draggable="false" data-proposed-opt="${opt.id}"
-          placeholder="Proposed" title="Proposed area (${officeProposedUnitLabel(unitPref)}) — replaces Net rentable/usable area in this option's page; parking spaces = area / parking ratio"
-          value="${escapeAttr(officeProposedInputValue(opt, unitPref))}" oninput="onOfficeProposedAreaInput('${opt.id}',this.value,'${unitPref==="metric"?"metric":"imperial"}')"
-          ondragstart="event.preventDefault();event.stopPropagation()">
         <button type="button" class="icon-btn" title="Remove this option" onclick="removeOfficePresOption('${opt.id}')">✕</button>
       </div>`;
     }).join("");
@@ -14376,13 +14391,14 @@ function officeDeckSpaceInfoRows(opt, unitPref){
   // abajo), pedido explícito del usuario. "Floor(s)"/"Nivel(es)" (la fila de abajo) se queda igual, el
   // usuario aclaró explícitamente que no se debía quitar/tocar solo por no aparecer en esas capturas.
   // Área propuesta (ver officeProposedAreaSF): si se capturó, reemplaza las 2 áreas y Parking spaces.
-  const proposedSF=officeProposedAreaSF(opt);
+  const proposedSF=officeProposedAreaSF(opt, "rentable");
+  const proposedUsableSF=officeProposedAreaSF(opt, "usable");
   const proposedSpots=officeProposedParkingSpots(opt);
   return [
     {cell:"nra", label:{en:`Net rentable area (${u})`,es:`Área neta rentable (${u})`},
      value: officeDeckAreaText(proposedSF!=null?proposedSF:sumSpacesAreaSF(recs,"NET_LEASABLE_AREA_VALUE"), unitPref, false)},
     {cell:"nua", label:{en:`Net usable area (${u})`,es:`Área neta útil (${u})`},
-     value: officeDeckAreaText(proposedSF!=null?proposedSF:sumSpacesAreaSF(recs,"NET_USEABLE_AREA_VALUE"), unitPref, false)},
+     value: officeDeckAreaText(proposedUsableSF!=null?proposedUsableSF:sumSpacesAreaSF(recs,"NET_USEABLE_AREA_VALUE"), unitPref, false)},
     {label:{en:"Delivery condition",es:"Condición de entrega"},
      value: officeDeckPlainFmt(officeDeckSentenceCase(officePresTranslateValue("CONDITION", primary&&primary.CONDITION)))},
     // v4.4.10, pedido explícito del usuario: cada piso ahora muestra su propia área entre paréntesis

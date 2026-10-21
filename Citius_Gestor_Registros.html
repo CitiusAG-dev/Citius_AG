@@ -1867,6 +1867,16 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .pill.amber{background:rgba(245,176,65,.15);color:var(--amber)}
   .pill.gray{background:rgba(107,116,128,.14);color:var(--muted)}
   .pill.red{background:rgba(226,72,61,.14);color:var(--red)}
+  /* Calidad de datos (ver DATA_QUALITY_RULES) */
+  .dq-filter-btn{border:1px solid var(--line);background:var(--panel);border-radius:5px;font-size:10px;line-height:1;padding:2px 5px;cursor:pointer;color:var(--muted)}
+  .dq-filter-btn.active{background:var(--accent);border-color:var(--accent);color:#1a1a1a}
+  .dq-banner{border:1px solid rgba(226,72,61,.35);background:rgba(226,72,61,.07);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:12.5px;color:var(--txt)}
+  .dq-banner b{color:var(--red)}
+  .dq-banner ul{margin:6px 0 0 18px;padding:0}
+  .dq-banner li{margin:2px 0}
+  .dq-banner-note{display:block;margin-top:6px;font-size:11.5px;color:var(--muted)}
+  .dq-banner.blocking{border-color:var(--red);box-shadow:0 0 0 1px var(--red)}
+  .field .field-dq-error,.field input.field-dq-error,.field select.field-dq-error{border-color:var(--red)!important;box-shadow:0 0 0 1px var(--red)}
   .chip-x{margin-left:6px;cursor:pointer;font-weight:700;opacity:.75}
   .chip-x:hover{opacity:1}
   /* Presentación de Oficinas, Etapa 1 — ver comentario en el HTML de topbar-controls-left. */
@@ -2296,7 +2306,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.24.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.25.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -4647,13 +4657,14 @@ function clearAllFilters(){
   // del panel "Ordenar por" (pedido explícito del usuario: este botón NO debe tocar el sort).
   filters[current]=[];
   saveFilters();
+  delete dqFilter[current]; saveDqFilter();
   closeColumnFilterDropdown();
   renderTable();
 }
 function updateClearFiltersBtn(){
   const btn=document.getElementById("clearFiltersBtn");
   if(!btn) return;
-  const n=(filters[current]||[]).length;
+  const n=(filters[current]||[]).length+(dqFilter[current]&&dqEntityHasRules(current)?1:0);
   btn.style.display=n?"":"none";
   btn.textContent=`✕ Clear filters (${n})`;
 }
@@ -5315,6 +5326,12 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.25.0", date:"2026-10-21", items:[
+    "New Data Quality checks for Industrial Buildings and Industrial Parks: a record with a data issue can't be saved until it's fixed, and the record shows the list of issues at the top with the fields highlighted.",
+    "Rules: value without unit / unit without value; Total, Occupied and Available area (GLA in Buildings, land in Parks) in the same unit; Occupied + Available exactly equal to the total; total area can't be 0; no extra spaces at the start/end of a value; Min clear height not greater than Max clear height (Buildings); year built not in the future; pin inside the polygon.",
+    "New \"Data Issues\" column in the Buildings and Parks tables, with its own filter (with issues, no issues, or a specific rule).",
+    "Summary: new \"Data Quality\" section with, per market, the records with issues, % clean and how many records break each rule."
+  ]},
   {version:"8.24.0", date:"2026-10-20", items:[
     "Office Presentation: each option now has \"Rentable\" and \"Usable\" boxes (Options panel, in the deck and in the Spaces table) to type the area being offered. They replace Net rentable area and Net usable area on that option's page, and Parking spaces is calculated as proposed rentable area ÷ parking ratio. Leave a box empty to use the spaces' real area. Values are typed in the current unit and convert automatically when switching Imperial/Metric.",
     "Office Presentation: Parking ratio (captured in m² per space) is now converted to SF per space in the Imperial view, with the unit shown in the label."
@@ -6518,6 +6535,234 @@ function completionPill(stats){
   const cls=stats.pct>=100?"green":(stats.pct>0?"amber":"gray");
   return `<span class="pill completion ${cls}" title="${stats.filled} de ${stats.total} campos obligatorios">${stats.pct}%</span>`;
 }
+/* ==== Calidad de datos (pedido explícito del usuario) ====
+   Catálogo de reglas: cada regla revisa UN registro y regresa una lista de problemas {fields, msg}. Para agregar
+   una validación nueva basta con sumar una entrada a DATA_QUALITY_RULES (con las entidades a las que aplica) —
+   todo lo demás (columna "Data Issues" + su filtro, aviso en la ficha, bloqueo al guardar, sección "Data
+   Quality" del Summary) sale solo de este catálogo. Decisiones confirmadas con el usuario: los problemas
+   BLOQUEAN el guardado (si no se conoce el dato correcto se cancela y el registro se queda pendiente), y la suma
+   de áreas debe ser EXACTA (sin margen). Se empezó por Industrial Buildings; después Parks.
+   Nota: en Buildings, Available Area es CALCULADO (GLA - Occupied, ver recomputePropertyDerivedFields) y copia
+   la unidad de GLA — resta los números SIN convertir, así que si Occupied viene en otra unidad el resultado es
+   incorrecto; por eso la regla de unidades es la que de verdad protege esa suma. */
+const DQ_EMPTY=v=>v==null||String(v).trim()==="";
+const DQ_NUM=v=>{ const n=Number(String(v).replace(/,/g,"")); return isNaN(n)?null:n; };
+function dqComputedKeys(ent){
+  if(ent==="PROPIEDADES") return PROPIEDADES_COMPUTED_FIELD_KEYS;
+  if(ent==="PARKS") return PARK_COMPUTED_FIELD_KEYS;
+  if(ent==="OFICINAS") return OFICINAS_COMPUTED_FIELD_KEYS;
+  if(ent==="SPACES") return SPACES_COMPUTED_FIELD_KEYS;
+  return new Set();
+}
+/* Grupos de área por entidad (total / ocupado / disponible). Buildings: GLA; Parks (pedido explícito del
+   usuario, mismas validaciones que Buildings): terreno. En los 2 casos Available es CALCULADO (total - ocupado). */
+const DQ_AREA_GROUPS={
+  PROPIEDADES:{total:"LEASABLE_AREA_GLA", occ:"OCCUPIED_AREA", avail:"AVAILABLE_AREA", names:{total:"Leasable Area (GLA)", occ:"Occupied Area", avail:"Available Area"}, short:{total:"GLA", occ:"Occupied", avail:"Available"}},
+  PARKS:{total:"TOTAL_LAND_SIZE", occ:"OCCUPIED_LAND", avail:"AVAILABLE_AREA", names:{total:"Total Land Size", occ:"Occupied Land", avail:"Available Area"}, short:{total:"Total Land", occ:"Occupied", avail:"Available"}},
+};
+function dqAreaUnitsCheck(ent, rec){
+  const g=DQ_AREA_GROUPS[ent], parts=["total","occ","avail"].map(k=>({k, v:g[k]+"_VALUE", u:g[k]+"_UNIT"}));
+  const filled=parts.filter(p=>!DQ_EMPTY(rec[p.u]));
+  if(new Set(filled.map(p=>String(rec[p.u]).trim().toLowerCase())).size<=1) return [];
+  return [{fields:filled.filter(p=>p.k!=="avail").map(p=>p.u),
+    msg:`${g.names.total}, ${g.names.occ} and ${g.names.avail} must all use the same unit — now: ${filled.map(p=>`${g.short[p.k]} in ${rec[p.u]}`).join(", ")}`}];
+}
+function dqAreaSumCheck(ent, rec){
+  const g=DQ_AREA_GROUPS[ent], [gk,ok,ak]=[g.total+"_VALUE", g.occ+"_VALUE", g.avail+"_VALUE"], n=g.names;
+  if(DQ_EMPTY(rec[gk])){
+    if(!DQ_EMPTY(rec[ok])) return [{fields:[gk], msg:`${n.total} is empty but ${n.occ} has a value`}];
+    return [];
+  }
+  const t=DQ_NUM(rec[gk]), o=DQ_EMPTY(rec[ok])?0:DQ_NUM(rec[ok]), a=DQ_EMPTY(rec[ak])?0:DQ_NUM(rec[ak]);
+  if(t==null||o==null||a==null) return [];
+  if(o>t) return [{fields:[ok,gk], msg:`${n.occ} (${fmtDqNum(o)}) is larger than ${n.total} (${fmtDqNum(t)})`}];
+  if(Math.abs((o+a)-t)>1e-6) return [{fields:[ok,gk], msg:`${g.short.occ} (${fmtDqNum(o)}) + ${g.short.avail} (${fmtDqNum(a)}) = ${fmtDqNum(o+a)}, but ${n.total} is ${fmtDqNum(t)}`}];
+  return [];
+}
+// Total (GLA / Total Land Size) no puede ser 0 ni negativo. Vacío no aplica aquí (eso lo cubre "requerido"/la
+// regla de valor+unidad).
+function dqAreaZeroCheck(ent, rec){
+  const g=DQ_AREA_GROUPS[ent], k=g.total+"_VALUE";
+  if(DQ_EMPTY(rec[k])) return [];
+  const v=DQ_NUM(rec[k]);
+  if(v==null || v>0) return [];
+  return [{fields:[k], msg:`${g.names.total} can't be ${v<0?"negative":"0"} (${rec[k]})`}];
+}
+const DATA_QUALITY_RULES=[
+  { id:"value_unit", ents:["PROPIEDADES","PARKS"], short:"Value / unit", label:"Value without unit / unit without value",
+    check(ent, rec){
+      const out=[], computed=dqComputedKeys(ent);
+      fields(ent).forEach(f=>{
+        const u=unitKeyFor(ent, f.key);
+        if(!u || computed.has(f.key)) return;
+        const noVal=DQ_EMPTY(rec[f.key]), noUnit=DQ_EMPTY(rec[u]);
+        if(noVal===noUnit) return;
+        out.push(noVal
+          ? {fields:[f.key, u], msg:`${pairValueLabel(f.key)}: has a unit (${rec[u]}) but no value`}
+          : {fields:[f.key, u], msg:`${pairValueLabel(f.key)}: has a value (${rec[f.key]}) but no unit`});
+      });
+      return out;
+    } },
+  { id:"area_units", ents:["PROPIEDADES"], short:"Area units", label:"Area units don't match (GLA / Occupied / Available)", check:dqAreaUnitsCheck },
+  { id:"land_units", ents:["PARKS"], short:"Land units", label:"Land units don't match (Total / Occupied / Available)", check:dqAreaUnitsCheck },
+  { id:"area_sum", ents:["PROPIEDADES"], short:"Area sum", label:"Occupied + Available ≠ Leasable Area (GLA)", check:dqAreaSumCheck },
+  { id:"land_sum", ents:["PARKS"], short:"Land sum", label:"Occupied + Available ≠ Total Land Size", check:dqAreaSumCheck },
+  /* Pedido explícito del usuario: ningún valor con espacios al inicio o al final. Al guardar desde la ficha el
+     sistema ya los quita (doSaveRecord hace trim de todo lo capturado, y también de los valores que no están en
+     pantalla), así que esta regla nunca bloquea: sirve para encontrar los que vienen de cargas directas al Excel. */
+  { id:"trim", ents:["PROPIEDADES","PARKS"], short:"Extra spaces", label:"Extra spaces at the start/end of a value",
+    check(ent, rec){
+      const out=[];
+      fields(ent).forEach(f=>{
+        const v=rec[f.key];
+        if(typeof v==="string" && v!==v.trim()) out.push({fields:[f.key], msg:`${fieldLabel(f.key, ent)}: has extra spaces at the start or end ("${v}")`});
+      });
+      return out;
+    } },
+  { id:"clear_height", ents:["PROPIEDADES"], short:"Clear height", label:"Min clear height greater than max clear height",
+    check(ent, rec){
+      const mn=dqLengthInM(rec.MIN_CLEAR_HEIGHT_VALUE, rec.MIN_CLEAR_HEIGHT_UNIT), mx=dqLengthInM(rec.MAX_CLEAR_HEIGHT_VALUE, rec.MAX_CLEAR_HEIGHT_UNIT);
+      if(mn==null || mx==null) return [];
+      // Si las 2 unidades no se pueden convertir entre sí (ni son la misma), no se compara.
+      if(mn.unit!==mx.unit && (mn.m==null || mx.m==null)) return [];
+      const a=mn.unit===mx.unit?mn.v:mn.m, b=mn.unit===mx.unit?mx.v:mx.m;
+      if(a<=b) return [];
+      return [{fields:["MIN_CLEAR_HEIGHT_VALUE","MAX_CLEAR_HEIGHT_VALUE"], msg:`Min Clear Height (${fmtDqNum(mn.v)} ${rec.MIN_CLEAR_HEIGHT_UNIT||""}) is greater than Max Clear Height (${fmtDqNum(mx.v)} ${rec.MAX_CLEAR_HEIGHT_UNIT||""})`}];
+    } },
+  { id:"year_built", ents:["PROPIEDADES","PARKS"], short:"Year built", label:"Year built is in the future",
+    check(ent, rec){
+      if(DQ_EMPTY(rec.YEAR_BUITL_DEVELOPED)) return [];
+      const y=DQ_NUM(rec.YEAR_BUITL_DEVELOPED), now=new Date().getFullYear();
+      if(y==null || y<=now) return [];
+      return [{fields:["YEAR_BUITL_DEVELOPED"], msg:`Year Built / Developed (${rec.YEAR_BUITL_DEVELOPED}) can't be later than the current year (${now})`}];
+    } },
+  // Pedido explícito del usuario: el GLA no puede ser 0 (tampoco negativo); lo mismo para el terreno de Parks.
+  { id:"gla_zero", ents:["PROPIEDADES"], short:"GLA = 0", label:"Leasable Area (GLA) is 0", check:dqAreaZeroCheck },
+  { id:"land_zero", ents:["PARKS"], short:"Land = 0", label:"Total Land Size is 0", check:dqAreaZeroCheck },
+  { id:"pin_polygon", ents:["PROPIEDADES","PARKS"], short:"Pin / polygon", label:"Pin is outside the polygon",
+    check(ent, rec){
+      const pk=polygonKeyFor(ent);
+      if(!pk || DQ_EMPTY(rec[pk]) || DQ_EMPTY(rec.LATITUDE) || DQ_EMPTY(rec.LONGITUDE)) return [];
+      const lat=DQ_NUM(rec.LATITUDE), lng=DQ_NUM(rec.LONGITUDE);
+      if(lat==null || lng==null) return [];
+      const rings=dqPolygonOuterRings(rec[pk]);
+      if(!rings.length) return [];
+      if(rings.some(r=>pointInPolygon({lat,lng}, r))) return [];
+      return [{fields:["LATITUDE","LONGITUDE",pk], msg:`The pin (${lat}, ${lng}) is outside the polygon — move the pin or redraw the polygon`}];
+    } },
+];
+/* Longitud a metros (para comparar Min/Max Clear Height aunque vengan en m y ft). `m` es null si la unidad no
+   se reconoce; en ese caso solo se compara si las 2 unidades son la misma. */
+function dqLengthInM(value, unit){
+  if(DQ_EMPTY(value)) return null;
+  const v=DQ_NUM(value);
+  if(v==null) return null;
+  const u=String(unit||"").trim().toLowerCase();
+  const m = u==="m"||u==="mts"||u==="meters" ? v : (u==="ft"||u==="feet"||u==="pies") ? v*UNIT_CONVERSIONS.FT_M.toMetric : null;
+  return {v, m, unit:u};
+}
+// Anillos exteriores de un polígono GeoJSON guardado como texto (Feature o geometría; Polygon o MultiPolygon),
+// como arreglos de {lat,lng} para pointInPolygon(). Texto inválido -> [] (no se valida).
+function dqPolygonOuterRings(raw){
+  try{
+    const gj=typeof raw==="string"?JSON.parse(raw):raw;
+    const g=gj && (gj.type==="FeatureCollection" ? (gj.features[0]||{}).geometry : (gj.geometry||gj));
+    if(!g || !g.coordinates) return [];
+    const toLatLng=ring=>ring.map(c=>({lng:Number(c[0]), lat:Number(c[1])}));
+    if(g.type==="Polygon") return [toLatLng(g.coordinates[0])];
+    if(g.type==="MultiPolygon") return g.coordinates.map(poly=>toLatLng(poly[0]));
+    return [];
+  }catch(e){ return []; }
+}
+function fmtDqNum(n){ return Number(n).toLocaleString("en-US",{maximumFractionDigits:2}); }
+function dqRulesFor(ent){ return DATA_QUALITY_RULES.filter(r=>r.ents.includes(ent)); }
+function dqEntityHasRules(ent){ return dqRulesFor(ent).length>0; }
+/* Problemas de un registro. Un campo oculto desde Configuración no se puede corregir en la ficha, así que un
+   problema cuyos campos están TODOS ocultos no se reporta. */
+function dataIssues(ent, rec){
+  if(!rec) return [];
+  const hidden=new Set(fields(ent).filter(f=>f.hidden && isFieldHideable(ent,f.key)).map(f=>f.key));
+  const out=[];
+  dqRulesFor(ent).forEach(rule=>{
+    rule.check(ent, rec).forEach(iss=>{
+      if(iss.fields.length && iss.fields.every(k=>hidden.has(k))) return;
+      out.push({rule:rule.id, ruleLabel:rule.label, fields:iss.fields, msg:iss.msg});
+    });
+  });
+  return out;
+}
+function dataIssuesPill(issues){
+  if(!issues.length) return '<span class="pill green" title="No data issues">OK</span>';
+  return `<span class="pill red" title="${escapeAttr(issues.map(i=>"• "+i.msg).join("\n"))}">${issues.length}</span>`;
+}
+/* Filtro propio de la columna "Data Issues" (un registro puede tener varios problemas a la vez, por eso no usa el
+   filtro genérico de valores): "" = todos, "__any__" = con problemas, "__none__" = sin problemas, o el id de una
+   regla. Por entidad, persistido. */
+const DQ_FILTER_KEY="citius_dq_filter_v1";
+let dqFilter=(()=>{ try{ return JSON.parse(localStorage.getItem(DQ_FILTER_KEY)||"{}")||{}; }catch(e){ return {}; } })();
+function saveDqFilter(){ try{ localStorage.setItem(DQ_FILTER_KEY, JSON.stringify(dqFilter)); }catch(e){} }
+function applyDqFilter(rows, ent){
+  const f=dqFilter[ent];
+  if(!f || !dqEntityHasRules(ent)) return rows;
+  return rows.filter(r=>{
+    const iss=dataIssues(ent, r);
+    if(f==="__any__") return iss.length>0;
+    if(f==="__none__") return iss.length===0;
+    return iss.some(i=>i.rule===f);
+  });
+}
+function closeDqFilterDropdown(){
+  const el=document.getElementById("dqFilterDropdown");
+  if(el) el.remove();
+  document.removeEventListener("mousedown", onDocMouseDownForDqFilter, true);
+}
+function onDocMouseDownForDqFilter(e){
+  const el=document.getElementById("dqFilterDropdown");
+  if(el && !el.contains(e.target) && !e.target.closest(".dq-filter-btn")) closeDqFilterDropdown();
+}
+function toggleDqFilterDropdown(evt){
+  evt.stopPropagation();
+  const open=!!document.getElementById("dqFilterDropdown");
+  closeDqFilterDropdown();
+  if(open) return;
+  const all=state[current]||[];
+  const counts={__any__:0, __none__:0};
+  all.forEach(r=>{ const iss=dataIssues(current, r); if(iss.length) counts.__any__++; else counts.__none__++; new Set(iss.map(i=>i.rule)).forEach(id=>{ counts[id]=(counts[id]||0)+1; }); });
+  const cur=dqFilter[current]||"";
+  const opt=(val,label,n)=>`<label class="col-filter-item"><input type="radio" name="dqf" ${cur===val?"checked":""} onchange="setDqFilter('${val}')">${escapeHtml(label)}${n!=null?` <span class="muted">(${n})</span>`:""}</label>`;
+  const el=document.createElement("div");
+  el.id="dqFilterDropdown"; el.className="col-filter-dropdown";
+  el.innerHTML=`<div class="col-filter-list">${opt("","All records")}${opt("__any__","With issues",counts.__any__)}${opt("__none__","No issues",counts.__none__)}
+    ${dqRulesFor(current).map(r=>opt(r.id, r.label, counts[r.id]||0)).join("")}</div>`;
+  document.body.appendChild(el);
+  const r=evt.currentTarget.getBoundingClientRect();
+  el.style.left=Math.max(8, Math.min(r.left-120, window.innerWidth-8-260))+"px";
+  el.style.top=(r.bottom+6)+"px";
+  el.style.width="260px";
+  setTimeout(()=>document.addEventListener("mousedown", onDocMouseDownForDqFilter, true), 0);
+}
+function setDqFilter(val){
+  if(val) dqFilter[current]=val; else delete dqFilter[current];
+  saveDqFilter();
+  closeDqFilterDropdown();
+  renderTable();
+}
+/* Aviso en la ficha (arriba de los paneles) + borde en los campos involucrados. */
+function dqBannerHtml(issues, blocking){
+  if(!issues.length) return "";
+  return `<div class="dq-banner${blocking?" blocking":""}"><b>${blocking?"Can't save — fix these data issues first":"Data issues in this record"} (${issues.length})</b>
+    <ul>${issues.map(i=>`<li>${escapeHtml(i.msg)}</li>`).join("")}</ul>${blocking?"":`<span class="dq-banner-note">Records with data issues can't be saved until they're fixed.</span>`}</div>`;
+}
+function showDqInForm(issues, blocking){
+  const body=document.getElementById("mBody");
+  if(!body) return;
+  body.querySelectorAll(".dq-banner").forEach(el=>el.remove());
+  body.querySelectorAll(".field-dq-error").forEach(el=>el.classList.remove("field-dq-error"));
+  if(!issues.length) return;
+  const panels=body.querySelector(".form-panels");
+  if(panels) panels.insertAdjacentHTML("afterbegin", dqBannerHtml(issues, blocking));
+  issues.forEach(i=>i.fields.forEach(k=>{ const el=body.querySelector(`[data-key="${k}"]`); if(el) el.classList.add("field-dq-error"); }));
+}
 /* ==== Columna calculada "Days Since Update" (v3.40.0, corregida en v3.40.1) — al igual que
    "% Completado", es un valor DERIVADO EN CADA RENDER, nunca se guarda en el Excel ni en `state`. Compara
    el campo de timestamp que YA existe en cada entidad (`SYSTEM_TIMESTAMP_FIELD_KEYS`, ver más abajo —
@@ -6628,6 +6873,7 @@ function renderTable(){
   const fieldMeta=buildFieldRenderMeta(current);
   let rows=state[current]||[];
   rows=applyFilters(rows, current);
+  rows=applyDqFilter(rows, current);
   rows=applySort(rows, current);
   const thead=document.querySelector("#tbl thead");
   const tbody=document.querySelector("#tbl tbody");
@@ -6647,11 +6893,13 @@ function renderTable(){
   // Presentation Log (Bitácora): sin "Days Since Update" ni "% Complete" — no aplican a un log de solo
   // lectura (no tiene LAST_MODIFIED que envejezca, ni campos obligatorios que "completar").
   const showDaysPct=current!=="BITACORA";
+  const showDq=dqEntityHasRules(current);
   const theadHtml="<tr>"
     +(showSelect?`<th class="th-select"><input type="checkbox" ${selectAllChecked?"checked":""} onchange="${toggleAllFn}(this.checked)" title="Select all filtered rows${current==="SPACES"?" to build presentation options":" for the presentation"}"></th>`:"")
     +cols.map((c,i)=>`<th draggable="true" ondragstart="colDragStart(event,${i})" ondragover="colDragOver(event,${i})" ondrop="colDrop(event,${i})" ondragleave="colDragLeave(event)" title="Drag to reorder" style="${colWidthStyle(current,c)}"><div class="th-cell sortable" onclick="toggleSort('${c}')" title="Sort"><span>${fieldLabel(c)}</span><span class="th-cell-right">${sortIconHtml(c)}<button type="button" class="col-filter-btn${activeFilterKeys.has(c)?" active":""}" onclick="toggleColumnFilter(event,'${c}')" title="Filter"><svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M3 4h18l-7 9v6l-4 2v-8L3 4z"/></svg></button></span></div>${colResizeHandleHtml(c)}</th>`).join("")
     +(showDaysPct?`<th class="days-col" style="${colWidthStyle(current,DAYS_COL_WIDTH_KEY)}"><div class="th-cell sortable" onclick="toggleSort('${DAYS_SORT_KEY}')" title="Sort" style="justify-content:center">Days Since Update${sortIconHtml(DAYS_SORT_KEY)}</div>${colResizeHandleHtml(DAYS_COL_WIDTH_KEY)}</th>`:"")
     +(showDaysPct?`<th class="pct-col" style="${colWidthStyle(current,PCT_COL_WIDTH_KEY)}"><div class="th-cell sortable" onclick="toggleSort('${PCT_SORT_KEY}')" title="Sort" style="justify-content:center">% Complete${sortIconHtml(PCT_SORT_KEY)}</div>${colResizeHandleHtml(PCT_COL_WIDTH_KEY)}</th>`:"")
+    +(showDq?`<th class="pct-col dq-col"><div class="th-cell" style="justify-content:center;gap:6px">Data Issues<button type="button" class="dq-filter-btn${dqFilter[current]?" active":""}" title="Filter by data issues" onclick="toggleDqFilterDropdown(event)">▾</button></div></th>`:"")
     +`<th style="${colWidthStyle(current,ACTIONS_COL_WIDTH_KEY)}">Actions${colResizeHandleHtml(ACTIONS_COL_WIDTH_KEY)}</th></tr>`;
   /* v3.45.10, fuga de memoria real corregida: los <th> de esta tabla usan `position:sticky` (para que el
      encabezado quede fijo al hacer scroll) — Chrome le da a CADA elemento sticky su propia capa de
@@ -6693,7 +6941,7 @@ function renderTable(){
     else paginationEl.style.width="";
   }
   if(rows.length===0){
-    tbody.innerHTML=`<tr><td colspan="${cols.length+3+(showSelect?1:0)}"><div class="empty">No records yet. Use <b>+ New record</b> to add one.</div></td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="${cols.length+3+(showSelect?1:0)+(showDq?1:0)}"><div class="empty">No records yet. Use <b>+ New record</b> to add one.</div></td></tr>`;
   } else {
     tbody.innerHTML=pageRows.map(r=>{
       const tds=cols.map((c,i)=>{
@@ -6725,7 +6973,8 @@ function renderTable(){
       const selectTd=showSelect?`<td class="td-select"><input type="checkbox" ${presOrder.includes(r.__id)?"checked":""} onchange="${toggleOneFn}('${r.__id}',this.checked)" title="${selectTitle}"></td>`:"";
       const daysTd=showDaysPct?`<td class="days-col" style="${colWidthStyle(current,DAYS_COL_WIDTH_KEY)}">${daysSinceUpdateHtml(daysSinceUpdate(r))}</td>`:"";
       const pctTd=showDaysPct?`<td class="pct-col" style="${colWidthStyle(current,PCT_COL_WIDTH_KEY)}">${completionPill(completionStats(current, r))}</td>`:"";
-      return `<tr class="row-selectable" onclick="handleRowClick(event,'${r.__id}')">${selectTd}${tds}${daysTd}${pctTd}<td class="actions" style="${colWidthStyle(current,ACTIONS_COL_WIDTH_KEY)}">
+      const dqTd=showDq?`<td class="pct-col dq-col">${dataIssuesPill(dataIssues(current, r))}</td>`:"";
+      return `<tr class="row-selectable" onclick="handleRowClick(event,'${r.__id}')">${selectTd}${tds}${daysTd}${pctTd}${dqTd}<td class="actions" style="${colWidthStyle(current,ACTIONS_COL_WIDTH_KEY)}">
         <button type="button" class="icon-btn row-menu-btn" title="More actions" onclick="toggleRowMenu(event,'${r.__id}')">⋮</button>
       </td></tr>`;
     }).join("");
@@ -7368,6 +7617,32 @@ function resumenComplianceTableHtml(title, subtitle, ent){
   rows+=`<tr class="resumen-total-row"><td>Total</td>${totalCells.join("")}</tr>`;
   const colgroupHtml=resumenColgroupHtml(statuses.length);
   return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(title)}</h4>${subtitle?`<p class="resumen-block-note">${escapeHtml(subtitle)}</p>`:""}<div class="resumen-scroll"><table class="resumen-table">${colgroupHtml}<thead><tr><th>Market</th>${statuses.map(s=>`<th>${escapeHtml(s)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div></div>`;
+}
+/* Calidad de datos en el Summary (pedido explícito del usuario, ver DATA_QUALITY_RULES): por mercado, cuántos
+   registros hay, cuántos tienen al menos un problema, % de registros limpios, y cuántos registros tienen cada
+   tipo de problema (un registro con 2 problemas del mismo tipo cuenta 1 vez en esa columna). */
+function resumenDataQualityTableHtml(title, ent){
+  const rules=dqRulesFor(ent);
+  if(!rules.length) return "";
+  const markets=resumenMarket?[resumenMarket]:resumenEntityMarkets(ent);
+  if(!markets.length) return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(title)}</h4><p class="muted">No data.</p></div>`;
+  const all=(state[ent]||[]).map(r=>({r, iss:dataIssues(ent,r)}));
+  const stats=list=>{
+    const withIss=list.filter(x=>x.iss.length).length;
+    const byRule=rules.map(rule=>list.filter(x=>x.iss.some(i=>i.rule===rule.id)).length);
+    return {n:list.length, withIss, clean:list.length?Math.round(100*(list.length-withIss)/list.length):null, byRule};
+  };
+  const num=v=>`<td class="num-cell">${Number(v).toLocaleString("en-US")}</td>`;
+  const row=(label, st, cls)=>`<tr${cls?` class="${cls}"`:""}><td>${escapeHtml(label)}</td>${num(st.n)}${num(st.withIss)}<td class="num-cell">${st.clean==null?"—":st.clean+"%"}</td>${st.byRule.map(num).join("")}</tr>`;
+  let matched=[], body="";
+  markets.forEach(mk=>{
+    const list=all.filter(x=>ciEq(resumenMarketOfRow(ent,x.r),mk));
+    matched.push(...list);
+    body+=row(mk, stats(list));
+  });
+  body+=row("Total", stats(matched), "resumen-total-row");
+  const head=`<tr><th>Market</th><th>Records</th><th>With issues</th><th>% Clean</th>${rules.map(r=>`<th title="${escapeAttr(r.label)}">${escapeHtml(r.short||r.label)}</th>`).join("")}</tr>`;
+  return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(title)}</h4><p class="resumen-block-note">Records with at least one data issue (they can't be saved until fixed). Filter them in the table with the "Data Issues" column.</p><div class="resumen-scroll"><table class="resumen-table"><thead>${head}</thead><tbody>${body}</tbody></table></div></div>`;
 }
 /* Mercado al que pertenece una fila de `ent`, para las tablas de cumplimiento "full" (v3.40.0). v8.11.x, bug
    real reportado por el usuario ("no se muestra el % de cumplimiento de Transacciones"): este comentario
@@ -8046,6 +8321,9 @@ function renderResumenView(){
     <h3 class="resumen-section-title">Compliance</h3>
     ${resumenRowsOf3([complianceHtmlProp, complianceHtmlParks, complianceHtmlLand, complianceHtmlOffices, complianceHtmlSpaces])}
     <div class="resumen-row-full">${complianceHtmlTx}</div>
+    <h3 class="resumen-section-title">Data Quality</h3>
+    <div class="resumen-row-full">${resumenDataQualityTableHtml("Industrial Buildings","PROPIEDADES")}</div>
+    <div class="resumen-row-full">${resumenDataQualityTableHtml("Industrial Parks","PARKS")}</div>
     <div class="resumen-usage-header">
       <div>
         <h3 class="resumen-section-title" style="margin-top:0">Tool Usage</h3>
@@ -15731,6 +16009,7 @@ function enterEditMode(rec){
   formValueStash={...(rec||{})};
   document.getElementById("mTitle").textContent=rec?"Edit · "+(rec[ENTITIES[current].titleField]||ENTITIES[current].label):"New · "+ENTITIES[current].label;
   document.getElementById("mBody").innerHTML=buildForm(current,rec);
+  if(rec && dqEntityHasRules(current)) showDqInForm(dataIssues(current, rec), false);
   recordLocMapRec=rec||{}; renderRecordLocMap();
   document.getElementById("modalEditBtn").style.display="none";
   document.getElementById("modalExitEditBtn").style.display=rec?"":"none";
@@ -15821,6 +16100,7 @@ async function openView(id, panelIdx){
     if(current==="PROPIEDADES") recomputePropertyDerivedFields(rec);
     document.getElementById("mTitle").textContent=rec[ENTITIES[current].titleField]||ENTITIES[current].label;
     document.getElementById("mBody").innerHTML=buildViewForm(current,rec);
+    if(dqEntityHasRules(current)) showDqInForm(dataIssues(current, rec), false);
     recordLocMapRec=rec; renderRecordLocMap();
     document.getElementById("modalEditBtn").style.display=(consolidatedMode||current==="BITACORA")?"none":"";
     document.getElementById("modalExitEditBtn").style.display="none";
@@ -15950,6 +16230,26 @@ function doSaveRecord(){
   // LAST_MODIFIED/LAST_UPDATE son calculados por el sistema, nunca editables a mano — se pisan aquí en
   // cada guardado exitoso, sin importar qué haya traído el input oculto correspondiente.
   fields(current).forEach(f=>{ if(SYSTEM_TIMESTAMP_FIELD_KEYS.has(f.key)) rec[f.key]=new Date().toISOString(); });
+  // Calidad de datos (pedido explícito del usuario): los problemas del catálogo DATA_QUALITY_RULES BLOQUEAN el
+  // guardado. Se evalúa sobre lo capturado en pantalla con los campos calculados ya recalculados (Available Area
+  // de Buildings), y solo se reportan problemas de campos que están en el formulario (los demás no se pueden
+  // corregir aquí).
+  if(dqEntityHasRules(current)){
+    const probe={...rec};
+    if(current==="PROPIEDADES") recomputePropertyDerivedFields(probe);
+    if(current==="PARKS") recomputeParkDerivedFields(probe);
+    const onForm=new Set([...inputs].map(inp=>inp.dataset.key));
+    const blocking=dataIssues(current, probe).filter(i=>i.fields.some(k=>onForm.has(k)));
+    if(blocking.length){
+      showDqInForm(blocking, true);
+      const first=document.querySelector("#mBody .field-dq-error");
+      const panel=first && first.closest(".form-panel");
+      if(panel) switchFormPanel(Number(panel.dataset.panel));
+      const pTop=document.querySelector("#mBody .form-panels"); if(pTop) pTop.scrollTop=0;
+      toast(`Can't save: ${blocking.length} data issue(s) — see the list at the top of the record`,"err");
+      return;
+    }
+  }
   // Missing required fields no longer block saving — persist whatever was captured so far (partial progress).
   const isNew=!editingId;
   if(editingId){
@@ -15966,7 +16266,8 @@ function doSaveRecord(){
       Object.keys(prev).forEach(k=>{
         if(k==="__id" || domKeys.has(k) || (k in rec)) return;
         const fc=cfgByKey[k];
-        if(!fc || fc.hidden || current!=="TRANSACCIONES") rec[k]=prev[k];
+        // Pedido explícito del usuario: nunca guardar espacios al inicio/final — también en lo que no está en pantalla.
+        if(!fc || fc.hidden || current!=="TRANSACCIONES") rec[k]=(typeof prev[k]==="string" && k!=="__row") ? prev[k].trim() : prev[k];
       });
     }
     rec.__id=editingId; arr[i]=rec;

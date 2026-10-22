@@ -18377,12 +18377,12 @@ applyEmbeddedConfig();
 })();
 /* ==== Aviso de versión nueva (pedido explícito del usuario: que los usuarios se den cuenta de que hay una versión
    nueva publicada y refresquen) ====
-   Cada 5 minutos, y al regresar a la pestaña, pide SOLO los encabezados de la página (HEAD, sin descargarla) y
+   Cada 2 minutos (pedido explícito del usuario; antes 5), y al regresar a la pestaña, pide SOLO los encabezados de la página (HEAD, sin descargarla) y
    compara su ETag con el de la versión que se abrió: Vercel lo cambia solo cuando cambia el archivo publicado.
    Si cambió, descarga la página una vez para leer el número de versión y muestra el aviso. No recarga solo
    (podría perderse una ficha a medio capturar): el usuario decide cuándo. "Later" lo oculta 30 minutos. Solo
    corre en la versión publicada (http/https), no abriendo el archivo local. */
-const UPDATE_CHECK_MS=5*60*1000, UPDATE_SNOOZE_MS=30*60*1000;
+const UPDATE_CHECK_MS=2*60*1000, UPDATE_SNOOZE_MS=30*60*1000;
 let updateBaseEtag=null, updateFoundVersion=null, updateSnoozeUntil=0, updateChecking=false;
 function runningAppVersion(){ const el=document.querySelector(".app-version"); return el?el.textContent.trim():""; }
 function pageUrlForUpdateCheck(){ return location.origin+location.pathname; }

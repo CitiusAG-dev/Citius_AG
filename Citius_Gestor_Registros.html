@@ -12124,9 +12124,11 @@ function renderMapFilterSidebar(){
     });
   });
 }
+/* Pedido explícito del usuario: editar desde el mapa ya NO cambia a la tabla -- la ficha se abre encima del mapa
+   y al cerrarla se sigue en el mapa (con el mismo zoom). Al guardar se redibuja el mapa (ver doSaveRecord) para
+   que se vean los cambios de pin/polígono/estatus. */
 function editFromMap(ent, id){
   current=ent;
-  showTableView();
   renderTable();
   openEdit(id);
 }
@@ -16346,6 +16348,7 @@ function doSaveRecord(){
   if(presentationViewActive) renderPresentationView();
   if(landPresentationViewActive) renderLandPresentationView();
   if(parkPresentationViewActive) renderParkPresentationView();
+  if(mapViewActive && allPolyMap) renderAllPolygonsMap(true);
   const activeEl=document.querySelector("#mBody .form-panel.active");
   const activeIdx=activeEl?Number(activeEl.dataset.panel):0;
   enterEditMode(rec);

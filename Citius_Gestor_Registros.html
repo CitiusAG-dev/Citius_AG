@@ -14669,6 +14669,24 @@ function officeDeckRateText(ent, valueKey, unitKey, rec, unitPref, emptyText, ze
   const numText=isNaN(num)?String(conv.value):num.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
   return prefix+numText;
 }
+/* Renglón de Mantenimiento (pedido explícito del usuario): CAM y, si el Space lo trae, UN mantenimiento de cajón
+   -- el primero que tenga valor en este orden: adicional, exclusivo (VIP) y extra. Máximo 2 valores:
+   "MX $80.00 + MX $500.00 / additional parking spot". Un mantenimiento de cajón en 0 o vacío no cuenta. Es un
+   precio por cajón, no por área, así que no se convierte entre Imperial/Metric. */
+const OFFICE_DECK_SPOT_MAINTENANCE=[
+  {key:"MAINTENANCE_ADDITIONAL_SPOT_PRICE", en:"additional parking spot", es:"cajón adicional"},
+  {key:"MAINTENANCE_VIP_SPOT_PRICE", en:"exclusive parking spot", es:"cajón exclusivo"},
+  {key:"MAINTENANCE_EXTRA_SPOT_PRICE", en:"extra parking spot", es:"cajón extra"},
+];
+function officeDeckMaintenanceText(rec, unitPref){
+  const es=officePresLangPref==="es";
+  const cam=officeDeckRateText("SPACES","COMMON_AREA_MAINTENANCE_CAM_VALUE","COMMON_AREA_MAINTENANCE_CAM_UNIT",rec,unitPref,undefined,es?"Incluido":"Included");
+  const spot=rec && OFFICE_DECK_SPOT_MAINTENANCE.find(o=>{ const v=Number(rec[o.key+"_VALUE"]); return rec[o.key+"_VALUE"]!=null && rec[o.key+"_VALUE"]!=="" && isFinite(v) && v!==0; });
+  if(!spot) return cam;
+  const v=Number(rec[spot.key+"_VALUE"]);
+  const spotText=presCurrencyPrefix(rec[spot.key+"_UNIT"]).replace(/\s+$/,"")+v.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})+" / "+(es?spot.es:spot.en);
+  return cam+" + "+spotText;
+}
 function officeDeckParkingRatioText(office, unitPref){
   const raw=office&&office.PARKING_RATIO;
   const v=Number(raw);
@@ -14729,7 +14747,7 @@ function officeDeckSpaceInfoRows(opt, unitPref){
      value: officeDeckRateText("SPACES","ASKING_RATE_VALUE","ASKING_RATE_UNIT",primary,unitPref)},
     // Pedido explícito del usuario: CAM en 0 -> "Incluido"/"Included" (el mantenimiento va incluido en la renta).
     {label:{en:`Maintenance ($/${u}/month)`,es:`Mantenimiento ($/${u}/mes)`},
-     value: officeDeckRateText("SPACES","COMMON_AREA_MAINTENANCE_CAM_VALUE","COMMON_AREA_MAINTENANCE_CAM_UNIT",primary,unitPref,undefined,officePresLangPref==="es"?"Incluido":"Included")},
+     value: officeDeckMaintenanceText(primary, unitPref)},
   ];
 }
 // Pedido explícito del usuario (posterior): ahora también Delivery condition, Availability y Building type

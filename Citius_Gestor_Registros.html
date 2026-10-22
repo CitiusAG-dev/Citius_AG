@@ -2326,7 +2326,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.29.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.29.1</div>
     </nav>
   </aside>
   <div class="main">
@@ -5384,6 +5384,11 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.29.1", date:"2026-10-22", items:[
+    "Buildings, Parks and Land presentations: no accents in the table, map and layout pages (e.g. \"Acuna\"), same as the Office presentation; the cover and closing pages keep the text as typed.",
+    "Park Presentation: Asking Sale Price 0 shows \"Upon Request\" (with a help note on the Parks field).",
+    "Parks: Water Supply Capacity LPS now accepts decimals."
+  ]},
   {version:"8.29.0", date:"2026-10-22", items:[
     "Park Presentation: new Location Map page after the cover (Design > Map, with the Citius/Satellite View selector); Asking Sale Price always shows 2 decimals; Fire Protection System removed from the table.",
     "Parks: Transaction Available adds \"Sale & Lease\"; Electric Voltage Service now only has Low/Medium/High Voltage (existing values with the kV detail are converted automatically); Treatment Water adds \"No\". Other tables keep their lists unchanged.",

@@ -2784,7 +2784,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
             </div>
             <p class="map-hint" id="syncTransactionsResult"></p>
           </div>
-          <div class="files-card">
+          <!-- Pedido explícito del usuario (v8.28.x): se quita de Configuración -- el catálogo de ubicaciones ya viene
+               integrado al sistema (CONFIG_BUILT_IN). Oculta (no borrada) porque el código todavía referencia sus ids. -->
+          <div class="files-card" style="display:none">
             <h5>Update Location catalog (one-time migration)</h5>
             <p class="map-hint">If you renamed Markets/Submarkets and reassigned their IDs in a new copy of LISTAS_CAMPOS.xlsx (keeping the old ID_REGION/ID_STATE/ID_MERCADO/ID_SUBMERCADO columns as reference), use this once to carry those renames over to Properties/Parks/Land/Offices/Transactions already captured — matched by the old ID, not by name, so renamed markets are found correctly. It then leaves that file linked as your Configuration file, same as linking it directly. Doesn't affect Last Modified.</p>
             <div class="settings-actions">

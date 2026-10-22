@@ -2740,7 +2740,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
           </div>
           <!-- v6.5.10, pedido explícito del usuario: se quitó la tarjeta "Land File" — Terrenos ya no vive
                en un archivo independiente, es una hoja "LAND" más dentro del Excel de datos principal. -->
-          <div class="files-card">
+          <!-- Pedido explícito del usuario (v8.28.x): se quita de Configuración la tarjeta "Supplementary Data (Map)".
+               Se deja oculta (no borrada) porque el código todavía referencia sus ids. -->
+          <div class="files-card" style="display:none">
             <h5>Supplementary Data (Map)</h5>
             <div class="settings-row">
               <span id="complementaryFileChip" style="padding:4px 10px;border-radius:20px;background:rgba(107,116,128,.15);color:var(--muted);font-size:12px">No file linked</span>

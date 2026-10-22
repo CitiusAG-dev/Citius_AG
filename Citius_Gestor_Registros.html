@@ -2328,7 +2328,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.29.1</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.30.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -5387,6 +5387,9 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.30.0", date:"2026-10-22", items:[
+    "Draw polygon: the area enclosed by the polygon now stays visible under the map in m², SF and hectares — while drawing, while editing its vertices and when opening a record that already has a polygon."
+  ]},
   {version:"8.29.1", date:"2026-10-22", items:[
     "Buildings, Parks and Land presentations: no accents in the table, map and layout pages (e.g. \"Acuna\"), same as the Office presentation; the cover and closing pages keep the text as typed.",
     "Park Presentation: Asking Sale Price 0 shows \"Upon Request\" (with a help note on the Parks field).",

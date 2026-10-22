@@ -2326,7 +2326,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.28.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.28.1</div>
     </nav>
   </aside>
   <div class="main">
@@ -5376,6 +5376,9 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.28.1", date:"2026-10-22", items:[
+    "Settings: removed the \"Supplementary Data (Map)\" and \"Update Location catalog\" cards (the location catalog is now built into the system)."
+  ]},
   {version:"8.28.0", date:"2026-10-22", items:[
     "Field settings, dropdown lists and the location catalog are now built into the system: every user always gets the same, latest version, without depending on the LISTAS_CAMPOS.xlsx file in OneDrive. Settings > Fields, Lists and Field Matrix are now read-only — ask the administrator for changes.",
     "New-version notice: when a new version is published, a message asks you to refresh (\"Refresh now\" or \"Later\"); it warns you first if you have a record open.",

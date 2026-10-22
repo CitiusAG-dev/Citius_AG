@@ -2307,6 +2307,8 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .modal.photo-edit-modal{max-width:460px}
   .modal.photo-edit-modal .image-preview{max-width:100%}
   .map-hint{color:var(--muted);font-size:12px;margin:0 0 12px}
+  .poly-area-box{display:flex;align-items:center;gap:10px;margin-top:10px;padding:9px 14px;border-radius:10px;background:rgba(240,179,35,.12);font-size:14px;font-weight:600;color:var(--ink,#1f2430)}
+  .poly-area-box .poly-area-label{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700}
   #polygonMapEl{width:100%;height:60vh;border-radius:10px;overflow:hidden;border:1px solid var(--line);position:relative;z-index:0}
   .pin-map-wrap{position:relative}
   #pinMapEl{width:100%;height:60vh;border-radius:10px;overflow:hidden;border:1px solid var(--line);position:relative;z-index:0;cursor:crosshair}
@@ -2326,7 +2328,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.29.1</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.30.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -2966,6 +2968,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     <div class="modal-body">
       <p class="map-hint">Click to place the polygon's vertices and click the first point again (or double-click) to close it. You can drag the vertices to adjust them.</p>
       <div id="polygonMapEl"></div>
+      <div class="poly-area-box" id="polyAreaBox"><span class="poly-area-label">Area</span><span id="polyAreaText">Draw the polygon to see its area</span></div>
     </div>
     <div class="modal-foot">
       <button class="btn ghost" id="polyClearBtn">Clear polygon</button>
@@ -5384,6 +5387,9 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.30.0", date:"2026-10-22", items:[
+    "Draw polygon: the area enclosed by the polygon now stays visible under the map in m², SF and hectares — while drawing, while editing its vertices and when opening a record that already has a polygon."
+  ]},
   {version:"8.29.1", date:"2026-10-22", items:[
     "Buildings, Parks and Land presentations: no accents in the table, map and layout pages (e.g. \"Acuna\"), same as the Office presentation; the cover and closing pages keep the text as typed.",
     "Park Presentation: Asking Sale Price 0 shows \"Upon Request\" (with a help note on the Parks field).",
@@ -10118,8 +10124,30 @@ function polygonSummary(raw){
   try{
     const gj=JSON.parse(raw);
     const coords=(gj.geometry?gj.geometry.coordinates:gj.coordinates)[0];
-    return `Polygon captured (${coords.length-1} vertices)`;
+    return `Polygon captured (${coords.length-1} vertices)`; // el área se muestra solo en el mapa (pedido explícito del usuario)
   }catch(e){ return "Polygon captured"; }
+}
+/* Área encerrada por el polígono (pedido explícito del usuario: verla en m², SF y hectáreas mientras se dibuja
+   Y después de cerrarlo -- antes solo aparecía el tooltip de Leaflet.draw durante el trazo). Se muestra solo en la
+   ventana "Draw polygon" (#polyAreaBox), no en el resumen del campo de la ficha. Área geodésica
+   (L.GeometryUtil.geodesicArea, la misma que usa ese tooltip); anillo exterior menos huecos; MultiPolygon suma
+   sus partes. Acepta GeoJSON (Feature/geometría, objeto o texto). null si no hay polígono válido. */
+function polygonAreaM2(gjIn){
+  try{
+    const gj=typeof gjIn==="string"?JSON.parse(gjIn):gjIn;
+    const g=gj && (gj.type==="FeatureCollection" ? (gj.features[0]||{}).geometry : (gj.geometry||gj));
+    if(!g || !g.coordinates || !(L.GeometryUtil && L.GeometryUtil.geodesicArea)) return null;
+    const ringArea=ring=>L.GeometryUtil.geodesicArea(ring.map(c=>L.latLng(Number(c[1]),Number(c[0]))));
+    const polyArea=rings=>Math.max(0, ringArea(rings[0]) - rings.slice(1).reduce((a,r)=>a+ringArea(r),0));
+    if(g.type==="Polygon") return polyArea(g.coordinates);
+    if(g.type==="MultiPolygon") return g.coordinates.reduce((a,p)=>a+polyArea(p),0);
+    return null;
+  }catch(e){ return null; }
+}
+function polygonAreaText(m2){
+  if(m2==null || !isFinite(m2) || m2<=0) return "";
+  const f=(n,d)=>n.toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});
+  return `${f(m2,0)} m² · ${f(m2/UNIT_CONVERSIONS.SF_M2.toMetric,0)} SF · ${f(m2/10000,2)} has`;
 }
 /* Renombres de sección/grupo (v6.5.7, ver renameFieldGroup()) — group es puro texto organizacional que vive
    en fieldConfig[ent][i].group, pero unos pocos lugares MÁS ADELANTE en el archivo comparan un nombre de
@@ -11209,7 +11237,16 @@ function initPolyMapIfNeeded(){
     edit:{ featureGroup:polyDrawnItems }
   });
   polyMap.addControl(drawControl);
-  polyMap.on(L.Draw.Event.CREATED, e=>{ polyDrawnItems.clearLayers(); polyDrawnItems.addLayer(e.layer); });
+  polyMap.on(L.Draw.Event.CREATED, e=>{ polyDrawnItems.clearLayers(); polyDrawnItems.addLayer(e.layer); updatePolyAreaBox(); });
+  // Área en vivo también al editar (arrastrar vértices), al cancelar/terminar la edición y al borrar.
+  polyMap.on("draw:editvertex draw:editmove draw:edited draw:editstop draw:deleted draw:deletestop", updatePolyAreaBox);
+}
+function updatePolyAreaBox(){
+  const el=document.getElementById("polyAreaText");
+  if(!el || !polyDrawnItems) return;
+  const layers=polyDrawnItems.getLayers();
+  const txt=layers.length ? polygonAreaText(polygonAreaM2(layers[0].toGeoJSON())) : "";
+  el.textContent=txt || "Draw the polygon to see its area";
 }
 /* v8.10.x, pedido explícito del usuario: reemplaza "Light streets" por "Citius (Mapbox)" en el selector del
    modal "Dibujar polígono" (compartido por Buildings/Parks/Land/Offices). A diferencia del selector genérico
@@ -11323,11 +11360,13 @@ function openPolygonMap(){
     } else {
       polyMap.setView(center, zoom);
     }
+    updatePolyAreaBox();
   }, 50);
 }
 function closePolygonMap(){ document.getElementById("mapOverlay").classList.remove("show"); }
 document.getElementById("polyClearBtn").onclick=()=>{
   polyDrawnItems.clearLayers();
+  updatePolyAreaBox();
   document.getElementById("polygonValueInput").value="";
   document.getElementById("polygonSummaryInput").value=polygonSummary(null);
   refreshRecordLocMapIfVisible();

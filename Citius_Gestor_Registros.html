@@ -10121,12 +10121,12 @@ function polygonSummary(raw){
   try{
     const gj=JSON.parse(raw);
     const coords=(gj.geometry?gj.geometry.coordinates:gj.coordinates)[0];
-    const area=polygonAreaText(polygonAreaM2(gj));
-    return `Polygon captured (${coords.length-1} vertices)${area?" · "+area:""}`;
+    return `Polygon captured (${coords.length-1} vertices)`; // el área se muestra solo en el mapa (pedido explícito del usuario)
   }catch(e){ return "Polygon captured"; }
 }
 /* Área encerrada por el polígono (pedido explícito del usuario: verla en m², SF y hectáreas mientras se dibuja
-   Y después de cerrarlo -- antes solo aparecía el tooltip de Leaflet.draw durante el trazo). Área geodésica
+   Y después de cerrarlo -- antes solo aparecía el tooltip de Leaflet.draw durante el trazo). Se muestra solo en la
+   ventana "Draw polygon" (#polyAreaBox), no en el resumen del campo de la ficha. Área geodésica
    (L.GeometryUtil.geodesicArea, la misma que usa ese tooltip); anillo exterior menos huecos; MultiPolygon suma
    sus partes. Acepta GeoJSON (Feature/geometría, objeto o texto). null si no hay polígono válido. */
 function polygonAreaM2(gjIn){

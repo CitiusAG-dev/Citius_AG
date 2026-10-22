@@ -2309,7 +2309,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.25.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.26.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -5336,6 +5336,13 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.26.0", date:"2026-10-22", items:[
+    "Office Presentation: new cover photo (white panel on the right); cover title, client, date and footer now use the same gray as the deck's page titles.",
+    "Office Presentation: Maintenance shows \"Incluido\"/\"Included\" when the space's CAM is 0.",
+    "Spaces: new \"Contact\" tab in the record with Contact Name, Contact Email and Contact Phone.",
+    "Spaces: new Maintenance VIP Spot Price and Maintenance Extra Spot Price fields in Parking (with the MXN/USD unit list).",
+    "Fix: new Offices/Spaces fields not yet in the configuration file now get their correct type (number, etc.) instead of text."
+  ]},
   {version:"8.25.0", date:"2026-10-21", items:[
     "New Data Quality checks for Industrial Buildings and Industrial Parks: a record with a data issue can't be saved until it's fixed, and the record shows the list of issues at the top with the fields highlighted.",
     "Rules: value without unit / unit without value; Total, Occupied and Available area (GLA in Buildings, land in Parks) in the same unit; Occupied + Available exactly equal to the total; total area can't be 0; no extra spaces at the start/end of a value; Min clear height not greater than Max clear height (Buildings); year built not in the future; pin inside the polygon.",

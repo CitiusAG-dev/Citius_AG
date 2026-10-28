@@ -2335,7 +2335,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.30.1</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.30.2</div>
     </nav>
   </aside>
   <div class="main">
@@ -5394,6 +5394,13 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.30.2", date:"2026-10-28", items:[
+    "Location catalog: 11 new CDMX office submarkets (CDMX, Bosques, Norte, Insurgentes, Periferico Sur, Interlomas, Polanco, Lomas Altas, Reforma, Lomas Palmas, Santa Fe).",
+    "Offices: Maintenance Spots Price unit is now MXN / USD.",
+    "Office Presentation: the suggested PDF file name follows the same logic as Buildings — [Client] [Size] - [Markets] (broker initials).",
+    "Office Presentation: the disclaimer note on the option pages sits closer to the bottom edge.",
+    "Office Presentation options list: Rentable and Usable boxes are shorter and side by side."
+  ]},
   {version:"8.30.1", date:"2026-10-23", items:[
     "Parks: Park Substation Capacity KVA is no longer required and was removed from the Park Presentation table."
   ]},

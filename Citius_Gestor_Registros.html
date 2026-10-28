@@ -15217,9 +15217,19 @@ async function renderOfficePresentationView(){
   if(officePresShowState.map) renderOfficePresMap(officeMapGrouped.ordered);
   if(officePresShowState.options) loadOfficeOptionPages(orderedOptions);
 }
+/* Misma lógica que buildPresPdfFilename() de Industrial (pedido explícito del usuario):
+   [Cliente] [Tamaño] - [Mercado] (Iniciales de broker(s)). Oficinas no tiene "Empresa/Proyecto", así que
+   la mitad izquierda usa Client. */
 function buildOfficePresPdfFilename(){
   const client=(officePresCoverInfo.client||"").trim();
-  return sanitizeFilenamePart(client?`${client} - Office Options`:"Office Options") || "Presentacion";
+  const size=(officePresCoverInfo.m2||"").trim();
+  const market=(officePresCoverInfo.markets||"").trim();
+  const initialsRaw=(officePresCoverInfo.brokers||[]).map(brokerInitials).filter(Boolean).join("-");
+  const initials=initialsRaw?`(${initialsRaw})`:"";
+  const left=[client,size].filter(Boolean).join(" ");
+  const right=[market,initials].filter(Boolean).join(" ");
+  const full=[left,right].filter(Boolean).join(" - ");
+  return sanitizeFilenamePart(full) || "Presentacion";
 }
 function doOfficePresPrint(){
   const pagesEl=document.getElementById("officePresPages");

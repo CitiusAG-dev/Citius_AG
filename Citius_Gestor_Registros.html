@@ -1102,8 +1102,11 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   /* Park Land (v8.19.x): Proposed Area capturada a mano por parque */
   .pres-item-proposed{width:68px;flex-shrink:0;padding:3px 6px;font-size:12px;text-align:right;background:#fff;border:1px solid var(--line);border-radius:6px;color:var(--txt)}
   .pres-item-proposed:focus{outline:none;border-color:var(--accent)}
-  .office-option-proposed-box{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:6px}
-  .office-proposed-field{display:flex;align-items:center;gap:6px;margin:0}
+  /* Pedido explícito del usuario: Rentable y Usable una al lado de la otra (sin saltar de renglón) y con
+     cajas más cortas, para que cada Opción ocupe menos alto en la lista. */
+  .office-option-proposed-box{display:flex;flex-wrap:nowrap;gap:6px;margin-top:6px}
+  .office-proposed-field{display:flex;align-items:center;gap:3px;margin:0;min-width:0}
+  .office-proposed-field .pres-item-proposed{width:42px;padding:2px 4px;font-size:11px}
   .office-proposed-field span{font-size:10px;color:var(--muted);font-weight:600}
   .pres-item-unit{font-size:11px;color:var(--muted);flex-shrink:0}
   .pres-item button{background:none;border:1px solid var(--line);border-radius:6px;width:22px;height:22px;
@@ -1490,6 +1493,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .office-detail-grid>div{min-height:0}
   .office-detail-grid .office-detail-photo{aspect-ratio:auto;height:100%}
   .office-detail-note{flex:0 0 auto}
+  /* Pedido explícito del usuario: la nota quedaba muy arriba -- se reduce el padding inferior de la hoja
+     (26px de .deck-page) para que baje más cerca del borde; la grilla (flex:1) absorbe el espacio. */
+  .deck-page.office-detail-page{padding-bottom:8px}
+  .office-detail-page .office-detail-note{margin-top:6px;margin-bottom:0}
   .office-detail-page .office-photos-grid{flex:1;min-height:0;grid-template-rows:minmax(0,1fr) minmax(0,1fr)}
   .office-photos-grid .office-detail-photo{aspect-ratio:auto;height:100%}
   /* Mismo fix: con la hoja a alto fijo, la tabla de "Space information" (10 renglones) ya no cabía en su

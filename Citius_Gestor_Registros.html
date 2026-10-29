@@ -10787,14 +10787,16 @@ function buildForm(ent, record){
     if(GEO_ID_FIELD_KEYS.has(f.key)) return `<input type="hidden" data-key="${f.key}" value="${val}">`;
     const reqMark=f.required?' <span class="field-required">*</span>':"";
     const helpIcon=fieldHelpIconHtml(ent,f);
-    /* Pedido explícito del usuario: el ID propio del registro (PHOTO_ID_FIELD — Mapping Code / Space Code) ya no
-       se puede cambiar desde la ficha una vez guardado. Al cambiarlo, las relaciones que lo usan (ID_PARK de
-       Propiedades, fotos si la carpeta no estaba conectada, etc.) se quedaban con el código viejo. Solo se
-       captura al crear el registro (o si un registro existente todavía no lo tiene); si de verdad hay que
-       cambiarlo, se hace en el Excel — la regla "broken_link" de DATA_QUALITY_RULES marca lo que quede roto. */
-    if(editingId && PHOTO_ID_FIELD[ent]===f.key && String(editingOriginalPhotoId==null?"":editingOriginalPhotoId).trim()){
+    /* Pedido explícito del usuario: el ID propio del registro (PHOTO_ID_FIELD — Mapping Code / Space Code) nunca se
+       teclea. Al cambiarlo, las relaciones que lo usan (ID_PARK de Propiedades, fotos si la carpeta no estaba
+       conectada, etc.) se quedaban con el código viejo; y ahora el sistema lo genera solo al guardar (ver
+       nextRecordId). Ya guardado, es de solo lectura; si de verdad hay que cambiarlo, se hace en el Excel — la
+       regla "broken_link" de DATA_QUALITY_RULES marca lo que quede roto. */
+    if(PHOTO_ID_FIELD[ent]===f.key){
+      const title=val ? "The ID can't be changed once the record is saved — other records and photos are linked to it. If it really must change, edit it in the Excel file."
+        : "The ID is generated automatically when the record is saved (type prefix + state code + consecutive number).";
       return `<div class="field field-readonly"><label>${fieldLabel(f.key)}${reqMark}${helpIcon}</label>
-        <input value="${val}" readonly disabled title="The ID can't be changed once the record is saved — other records and photos are linked to it. If it really must change, edit it in the Excel file.">
+        <input value="${val}" readonly disabled placeholder="Generated automatically on save" title="${title}">
         <input type="hidden" data-key="${f.key}" value="${val}"></div>`;
     }
     // v8.19.x, pedido explícito del usuario: Notes (Internal Notes) y Comm. Condition Notes (Parks) son un
@@ -16564,6 +16566,49 @@ function closeModal(){ document.getElementById("overlay").classList.remove("show
 // Parque ("Seleccionar Parque…") — guarda una copia exacta del MAPPING_CODE de ese Parque, así que corre
 // el mismo riesgo de convertirse a número si "parece" uno (ver el comentario grande de arriba).
 const ID_LIKE_FIELD_KEYS = new Set(["MAPPING_CODE","ID_PARK","SPACE_CODE"]);
+/* ==== ID automático (pedido explícito del usuario) ====
+   El ID propio de cada registro nuevo (PHOTO_ID_FIELD) lo genera el sistema al guardar: PREFIJO-EDO-000001.
+   - Prefijo por entidad (catálogo de prefijos por tipo del usuario). RETL (Retail) queda pendiente hasta que
+     exista esa entidad/tipo — hoy todo Offices sale como OFFC.
+   - EDO = código ISO 3166-2:MX del Estado capturado (tabla del usuario). NO se usa "CODIGO ESTADO" del catálogo
+     de ubicación: ahí vienen otras abreviaturas (NL, COAH, CDMX…). Las llaves van normalizadas (ver
+     stateIsoCode) e incluyen los nombres tal como vienen en el catálogo ("Estado Mexico", "Cd Mexico").
+   - Consecutivo PROPIO DEL TIPO, sin reiniciar por estado (una nave de Jalisco después de 1 de Nuevo León toma
+     el 000002), = mayor número existente con ese prefijo + 1. Confirmado con el usuario: se calcula sobre el
+     Excel abierto (no sobre los archivos de los demás usuarios).
+   - Los IDs que ya existían (ACU0001, 121, AP0001…) se quedan tal cual; no se migran. */
+const RECORD_ID_PREFIX={ PROPIEDADES:"INDB", PARKS:"PARK", LAND:"LAND", OFICINAS:"OFFC", SPACES:"SPCE" };
+const normStateName=v=>String(v==null?"":v).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z ]/g," ").replace(/\b(de|del|la)\b/g," ").replace(/\s+/g," ").trim();
+const STATE_ISO_CODES=(()=>{
+  const m={}, add=(code,...names)=>names.forEach(n=>{ m[normStateName(n)]=code; });
+  add("AGU","Aguascalientes"); add("BCN","Baja California"); add("BCS","Baja California Sur"); add("CAM","Campeche");
+  add("CHP","Chiapas"); add("CHH","Chihuahua"); add("CMX","Ciudad de México","Cd Mexico","Cd. de México","CDMX","Mexico City");
+  add("COA","Coahuila","Coahuila de Zaragoza"); add("COL","Colima"); add("DUR","Durango"); add("GUA","Guanajuato");
+  add("GRO","Guerrero"); add("HID","Hidalgo"); add("JAL","Jalisco"); add("MEX","Estado de México","Estado Mexico","Edo. de México","Edo Mexico","México");
+  add("MIC","Michoacán","Michoacán de Ocampo"); add("MOR","Morelos"); add("NAY","Nayarit"); add("NLE","Nuevo León");
+  add("OAX","Oaxaca"); add("PUE","Puebla"); add("QUE","Querétaro","Querétaro de Arteaga"); add("ROO","Quintana Roo");
+  add("SLP","San Luis Potosí"); add("SIN","Sinaloa"); add("SON","Sonora"); add("TAB","Tabasco"); add("TAM","Tamaulipas");
+  add("TLA","Tlaxcala"); add("VER","Veracruz","Veracruz de Ignacio de la Llave"); add("YUC","Yucatán"); add("ZAC","Zacatecas");
+  return m;
+})();
+function stateIsoCode(stateName){ return STATE_ISO_CODES[normStateName(stateName)]||null; }
+// Siguiente ID libre para `ent` en el estado dado; null si la entidad no genera ID o el estado no tiene código.
+function nextRecordId(ent, stateName){
+  const prefix=RECORD_ID_PREFIX[ent], edo=stateIsoCode(stateName);
+  if(!prefix || !edo) return null;
+  const key=PHOTO_ID_FIELD[ent], re=new RegExp("^"+prefix+"-[A-Z]{3}-(\\d+)$","i");
+  const taken=new Set((state[ent]||[]).map(r=>String(r[key]==null?"":r[key]).trim().toUpperCase()));
+  let n=0;
+  taken.forEach(code=>{ const m=re.exec(code); if(m) n=Math.max(n, Number(m[1])); });
+  let id;
+  do { n++; id=`${prefix}-${edo}-${String(n).padStart(6,"0")}`; } while(taken.has(id));
+  return id;
+}
+/* Pedido explícito del usuario: sin Nombre, Property Type, Región, Estado, Mercado y Submercado no se puede crear
+   ni guardar un registro de las entidades con ID automático (el Estado además arma el ID). Solo los que existen
+   en la entidad (Land y Spaces no tienen Property Type) y están en la ficha (un campo oculto desde
+   Configuración no se puede llenar ahí). Spaces los toma de su Oficina al elegirla. */
+const SAVE_REQUIRED_KEYS=["PROPERTY_NAME","PROPERTY_TYPE","REGION","STATE","MARKET","SUBMARKET"];
 document.getElementById("saveBtn").onclick=()=>{ ensureBackupFolderThenRun(doSaveRecord); };
 function doSaveRecord(){
   if(blockIfConsolidated()) return;
@@ -16624,6 +16669,27 @@ function doSaveRecord(){
   // propio registro cuando se edita sin cambiar su ID (para uno nuevo, editingId es null, así que se
   // compara contra todos los existentes).
   const uniqueKey=PHOTO_ID_FIELD[current];
+  if(RECORD_ID_PREFIX[current]){
+    const onFormKeys=new Set([...inputs].map(inp=>inp.dataset.key));
+    const lacking=SAVE_REQUIRED_KEYS.filter(k=>cfgByKey[k] && onFormKeys.has(k) && DQ_EMPTY(rec[k]));
+    if(lacking.length){
+      lacking.forEach(k=>{ const el=document.querySelector(`#mBody [data-key="${k}"]`); if(el) el.classList.add("field-error"); });
+      const first=document.querySelector("#mBody .field-error"), panel=first && first.closest(".form-panel");
+      if(panel) switchFormPanel(Number(panel.dataset.panel));
+      toast(`Can't save without: ${lacking.map(k=>fieldLabel(k, current)).join(", ")}`,"err");
+      return;
+    }
+    // Registro nuevo (o uno viejo que nunca tuvo ID): el sistema genera el ID aquí.
+    if(DQ_EMPTY(rec[uniqueKey])){
+      const id=nextRecordId(current, rec.STATE);
+      if(!id){
+        const el=document.querySelector(`#mBody [data-key="STATE"]`); if(el) el.classList.add("field-error");
+        toast(`Can't generate the ID: state "${rec.STATE||""}" has no state code — choose a Mexican state`,"err");
+        return;
+      }
+      rec[uniqueKey]=id;
+    }
+  }
   if(uniqueKey){
     const uniqueVal=rec[uniqueKey]!=null?String(rec[uniqueKey]).trim():"";
     // v3.51.3, pedido explícito del usuario: el ID de cada tabla (Mapping Code/ID Park/ID Terreno/Space
@@ -17477,7 +17543,7 @@ async function loadImagePreview(kindKey){
   if(!box) return;
   releaseFichaPhotoUrl(box.id); // libera lo que esta misma casilla tuviera antes de reemplazarla, sea cual sea la rama que siga
   const code=currentPhotoId();
-  if(!code){ box.innerHTML=`<div class="image-placeholder">Escribe un ${escapeHtml(fieldLabel(PHOTO_ID_FIELD[current]))} para poder subir/ver la foto</div>`; removeBtn.style.display="none"; return; }
+  if(!code){ box.innerHTML=`<div class="image-placeholder">Guarda el registro primero (el ${escapeHtml(fieldLabel(PHOTO_ID_FIELD[current]))} se genera al guardar) para poder subir/ver la foto</div>`; removeBtn.style.display="none"; return; }
   if(!imagesDirHandle){ box.innerHTML=`<div class="image-placeholder">No images folder linked.<br>Go to ⚙ Settings.</div>`; removeBtn.style.display="none"; return; }
   const granted=(await imagesDirHandle.queryPermission({mode:"read"}))==="granted";
   if(!granted){
@@ -17665,7 +17731,7 @@ async function handleImageFileChosen(ev,kindKey){
    v3.30.3 — el guardado real ahora pasa por confirmPhotoEditSave(), disparado por el botón del modal. */
 async function startImageUpload(file, kindKey){
   const code=currentPhotoId();
-  if(!code){ toast(`Enter a ${fieldLabel(PHOTO_ID_FIELD[current])} before uploading the photo`,"err"); return; }
+  if(!code){ toast(`Save the record first — the ${fieldLabel(PHOTO_ID_FIELD[current])} is generated on save`,"err"); return; }
   if(!imagesDirHandle){ toast("First link an images folder in ⚙ Settings","err"); return; }
   if(!(await ensurePermission(imagesDirHandle,"readwrite"))){ toast("Permission denied for the images folder","err"); return; }
   openPhotoEditModal(file, kindKey);

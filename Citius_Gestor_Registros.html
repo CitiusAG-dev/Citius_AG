@@ -2279,39 +2279,6 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .col-add-empty{color:var(--muted);font-size:12px;padding:6px 8px}
   .columns-panel-actions{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
   .col-filter-foot{display:flex;justify-content:space-between;gap:8px;padding-top:10px;border-top:1px solid var(--line)}
-  /* Botón "Filters" + chips de filtros activos (topbar de la tabla) y su menú por categorías */
-  #tableTopbarControls{min-width:0}
-  #tableTopbarControls .topbar-controls-left{flex:1;min-width:0;flex-wrap:nowrap}
-  #tableTopbarControls .topbar-controls-right{flex-shrink:0;flex-wrap:nowrap}
-  .filters-bar{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
-  .filters-bar #filtersBtn{flex-shrink:0}
-  .filters-btn-count{margin-left:6px;min-width:17px;height:17px;padding:0 5px;border-radius:999px;background:var(--accent);
-    color:#1a1a1a;font-size:10.5px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
-  .filter-chips{display:flex;align-items:center;gap:6px;min-width:0;overflow-x:auto;scrollbar-width:thin;padding:2px 0}
-  .filter-chip,.filter-chips-clear{flex-shrink:0}
-  .filter-chips-empty{font-size:12px;color:var(--muted)}
-  .filter-chip{display:inline-flex;align-items:center;gap:4px;max-width:280px;padding:4px 4px 4px 10px;border:1px solid var(--line);
-    border-radius:999px;background:var(--panel-2);font-size:12px;color:var(--txt);cursor:pointer;line-height:1.2}
-  .filter-chip:hover{border-color:var(--accent)}
-  .filter-chip-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .filter-chip-text b{font-weight:600}
-  .filter-chip-x{border:none;background:none;color:var(--muted);cursor:pointer;font-size:13px;line-height:1;padding:2px 5px;border-radius:999px}
-  .filter-chip-x:hover{color:var(--red);background:rgba(0,0,0,.05)}
-  .filter-chips-clear{border:none;background:none;color:var(--accent-ink);font-size:12px;cursor:pointer;padding:2px 4px}
-  .filter-chips-clear:hover{text-decoration:underline}
-  .filters-menu,.filters-submenu{position:fixed;z-index:60;background:var(--panel);border:1px solid var(--line);border-radius:10px;
-    box-shadow:0 10px 30px rgba(0,0,0,.14);padding:6px;width:250px;max-height:min(440px,calc(100vh - 24px));overflow-y:auto}
-  .filters-submenu{width:240px}
-  .filters-menu-search{width:100%;box-sizing:border-box;margin:2px 0 6px;padding:7px 9px;background:var(--panel-2);border:1px solid var(--line);
-    border-radius:8px;color:var(--txt);font-size:13px}
-  .filters-menu-item{display:flex;align-items:center;gap:9px;width:100%;padding:7px 8px;border:none;background:none;border-radius:7px;
-    color:var(--txt);font-size:13px;text-align:left;cursor:pointer}
-  .filters-menu-item:hover,.filters-menu-item.open{background:var(--panel-2)}
-  .filters-menu-item svg{flex-shrink:0;color:var(--muted)}
-  .filters-menu-item-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .filters-menu-item-hint{font-size:11px;color:var(--muted);white-space:nowrap}
-  .filters-menu-item-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0}
-  .filters-menu-empty{font-size:12px;color:var(--muted);padding:8px}
 
   /* Panel "Ordenar por" (multi-columna, estilo orden personalizado de Excel) — reutiliza .columns-panel
      como contenedor flotante, solo se ensancha un poco para que quepa el botón de columna + el <select> de
@@ -2375,12 +2342,6 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     <header class="topbar" id="appTopbar">
       <div class="topbar-controls" id="tableTopbarControls" style="display:none">
         <div class="topbar-controls-left">
-          <div class="filters-bar">
-            <button type="button" class="btn ghost" id="filtersBtn" title="Add or change filters" onclick="toggleFiltersMenu(event)">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-3px"><path d="M3 5h18l-7 8.5V19l-4 2v-7.5z"/></svg>Filters<span class="filters-btn-count" id="filtersBtnCount" style="display:none"></span>
-            </button>
-            <div class="filter-chips" id="filterChips"></div>
-          </div>
           <!-- Presentación de Oficinas, Etapa 1 (v4.1.0 en construcción, pedido explícito del usuario): a
                diferencia de Propiedades/Terrenos (deck completo aparte), la selección para armar Opciones
                vive DIRECTO en la tabla de Spaces — ver toggleOfficeSpaceStaging()/groupOfficeStagingAsOption()/
@@ -4789,10 +4750,8 @@ function updateClearFiltersBtn(){
   const btn=document.getElementById("clearFiltersBtn");
   if(!btn) return;
   const n=(filters[current]||[]).length+(dqFilter[current]&&dqEntityHasRules(current)?1:0);
-  // Desde el botón "Filters" con chips, "Clear all" vive junto a los chips — este botón queda oculto siempre.
-  btn.style.display="none";
+  btn.style.display=n?"":"none";
   btn.textContent=`✕ Clear filters (${n})`;
-  renderFilterChips();
 }
 
 /* ==== Table sorting: click a header for a quick single-column sort (asc -> desc -> sin orden), o usa el
@@ -7255,7 +7214,6 @@ function renderTable(){
     const sig=(state.OFICINAS?state.OFICINAS.length:0)+"|"+(state.SPACES?state.SPACES.length:0);
     if(sig!==officeDerivedCacheSig){ recomputeAllOfficeDerivedFields(); officeDerivedCacheSig=sig; }
   }
-  applyDefaultFilters(current);
   updateClearFiltersBtn();
   const cfg=ENTITIES[current];
   const cols=visibleCols(current);
@@ -9783,7 +9741,7 @@ function closeColumnFilterDropdown(){
    tabla) el comportamiento de siempre no cambia. */
 function onDocClickForColFilter(e){
   const el=document.getElementById("colFilterDropdown");
-  if(el && !el.contains(e.target) && !e.target.closest(".col-filter-btn, .filter-chip")){
+  if(el && !el.contains(e.target) && !e.target.closest(".col-filter-btn")){
     const clickedRow=e.target.closest("#tbl tbody tr");
     if(!clickedRow) e.stopPropagation();
     closeColumnFilterDropdown();
@@ -10123,230 +10081,6 @@ function clearColumnFilter(){
     renderTable();
   }
   closeColumnFilterDropdown();
-}
-
-/* ==== Botón "Filters" con menú por categorías + chips de filtros activos (pedido explícito del usuario, estilo
-   "Property Database": un botón general de filtros, las categorías y dentro de cada una sus campos). Las
-   categorías son los GRUPOS de campo de Configuración (Identification, Location, Measures…), así que reagrupar
-   un campo allí lo mueve también aquí. Elegir un campo abre el MISMO filtro de columna de siempre
-   (toggleColumnFilter: lista, rango numérico, fecha o texto) y se guarda en el mismo `filters[ent]` — los
-   filtros desde el encabezado de la tabla y desde este menú son uno solo y se suman (AND). Cada filtro activo
-   se ve como chip junto al botón: clic para editarlo, × para quitarlo. ==== */
-const FILTER_GROUP_ICONS=[
-  [/IDENTIF/, '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/>'],
-  [/LOCATION/, '<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>'],
-  [/MEASURE/, '<path d="M3 17 17 3l4 4L7 21z"/><path d="m7 13 2 2M10 10l2 2M13 7l2 2"/>'],
-  [/COMMERCIAL|ECONOMIC|PRICE/, '<path d="M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'],
-  [/CONSTRUCTION|PROPIEDAD|CHARACTERISTIC/, '<rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1"/>'],
-  [/INFRA|SERVICE/, '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>'],
-  [/FACILIT/, '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'],
-  [/PARKING/, '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 17V7h4a3 3 0 0 1 0 6H9"/>'],
-  [/LISTING/, '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>'],
-  [/NOTE/, '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/>'],
-  [/DETAIL|LOG/, '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>'],
-  [/DATA QUALITY/, '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>']
-];
-function filterGroupIcon(group){
-  const hit=FILTER_GROUP_ICONS.find(([re])=>re.test(String(group||"").toUpperCase()));
-  const inner=hit ? hit[1] : '<path d="M4 6h16M7 12h10M10 18h4"/>';
-  return `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
-}
-function filterGroupLabel(group){
-  const g=String(group||"Other").trim().toLowerCase();
-  return g.charAt(0).toUpperCase()+g.slice(1);
-}
-// Nombre del campo para el menú y los chips: las etiquetas vienen en MAYÚSCULAS (la tabla las muestra así), aquí
-// se pasan a formato título conservando siglas (GLA, KVA, ID…).
-const FILTER_LABEL_ACRONYMS=new Set(["GLA","NLA","KVA","KV","ID","CPH","HVAC","USD","MXN","LEED","TI","CAM","ESG","AC","HQ","BTS","OPEX","SF","M2","COS","CUS","CAS","GPS","CCTV","LED","EV","URL","RFI","ISO"]);
-function filterFieldLabel(key, ent){
-  const l=String(fieldLabel(key, ent)||key);
-  if(l!==l.toUpperCase()) return l;
-  return l.toLowerCase().replace(/[a-z0-9áéíóúñ]+/g, (w,i)=>{
-    const up=w.toUpperCase();
-    if(FILTER_LABEL_ACRONYMS.has(up)) return up;
-    if(i>0 && ["of","and","or","to","in","by","per","the","a"].includes(w)) return w;
-    return w.charAt(0).toUpperCase()+w.slice(1);
-  });
-}
-// Campos filtrables de la entidad agrupados por su grupo de Configuración, en el orden del formulario. Fuera:
-// los IDs de catálogo (backend), polígonos y campos ocultos.
-function filterMenuGroups(ent){
-  const groups=[], byName=new Map();
-  fields(ent).forEach(f=>{
-    if(GEO_ID_FIELD_KEYS.has(f.key) || POLYGON_FIELD_KEYS.has(f.key) || (f.hidden && isFieldHideable(ent,f.key))) return;
-    const name=f.group||"OTHER";
-    if(!byName.has(name)){ const g={name, keys:[]}; byName.set(name,g); groups.push(g); }
-    byName.get(name).keys.push(f.key);
-  });
-  return groups;
-}
-function closeFiltersSubmenu(){
-  const sub=document.getElementById("filtersSubmenu");
-  if(sub) sub.remove();
-  document.querySelectorAll("#filtersMenu .filters-menu-item.open").forEach(b=>b.classList.remove("open"));
-}
-function closeFiltersMenu(){
-  closeFiltersSubmenu();
-  const el=document.getElementById("filtersMenu");
-  if(el) el.remove();
-  document.removeEventListener("mousedown", onDocMouseDownForFiltersMenu, true);
-  document.removeEventListener("keydown", onKeyDownForFiltersMenu, true);
-}
-function onDocMouseDownForFiltersMenu(e){
-  if(e.target.closest("#filtersMenu, #filtersSubmenu, #filtersBtn")) return;
-  closeFiltersMenu();
-}
-function onKeyDownForFiltersMenu(e){ if(e.key==="Escape") closeFiltersMenu(); }
-function toggleFiltersMenu(evt){
-  if(evt) evt.stopPropagation();
-  const open=!!document.getElementById("filtersMenu");
-  closeFiltersMenu();
-  closeColumnFilterDropdown(); closeDqFilterDropdown();
-  if(open) return;
-  const btn=document.getElementById("filtersBtn");
-  const el=document.createElement("div");
-  el.id="filtersMenu"; el.className="filters-menu";
-  el.innerHTML=`<input type="text" class="filters-menu-search" id="filtersMenuSearch" placeholder="Filter…" autocomplete="off" oninput="renderFiltersMenuBody()">
-    <div id="filtersMenuBody"></div>`;
-  document.body.appendChild(el);
-  const r=btn.getBoundingClientRect();
-  el.style.left=Math.max(8, Math.min(r.left, window.innerWidth-8-250))+"px";
-  el.style.top=(r.bottom+6)+"px";
-  renderFiltersMenuBody();
-  document.getElementById("filtersMenuSearch").focus();
-  setTimeout(()=>{
-    document.addEventListener("mousedown", onDocMouseDownForFiltersMenu, true);
-    document.addEventListener("keydown", onKeyDownForFiltersMenu, true);
-  }, 0);
-}
-const FILTER_DQ_GROUP="__DQ__";
-function renderFiltersMenuBody(){
-  const body=document.getElementById("filtersMenuBody");
-  if(!body) return;
-  closeFiltersSubmenu();
-  const ent=current, q=(document.getElementById("filtersMenuSearch").value||"").trim().toLowerCase();
-  const groups=filterMenuGroups(ent);
-  const active=new Set((filters[ent]||[]).map(f=>f.key));
-  const dot=on=>on?`<span class="filters-menu-item-dot"></span>`:"";
-  if(q){
-    // Búsqueda: lista plana de campos cuyo nombre (o el de su categoría) contiene el texto.
-    const hits=[];
-    groups.forEach(g=>g.keys.forEach(k=>{
-      if(filterFieldLabel(k, ent).toLowerCase().includes(q) || filterGroupLabel(g.name).toLowerCase().includes(q)) hits.push({k, g:g.name});
-    }));
-    body.innerHTML=hits.length ? hits.slice(0,80).map(h=>`<button type="button" class="filters-menu-item" onclick="openFilterForField('${h.k}')">
-        <span class="filters-menu-item-label">${escapeHtml(filterFieldLabel(h.k, ent))}</span>${dot(active.has(h.k))}<span class="filters-menu-item-hint">${escapeHtml(filterGroupLabel(h.g))}</span></button>`).join("")
-      : `<div class="filters-menu-empty">No matching fields</div>`;
-    return;
-  }
-  const chevron=`<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>`;
-  let html=groups.map((g,i)=>`<button type="button" class="filters-menu-item" data-group="${i}" onmouseenter="openFiltersSubmenu(this,${i})" onclick="openFiltersSubmenu(this,${i})">
-      ${filterGroupIcon(g.name)}<span class="filters-menu-item-label">${escapeHtml(filterGroupLabel(g.name))}</span>${dot(g.keys.some(k=>active.has(k)))}${chevron}</button>`).join("");
-  if(dqEntityHasRules(ent)){
-    html+=`<button type="button" class="filters-menu-item" onmouseenter="closeFiltersSubmenu()" onclick="openDqFilterFromMenu()">
-      ${filterGroupIcon("DATA QUALITY")}<span class="filters-menu-item-label">Data issues</span>${dot(!!dqFilter[ent])}</button>`;
-  }
-  body.innerHTML=html;
-}
-function openFiltersSubmenu(itemEl, groupIdx){
-  const ent=current, g=filterMenuGroups(ent)[groupIdx];
-  if(!g) return;
-  if(itemEl.classList.contains("open") && document.getElementById("filtersSubmenu")) return;
-  closeFiltersSubmenu();
-  itemEl.classList.add("open");
-  const active=new Set((filters[ent]||[]).map(f=>f.key));
-  const sub=document.createElement("div");
-  sub.id="filtersSubmenu"; sub.className="filters-submenu";
-  sub.innerHTML=g.keys.map(k=>`<button type="button" class="filters-menu-item" onclick="openFilterForField('${k}')">
-      <span class="filters-menu-item-label">${escapeHtml(filterFieldLabel(k, ent))}</span>${active.has(k)?`<span class="filters-menu-item-dot"></span>`:""}</button>`).join("");
-  document.body.appendChild(sub);
-  const r=itemEl.getBoundingClientRect(), w=240;
-  const left=r.right+6+w > window.innerWidth-8 ? r.left-6-w : r.right+6;
-  sub.style.left=Math.max(8,left)+"px";
-  sub.style.top=Math.max(8, Math.min(r.top-6, window.innerHeight-8-sub.offsetHeight))+"px";
-}
-// Abre el filtro de columna de siempre para `key`, colgado del botón Filters (o del chip si se pasa).
-function openFilterForField(key, anchorEl){
-  closeFiltersMenu();
-  closeDqFilterDropdown();
-  toggleColumnFilter({stopPropagation(){}, currentTarget: anchorEl || document.getElementById("filtersBtn")}, key);
-}
-function openDqFilterFromMenu(anchorEl){
-  closeFiltersMenu();
-  closeColumnFilterDropdown();
-  toggleDqFilterDropdown({stopPropagation(){}, currentTarget: anchorEl || document.getElementById("filtersBtn")});
-}
-// Texto corto del valor de un filtro para su chip.
-function filterChipSummary(f){
-  const num=v=>fmtColFilterNum(v);
-  const has=v=>v!==""&&v!=null;
-  if(f.type==="list"){
-    const vals=(f.values||[]).map(colFilterValueLabel);
-    return vals.length<=2 ? vals.join(", ") : `${vals[0]}, ${vals[1]} +${vals.length-2}`;
-  }
-  if(f.type==="number"){
-    if(has(f.min) && has(f.max)) return `${num(f.min)} – ${num(f.max)}`;
-    return has(f.min) ? `≥ ${num(f.min)}` : `≤ ${num(f.max)}`;
-  }
-  if(f.type==="date"){
-    const parts=[];
-    if(f.from && f.to) parts.push(`${f.from} – ${f.to}`);
-    else if(f.from) parts.push(`from ${f.from}`);
-    else if(f.to) parts.push(`to ${f.to}`);
-    if(f.months && f.months.length!=null) parts.push(`${f.months.length} month(s)`);
-    return parts.join(" · ");
-  }
-  return `contains "${f.text}"`;
-}
-function renderFilterChips(){
-  const el=document.getElementById("filterChips");
-  if(!el) return;
-  const ent=current, list=filters[ent]||[];
-  const dq=dqFilter[ent] && dqEntityHasRules(ent) ? dqFilter[ent] : "";
-  const n=list.length+(dq?1:0);
-  const countEl=document.getElementById("filtersBtnCount");
-  if(countEl){ countEl.textContent=n; countEl.style.display=n?"":"none"; }
-  if(!n){ el.innerHTML=`<span class="filter-chips-empty">No filters applied</span>`; return; }
-  const chips=list.map((f,i)=>{
-    const label=filterFieldLabel(f.key, ent), val=filterChipSummary(f);
-    return `<span class="filter-chip" title="${escapeAttr(label+": "+val)}" onclick="openFilterForField('${f.key}', this)">
-      <span class="filter-chip-text"><b>${escapeHtml(label)}:</b> ${escapeHtml(val)}</span>
-      <button type="button" class="filter-chip-x" title="Remove filter" onclick="event.stopPropagation(); removeFilterChip(${i})">×</button></span>`;
-  });
-  if(dq){
-    const rule=dqRulesFor(ent).find(r=>r.id===dq);
-    const val=dq==="__any__" ? "With issues" : dq==="__none__" ? "No issues" : (rule ? rule.label : dq);
-    chips.push(`<span class="filter-chip" title="${escapeAttr("Data issues: "+val)}" onclick="openDqFilterFromMenu(this)">
-      <span class="filter-chip-text"><b>Data issues:</b> ${escapeHtml(val)}</span>
-      <button type="button" class="filter-chip-x" title="Remove filter" onclick="event.stopPropagation(); setDqFilter('')">×</button></span>`);
-  }
-  if(n>1) chips.push(`<button type="button" class="filter-chips-clear" onclick="clearAllFilters()">Clear all</button>`);
-  el.innerHTML=chips.join("");
-}
-function removeFilterChip(idx){
-  const list=filters[current]||[];
-  if(!list[idx]) return;
-  list.splice(idx,1);
-  saveFilters();
-  closeColumnFilterDropdown();
-  renderTable();
-}
-/* Filtro por defecto (pedido explícito del usuario): Buildings, Parks y Spaces arrancan mostrando solo Market
-   Status = Available. Se aplica UNA vez por entidad en cada navegador (la primera vez que se abre la tabla con
-   datos); después manda lo que el usuario deje — si lo quita, no vuelve a aparecer. Los filtros ya se guardan
-   entre sesiones (citius_filters_v1), así que "Available" sigue activo al volver a abrir la app. */
-const FILTER_DEFAULTS_KEY="citius_filter_defaults_v1";
-let filterDefaultsApplied=(()=>{ try{ return JSON.parse(localStorage.getItem(FILTER_DEFAULTS_KEY)||"{}")||{}; }catch(e){ return {}; } })();
-function applyDefaultFilters(ent){
-  if(filterDefaultsApplied[ent] || !(state[ent]||[]).length) return;
-  if(!["PROPIEDADES","PARKS","SPACES"].includes(ent) || !fields(ent).some(f=>f.key==="MARKET_STATUS")) return;
-  if(!(filters[ent]||[]).some(f=>f.key==="MARKET_STATUS")){
-    const vals=[...new Set(state[ent].map(r=>r.MARKET_STATUS).filter(v=>ciEq(v,"Available")).map(v=>String(v)))];
-    filters[ent]=[...(filters[ent]||[]), {key:"MARKET_STATUS", type:"list", values:vals.length?vals:["Available"]}];
-    saveFilters();
-  }
-  filterDefaultsApplied[ent]=true;
-  try{ localStorage.setItem(FILTER_DEFAULTS_KEY, JSON.stringify(filterDefaultsApplied)); }catch(e){}
 }
 
 /* ==== Form modal ==== */

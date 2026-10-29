@@ -2335,7 +2335,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.30.2</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.31.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -5411,6 +5411,15 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.31.0", date:"2026-10-29", items:[
+    "New records get their ID automatically on save: type prefix + state code + consecutive number (e.g. INDB-NLE-000001; INDB Buildings, PARK Parks, LAND Land, OFFC Offices, SPCE Spaces). The number is per type and doesn't restart by state. Existing IDs don't change.",
+    "IDs can no longer be edited once a record is saved (if one really must change, edit it in the Excel file).",
+    "Buildings, Parks, Land, Offices and Spaces can't be saved without Name, Property Type (where the table has it), Region, State, Market and Submarket. A Space also needs to be linked to an existing Office.",
+    "Renaming a Park updates the Park Name in its Buildings and in their transactions.",
+    "Data quality: validation rules now also apply to Land, Offices and Spaces (value/unit, extra spaces, area units and sums, zero areas, year built, pin outside the polygon), plus new rules for Spaces adding up to more than the Office's GLA and for Buildings/Spaces linked to a Park/Office that doesn't exist. Data Issues column, save blocking and Summary > Data Quality for all of them.",
+    "Data Issues column: the cell is empty when a record has no issues (instead of OK).",
+    "The 'linked transactions updated' notice is now shown in the save message (it used to be covered by it)."
+  ]},
   {version:"8.30.2", date:"2026-10-28", items:[
     "Location catalog: 11 new CDMX office submarkets (CDMX, Bosques, Norte, Insurgentes, Periferico Sur, Interlomas, Polanco, Lomas Altas, Reforma, Lomas Palmas, Santa Fe).",
     "Offices: Maintenance Spots Price unit is now MXN / USD.",

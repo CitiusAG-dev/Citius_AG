@@ -6363,8 +6363,10 @@ function isDateField(ent, key){
   const f=fields(ent).find(f=>f.key===key);
   return !!(f && f.type==="date");
 }
-function unitKeyFor(ent, key){
-  const known=new Set(fields(ent).map(f=>f.key));
+// `known` (opcional): el Set de keys de la entidad ya armado — para quien llama en un loop sobre todos los campos
+// (la regla value_unit de DATA_QUALITY_RULES), que si no reconstruiría este Set por cada campo de cada registro.
+function unitKeyFor(ent, key, known){
+  if(!known) known=new Set(fields(ent).map(f=>f.key));
   if(IRREGULAR_VALUE_UNIT_PAIRS[key] && known.has(IRREGULAR_VALUE_UNIT_PAIRS[key])) return IRREGULAR_VALUE_UNIT_PAIRS[key];
   if(!key.endsWith("_VALUE")) return null;
   const prefix=key.slice(0,-6);
@@ -6754,9 +6756,9 @@ function dqAreaZeroCheck(ent, rec){
 const DATA_QUALITY_RULES=[
   { id:"value_unit", ents:["PROPIEDADES","PARKS","LAND","OFICINAS","SPACES"], short:"Value / unit", label:"Value without unit / unit without value",
     check(ent, rec){
-      const out=[], computed=dqComputedKeys(ent);
-      fields(ent).forEach(f=>{
-        const u=unitKeyFor(ent, f.key);
+      const out=[], computed=dqComputedKeys(ent), flds=fields(ent), known=new Set(flds.map(f=>f.key));
+      flds.forEach(f=>{
+        const u=unitKeyFor(ent, f.key, known);
         if(!u || computed.has(f.key)) return;
         const noVal=DQ_EMPTY(rec[f.key]), noUnit=DQ_EMPTY(rec[u]);
         if(noVal===noUnit) return;
@@ -6819,8 +6821,14 @@ const DATA_QUALITY_RULES=[
      cuyo Mapping Code no existe en Offices (p. ej. porque se cambió el ID en el Excel o venía mal de una carga).
      ID Park = 0 ("Stand Alone") no cuenta. Las Transacciones ya se marcan aparte (fieldValueMismatch de MAPPING_CODE). Se corrige eligiendo el
      registro correcto con el botón de la ficha (Seleccionar Parque… / Select Office…). */
-  { id:"broken_link", ents:["PROPIEDADES","SPACES"], short:"Broken link", label:"Linked Park / Office doesn't exist",
+  { id:"broken_link", ents:["PROPIEDADES","SPACES","TRANSACCIONES"], short:"Broken link", label:"Linked Park / Office / record doesn't exist",
     check(ent, rec){
+      // Transacciones: su Mapping Code debe existir en la tabla de su Categoría (misma validación de siempre, ver
+      // fieldValueMismatch/transactionLinkedRecord) — ahora también cuenta como Data Issue.
+      if(ent==="TRANSACCIONES"){
+        if(DQ_EMPTY(rec.MAPPING_CODE) || transactionLinkedRecord(rec)) return [];
+        return [{fields:["MAPPING_CODE"], msg:`Mapping Code "${String(rec.MAPPING_CODE).trim()}" doesn't match any record in its linked table — select the record again`}];
+      }
       const [key, target, name]=ent==="PROPIEDADES" ? ["ID_PARK","PARKS","Park"] : ["MAPPING_CODE","OFICINAS","Office"];
       if(DQ_EMPTY(rec[key])) return [];
       // ID Park = 0 es "Stand Alone" (opción extra de openParkPicker), no un Parque — es válido.
@@ -6828,6 +6836,16 @@ const DATA_QUALITY_RULES=[
       if(linkedCodeIndex(target).has(String(rec[key]).trim().toLowerCase())) return [];
       return [{fields:[key], msg:`${fieldLabel(key, ent)} "${String(rec[key]).trim()}" doesn't match any ${name} — select the right ${name} again`}];
     } },
+  /* Pedido explícito del usuario: datos que no son del tipo esperado o fuera de las listas permitidas también son
+     Data Issues (antes solo se pintaban en rojo en la ficha y, si el campo era obligatorio, bajaban el %). Salen
+     de la configuración VIGENTE de cada campo (tipo y lista en Configuración, catálogo de ubicación) vía
+     fieldValueMismatch() — la misma que pinta el rojo de la ficha —, así que si el usuario cambia el tipo o la
+     lista de un campo, estas reglas lo aplican solas. Solo los campos que aplican al registro
+     (transactionVisibleFields: en Transacciones depende de Categoría/Absorption) y nunca los calculados. */
+  { id:"not_in_list", ents:["PROPIEDADES","PARKS","LAND","OFICINAS","SPACES","TRANSACCIONES"], short:"Not in list", label:"Value not in the list of allowed values",
+    check(ent, rec){ return dqFieldTypeIssues(ent, rec, "list"); } },
+  { id:"wrong_type", ents:["PROPIEDADES","PARKS","LAND","OFICINAS","SPACES","TRANSACCIONES"], short:"Wrong type", label:"Value doesn't match the field type (number / date)",
+    check(ent, rec){ return dqFieldTypeIssues(ent, rec, "type"); } },
   { id:"pin_polygon", ents:["PROPIEDADES","PARKS","LAND","OFICINAS"], short:"Pin / polygon", label:"Pin is outside the polygon",
     check(ent, rec){
       const pk=polygonKeyFor(ent);
@@ -6840,6 +6858,29 @@ const DATA_QUALITY_RULES=[
       return [{fields:["LATITUDE","LONGITUDE",pk], msg:`The pin (${lat}, ${lng}) is outside the polygon — move the pin or redraw the polygon`}];
     } },
 ];
+// kind "list": valor fuera de su lista / lista en cascada / lista múltiple. kind "type": texto en un campo
+// Entero/Decimal, o una fecha que no es fecha. El Mapping Code de Transacciones va en "broken_link".
+function dqIsListField(ent, f){ return (CASCADE_ORDER.includes(f.key) && cascadeCatalog.length>0) || !!(f.list && lists[f.list]); }
+function dqFieldTypeIssues(ent, rec, kind){
+  const out=[], computed=dqComputedKeys(ent);
+  transactionVisibleFields(ent, rec, fields(ent)).forEach(f=>{
+    if(computed.has(f.key) || GEO_ID_FIELD_KEYS.has(f.key) || DQ_EMPTY(rec[f.key])) return;
+    if(ent==="TRANSACCIONES" && f.key==="MAPPING_CODE") return;
+    const v=String(rec[f.key]).trim(), label=fieldLabel(f.key, ent);
+    if(kind==="list"){
+      if(dqIsListField(ent,f) && fieldValueMismatch(ent,f,rec)) out.push({fields:[f.key], msg:`${label}: "${v}" is not in the list of allowed values`});
+      return;
+    }
+    if(dqIsListField(ent,f)) return;
+    if((f.type==="int"||f.type==="decimal") && fieldValueMismatch(ent,f,rec)){
+      out.push({fields:[f.key], msg:`${label}: "${v}" is not a valid ${f.type==="int"?"whole number":"number"}`});
+    } else if(f.type==="date"){
+      const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(v), d=m && new Date(Date.UTC(+m[1], +m[2]-1, +m[3]));
+      if(!d || d.getUTCMonth()!==+m[2]-1 || d.getUTCDate()!==+m[3]) out.push({fields:[f.key], msg:`${label}: "${v}" is not a valid date`});
+    }
+  });
+  return out;
+}
 /* Longitud a metros (para comparar Min/Max Clear Height aunque vengan en m y ft). `m` es null si la unidad no
    se reconoce; en ese caso solo se compara si las 2 unidades son la misma. */
 function dqLengthInM(value, unit){
@@ -8518,6 +8559,7 @@ function renderResumenView(){
     <div class="resumen-row-full">${resumenDataQualityTableHtml("Land","LAND")}</div>
     <div class="resumen-row-full">${resumenDataQualityTableHtml("Offices","OFICINAS")}</div>
     <div class="resumen-row-full">${resumenDataQualityTableHtml("Spaces","SPACES")}</div>
+    <div class="resumen-row-full">${resumenDataQualityTableHtml("Transactions","TRANSACCIONES")}</div>
     <div class="resumen-usage-header">
       <div>
         <h3 class="resumen-section-title" style="margin-top:0">Tool Usage</h3>

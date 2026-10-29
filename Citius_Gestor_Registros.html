@@ -6846,6 +6846,39 @@ const DATA_QUALITY_RULES=[
     check(ent, rec){ return dqFieldTypeIssues(ent, rec, "list"); } },
   { id:"wrong_type", ents:["PROPIEDADES","PARKS","LAND","OFICINAS","SPACES","TRANSACCIONES"], short:"Wrong type", label:"Value doesn't match the field type (number / date)",
     check(ent, rec){ return dqFieldTypeIssues(ent, rec, "type"); } },
+  { id:"coordinates", ents:["PROPIEDADES","PARKS","LAND","OFICINAS"], short:"Lat / Long", label:"Latitude / Longitude format or location",
+    check(ent, rec){
+      const out=[], raw={LATITUDE:rec.LATITUDE, LONGITUDE:rec.LONGITUDE};
+      ["LATITUDE","LONGITUDE"].forEach(k=>{
+        if(DQ_EMPTY(raw[k])) return;
+        const s=String(raw[k]).trim(), fixed=dqNormCoord(raw[k]);
+        if(typeof fixed!=="number") out.push({fields:[k], msg:`${fieldLabel(k, ent)}: "${s}" is not a valid coordinate`});
+        else if(typeof raw[k]!=="number" || !/^-?\d{1,3}(\.\d{1,6})?$/.test(s)) out.push({fields:[k], msg:`${fieldLabel(k, ent)}: "${s}" must be a number with up to 6 decimals — corrected to ${fixed} on save`});
+      });
+      const la=dqNormCoord(raw.LATITUDE), lo=dqNormCoord(raw.LONGITUDE);
+      if(typeof la==="number" && typeof lo==="number"){
+        const inLat=v=>v>=DQ_MX_LAT[0]&&v<=DQ_MX_LAT[1], inLng=v=>v>=DQ_MX_LNG[0]&&v<=DQ_MX_LNG[1];
+        if(inLng(la) && inLat(lo)) out.push({fields:["LATITUDE","LONGITUDE"], msg:`Latitude (${la}) and Longitude (${lo}) look swapped`});
+        else if(!inLat(la) || !inLng(lo)) out.push({fields:["LATITUDE","LONGITUDE"], msg:`The pin (${la}, ${lo}) is outside Mexico`});
+      }
+      return out;
+    } },
+  { id:"text_format", ents:["PROPIEDADES","PARKS","LAND","OFICINAS","SPACES","TRANSACCIONES"], short:"Hidden chars", label:"Line breaks, invisible characters or double spaces",
+    check(ent, rec){
+      const out=[];
+      fields(ent).forEach(f=>{
+        const v=rec[f.key];
+        if(typeof v!=="string" || !v) return;
+        const what=[];
+        if(/[\u200b-\u200d\u2060\ufeff\u00a0\u2007\u202f]/.test(v)) what.push("invisible characters");
+        if(!dqMultilineField(f.key)){
+          if(/[\r\n\t]/.test(v)) what.push("line breaks/tabs");
+          if(/\S {2,}\S/.test(v)) what.push("double spaces");
+        }
+        if(what.length) out.push({fields:[f.key], msg:`${fieldLabel(f.key, ent)}: has ${what.join(", ")} — cleaned on save ("${v.replace(/[\r\n\t]+/g," ⏎ ").slice(0,60)}")`});
+      });
+      return out;
+    } },
   { id:"pin_polygon", ents:["PROPIEDADES","PARKS","LAND","OFICINAS"], short:"Pin / polygon", label:"Pin is outside the polygon",
     check(ent, rec){
       const pk=polygonKeyFor(ent);
@@ -6858,6 +6891,54 @@ const DATA_QUALITY_RULES=[
       return [{fields:["LATITUDE","LONGITUDE",pk], msg:`The pin (${lat}, ${lng}) is outside the polygon — move the pin or redraw the polygon`}];
     } },
 ];
+/* ==== Limpieza automática al guardar + reglas para lo ya capturado (pedido explícito del usuario, tras revisar
+   los Excel de todos los mercados antes de cargarlos a Dataverse) ====
+   Al guardar, cualquier registro (nuevo o existente) se corrige solo: (1) Latitud/Longitud como número con máx. 6
+   decimales, sin comas/espacios/° sobrantes; (3) saltos de línea y tabuladores en campos de un renglón; (4)
+   caracteres invisibles (espacio no separable, ancho cero); (5) decimales en campos Entero (se redondea); (6)
+   valores de lista que solo difieren en mayúsculas -> el valor oficial de la lista; (10) espacios dobles. Lo que
+   ya está en el Excel sin guardar se reporta como Data Issue (reglas "coordinates" y "text_format", más los
+   avisos de "not_in_list"/"wrong_type"); como la limpieza corre ANTES de validar, esos issues no impiden guardar
+   — se corrigen en ese mismo guardado. Coordenadas invertidas o fuera de México sí bloquean (no se adivinan). */
+const DQ_ZERO_WIDTH_RE=/[\u200b-\u200d\u2060\ufeff]/g, DQ_NBSP_RE=/[\u00a0\u2007\u202f]/g;
+const DQ_MX_LAT=[14.3,32.8], DQ_MX_LNG=[-118.5,-86.5];
+// Campos donde un salto de línea es válido (texto largo) o el valor es JSON (polígono): solo se quitan invisibles.
+function dqMultilineField(key){ return LONG_TEXT_FIELD_KEYS.has(key) || POLYGON_FIELD_KEYS.has(key); }
+function dqCleanText(ent, key, v){
+  if(typeof v!=="string") return v;
+  let t=v.replace(DQ_ZERO_WIDTH_RE,"").replace(DQ_NBSP_RE," ");
+  if(!dqMultilineField(key)){
+    // En listas múltiples el salto de línea separaba valores ("BMS⏎BOMA") — se vuelve el separador ", " de la app.
+    t=t.replace(/\s*[\r\n]+\s*/g, isMultiListField(ent,key)?", ":" ").replace(/\t/g," ").replace(/ {2,}/g," ");
+  }
+  return t.trim();
+}
+// "20.550580," -> 20.55058; -99.2496598 -> -99.24966. Si no se puede leer como número, se deja tal cual (lo marca la regla).
+function dqNormCoord(v){
+  if(v==null || v==="") return v;
+  const s=String(v).trim().replace(/°/g,"").replace(/^[,;\s]+|[,;\s]+$/g,"");
+  if(!/^-?\d+(\.\d+)?$/.test(s)) return v;
+  return Math.round(Number(s)*1e6)/1e6;
+}
+function dqCanonicalListValue(ent, f, v){
+  if(typeof v!=="string" || !f || !f.list || !lists[f.list]) return v;
+  const opts=lists[f.list], find=x=>opts.includes(x)?x:(opts.find(o=>String(o).toLowerCase()===x.toLowerCase())||x);
+  return isMultiListField(ent,f.key) ? multiListValues(v).map(find).join(", ") : find(v);
+}
+// Corrige `rec` en su lugar; regresa cuántos campos cambió.
+function normalizeRecordForSave(ent, rec, cfgByKey){
+  let n=0;
+  Object.keys(rec).forEach(k=>{
+    if(k==="__id" || k==="__row") return;
+    const f=cfgByKey[k], v=rec[k];
+    let nv=dqCleanText(ent, k, v);
+    if(k==="LATITUDE" || k==="LONGITUDE") nv=dqNormCoord(nv);
+    if(f) nv=dqCanonicalListValue(ent, f, nv);
+    if(f && f.type==="int" && typeof nv==="number" && !Number.isInteger(nv)) nv=Math.round(nv);
+    if(nv!==v){ rec[k]=nv; n++; }
+  });
+  return n;
+}
 // kind "list": valor fuera de su lista / lista en cascada / lista múltiple. kind "type": texto en un campo
 // Entero/Decimal, o una fecha que no es fecha. El Mapping Code de Transacciones va en "broken_link".
 function dqIsListField(ent, f){ return (CASCADE_ORDER.includes(f.key) && cascadeCatalog.length>0) || !!(f.list && lists[f.list]); }
@@ -6868,10 +6949,19 @@ function dqFieldTypeIssues(ent, rec, kind){
     if(ent==="TRANSACCIONES" && f.key==="MAPPING_CODE") return;
     const v=String(rec[f.key]).trim(), label=fieldLabel(f.key, ent);
     if(kind==="list"){
-      if(dqIsListField(ent,f) && fieldValueMismatch(ent,f,rec)) out.push({fields:[f.key], msg:`${label}: "${v}" is not in the list of allowed values`});
+      if(dqIsListField(ent,f) && fieldValueMismatch(ent,f,rec)){
+        const canon=dqCanonicalListValue(ent, f, v);
+        out.push({fields:[f.key], msg: canon!==v
+          ? `${label}: "${v}" differs from the list only in capitalization — corrected to "${canon}" on save`
+          : `${label}: "${v}" is not in the list of allowed values`});
+      }
       return;
     }
     if(dqIsListField(ent,f)) return;
+    if(f.type==="int" && isValidNumberString(v) && !Number.isInteger(Number(v.replace(/,/g,"")))){
+      out.push({fields:[f.key], msg:`${label}: "${v}" has decimals in a whole-number field — rounded on save`});
+      return;
+    }
     if((f.type==="int"||f.type==="decimal") && fieldValueMismatch(ent,f,rec)){
       out.push({fields:[f.key], msg:`${label}: "${v}" is not a valid ${f.type==="int"?"whole number":"number"}`});
     } else if(f.type==="date"){
@@ -16680,6 +16770,7 @@ function doSaveRecord(){
   const inputs=document.querySelectorAll("#mBody [data-key]");
   const rec={};
   const missingKeys=[], invalidKeys=[];
+  let autoFixedCount=0;
   inputs.forEach(inp=>{
     const cfg=cfgByKey[inp.dataset.key];
     const v=inp.type==="checkbox" ? (inp.checked?"SI":"") : String(inp.value).trim();
@@ -16689,6 +16780,9 @@ function doSaveRecord(){
     }
     if(cfg&&cfg.type==="int"){
       const clean=v.replace(/,/g,"");
+      // Decimales en un campo Entero (p. ej. 138.8 de un cálculo viejo): se redondea en vez de rechazarlo (ver
+      // normalizeRecordForSave). Texto que no es número sigue siendo inválido.
+      if(/^-?(\d+(\.\d+)?|\.\d+)$/.test(clean) && !/^-?\d+$/.test(clean)){ rec[inp.dataset.key]=Math.round(parseFloat(clean)); autoFixedCount++; return; }
       if(!/^-?\d+$/.test(clean)){ invalidKeys.push(cfg.key); return; }
       rec[inp.dataset.key]=parseInt(clean,10);
     } else if(cfg&&cfg.type==="decimal"){
@@ -16708,6 +16802,7 @@ function doSaveRecord(){
     }
   });
   document.querySelectorAll("#mBody .field-error").forEach(el=>el.classList.remove("field-error"));
+  autoFixedCount+=normalizeRecordForSave(current, rec, cfgByKey);
   if(invalidKeys.length){
     // Hard block: an invalid value is a real error to fix now, not just pending data — nothing is saved.
     [...missingKeys, ...invalidKeys].forEach(k=>{
@@ -16821,6 +16916,7 @@ function doSaveRecord(){
   // Avisos de lo que se actualizó en otros registros; van en el mismo toast final de "guardado" (antes iban en un
   // toast propio que el de "guardado" tapaba de inmediato, así que nunca se alcanzaban a ver).
   const saveNotes=[];
+
   // Nombre del Parque ANTES de este guardado (ver syncParkNameToProperties).
   const prevParkName=current==="PARKS" && editingId ? ((state.PARKS||[]).find(r=>r.__id===editingId)||{}).PROPERTY_NAME : null;
   if(editingId){
@@ -16841,6 +16937,8 @@ function doSaveRecord(){
         if(!fc || fc.hidden || current!=="TRANSACCIONES") rec[k]=(typeof prev[k]==="string" && k!=="__row") ? prev[k].trim() : prev[k];
       });
     }
+    // Campos que no estaban en pantalla (conservados del registro anterior) también se limpian.
+    autoFixedCount+=normalizeRecordForSave(current, rec, cfgByKey);
     rec.__id=editingId; arr[i]=rec;
   } else {
     rec.__id=current+"_"+Date.now(); state[current].unshift(rec); editingId=rec.__id;
@@ -16872,6 +16970,7 @@ function doSaveRecord(){
     const nTrans=recomputeTransactionsForLinkedRecord(current, rec, PHOTO_ID_FIELD[current]==="MAPPING_CODE"?editingOriginalPhotoId:null);
     if(nTrans) saveNotes.push(`${nTrans} linked transaction(s) updated`);
   }
+  if(autoFixedCount) saveNotes.push(`${autoFixedCount} value(s) auto-corrected (coordinates, hidden characters, spaces, capitalization or rounding)`);
   if(current==="PARKS"){
     const sp=syncParkNameToProperties(rec, prevParkName);
     if(sp.props) saveNotes.push(`park name updated in ${sp.props} building(s)${sp.trans?` and ${sp.trans} transaction(s)`:""}`);

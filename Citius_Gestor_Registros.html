@@ -2335,7 +2335,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.30.2</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.31.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -4255,6 +4255,23 @@ function recomputeTransactionsForLinkedRecord(ent, rec, previousCode){
   });
   return n;
 }
+/* Pedido explícito del usuario: PARK_NAME de Propiedades se copia del Parque solo al elegirlo en openParkPicker(),
+   así que renombrar un Parque dejaba sus Propiedades (y las Transacciones de éstas, que copian PARK_NAME de la
+   Propiedad, ver TRANS_SYNC_KEYS) con el nombre viejo. Al guardar un Parque cuyo nombre CAMBIÓ, se actualiza
+   PARK_NAME de todas las Propiedades con su ID Park y luego sus Transacciones. Solo si el nombre cambió: las
+   diferencias que ya existían antes (p. ej. con el desarrollador como prefijo) el usuario las revisará aparte,
+   no se pisan al guardar cualquier otro dato del Parque. Regresa {props, trans} actualizados. */
+function syncParkNameToProperties(park, previousName){
+  const code=String(park.MAPPING_CODE==null?"":park.MAPPING_CODE).trim(), name=String(park.PROPERTY_NAME||"").trim();
+  if(!code || previousName==null || String(previousName).trim()===name) return {props:0, trans:0};
+  let props=0, trans=0;
+  (state.PROPIEDADES||[]).forEach(r=>{
+    if(!ciEq(String(r.ID_PARK==null?"":r.ID_PARK).trim(), code) || String(r.PARK_NAME||"").trim()===name) return;
+    r.PARK_NAME=name; props++;
+    trans+=recomputeTransactionsForLinkedRecord("PROPIEDADES", r, null);
+  });
+  return {props, trans};
+}
 function syncAllTransactionsFromLinked(){
   if(consolidatedMode){ toast("Not available in consolidated mode","err"); return; }
   let touched=0, notFound=0, scanned=0, noCode=0;
@@ -5394,6 +5411,15 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.31.0", date:"2026-10-29", items:[
+    "New records get their ID automatically on save: type prefix + state code + consecutive number (e.g. INDB-NLE-000001; INDB Buildings, PARK Parks, LAND Land, OFFC Offices, SPCE Spaces). The number is per type and doesn't restart by state. Existing IDs don't change.",
+    "IDs can no longer be edited once a record is saved (if one really must change, edit it in the Excel file).",
+    "Buildings, Parks, Land, Offices and Spaces can't be saved without Name, Property Type (where the table has it), Region, State, Market and Submarket. A Space also needs to be linked to an existing Office.",
+    "Renaming a Park updates the Park Name in its Buildings and in their transactions.",
+    "Data quality: validation rules now also apply to Land, Offices and Spaces (value/unit, extra spaces, area units and sums, zero areas, year built, pin outside the polygon), plus new rules for Spaces adding up to more than the Office's GLA and for Buildings/Spaces linked to a Park/Office that doesn't exist. Data Issues column, save blocking and Summary > Data Quality for all of them.",
+    "Data Issues column: the cell is empty when a record has no issues (instead of OK).",
+    "The 'linked transactions updated' notice is now shown in the save message (it used to be covered by it)."
+  ]},
   {version:"8.30.2", date:"2026-10-28", items:[
     "Location catalog: 11 new CDMX office submarkets (CDMX, Bosques, Norte, Insurgentes, Periferico Sur, Interlomas, Polanco, Lomas Altas, Reforma, Lomas Palmas, Santa Fe).",
     "Offices: Maintenance Spots Price unit is now MXN / USD.",
@@ -6662,7 +6688,8 @@ function completionPill(stats){
    todo lo demás (columna "Data Issues" + su filtro, aviso en la ficha, bloqueo al guardar, sección "Data
    Quality" del Summary) sale solo de este catálogo. Decisiones confirmadas con el usuario: los problemas
    BLOQUEAN el guardado (si no se conoce el dato correcto se cancela y el registro se queda pendiente), y la suma
-   de áreas debe ser EXACTA (sin margen). Se empezó por Industrial Buildings; después Parks.
+   de áreas debe ser EXACTA (sin margen). Se empezó por Industrial Buildings; después Parks; después (pedido
+   explícito del usuario) Land, Offices y Spaces con las reglas que les aplican (ver `ents` de cada regla).
    Nota: en Buildings, Available Area es CALCULADO (GLA - Occupied, ver recomputePropertyDerivedFields) y copia
    la unidad de GLA — resta los números SIN convertir, así que si Occupied viene en otra unidad el resultado es
    incorrecto; por eso la regla de unidades es la que de verdad protege esa suma. */
@@ -6676,27 +6703,42 @@ function dqComputedKeys(ent){
   return new Set();
 }
 /* Grupos de área por entidad (total / ocupado / disponible). Buildings: GLA; Parks (pedido explícito del
-   usuario, mismas validaciones que Buildings): terreno. En los 2 casos Available es CALCULADO (total - ocupado). */
+   usuario, mismas validaciones que Buildings): terreno. En los 2 casos Available es CALCULADO (total - ocupado).
+   Land: mismos campos que Parks pero Available se CAPTURA a mano (`availManual`) y Occupied casi nunca viene
+   (0 de 277 en los datos reales), así que la suma exacta solo se exige cuando hay Occupied — si solo hay
+   Available, basta con que no sea mayor que el total (un terreno parcialmente vendido tiene Available < Total).
+   Offices: GLA; Occupied/Available son la suma de sus Spaces (regla aparte "spaces_gla"). Spaces: solo el total
+   (Net Leasable Area) para la regla de "= 0". */
 const DQ_AREA_GROUPS={
   PROPIEDADES:{total:"LEASABLE_AREA_GLA", occ:"OCCUPIED_AREA", avail:"AVAILABLE_AREA", names:{total:"Leasable Area (GLA)", occ:"Occupied Area", avail:"Available Area"}, short:{total:"GLA", occ:"Occupied", avail:"Available"}},
   PARKS:{total:"TOTAL_LAND_SIZE", occ:"OCCUPIED_LAND", avail:"AVAILABLE_AREA", names:{total:"Total Land Size", occ:"Occupied Land", avail:"Available Area"}, short:{total:"Total Land", occ:"Occupied", avail:"Available"}},
+  LAND:{total:"TOTAL_LAND_SIZE", occ:"OCCUPIED_LAND", avail:"AVAILABLE_AREA", availManual:true, names:{total:"Total Land Size", occ:"Occupied Land", avail:"Available Area"}, short:{total:"Total Land", occ:"Occupied", avail:"Available"}},
+  OFICINAS:{total:"LEASABLE_AREA_GLA", occ:"OCCUPIED_AREA", avail:"AVAILABLE_AREA", names:{total:"Leasable Area (GLA)", occ:"Occupied Area", avail:"Available Area"}, short:{total:"GLA", occ:"Occupied", avail:"Available"}},
+  SPACES:{total:"NET_LEASABLE_AREA", names:{total:"Net Leasable Area"}},
 };
 function dqAreaUnitsCheck(ent, rec){
   const g=DQ_AREA_GROUPS[ent], parts=["total","occ","avail"].map(k=>({k, v:g[k]+"_VALUE", u:g[k]+"_UNIT"}));
   const filled=parts.filter(p=>!DQ_EMPTY(rec[p.u]));
   if(new Set(filled.map(p=>String(rec[p.u]).trim().toLowerCase())).size<=1) return [];
-  return [{fields:filled.filter(p=>p.k!=="avail").map(p=>p.u),
+  return [{fields:filled.filter(p=>g.availManual || p.k!=="avail").map(p=>p.u),
     msg:`${g.names.total}, ${g.names.occ} and ${g.names.avail} must all use the same unit — now: ${filled.map(p=>`${g.short[p.k]} in ${rec[p.u]}`).join(", ")}`}];
 }
 function dqAreaSumCheck(ent, rec){
   const g=DQ_AREA_GROUPS[ent], [gk,ok,ak]=[g.total+"_VALUE", g.occ+"_VALUE", g.avail+"_VALUE"], n=g.names;
   if(DQ_EMPTY(rec[gk])){
     if(!DQ_EMPTY(rec[ok])) return [{fields:[gk], msg:`${n.total} is empty but ${n.occ} has a value`}];
+    if(g.availManual && !DQ_EMPTY(rec[ak])) return [{fields:[gk], msg:`${n.total} is empty but ${n.avail} has a value`}];
     return [];
   }
   const t=DQ_NUM(rec[gk]), o=DQ_EMPTY(rec[ok])?0:DQ_NUM(rec[ok]), a=DQ_EMPTY(rec[ak])?0:DQ_NUM(rec[ak]);
   if(t==null||o==null||a==null) return [];
   if(o>t) return [{fields:[ok,gk], msg:`${n.occ} (${fmtDqNum(o)}) is larger than ${n.total} (${fmtDqNum(t)})`}];
+  if(g.availManual){
+    if(a>t) return [{fields:[ak,gk], msg:`${n.avail} (${fmtDqNum(a)}) is larger than ${n.total} (${fmtDqNum(t)})`}];
+    if(DQ_EMPTY(rec[ok])) return [];
+    if(Math.abs((o+a)-t)>1e-6) return [{fields:[ok,ak,gk], msg:`${g.short.occ} (${fmtDqNum(o)}) + ${g.short.avail} (${fmtDqNum(a)}) = ${fmtDqNum(o+a)}, but ${n.total} is ${fmtDqNum(t)}`}];
+    return [];
+  }
   if(Math.abs((o+a)-t)>1e-6) return [{fields:[ok,gk], msg:`${g.short.occ} (${fmtDqNum(o)}) + ${g.short.avail} (${fmtDqNum(a)}) = ${fmtDqNum(o+a)}, but ${n.total} is ${fmtDqNum(t)}`}];
   return [];
 }
@@ -6710,7 +6752,7 @@ function dqAreaZeroCheck(ent, rec){
   return [{fields:[k], msg:`${g.names.total} can't be ${v<0?"negative":"0"} (${rec[k]})`}];
 }
 const DATA_QUALITY_RULES=[
-  { id:"value_unit", ents:["PROPIEDADES","PARKS"], short:"Value / unit", label:"Value without unit / unit without value",
+  { id:"value_unit", ents:["PROPIEDADES","PARKS","LAND","OFICINAS","SPACES"], short:"Value / unit", label:"Value without unit / unit without value",
     check(ent, rec){
       const out=[], computed=dqComputedKeys(ent);
       fields(ent).forEach(f=>{
@@ -6725,13 +6767,25 @@ const DATA_QUALITY_RULES=[
       return out;
     } },
   { id:"area_units", ents:["PROPIEDADES"], short:"Area units", label:"Area units don't match (GLA / Occupied / Available)", check:dqAreaUnitsCheck },
-  { id:"land_units", ents:["PARKS"], short:"Land units", label:"Land units don't match (Total / Occupied / Available)", check:dqAreaUnitsCheck },
+  { id:"land_units", ents:["PARKS","LAND"], short:"Land units", label:"Land units don't match (Total / Occupied / Available)", check:dqAreaUnitsCheck },
   { id:"area_sum", ents:["PROPIEDADES"], short:"Area sum", label:"Occupied + Available ≠ Leasable Area (GLA)", check:dqAreaSumCheck },
-  { id:"land_sum", ents:["PARKS"], short:"Land sum", label:"Occupied + Available ≠ Total Land Size", check:dqAreaSumCheck },
+  { id:"land_sum", ents:["PARKS","LAND"], short:"Land sum", label:"Occupied + Available ≠ Total Land Size", check:dqAreaSumCheck },
+  /* Offices (pedido explícito del usuario): Occupied/Available son la suma del Net Leasable Area de sus Spaces
+     (ver recomputeOfficeDerivedFields, ya convertida a la unidad del GLA), así que NO se exige que sumen el GLA
+     (es normal que no todos los espacios del edificio estén dados de alta) — solo que no lo rebasen. Margen de
+     0.01 por el redondeo a 2 decimales de esa suma. */
+  { id:"spaces_gla", ents:["OFICINAS"], short:"Spaces > GLA", label:"Spaces add up to more than Leasable Area (GLA)",
+    check(ent, rec){
+      if(DQ_EMPTY(rec.LEASABLE_AREA_GLA_VALUE)) return [];
+      const t=DQ_NUM(rec.LEASABLE_AREA_GLA_VALUE), o=DQ_NUM(rec.OCCUPIED_AREA_VALUE)||0, a=DQ_NUM(rec.AVAILABLE_AREA_VALUE)||0;
+      if(t==null || t<=0 || o+a<=t+0.01) return [];
+      const u=rec.LEASABLE_AREA_GLA_UNIT||"";
+      return [{fields:["LEASABLE_AREA_GLA_VALUE"], msg:`The Spaces of this office add up to ${fmtDqNum(o+a)} ${u} (Occupied ${fmtDqNum(o)} + Available ${fmtDqNum(a)}), more than Leasable Area (GLA) ${fmtDqNum(t)} ${u} — fix the GLA or the Spaces' Net Leasable Area`}];
+    } },
   /* Pedido explícito del usuario: ningún valor con espacios al inicio o al final. Al guardar desde la ficha el
      sistema ya los quita (doSaveRecord hace trim de todo lo capturado, y también de los valores que no están en
      pantalla), así que esta regla nunca bloquea: sirve para encontrar los que vienen de cargas directas al Excel. */
-  { id:"trim", ents:["PROPIEDADES","PARKS"], short:"Extra spaces", label:"Extra spaces at the start/end of a value",
+  { id:"trim", ents:["PROPIEDADES","PARKS","LAND","OFICINAS","SPACES"], short:"Extra spaces", label:"Extra spaces at the start/end of a value",
     check(ent, rec){
       const out=[];
       fields(ent).forEach(f=>{
@@ -6750,7 +6804,7 @@ const DATA_QUALITY_RULES=[
       if(a<=b) return [];
       return [{fields:["MIN_CLEAR_HEIGHT_VALUE","MAX_CLEAR_HEIGHT_VALUE"], msg:`Min Clear Height (${fmtDqNum(mn.v)} ${rec.MIN_CLEAR_HEIGHT_UNIT||""}) is greater than Max Clear Height (${fmtDqNum(mx.v)} ${rec.MAX_CLEAR_HEIGHT_UNIT||""})`}];
     } },
-  { id:"year_built", ents:["PROPIEDADES","PARKS"], short:"Year built", label:"Year built is in the future",
+  { id:"year_built", ents:["PROPIEDADES","PARKS","OFICINAS"], short:"Year built", label:"Year built is in the future",
     check(ent, rec){
       if(DQ_EMPTY(rec.YEAR_BUITL_DEVELOPED)) return [];
       const y=DQ_NUM(rec.YEAR_BUITL_DEVELOPED), now=new Date().getFullYear();
@@ -6758,9 +6812,23 @@ const DATA_QUALITY_RULES=[
       return [{fields:["YEAR_BUITL_DEVELOPED"], msg:`Year Built / Developed (${rec.YEAR_BUITL_DEVELOPED}) can't be later than the current year (${now})`}];
     } },
   // Pedido explícito del usuario: el GLA no puede ser 0 (tampoco negativo); lo mismo para el terreno de Parks.
-  { id:"gla_zero", ents:["PROPIEDADES"], short:"GLA = 0", label:"Leasable Area (GLA) is 0", check:dqAreaZeroCheck },
-  { id:"land_zero", ents:["PARKS"], short:"Land = 0", label:"Total Land Size is 0", check:dqAreaZeroCheck },
-  { id:"pin_polygon", ents:["PROPIEDADES","PARKS"], short:"Pin / polygon", label:"Pin is outside the polygon",
+  { id:"gla_zero", ents:["PROPIEDADES","OFICINAS"], short:"GLA = 0", label:"Leasable Area (GLA) is 0", check:dqAreaZeroCheck },
+  { id:"nla_zero", ents:["SPACES"], short:"NLA = 0", label:"Net Leasable Area is 0", check:dqAreaZeroCheck },
+  { id:"land_zero", ents:["PARKS","LAND"], short:"Land = 0", label:"Total Land Size is 0", check:dqAreaZeroCheck },
+  /* Pedido explícito del usuario: relaciones rotas — una Propiedad cuyo ID Park no existe en Parks, o un Space
+     cuyo Mapping Code no existe en Offices (p. ej. porque se cambió el ID en el Excel o venía mal de una carga).
+     ID Park = 0 ("Stand Alone") no cuenta. Las Transacciones ya se marcan aparte (fieldValueMismatch de MAPPING_CODE). Se corrige eligiendo el
+     registro correcto con el botón de la ficha (Seleccionar Parque… / Select Office…). */
+  { id:"broken_link", ents:["PROPIEDADES","SPACES"], short:"Broken link", label:"Linked Park / Office doesn't exist",
+    check(ent, rec){
+      const [key, target, name]=ent==="PROPIEDADES" ? ["ID_PARK","PARKS","Park"] : ["MAPPING_CODE","OFICINAS","Office"];
+      if(DQ_EMPTY(rec[key])) return [];
+      // ID Park = 0 es "Stand Alone" (opción extra de openParkPicker), no un Parque — es válido.
+      if(ent==="PROPIEDADES" && String(rec[key]).trim()==="0") return [];
+      if(linkedCodeIndex(target).has(String(rec[key]).trim().toLowerCase())) return [];
+      return [{fields:[key], msg:`${fieldLabel(key, ent)} "${String(rec[key]).trim()}" doesn't match any ${name} — select the right ${name} again`}];
+    } },
+  { id:"pin_polygon", ents:["PROPIEDADES","PARKS","LAND","OFICINAS"], short:"Pin / polygon", label:"Pin is outside the polygon",
     check(ent, rec){
       const pk=polygonKeyFor(ent);
       if(!pk || DQ_EMPTY(rec[pk]) || DQ_EMPTY(rec.LATITUDE) || DQ_EMPTY(rec.LONGITUDE)) return [];
@@ -6813,7 +6881,9 @@ function dataIssues(ent, rec){
   return out;
 }
 function dataIssuesPill(issues){
-  if(!issues.length) return '<span class="pill green" title="No data issues">OK</span>';
+  // Pedido explícito del usuario: sin problemas la celda queda vacía (antes un "OK" verde) — así solo resaltan
+  // los registros que de verdad tienen algún tema.
+  if(!issues.length) return "";
   return `<span class="pill red" title="${escapeAttr(issues.map(i=>"• "+i.msg).join("\n"))}">${issues.length}</span>`;
 }
 /* Filtro propio de la columna "Data Issues" (un registro puede tener varios problemas a la vez, por eso no usa el
@@ -8445,6 +8515,9 @@ function renderResumenView(){
     <h3 class="resumen-section-title">Data Quality</h3>
     <div class="resumen-row-full">${resumenDataQualityTableHtml("Industrial Buildings","PROPIEDADES")}</div>
     <div class="resumen-row-full">${resumenDataQualityTableHtml("Industrial Parks","PARKS")}</div>
+    <div class="resumen-row-full">${resumenDataQualityTableHtml("Land","LAND")}</div>
+    <div class="resumen-row-full">${resumenDataQualityTableHtml("Offices","OFICINAS")}</div>
+    <div class="resumen-row-full">${resumenDataQualityTableHtml("Spaces","SPACES")}</div>
     <div class="resumen-usage-header">
       <div>
         <h3 class="resumen-section-title" style="margin-top:0">Tool Usage</h3>
@@ -10723,6 +10796,18 @@ function buildForm(ent, record){
     if(GEO_ID_FIELD_KEYS.has(f.key)) return `<input type="hidden" data-key="${f.key}" value="${val}">`;
     const reqMark=f.required?' <span class="field-required">*</span>':"";
     const helpIcon=fieldHelpIconHtml(ent,f);
+    /* Pedido explícito del usuario: el ID propio del registro (PHOTO_ID_FIELD — Mapping Code / Space Code) nunca se
+       teclea. Al cambiarlo, las relaciones que lo usan (ID_PARK de Propiedades, fotos si la carpeta no estaba
+       conectada, etc.) se quedaban con el código viejo; y ahora el sistema lo genera solo al guardar (ver
+       nextRecordId). Ya guardado, es de solo lectura; si de verdad hay que cambiarlo, se hace en el Excel — la
+       regla "broken_link" de DATA_QUALITY_RULES marca lo que quede roto. */
+    if(PHOTO_ID_FIELD[ent]===f.key){
+      const title=val ? "The ID can't be changed once the record is saved — other records and photos are linked to it. If it really must change, edit it in the Excel file."
+        : "The ID is generated automatically when the record is saved (type prefix + state code + consecutive number).";
+      return `<div class="field field-readonly"><label>${fieldLabel(f.key)}${reqMark}${helpIcon}</label>
+        <input value="${val}" readonly disabled placeholder="Generated automatically on save" title="${title}">
+        <input type="hidden" data-key="${f.key}" value="${val}"></div>`;
+    }
     // v8.19.x, pedido explícito del usuario: Notes (Internal Notes) y Comm. Condition Notes (Parks) son un
     // área de texto grande, a lo ancho de toda la sección, en vez de un input de 1 renglón.
     if(LONG_TEXT_FIELD_KEYS.has(f.key)){
@@ -16490,6 +16575,49 @@ function closeModal(){ document.getElementById("overlay").classList.remove("show
 // Parque ("Seleccionar Parque…") — guarda una copia exacta del MAPPING_CODE de ese Parque, así que corre
 // el mismo riesgo de convertirse a número si "parece" uno (ver el comentario grande de arriba).
 const ID_LIKE_FIELD_KEYS = new Set(["MAPPING_CODE","ID_PARK","SPACE_CODE"]);
+/* ==== ID automático (pedido explícito del usuario) ====
+   El ID propio de cada registro nuevo (PHOTO_ID_FIELD) lo genera el sistema al guardar: PREFIJO-EDO-000001.
+   - Prefijo por entidad (catálogo de prefijos por tipo del usuario). RETL (Retail) queda pendiente hasta que
+     exista esa entidad/tipo — hoy todo Offices sale como OFFC.
+   - EDO = código ISO 3166-2:MX del Estado capturado (tabla del usuario). NO se usa "CODIGO ESTADO" del catálogo
+     de ubicación: ahí vienen otras abreviaturas (NL, COAH, CDMX…). Las llaves van normalizadas (ver
+     stateIsoCode) e incluyen los nombres tal como vienen en el catálogo ("Estado Mexico", "Cd Mexico").
+   - Consecutivo PROPIO DEL TIPO, sin reiniciar por estado (una nave de Jalisco después de 1 de Nuevo León toma
+     el 000002), = mayor número existente con ese prefijo + 1. Confirmado con el usuario: se calcula sobre el
+     Excel abierto (no sobre los archivos de los demás usuarios).
+   - Los IDs que ya existían (ACU0001, 121, AP0001…) se quedan tal cual; no se migran. */
+const RECORD_ID_PREFIX={ PROPIEDADES:"INDB", PARKS:"PARK", LAND:"LAND", OFICINAS:"OFFC", SPACES:"SPCE" };
+const normStateName=v=>String(v==null?"":v).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z ]/g," ").replace(/\b(de|del|la)\b/g," ").replace(/\s+/g," ").trim();
+const STATE_ISO_CODES=(()=>{
+  const m={}, add=(code,...names)=>names.forEach(n=>{ m[normStateName(n)]=code; });
+  add("AGU","Aguascalientes"); add("BCN","Baja California"); add("BCS","Baja California Sur"); add("CAM","Campeche");
+  add("CHP","Chiapas"); add("CHH","Chihuahua"); add("CMX","Ciudad de México","Cd Mexico","Cd. de México","CDMX","Mexico City");
+  add("COA","Coahuila","Coahuila de Zaragoza"); add("COL","Colima"); add("DUR","Durango"); add("GUA","Guanajuato");
+  add("GRO","Guerrero"); add("HID","Hidalgo"); add("JAL","Jalisco"); add("MEX","Estado de México","Estado Mexico","Edo. de México","Edo Mexico","México");
+  add("MIC","Michoacán","Michoacán de Ocampo"); add("MOR","Morelos"); add("NAY","Nayarit"); add("NLE","Nuevo León");
+  add("OAX","Oaxaca"); add("PUE","Puebla"); add("QUE","Querétaro","Querétaro de Arteaga"); add("ROO","Quintana Roo");
+  add("SLP","San Luis Potosí"); add("SIN","Sinaloa"); add("SON","Sonora"); add("TAB","Tabasco"); add("TAM","Tamaulipas");
+  add("TLA","Tlaxcala"); add("VER","Veracruz","Veracruz de Ignacio de la Llave"); add("YUC","Yucatán"); add("ZAC","Zacatecas");
+  return m;
+})();
+function stateIsoCode(stateName){ return STATE_ISO_CODES[normStateName(stateName)]||null; }
+// Siguiente ID libre para `ent` en el estado dado; null si la entidad no genera ID o el estado no tiene código.
+function nextRecordId(ent, stateName){
+  const prefix=RECORD_ID_PREFIX[ent], edo=stateIsoCode(stateName);
+  if(!prefix || !edo) return null;
+  const key=PHOTO_ID_FIELD[ent], re=new RegExp("^"+prefix+"-[A-Z]{3}-(\\d+)$","i");
+  const taken=new Set((state[ent]||[]).map(r=>String(r[key]==null?"":r[key]).trim().toUpperCase()));
+  let n=0;
+  taken.forEach(code=>{ const m=re.exec(code); if(m) n=Math.max(n, Number(m[1])); });
+  let id;
+  do { n++; id=`${prefix}-${edo}-${String(n).padStart(6,"0")}`; } while(taken.has(id));
+  return id;
+}
+/* Pedido explícito del usuario: sin Nombre, Property Type, Región, Estado, Mercado y Submercado no se puede crear
+   ni guardar un registro de las entidades con ID automático (el Estado además arma el ID). Solo los que existen
+   en la entidad (Land y Spaces no tienen Property Type) y están en la ficha (un campo oculto desde
+   Configuración no se puede llenar ahí). Spaces los toma de su Oficina al elegirla. */
+const SAVE_REQUIRED_KEYS=["PROPERTY_NAME","PROPERTY_TYPE","REGION","STATE","MARKET","SUBMARKET"];
 document.getElementById("saveBtn").onclick=()=>{ ensureBackupFolderThenRun(doSaveRecord); };
 function doSaveRecord(){
   if(blockIfConsolidated()) return;
@@ -16550,6 +16678,39 @@ function doSaveRecord(){
   // propio registro cuando se edita sin cambiar su ID (para uno nuevo, editingId es null, así que se
   // compara contra todos los existentes).
   const uniqueKey=PHOTO_ID_FIELD[current];
+  if(RECORD_ID_PREFIX[current]){
+    /* Pedido explícito del usuario: un Space solo se guarda (y genera su ID) si está enlazado a una Oficina que
+       existe — de ella salen su nombre, ubicación y el Estado del ID. Se revisa ANTES que los campos de abajo
+       para que el aviso diga lo que de verdad falta (elegir la Oficina), no "falta Property Name". */
+    if(current==="SPACES"){
+      const code=String(rec.MAPPING_CODE==null?"":rec.MAPPING_CODE).trim();
+      if(!code || !linkedCodeIndex("OFICINAS").has(code.toLowerCase())){
+        const el=document.querySelector(`#mBody [data-key="MAPPING_CODE"]`);
+        if(el){ el.classList.add("field-error"); const panel=el.closest(".form-panel"); if(panel) switchFormPanel(Number(panel.dataset.panel)); }
+        toast(code ? `Office "${code}" doesn't exist — choose the Office with "Select Office…" to save the Space` : `Choose the Office this Space belongs to ("Select Office…") — can't save without it`,"err");
+        return;
+      }
+    }
+    const onFormKeys=new Set([...inputs].map(inp=>inp.dataset.key));
+    const lacking=SAVE_REQUIRED_KEYS.filter(k=>cfgByKey[k] && onFormKeys.has(k) && DQ_EMPTY(rec[k]));
+    if(lacking.length){
+      lacking.forEach(k=>{ const el=document.querySelector(`#mBody [data-key="${k}"]`); if(el) el.classList.add("field-error"); });
+      const first=document.querySelector("#mBody .field-error"), panel=first && first.closest(".form-panel");
+      if(panel) switchFormPanel(Number(panel.dataset.panel));
+      toast(`Can't save without: ${lacking.map(k=>fieldLabel(k, current)).join(", ")}`,"err");
+      return;
+    }
+    // Registro nuevo (o uno viejo que nunca tuvo ID): el sistema genera el ID aquí.
+    if(DQ_EMPTY(rec[uniqueKey])){
+      const id=nextRecordId(current, rec.STATE);
+      if(!id){
+        const el=document.querySelector(`#mBody [data-key="STATE"]`); if(el) el.classList.add("field-error");
+        toast(`Can't generate the ID: state "${rec.STATE||""}" has no state code — choose a Mexican state`,"err");
+        return;
+      }
+      rec[uniqueKey]=id;
+    }
+  }
   if(uniqueKey){
     const uniqueVal=rec[uniqueKey]!=null?String(rec[uniqueKey]).trim():"";
     // v3.51.3, pedido explícito del usuario: el ID de cada tabla (Mapping Code/ID Park/ID Terreno/Space
@@ -16587,6 +16748,7 @@ function doSaveRecord(){
     const probe={...rec};
     if(current==="PROPIEDADES") recomputePropertyDerivedFields(probe);
     if(current==="PARKS") recomputeParkDerivedFields(probe);
+    if(current==="OFICINAS") recomputeOfficeDerivedFields(probe);
     const onForm=new Set([...inputs].map(inp=>inp.dataset.key));
     const blocking=dataIssues(current, probe).filter(i=>i.fields.some(k=>onForm.has(k)));
     if(blocking.length){
@@ -16601,6 +16763,11 @@ function doSaveRecord(){
   }
   // Missing required fields no longer block saving — persist whatever was captured so far (partial progress).
   const isNew=!editingId;
+  // Avisos de lo que se actualizó en otros registros; van en el mismo toast final de "guardado" (antes iban en un
+  // toast propio que el de "guardado" tapaba de inmediato, así que nunca se alcanzaban a ver).
+  const saveNotes=[];
+  // Nombre del Parque ANTES de este guardado (ver syncParkNameToProperties).
+  const prevParkName=current==="PARKS" && editingId ? ((state.PARKS||[]).find(r=>r.__id===editingId)||{}).PROPERTY_NAME : null;
   if(editingId){
     const arr=state[current]; const i=arr.findIndex(r=>r.__id===editingId);
     // Pedido explícito del usuario (ocultar campos desde Configuración + campos condicionales de Spaces): antes
@@ -16648,7 +16815,11 @@ function doSaveRecord(){
   // recomputeTransactionsForLinkedRecord). editingOriginalPhotoId aún trae el Mapping Code anterior aquí.
   if(TRANS_LINK_ENTS.includes(current)){
     const nTrans=recomputeTransactionsForLinkedRecord(current, rec, PHOTO_ID_FIELD[current]==="MAPPING_CODE"?editingOriginalPhotoId:null);
-    if(nTrans) toast(`${nTrans} linked transaction(s) updated.`,"ok");
+    if(nTrans) saveNotes.push(`${nTrans} linked transaction(s) updated`);
+  }
+  if(current==="PARKS"){
+    const sp=syncParkNameToProperties(rec, prevParkName);
+    if(sp.props) saveNotes.push(`park name updated in ${sp.props} building(s)${sp.trans?` and ${sp.trans} transaction(s)`:""}`);
   }
   const photoIdKey=PHOTO_ID_FIELD[current];
   if(photoIdKey && editingOriginalPhotoId && rec[photoIdKey] && rec[photoIdKey]!==editingOriginalPhotoId){
@@ -16666,9 +16837,9 @@ function doSaveRecord(){
   switchFormPanel(activeIdx);
   if(missingKeys.length){
     document.querySelectorAll("#mBody [data-key]").forEach(inp=>{ if(missingKeys.includes(inp.dataset.key)) inp.classList.add("field-error"); });
-    toast(`Saved. Still missing information in ${missingKeys.length} required field${missingKeys.length===1?"":"s"}`,"err");
+    toast(`Saved. Still missing information in ${missingKeys.length} required field${missingKeys.length===1?"":"s"}${saveNotes.length?" · "+saveNotes.join(" · "):""}`,"err");
   } else {
-    toast(isNew?"Record added":"Record updated","ok");
+    toast((isNew?"Record added":"Record updated")+(saveNotes.length?" · "+saveNotes.join(" · "):""),"ok");
   }
 };
 function maybeNum(v){ const n=Number(v.replace(/,/g,"")); return (!isNaN(n)&&v.replace(/,/g,"").match(/^-?\d*\.?\d+$/))?n:v; }
@@ -17393,7 +17564,7 @@ async function loadImagePreview(kindKey){
   if(!box) return;
   releaseFichaPhotoUrl(box.id); // libera lo que esta misma casilla tuviera antes de reemplazarla, sea cual sea la rama que siga
   const code=currentPhotoId();
-  if(!code){ box.innerHTML=`<div class="image-placeholder">Escribe un ${escapeHtml(fieldLabel(PHOTO_ID_FIELD[current]))} para poder subir/ver la foto</div>`; removeBtn.style.display="none"; return; }
+  if(!code){ box.innerHTML=`<div class="image-placeholder">Guarda el registro primero (el ${escapeHtml(fieldLabel(PHOTO_ID_FIELD[current]))} se genera al guardar) para poder subir/ver la foto</div>`; removeBtn.style.display="none"; return; }
   if(!imagesDirHandle){ box.innerHTML=`<div class="image-placeholder">No images folder linked.<br>Go to ⚙ Settings.</div>`; removeBtn.style.display="none"; return; }
   const granted=(await imagesDirHandle.queryPermission({mode:"read"}))==="granted";
   if(!granted){
@@ -17581,7 +17752,7 @@ async function handleImageFileChosen(ev,kindKey){
    v3.30.3 — el guardado real ahora pasa por confirmPhotoEditSave(), disparado por el botón del modal. */
 async function startImageUpload(file, kindKey){
   const code=currentPhotoId();
-  if(!code){ toast(`Enter a ${fieldLabel(PHOTO_ID_FIELD[current])} before uploading the photo`,"err"); return; }
+  if(!code){ toast(`Save the record first — the ${fieldLabel(PHOTO_ID_FIELD[current])} is generated on save`,"err"); return; }
   if(!imagesDirHandle){ toast("First link an images folder in ⚙ Settings","err"); return; }
   if(!(await ensurePermission(imagesDirHandle,"readwrite"))){ toast("Permission denied for the images folder","err"); return; }
   openPhotoEditModal(file, kindKey);

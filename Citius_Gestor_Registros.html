@@ -16551,40 +16551,53 @@ async function openEdit(id){
     document.getElementById("overlay").classList.add("show");
   }catch(e){ closeModal(); toast("Couldn't open the record: "+e.message,"err"); }
 }
+/* Pedido explícito del usuario ("es lento cuando abro datos de un registro"): antes la ficha de vista ESPERABA a
+   revisar el Excel en disco (refreshFromFileIfLinked: si cambió, se vuelve a leer y procesar completo, varios
+   segundos con un archivo grande) y la carpeta de fotos (ensurePhotoSet), cada una con hasta 4 s de espera si
+   OneDrive tarda en responder. Ahora la ficha se muestra AL INSTANTE con lo que ya está en memoria y esas
+   revisiones corren en segundo plano: si el archivo/config cambió o la lista de fotos se acaba de cargar, la
+   ficha se vuelve a pintar sola (solo si sigue abierta en vista sobre ese mismo registro). openEdit() sigue
+   revisando ANTES de abrir — editar sobre datos viejos podría pisar cambios de otra persona. */
+let viewOpenSeq=0;
+function renderViewRecord(rec, panelIdx){
+  if(current==="PARKS") recomputeParkDerivedFields(rec);
+  if(current==="PROPIEDADES") recomputePropertyDerivedFields(rec);
+  document.getElementById("mTitle").textContent=rec[ENTITIES[current].titleField]||ENTITIES[current].label;
+  document.getElementById("mBody").innerHTML=buildViewForm(current,rec);
+  if(dqEntityHasRules(current)) showDqInForm(dataIssues(current, rec), false);
+  recordLocMapRec=rec; renderRecordLocMap();
+  document.getElementById("modalEditBtn").style.display=(consolidatedMode||current==="BITACORA")?"none":"";
+  document.getElementById("modalExitEditBtn").style.display="none";
+  document.getElementById("modalFoot").style.display="none";
+  document.getElementById("overlay").classList.add("show");
+  if(PHOTO_ID_FIELD[current]) photoKindsFor(current).forEach(k=>loadViewImagePreview(rec[PHOTO_ID_FIELD[current]], k.key));
+  if(panelIdx) switchFormPanel(panelIdx);
+}
 async function openView(id, panelIdx){
-  showFichaLoading();
+  const seq=++viewOpenSeq, ent=current;
   try{
-    // v3.45.7: las lecturas de archivo vinculado (datos/config) no tenían timeout — a diferencia
-    // de ensurePhotoSet() (justo abajo), que sí lo tiene desde v3.45.2. Si alguno vive en una carpeta OneDrive
-    // "a petición" y está en estado nube-solamente, getFile()/arrayBuffer() puede no resolver NUNCA —
-    // verificado en vivo: sin este fix la ficha se queda colgada indefinidamente ("Cargando…" sin salida).
-    // Se envuelven en withTimeout(...,4000,false) (mismo mecanismo ya usado para fotos) y se lanzan en
-    // paralelo con Promise.all (sin dependencia de orden entre ellas: loadFromWorkbook solo toca
-    // lists/fieldConfig/cascadeCatalog cuando !configFileHandle, mutuamente excluyente con
-    // refreshConfigFileIfLinked) — el peor caso pasa de hasta 2×4s secuenciales a 4s como máximo total.
-    // v6.5.10: se quitó la 3ra lectura (Terrenos ya no tiene archivo aparte, ver loadFromWorkbook()).
-    const [dataChanged,cfgChanged]=await Promise.all([
-      withTimeout(refreshFromFileIfLinked(), 4000, false),
-      withTimeout(refreshConfigFileIfLinked(), 4000, false)
-    ]);
-    if(dataChanged||cfgChanged) renderTable();
-    if(PHOTO_ID_FIELD[current]) await withTimeout(ensurePhotoSet(), 4000, null);
     editingId=id;
     const rec=(state[current]||[]).find(r=>r.__id===id);
     if(!rec){ closeModal(); toast("This record no longer exists (someone else deleted it, or the file changed).","err"); return; }
-    if(current==="PARKS") recomputeParkDerivedFields(rec);
-    if(current==="PROPIEDADES") recomputePropertyDerivedFields(rec);
-    document.getElementById("mTitle").textContent=rec[ENTITIES[current].titleField]||ENTITIES[current].label;
-    document.getElementById("mBody").innerHTML=buildViewForm(current,rec);
-    if(dqEntityHasRules(current)) showDqInForm(dataIssues(current, rec), false);
-    recordLocMapRec=rec; renderRecordLocMap();
-    document.getElementById("modalEditBtn").style.display=(consolidatedMode||current==="BITACORA")?"none":"";
-    document.getElementById("modalExitEditBtn").style.display="none";
-    document.getElementById("modalFoot").style.display="none";
-    document.getElementById("overlay").classList.add("show");
-    if(PHOTO_ID_FIELD[current]) photoKindsFor(current).forEach(k=>loadViewImagePreview(rec[PHOTO_ID_FIELD[current]], k.key));
-    if(panelIdx) switchFormPanel(panelIdx);
-  }catch(e){ closeModal(); toast("Couldn't open the record: "+e.message,"err"); }
+    renderViewRecord(rec, panelIdx);
+  }catch(e){ closeModal(); toast("Couldn't open the record: "+e.message,"err"); return; }
+  // Revisión en segundo plano (mismas lecturas y timeouts de antes — ver comentario v3.45.7 en openEdit).
+  const hadPhotoSet=!!photoSet;
+  const [dataChanged,cfgChanged]=await Promise.all([
+    withTimeout(refreshFromFileIfLinked(), 4000, false),
+    withTimeout(refreshConfigFileIfLinked(), 4000, false)
+  ]);
+  if(dataChanged||cfgChanged) renderTable();
+  if(PHOTO_ID_FIELD[ent]) await withTimeout(ensurePhotoSet(), 4000, null);
+  const photosNowKnown=!hadPhotoSet && !!photoSet;
+  // ¿La ficha sigue abierta, en vista (no se pasó a edición), sobre el mismo registro?
+  const stillViewing=seq===viewOpenSeq && current===ent && editingId===id && document.getElementById("overlay").classList.contains("show")
+    && document.getElementById("modalFoot").style.display==="none";
+  if(!stillViewing || !(dataChanged||cfgChanged||photosNowKnown)) return;
+  const fresh=(state[current]||[]).find(r=>r.__id===id);
+  if(!fresh){ closeModal(); toast("This record no longer exists (someone else deleted it, or the file changed).","err"); return; }
+  const activeEl=document.querySelector("#mBody .form-panel.active");
+  renderViewRecord(fresh, activeEl?Number(activeEl.dataset.panel):0);
 }
 function switchToEditMode(){
   const activeEl=document.querySelector("#mBody .form-panel.active");
@@ -18453,7 +18466,9 @@ async function writeToFile(){
         }
       }
     }
-    const buf=XLSX.write(buildWorkbook(),{bookType:"xlsx",type:"array"});
+    // compression:true (pedido explícito del usuario por lentitud): sin comprimir el archivo crecía ~4x (36 MB vs
+    // 9.6 MB con los datos reales) y escribirlo era ~2x más lento; también es menos que subir a OneDrive.
+    const buf=XLSX.write(buildWorkbook(),{bookType:"xlsx",type:"array",compression:true});
     const w=await fileHandle.createWritable();
     await w.write(buf); await w.close();
     const written=await fileHandle.getFile();

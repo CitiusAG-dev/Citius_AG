@@ -2335,7 +2335,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.31.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.32.0</div>
     </nav>
   </aside>
   <div class="main">
@@ -5411,6 +5411,15 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.32.0", date:"2026-10-29", items:[
+    "Data quality: values outside the list of allowed values and values of the wrong type (text in a number field, invalid dates) are now Data Issues for all tables, Transactions included, and block saving. They follow the current field configuration, so changing a field's type or list applies right away.",
+    "Data quality: new rules for Latitude/Longitude (number with up to 6 decimals, swapped or outside Mexico), hidden characters / line breaks / double spaces, and negative numbers (except Latitude/Longitude and Transaction Area on negative absorption).",
+    "Saving a record cleans it automatically: coordinates trimmed to 6 decimals without commas or spaces, line breaks/tabs and invisible characters removed, double spaces collapsed, and list values that differ only in capitalization changed to the official value.",
+    "All whole-number fields are now Decimal.",
+    "Opening a record is instant: the latest file data loads in the background and refreshes the view.",
+    "The Excel file is saved compressed (about 3-4 times smaller, and saving is faster).",
+    "Transactions get their own Data Quality table in the Summary."
+  ]},
   {version:"8.31.0", date:"2026-10-29", items:[
     "New records get their ID automatically on save: type prefix + state code + consecutive number (e.g. INDB-NLE-000001; INDB Buildings, PARK Parks, LAND Land, OFFC Offices, SPCE Spaces). The number is per type and doesn't restart by state. Existing IDs don't change.",
     "IDs can no longer be edited once a record is saved (if one really must change, edit it in the Excel file).",

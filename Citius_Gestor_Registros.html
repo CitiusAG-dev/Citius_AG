@@ -4255,6 +4255,23 @@ function recomputeTransactionsForLinkedRecord(ent, rec, previousCode){
   });
   return n;
 }
+/* Pedido explícito del usuario: PARK_NAME de Propiedades se copia del Parque solo al elegirlo en openParkPicker(),
+   así que renombrar un Parque dejaba sus Propiedades (y las Transacciones de éstas, que copian PARK_NAME de la
+   Propiedad, ver TRANS_SYNC_KEYS) con el nombre viejo. Al guardar un Parque cuyo nombre CAMBIÓ, se actualiza
+   PARK_NAME de todas las Propiedades con su ID Park y luego sus Transacciones. Solo si el nombre cambió: las
+   diferencias que ya existían antes (p. ej. con el desarrollador como prefijo) el usuario las revisará aparte,
+   no se pisan al guardar cualquier otro dato del Parque. Regresa {props, trans} actualizados. */
+function syncParkNameToProperties(park, previousName){
+  const code=String(park.MAPPING_CODE==null?"":park.MAPPING_CODE).trim(), name=String(park.PROPERTY_NAME||"").trim();
+  if(!code || previousName==null || String(previousName).trim()===name) return {props:0, trans:0};
+  let props=0, trans=0;
+  (state.PROPIEDADES||[]).forEach(r=>{
+    if(!ciEq(String(r.ID_PARK==null?"":r.ID_PARK).trim(), code) || String(r.PARK_NAME||"").trim()===name) return;
+    r.PARK_NAME=name; props++;
+    trans+=recomputeTransactionsForLinkedRecord("PROPIEDADES", r, null);
+  });
+  return {props, trans};
+}
 function syncAllTransactionsFromLinked(){
   if(consolidatedMode){ toast("Not available in consolidated mode","err"); return; }
   let touched=0, notFound=0, scanned=0, noCode=0;
@@ -16657,6 +16674,11 @@ function doSaveRecord(){
   }
   // Missing required fields no longer block saving — persist whatever was captured so far (partial progress).
   const isNew=!editingId;
+  // Avisos de lo que se actualizó en otros registros; van en el mismo toast final de "guardado" (antes iban en un
+  // toast propio que el de "guardado" tapaba de inmediato, así que nunca se alcanzaban a ver).
+  const saveNotes=[];
+  // Nombre del Parque ANTES de este guardado (ver syncParkNameToProperties).
+  const prevParkName=current==="PARKS" && editingId ? ((state.PARKS||[]).find(r=>r.__id===editingId)||{}).PROPERTY_NAME : null;
   if(editingId){
     const arr=state[current]; const i=arr.findIndex(r=>r.__id===editingId);
     // Pedido explícito del usuario (ocultar campos desde Configuración + campos condicionales de Spaces): antes
@@ -16704,7 +16726,11 @@ function doSaveRecord(){
   // recomputeTransactionsForLinkedRecord). editingOriginalPhotoId aún trae el Mapping Code anterior aquí.
   if(TRANS_LINK_ENTS.includes(current)){
     const nTrans=recomputeTransactionsForLinkedRecord(current, rec, PHOTO_ID_FIELD[current]==="MAPPING_CODE"?editingOriginalPhotoId:null);
-    if(nTrans) toast(`${nTrans} linked transaction(s) updated.`,"ok");
+    if(nTrans) saveNotes.push(`${nTrans} linked transaction(s) updated`);
+  }
+  if(current==="PARKS"){
+    const sp=syncParkNameToProperties(rec, prevParkName);
+    if(sp.props) saveNotes.push(`park name updated in ${sp.props} building(s)${sp.trans?` and ${sp.trans} transaction(s)`:""}`);
   }
   const photoIdKey=PHOTO_ID_FIELD[current];
   if(photoIdKey && editingOriginalPhotoId && rec[photoIdKey] && rec[photoIdKey]!==editingOriginalPhotoId){
@@ -16722,9 +16748,9 @@ function doSaveRecord(){
   switchFormPanel(activeIdx);
   if(missingKeys.length){
     document.querySelectorAll("#mBody [data-key]").forEach(inp=>{ if(missingKeys.includes(inp.dataset.key)) inp.classList.add("field-error"); });
-    toast(`Saved. Still missing information in ${missingKeys.length} required field${missingKeys.length===1?"":"s"}`,"err");
+    toast(`Saved. Still missing information in ${missingKeys.length} required field${missingKeys.length===1?"":"s"}${saveNotes.length?" · "+saveNotes.join(" · "):""}`,"err");
   } else {
-    toast(isNew?"Record added":"Record updated","ok");
+    toast((isNew?"Record added":"Record updated")+(saveNotes.length?" · "+saveNotes.join(" · "):""),"ok");
   }
 };
 function maybeNum(v){ const n=Number(v.replace(/,/g,"")); return (!isNaN(n)&&v.replace(/,/g,"").match(/^-?\d*\.?\d+$/))?n:v; }

@@ -6872,7 +6872,9 @@ function dataIssues(ent, rec){
   return out;
 }
 function dataIssuesPill(issues){
-  if(!issues.length) return '<span class="pill green" title="No data issues">OK</span>';
+  // Pedido explícito del usuario: sin problemas la celda queda vacía (antes un "OK" verde) — así solo resaltan
+  // los registros que de verdad tienen algún tema.
+  if(!issues.length) return "";
   return `<span class="pill red" title="${escapeAttr(issues.map(i=>"• "+i.msg).join("\n"))}">${issues.length}</span>`;
 }
 /* Filtro propio de la columna "Data Issues" (un registro puede tener varios problemas a la vez, por eso no usa el

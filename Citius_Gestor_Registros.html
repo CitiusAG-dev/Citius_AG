@@ -16670,6 +16670,18 @@ function doSaveRecord(){
   // compara contra todos los existentes).
   const uniqueKey=PHOTO_ID_FIELD[current];
   if(RECORD_ID_PREFIX[current]){
+    /* Pedido explícito del usuario: un Space solo se guarda (y genera su ID) si está enlazado a una Oficina que
+       existe — de ella salen su nombre, ubicación y el Estado del ID. Se revisa ANTES que los campos de abajo
+       para que el aviso diga lo que de verdad falta (elegir la Oficina), no "falta Property Name". */
+    if(current==="SPACES"){
+      const code=String(rec.MAPPING_CODE==null?"":rec.MAPPING_CODE).trim();
+      if(!code || !linkedCodeIndex("OFICINAS").has(code.toLowerCase())){
+        const el=document.querySelector(`#mBody [data-key="MAPPING_CODE"]`);
+        if(el){ el.classList.add("field-error"); const panel=el.closest(".form-panel"); if(panel) switchFormPanel(Number(panel.dataset.panel)); }
+        toast(code ? `Office "${code}" doesn't exist — choose the Office with "Select Office…" to save the Space` : `Choose the Office this Space belongs to ("Select Office…") — can't save without it`,"err");
+        return;
+      }
+    }
     const onFormKeys=new Set([...inputs].map(inp=>inp.dataset.key));
     const lacking=SAVE_REQUIRED_KEYS.filter(k=>cfgByKey[k] && onFormKeys.has(k) && DQ_EMPTY(rec[k]));
     if(lacking.length){

@@ -6789,6 +6789,19 @@ const DATA_QUALITY_RULES=[
   { id:"gla_zero", ents:["PROPIEDADES","OFICINAS"], short:"GLA = 0", label:"Leasable Area (GLA) is 0", check:dqAreaZeroCheck },
   { id:"nla_zero", ents:["SPACES"], short:"NLA = 0", label:"Net Leasable Area is 0", check:dqAreaZeroCheck },
   { id:"land_zero", ents:["PARKS","LAND"], short:"Land = 0", label:"Total Land Size is 0", check:dqAreaZeroCheck },
+  /* Pedido explícito del usuario: relaciones rotas — una Propiedad cuyo ID Park no existe en Parks, o un Space
+     cuyo Mapping Code no existe en Offices (p. ej. porque se cambió el ID en el Excel o venía mal de una carga).
+     ID Park = 0 ("Stand Alone") no cuenta. Las Transacciones ya se marcan aparte (fieldValueMismatch de MAPPING_CODE). Se corrige eligiendo el
+     registro correcto con el botón de la ficha (Seleccionar Parque… / Select Office…). */
+  { id:"broken_link", ents:["PROPIEDADES","SPACES"], short:"Broken link", label:"Linked Park / Office doesn't exist",
+    check(ent, rec){
+      const [key, target, name]=ent==="PROPIEDADES" ? ["ID_PARK","PARKS","Park"] : ["MAPPING_CODE","OFICINAS","Office"];
+      if(DQ_EMPTY(rec[key])) return [];
+      // ID Park = 0 es "Stand Alone" (opción extra de openParkPicker), no un Parque — es válido.
+      if(ent==="PROPIEDADES" && String(rec[key]).trim()==="0") return [];
+      if(linkedCodeIndex(target).has(String(rec[key]).trim().toLowerCase())) return [];
+      return [{fields:[key], msg:`${fieldLabel(key, ent)} "${String(rec[key]).trim()}" doesn't match any ${name} — select the right ${name} again`}];
+    } },
   { id:"pin_polygon", ents:["PROPIEDADES","PARKS","LAND","OFICINAS"], short:"Pin / polygon", label:"Pin is outside the polygon",
     check(ent, rec){
       const pk=polygonKeyFor(ent);
@@ -10755,6 +10768,16 @@ function buildForm(ent, record){
     if(GEO_ID_FIELD_KEYS.has(f.key)) return `<input type="hidden" data-key="${f.key}" value="${val}">`;
     const reqMark=f.required?' <span class="field-required">*</span>':"";
     const helpIcon=fieldHelpIconHtml(ent,f);
+    /* Pedido explícito del usuario: el ID propio del registro (PHOTO_ID_FIELD — Mapping Code / Space Code) ya no
+       se puede cambiar desde la ficha una vez guardado. Al cambiarlo, las relaciones que lo usan (ID_PARK de
+       Propiedades, fotos si la carpeta no estaba conectada, etc.) se quedaban con el código viejo. Solo se
+       captura al crear el registro (o si un registro existente todavía no lo tiene); si de verdad hay que
+       cambiarlo, se hace en el Excel — la regla "broken_link" de DATA_QUALITY_RULES marca lo que quede roto. */
+    if(editingId && PHOTO_ID_FIELD[ent]===f.key && String(editingOriginalPhotoId==null?"":editingOriginalPhotoId).trim()){
+      return `<div class="field field-readonly"><label>${fieldLabel(f.key)}${reqMark}${helpIcon}</label>
+        <input value="${val}" readonly disabled title="The ID can't be changed once the record is saved — other records and photos are linked to it. If it really must change, edit it in the Excel file.">
+        <input type="hidden" data-key="${f.key}" value="${val}"></div>`;
+    }
     // v8.19.x, pedido explícito del usuario: Notes (Internal Notes) y Comm. Condition Notes (Parks) son un
     // área de texto grande, a lo ancho de toda la sección, en vez de un input de 1 renglón.
     if(LONG_TEXT_FIELD_KEYS.has(f.key)){

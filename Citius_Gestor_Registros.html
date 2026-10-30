@@ -73,6 +73,17 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .cfg-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);margin-left:auto;flex-shrink:0}
   .app-version{padding:2px 20px 14px;color:var(--muted);font-size:10.5px;text-align:center;letter-spacing:.3px;user-select:none;cursor:pointer}
   .app-version:hover{color:var(--accent-ink);text-decoration:underline}
+  .fx-rate{margin-top:-10px;padding:0 20px 12px;color:var(--muted);font-size:10px;text-align:center;letter-spacing:.2px;user-select:none;white-space:nowrap}
+  .fx-rate:empty{display:none}
+  .fx-rate:hover{color:var(--accent-ink);text-decoration:underline;cursor:pointer}
+  .fx-current{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin:6px 0 14px}
+  .fx-current-value{font-size:26px;font-weight:700;color:var(--txt)}
+  .fx-current-meta{font-size:12px;color:var(--muted)}
+  .fx-table{border-collapse:collapse;font-size:12.5px;width:auto;min-width:420px}
+  .fx-table th,.fx-table td{padding:6px 14px;border-bottom:1px solid var(--line);text-align:right}
+  .fx-table th:first-child,.fx-table td:first-child{text-align:left}
+  .fx-table th{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted)}
+  .fx-table tr.current td{font-weight:700;background:rgba(240,179,35,.12)}
   .settings-row{display:flex;align-items:center;gap:10px;margin-bottom:14px}
   .settings-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
 
@@ -2336,6 +2347,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
       <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.32.0</div>
+      <div class="fx-rate" id="fxRateLabel" onclick="selectConfigSection('fx')"></div>
     </nav>
   </aside>
   <div class="main">
@@ -2922,6 +2934,11 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <div class="fieldmatrix-body">
           <table class="resumen-table fieldmatrix-table" id="fieldMatrixTable"></table>
         </div>
+      </div>
+      <div class="tablewrap releasenotes-panel" id="configFxSection" style="display:none">
+        <h4>Exchange rate USD/MXN</h4>
+        <p class="map-hint">Rate published in the Diario Oficial (DOF) by Banxico — the FIX of the previous business day. Updated automatically once a day.</p>
+        <div id="fxSectionBody"></div>
       </div>
       <div class="tablewrap releasenotes-panel" id="configReleaseNotesSection" style="display:none">
         <h4>Release notes</h4>
@@ -5398,11 +5415,13 @@ function renderConfigSections(){
   document.getElementById("configListsSection").style.display=configSection==="lists"?"":"none";
   document.getElementById("configFieldMatrixSection").style.display=configSection==="matrix"?"":"none";
   document.getElementById("configReleaseNotesSection").style.display=configSection==="notes"?"":"none";
+  document.getElementById("configFxSection").style.display=configSection==="fx"?"":"none";
   if(configSection==="files"){ renderPathNote("excel","filePathNote"); renderPathNote("images","imagesPathNote"); renderPathNote("configFile","configFilePathNote"); renderPathNote("complementary","complementaryFilePathNote"); }
   else if(configSection==="fields") renderFieldConfigView();
   else if(configSection==="lists") renderListsNav();
   else if(configSection==="matrix") renderFieldMatrix();
   else if(configSection==="notes") renderReleaseNotes();
+  else if(configSection==="fx") renderFxSection();
 }
 /* ==== Novedades / historial de versiones (v3.44.3, pedido explícito del usuario) ====
    Lista en lenguaje de usuario de qué cambió en cada versión — a propósito SEPARADA de los comentarios
@@ -6296,6 +6315,7 @@ const CONFIG_MENU_ITEMS=[
   {key:"fields", label:"Record Fields"},
   {key:"lists", label:"Lists"},
   {key:"matrix", label:"Field Matrix"},
+  {key:"fx", label:"Exchange rate"},
   {key:"notes", label:"Release notes"}
 ];
 function toggleConfigMenu(evt){
@@ -18839,10 +18859,104 @@ function toast(msg,type){
   clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove("show"),2200);
 }
 
+/* ==== Tipo de cambio USD/MXN del DOF (pedido explícito del usuario: tenerlo disponible a nivel sistema para
+   después convertir precios a todo MXN o todo USD). Fuente: API SIE de Banxico (acepta GET desde el navegador;
+   el token va en la URL para que no haya preflight CORS). El token queda visible en el HTML publicado — decisión
+   explícita del usuario (es gratuito y solo lee datos públicos; si se abusa, se saca otro y se reemplaza aquí).
+   Serie SF43718 = FIX; el valor "Publicación DOF" de un día es el FIX del día hábil ANTERIOR (verificado contra
+   la tabla de banxico.org.mx/tipcamb), así que el DOF vigente hoy = el último FIX con fecha anterior a hoy. Se
+   consulta una vez al día; si Banxico no responde se usa el último guardado.
+   Uso: getExchangeRate() / usdToMxn(v) / mxnToUsd(v) / dofRateFor("YYYY-MM-DD"). ==== */
+const BANXICO_SIE_TOKEN="59b15d9076e5f00d7e2aa06ba178d85a50e04d356fca86f7808a74f23fe9ee9d";
+const BANXICO_FIX_SERIES="SF43718";
+const FX_CACHE_KEY="citius_fx_usdmxn_v1";
+// {value, dofDate, fixDate, fetchedOn, history:[{d:"YYYY-MM-DD", v}] (FIX de los últimos ~35 días)}
+let fxRate=(()=>{ try{ return JSON.parse(localStorage.getItem(FX_CACHE_KEY)||"null"); }catch(e){ return null; } })();
+function fxTodayIso(){
+  try{ return new Date().toLocaleDateString("en-CA",{timeZone:"America/Mexico_City"}); }
+  catch(e){ return new Date().toISOString().slice(0,10); }
+}
+function fxIsoFromBanxico(d){ const m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(d||""); return m?`${m[3]}-${m[2]}-${m[1]}`:null; }
+// DOF vigente en una fecha = último FIX determinado ANTES de esa fecha (dentro del histórico descargado).
+function dofRateFor(iso, history){
+  const h=history || (fxRate && fxRate.history) || [];
+  let hit=null;
+  h.forEach(x=>{ if(x.d<iso) hit=x; });
+  return hit ? {value:hit.v, fixDate:hit.d} : null;
+}
+function getExchangeRate(){ return fxRate && fxRate.value ? fxRate : null; }
+function usdToMxn(v){ const r=getExchangeRate(), n=Number(v); return r && v!=="" && v!=null && !isNaN(n) ? n*r.value : null; }
+function mxnToUsd(v){ const r=getExchangeRate(), n=Number(v); return r && v!=="" && v!=null && !isNaN(n) ? n/r.value : null; }
+function renderFxRateLabel(){
+  const el=document.getElementById("fxRateLabel");
+  if(!el) return;
+  const r=getExchangeRate();
+  if(!r){ el.textContent=""; return; }
+  el.textContent=`USD/MXN ${r.value.toFixed(4)} · DOF ${r.dofDate.split("-").reverse().slice(0,2).join("/")}`;
+  el.title=`Exchange rate published in the DOF (FIX of ${r.fixDate.split("-").reverse().join("/")}) — Banxico`+(r.fetchedOn!==fxTodayIso()?` · couldn't update today, last checked ${r.fetchedOn.split("-").reverse().join("/")}`:"");
+}
+// Sección Settings > Exchange rate: valor vigente + tabla tipo banxico.org.mx/tipcamb (Fecha / FIX / Publicación DOF).
+function renderFxSection(){
+  const el=document.getElementById("fxSectionBody");
+  if(!el) return;
+  const r=getExchangeRate();
+  const fmtD=iso=>iso.split("-").reverse().join("/");
+  if(!r){
+    el.innerHTML=`<p class="map-hint">Couldn't get the exchange rate from Banxico yet.</p>
+      <button type="button" class="btn ghost" onclick="refreshFxFromSection()">Refresh</button>`;
+    return;
+  }
+  const h=r.history||[];
+  const today=fxTodayIso();
+  // Una fila por día con FIX (más reciente primero) + hoy si todavía no hay FIX de hoy: el DOF de cada día es
+  // el FIX del día hábil anterior.
+  const days=h.map(x=>x.d);
+  if(!days.includes(today)) days.push(today);
+  const rows=days.sort().reverse().map(d=>{
+    const fix=h.find(x=>x.d===d), dof=dofRateFor(d, h);
+    return `<tr class="${d===r.dofDate?"current":""}"><td>${fmtD(d)}</td><td>${fix?fix.v.toFixed(4):"N/E"}</td><td>${dof?dof.value.toFixed(4):"N/E"}</td></tr>`;
+  }).join("");
+  el.innerHTML=`<div class="fx-current">
+      <span class="fx-current-value">$${r.value.toFixed(4)} MXN</span>
+      <span class="fx-current-meta">per USD · DOF ${fmtD(r.dofDate)} (FIX of ${fmtD(r.fixDate)}) · last checked ${fmtD(r.fetchedOn)}${r.fetchedOn!==today?" — couldn't update today":""}</span>
+      <button type="button" class="btn ghost" onclick="refreshFxFromSection()">Refresh</button>
+    </div>
+    <table class="fx-table"><thead><tr><th>Date</th><th>FIX</th><th>DOF publication</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+async function refreshFxFromSection(){
+  await refreshExchangeRate(true);
+  renderFxSection();
+  toast(getExchangeRate()&&getExchangeRate().fetchedOn===fxTodayIso()?"Exchange rate updated":"Couldn't reach Banxico — showing the last rate", getExchangeRate()&&getExchangeRate().fetchedOn===fxTodayIso()?"ok":"err");
+}
+async function refreshExchangeRate(force){
+  const today=fxTodayIso();
+  if(!force && fxRate && fxRate.fetchedOn===today){ renderFxRateLabel(); return fxRate; }
+  try{
+    const from=new Date(Date.parse(today+"T12:00:00Z")-35*86400000).toISOString().slice(0,10);
+    const url=`https://www.banxico.org.mx/SieAPIRest/service/v1/series/${BANXICO_FIX_SERIES}/datos/${from}/${today}?token=${BANXICO_SIE_TOKEN}`;
+    const res=await fetch(url,{cache:"no-store"});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const json=await res.json();
+    const datos=(((json.bmx||{}).series||[])[0]||{}).datos||[];
+    const history=datos.map(x=>({d:fxIsoFromBanxico(x.fecha), v:Number(String(x.dato).replace(/,/g,""))}))
+      .filter(x=>x.d && isFinite(x.v) && x.v>0).sort((a,b)=>a.d<b.d?-1:1);
+    const cur=dofRateFor(today, history);
+    if(!cur) throw new Error("no data");
+    fxRate={value:cur.value, fixDate:cur.fixDate, dofDate:today, fetchedOn:today, history};
+    try{ localStorage.setItem(FX_CACHE_KEY, JSON.stringify(fxRate)); }catch(e){}
+  }catch(e){
+    console.warn("Banxico exchange rate unavailable:", e && e.message);
+  }
+  renderFxRateLabel();
+  if(configViewActive && configSection==="fx") renderFxSection();
+  return fxRate;
+}
+
 /* ==== Wire up ==== */
 document.getElementById("addBtn").onclick=openAdd;
 document.getElementById("columnsBtn").onclick=toggleColumnsPanel;
 document.getElementById("sortBtn").onclick=toggleSortPanel;
+renderFxRateLabel(); refreshExchangeRate();
 document.getElementById("unitViewSelect").value=unitViewPref;
 document.getElementById("unitViewSelect").onchange=function(){ unitViewPref=this.value; saveUnitViewPrefLocal(); renderTable(); };
 document.getElementById("overlay").onclick=e=>{ if(e.target.id==="overlay") closeModal(); };

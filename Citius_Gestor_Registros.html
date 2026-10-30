@@ -2346,7 +2346,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.33.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.33.1</div>
       <div class="fx-rate" id="fxRateLabel" onclick="selectConfigSection('fx')"></div>
     </nav>
   </aside>
@@ -5430,6 +5430,9 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.33.1", date:"2026-10-30", items:[
+    "Summary > Compliance: the Parks table is now split by Market Status — Available, Occupied, No status (Market Status not captured) and Total."
+  ]},
   {version:"8.33.0", date:"2026-10-30", items:[
     "USD/MXN exchange rate published in the DOF is now available in the app: it's taken from Banxico automatically once a day, shown in the side menu, and in Settings > Exchange rate with the last weeks (Date / FIX / DOF publication) and a Refresh button. Ready to be used later to show prices all in MXN or all in USD."
   ]},
@@ -7956,7 +7959,12 @@ function resumenBreakdownTableHtml(title, subtitle, categories, computeFn, isAre
    registro (completionStats, el mismo % que ya se ve en la columna "% Completado" de la tabla principal).
    Filas = mercados (resumenMarkets(), o solo el filtrado si hay uno activo); columnas = las categorías
    configuradas hoy en la lista MARKET_STATUS (se adapta sola si el usuario la edita desde Configuración). */
-function resumenComplianceTableHtml(title, subtitle, ent){
+/* `opts.total` (Parks, pedido explícito del usuario: separar Available/Occupied "para tener más info de cada
+   uno"): agrega "No status" (registros sin Market Status o con uno fuera de la lista — en los archivos reales
+   son la mayoría de los parques) y una columna Total con TODOS los registros del mercado (incluidos los sin Market Status) — el
+   mismo número que mostraba antes la tabla de una sola columna — y ubica el mercado con resumenMarketOfRow(). */
+function resumenComplianceTableHtml(title, subtitle, ent, opts){
+  const withTotal=!!(opts && opts.total);
   if(!entityHasRequiredFields(ent)){
     return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(title)}</h4><p class="muted">This entity doesn't have any field marked as required yet.</p></div>`;
   }
@@ -7972,21 +7980,28 @@ function resumenComplianceTableHtml(title, subtitle, ent){
     return sum/rows.length;
   }
   const pctCell=avg=>avg==null?`<td class="num-cell muted">—</td>`:`<td class="num-cell">${Math.round(avg)}%</td>`;
-  const colRows=statuses.map(()=>[]);
+  const colRows=statuses.map(()=>[]), allMatched=[], noStatusRows=[];
   let rows="";
   markets.forEach(mk=>{
-    const marketRows=allRows.filter(r=>ciEq(r.MARKET,mk));
+    const marketRows=allRows.filter(r=>ciEq(withTotal?resumenMarketOfRow(ent,r):r.MARKET,mk));
+    allMatched.push(...marketRows);
     const cells=statuses.map((st,i)=>{
       const matched=marketRows.filter(r=>ciEq(r.MARKET_STATUS,st));
       colRows[i].push(...matched);
       return pctCell(avgPct(matched));
     });
+    if(withTotal){
+      const noStatus=marketRows.filter(r=>!statuses.some(st=>ciEq(r.MARKET_STATUS,st)));
+      noStatusRows.push(...noStatus);
+      cells.push(pctCell(avgPct(noStatus)), pctCell(avgPct(marketRows)));
+    }
     rows+=`<tr><td>${escapeHtml(mk)}</td>${cells.join("")}</tr>`;
   });
   const totalCells=colRows.map(rs=>pctCell(avgPct(rs)));
+  if(withTotal) totalCells.push(pctCell(avgPct(noStatusRows)), pctCell(avgPct(allMatched)));
   rows+=`<tr class="resumen-total-row"><td>Total</td>${totalCells.join("")}</tr>`;
-  const colgroupHtml=resumenColgroupHtml(statuses.length);
-  return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(title)}</h4>${subtitle?`<p class="resumen-block-note">${escapeHtml(subtitle)}</p>`:""}<div class="resumen-scroll"><table class="resumen-table">${colgroupHtml}<thead><tr><th>Market</th>${statuses.map(s=>`<th>${escapeHtml(s)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  const colgroupHtml=resumenColgroupHtml(statuses.length+(withTotal?2:0));
+  return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(title)}</h4>${subtitle?`<p class="resumen-block-note">${escapeHtml(subtitle)}</p>`:""}<div class="resumen-scroll"><table class="resumen-table">${colgroupHtml}<thead><tr><th>Market</th>${statuses.map(s=>`<th>${escapeHtml(s)}</th>`).join("")}${withTotal?"<th>No status</th><th>Total</th>":""}</tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 /* Calidad de datos en el Summary (pedido explícito del usuario, ver DATA_QUALITY_RULES): por mercado, cuántos
    registros hay, cuántos tienen al menos un problema, % de registros limpios, y cuántos registros tienen cada
@@ -8557,7 +8572,7 @@ function renderResumenView(){
     (sm,gen)=>resumenAvailabilityForSubmarket(sm, r=>(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B"))&&ciEq(r.BUILDING_GENERATION,gen)), true);
 
   const complianceHtmlProp=resumenComplianceTableHtml("Properties", "Average % of required fields captured (same calculation as the table's \"% Complete\" column), by market and market status", "PROPIEDADES");
-  const complianceHtmlParks=resumenComplianceFullTableHtml("Parks", "Average % of required fields captured (same calculation as the table's \"% Complete\" column), by market, over all the data", "PARKS");
+  const complianceHtmlParks=resumenComplianceTableHtml("Parks", "Average % of required fields captured (same calculation as the table's \"% Complete\" column), by market and market status (No status = Market Status not captured); Total includes all parks", "PARKS", {total:true});
   const complianceHtmlTx=resumenComplianceByYearTableHtml("Transactions", "Average % of required fields captured (same calculation as the table's \"% Complete\" column), by market and transaction year (Transaction Date); Total includes all transactions, even those without a date", "TRANSACCIONES", "TRANSACTION_DATE");
   // Pedido explícito del usuario: cumplimiento también para Offices (por mercado, como Parks/Land) y Spaces
   // (mercado × Market Status, como Properties — Spaces sí captura Market Status, Offices no).

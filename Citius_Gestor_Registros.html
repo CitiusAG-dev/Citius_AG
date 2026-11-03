@@ -1611,6 +1611,21 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .deck-list-table td.center-cell{text-align:center}
   .deck-list-th-unit{font-size:8px;font-weight:400}
   .deck-list-table tr.deck-list-stripe td{background:#f2f2f2}
+  /* Presentación "Transactions" (pedido explícito del usuario, con imagen de referencia): una sola tabla
+     agrupada por Market | Submarket, sin Portada/Cierre. Hoja con el mismo alto fijo que "List" (list-page). */
+  .deck-page.trans-pres-page{padding-bottom:10px}
+  .trans-pres-head{display:flex;align-items:flex-end;gap:14px;margin-bottom:14px}
+  .trans-pres-head h2{margin:0;font-size:32px;font-weight:400;color:#666;font-family:'Dala Moa',Georgia,serif;letter-spacing:1px}
+  .trans-pres-subtitle{font-family:'Unitext',sans-serif;font-weight:300;font-size:15px;color:#888;margin:-6px 0 0 48px}
+  .trans-pres-table{width:100%;table-layout:fixed;border-collapse:collapse;font-family:'Unitext',sans-serif;font-size:11px}
+  .trans-pres-table th{position:static;background:var(--accent);color:#1a1a1a;font-weight:700;text-align:center;padding:9px 6px;line-height:1.1;font-size:11.5px;white-space:normal}
+  .trans-pres-table td{padding:6px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:1px solid #d6d6d6;border-bottom:1px solid #fff}
+  .trans-pres-table td:first-child{border-left:none}
+  .trans-pres-table tr.trans-row-alt td{background:#efefef}
+  .trans-pres-table tr.trans-group td{background:#d6d6d6;font-weight:700;font-size:12.5px;padding:7px 6px;border-left:none}
+  .trans-pres-table td.num-cell{text-align:right}
+  .trans-pres-table td.center-cell{text-align:center}
+  .trans-pres-table .trans-th-unit{font-weight:400;font-size:9.5px}
   .deck-list-table .deck-list-num{text-align:center;color:#666} /* el ancho real ahora lo da el <colgroup> (LIST_NUM_COL_PCT) */
   /* ==== Layout (spec sheet 1 página/propiedad) — v3.41.0 ====
      Reusa .deck-page/.deck-logo/.map-pin tal cual; solo agrega clases propias para el arreglo de 4 bloques
@@ -1741,8 +1756,8 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
        renderPresentationView()/renderLandPresentationView()/renderOfficePresentationView() ya se limpian
        mutuamente (ver el guard de cross-contaminación en cada una), así que en cualquier momento dado solo
        UNO de los 3 contenedores tiene .deck-page reales; los otros 2 simplemente no aportan nada. */
-    #presPages, #presPages *, #landPresPages, #landPresPages *, #officePresPages, #officePresPages *, #parkPresPages, #parkPresPages *{visibility:visible}
-    #presPages, #landPresPages, #officePresPages, #parkPresPages{display:block}
+    #presPages, #presPages *, #landPresPages, #landPresPages *, #officePresPages, #officePresPages *, #parkPresPages, #parkPresPages *, #transPresPages, #transPresPages *{visibility:visible}
+    #presPages, #landPresPages, #officePresPages, #parkPresPages, #transPresPages{display:block}
     .deck-page{page-break-after:always;page-break-inside:avoid;box-shadow:none;border:none;max-width:none;margin:0 auto}
     .deck-page:last-child{page-break-after:auto}
     /* Market Report (PDF) — v7.3.0, mismo criterio EXACTO que el bloque de arriba (#presPages/etc.), aparte
@@ -1809,7 +1824,8 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   body.printing-deck #presPages,
   body.printing-deck #landPresPages,
   body.printing-deck #officePresPages,
-  body.printing-deck #parkPresPages{position:static;left:auto;top:auto;width:100%;zoom:1}
+  body.printing-deck #parkPresPages,
+  body.printing-deck #transPresPages{position:static;left:auto;top:auto;width:100%;zoom:1}
   /* v3.43.8, pedido explícito del usuario: el margen blanco alrededor del Mapa (ver `.deck-page.map-page`
      más arriba) solo debe verse al imprimir/exportar PDF — en pantalla, dentro del módulo Presentación, el
      mapa se sigue viendo a sangre completa como siempre. Va aquí (bajo `body.printing-deck`, no dentro de
@@ -2346,7 +2362,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.33.1</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.34.0</div>
       <div class="fx-rate" id="fxRateLabel" onclick="selectConfigSection('fx')"></div>
     </nav>
   </aside>
@@ -2505,6 +2521,21 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <button type="button" class="btn ghost" id="parkPresCoverEditBtn" title="Edit the cover's month/year, size, markets, brokers, and company/project">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-3px"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="M15 5l4 4"/></svg>Cover data</button>
         <button class="btn ghost" id="parkPresPrintBtn">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-3px"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print / PDF</button>
+      </div>
+      <!-- Presentación "Transactions" (pedido explícito del usuario): solo la tabla agrupada por Market |
+           Submarket — sin Portada/Mapa/Cierre, así que no lleva Design ni Cover data. -->
+      <div class="topbar-controls" id="transPresTopbarControls" style="display:none">
+        <span class="count" id="transPresCount"></span>
+        <div class="unit-view-select" title="Units for Size and Comps: as captured on each transaction, or all converted to Imperial (SF) / Metric (m²). Currency is never converted.">
+          <label for="transPresUnitSelect">Units</label>
+          <select id="transPresUnitSelect">
+            <option value="captured">As captured</option>
+            <option value="imperial">Imperial (SF)</option>
+            <option value="metric">Metric (m²)</option>
+          </select>
+        </div>
+        <button class="btn ghost" id="transPresPrintBtn">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-3px"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print / PDF</button>
       </div>
       <!-- Presentación de Oficinas — Stage 2 (v4.2.0 en construcción): mismo shell EXACTO que
@@ -2694,6 +2725,17 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       </div>
       <div class="pres-main">
         <div id="parkPresPages" class="pres-pages"></div>
+      </div>
+    </div>
+    <!-- Presentación "Transactions" — mismo shell que #parkPresentationView. -->
+    <div class="presentationview" id="transPresentationView">
+      <div class="pres-sidebar">
+        <h4>Transactions in the presentation</h4>
+        <p class="map-hint">Check "Use in presentation" on each transaction in the Transactions table. They're grouped by Market | Submarket (most recent first within each group) — drag the groups here to reorder them.</p>
+        <div id="transPresSelectedList" class="pres-selected-list"></div>
+      </div>
+      <div class="pres-main">
+        <div id="transPresPages" class="pres-pages"></div>
       </div>
     </div>
     <!-- Presentación de Oficinas — Stage 2 (v4.2.0 en construcción). Mismo shell que #presentationView/
@@ -5170,6 +5212,7 @@ let mapViewActive=false;
 let presentationViewActive=false;
 let landPresentationViewActive=false; // Presentación de Terrenos (v3.36.0) — deck separado, ver showLandPresentationView
 let parkPresentationViewActive=false; // Presentación "Park Land" (v8.19.x) — deck separado, ver showParkPresentationView
+let transPresentationViewActive=false; // Presentación "Transactions" — deck separado, ver showTransPresentationView
 let officePresentationViewActive=false; // Presentación de Oficinas (v4.2.0 en construcción) — deck separado, ver showOfficePresentationView
 let configViewActive=false;
 let resumenViewActive=false;
@@ -5177,8 +5220,8 @@ function renderTabs(){
   [...tabsEl.children].forEach(b=>{
     if(b.dataset.k==="__RESUMEN__") b.classList.toggle("active", resumenViewActive);
     else if(b.dataset.k==="__MAP__") b.classList.toggle("active", mapViewActive);
-    else if(b.dataset.k==="__PRES__") b.classList.toggle("active", presentationViewActive || landPresentationViewActive || parkPresentationViewActive || officePresentationViewActive);
-    else b.classList.toggle("active", !mapViewActive && !presentationViewActive && !landPresentationViewActive && !parkPresentationViewActive && !officePresentationViewActive && !configViewActive && !resumenViewActive && b.dataset.k===current);
+    else if(b.dataset.k==="__PRES__") b.classList.toggle("active", presentationViewActive || landPresentationViewActive || parkPresentationViewActive || transPresentationViewActive || officePresentationViewActive);
+    else b.classList.toggle("active", !mapViewActive && !presentationViewActive && !landPresentationViewActive && !parkPresentationViewActive && !transPresentationViewActive && !officePresentationViewActive && !configViewActive && !resumenViewActive && b.dataset.k===current);
   });
   document.getElementById("configBtn").classList.toggle("active", configViewActive);
 }
@@ -5198,6 +5241,12 @@ function hideAllViews(){
   document.getElementById("officePresentationView").style.display="none";
   document.getElementById("parkPresentationView").style.display="none";
   parkPresentationViewActive=false; // showParkPresentationView() lo vuelve a prender después de llamar aquí
+  document.getElementById("transPresentationView").style.display="none";
+  transPresentationViewActive=false; // showTransPresentationView() lo vuelve a prender después de llamar aquí
+  // Sus .deck-page se limpian al salir: preparePrintPageSize() busca .deck-page en TODO el documento, así que
+  // dejarlas aquí se mezclaría con la impresión de otro deck (mismo guard que el resto de los decks).
+  document.getElementById("transPresPages").innerHTML="";
+  document.getElementById("transPresTopbarControls").style.display="none";
   document.getElementById("configView").style.display="none";
   document.getElementById("presTopbarControls").style.display="none";
   document.getElementById("landPresTopbarControls").style.display="none";
@@ -5236,7 +5285,8 @@ function togglePresentationMenu(evt){
     <button type="button" class="${presentationViewActive?"active":""}" onclick="selectPresentationMenuOption('propiedades')">Industrial Buildings</button>
     <button type="button" class="${parkPresentationViewActive?"active":""}" onclick="selectPresentationMenuOption('parques')">Park Land</button>
     <button type="button" class="${landPresentationViewActive?"active":""}" onclick="selectPresentationMenuOption('terrenos')">Land</button>
-    <button type="button" class="${officePresentationViewActive?"active":""}" onclick="selectPresentationMenuOption('oficinas')">Offices</button>`;
+    <button type="button" class="${officePresentationViewActive?"active":""}" onclick="selectPresentationMenuOption('oficinas')">Offices</button>
+    <button type="button" class="${transPresentationViewActive?"active":""}" onclick="selectPresentationMenuOption('transacciones')">Transactions</button>`;
   document.body.appendChild(el);
   const r=presTabBtn.getBoundingClientRect();
   el.style.left=(r.right+8)+"px";
@@ -5248,6 +5298,7 @@ function selectPresentationMenuOption(opt){
   if(opt==="terrenos") showLandPresentationView();
   else if(opt==="parques") showParkPresentationView();
   else if(opt==="oficinas") showOfficePresentationView();
+  else if(opt==="transacciones") showTransPresentationView();
   else showPresentationView();
 }
 /* ==== Mini-menú "Summary": KPI's / Market Report (PDF) (v7.3.0, pedido explícito del usuario) ====
@@ -5365,6 +5416,18 @@ async function showParkPresentationView(){
   await refreshFromFileIfLinked();
   renderParkPresentationView();
 }
+async function showTransPresentationView(){
+  mapViewActive=false; presentationViewActive=false; landPresentationViewActive=false; officePresentationViewActive=false; configViewActive=false; resumenViewActive=false;
+  saveLastView("transpresentation");
+  hideAllViews();
+  transPresentationViewActive=true;
+  document.getElementById("appTopbar").style.display="";
+  document.getElementById("transPresentationView").style.display="flex";
+  document.getElementById("transPresTopbarControls").style.display="flex";
+  renderTabs();
+  await refreshFromFileIfLinked();
+  renderTransPresentationView();
+}
 /* ==== Presentación de Oficinas — deck de Stage 2 (v4.2.0 en construcción, pedido explícito del usuario:
    "de entrada ya vayamos generando la portada, el mapa, y el cierre"). Deck SEPARADO de Propiedades/Terrenos
    (mismo criterio de siempre), pero con una diferencia real: la selección NO se arma aquí con un checkbox
@@ -5430,6 +5493,10 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.34.0", date:"2026-11-03", items:[
+    "New presentation \"Transactions\" (last option in the Presentation menu): check \"Use in presentation\" on transactions in the Transactions table. It's a single table (no cover/closing) — Year, Q, Tenant, Name, Developer, Location, Size, Building Type, Trans, Term (months) and Comps — grouped by Market | Submarket, most recent first within each group. Drag the groups in the side panel to reorder them.",
+    "Transactions presentation: \"Units\" selector — As captured, Imperial (SF) or Metric (m²) for Size and Comps. Currency is never converted. Print/PDF is logged in Pres. Log."
+  ]},
   {version:"8.33.1", date:"2026-10-30", items:[
     "Summary > Compliance: the Parks table is now split by Market Status — Available, Occupied, No status (Market Status not captured) and Total."
   ]},
@@ -7256,10 +7323,10 @@ function renderTable(){
      (Presentación de Oficinas, Etapa 1, v4.1.0 en construcción) reusa el MISMO checkbox de columna, pero con
      `officeSpaceStaging` — una selección transitoria (no un deck en sí) que el analista convierte en Opciones
      vía groupOfficeStagingAsOption()/addOfficeStagingIndividually(), ver esas funciones más abajo. */
-  const showSelect=current==="PROPIEDADES" || current==="PARKS" || current==="LAND" || current==="SPACES";
-  const presOrder=current==="LAND" ? landPresentationOrder : current==="PARKS" ? parkPresentationOrder : (current==="SPACES" ? officeSpaceStaging : presentationOrder);
-  const toggleOneFn=current==="LAND" ? "toggleLandPresentationSelection" : current==="PARKS" ? "toggleParkPresentationSelection" : (current==="SPACES" ? "toggleOfficeSpaceStaging" : "togglePresentationSelection");
-  const toggleAllFn=current==="LAND" ? "toggleSelectAllLandPresentation" : current==="PARKS" ? "toggleSelectAllParkPresentation" : (current==="SPACES" ? "toggleSelectAllOfficeSpaceStaging" : "toggleSelectAllPresentation");
+  const showSelect=current==="PROPIEDADES" || current==="PARKS" || current==="LAND" || current==="SPACES" || current==="TRANSACCIONES";
+  const presOrder=current==="LAND" ? landPresentationOrder : current==="PARKS" ? parkPresentationOrder : current==="TRANSACCIONES" ? transPresentationOrder : (current==="SPACES" ? officeSpaceStaging : presentationOrder);
+  const toggleOneFn=current==="LAND" ? "toggleLandPresentationSelection" : current==="PARKS" ? "toggleParkPresentationSelection" : current==="TRANSACCIONES" ? "toggleTransPresentationSelection" : (current==="SPACES" ? "toggleOfficeSpaceStaging" : "togglePresentationSelection");
+  const toggleAllFn=current==="LAND" ? "toggleSelectAllLandPresentation" : current==="PARKS" ? "toggleSelectAllParkPresentation" : current==="TRANSACCIONES" ? "toggleSelectAllTransPresentation" : (current==="SPACES" ? "toggleSelectAllOfficeSpaceStaging" : "toggleSelectAllPresentation");
   const selectAllChecked=showSelect && rows.length>0 && rows.every(r=>presOrder.includes(r.__id));
   const selectTitle=current==="SPACES" ? "Select to build a presentation option" : "Use in presentation";
   const activeFilterKeys=new Set((filters[current]||[]).map(f=>f.key));
@@ -7355,7 +7422,7 @@ function renderTable(){
   document.getElementById("count").textContent=`${rows.length} of ${(state[current]||[]).length} record(s)`;
   const presChip=document.getElementById("presSelectedChip");
   if(presChip){
-    const clearFn=current==="LAND" ? "clearAllLandPresentationSelection" : current==="PARKS" ? "clearAllParkPresentationSelection" : (current==="SPACES" ? "clearAllOfficeSpaceStaging" : "clearAllPresentationSelection");
+    const clearFn=current==="LAND" ? "clearAllLandPresentationSelection" : current==="PARKS" ? "clearAllParkPresentationSelection" : current==="TRANSACCIONES" ? "clearAllTransPresentationSelection" : (current==="SPACES" ? "clearAllOfficeSpaceStaging" : "clearAllPresentationSelection");
     const chipLabel=current==="SPACES" ? "selected" : "in presentation";
     if(showSelect && presOrder.length){
       presChip.style.display="";
@@ -13187,6 +13254,44 @@ function getOrderedParkPresentationList(){
   if(byId.size && valid.length!==parkPresentationOrder.length){ parkPresentationOrder=valid; saveParkPresentationOrder(); } // ver PRES_ORDER_PRUNE_NOTE
   return valid.map(id=>byId.get(id));
 }
+/* ==== Selección para la Presentación "Transactions" (pedido explícito del usuario: "se seleccionarán igual
+   que los edificios") — mismo mecanismo que parkPresentationOrder. El orden de selección no importa: el deck
+   siempre agrupa por Market | Submarket (grupos reordenables en el panel lateral) y ordena por fecha dentro de
+   cada grupo (ver getTransPresGroups). ==== */
+const TRANS_PRES_ORDER_KEY="citius_trans_pres_order_v1";
+function loadTransPresentationOrder(){ try{ const s=localStorage.getItem(TRANS_PRES_ORDER_KEY); if(s) return JSON.parse(s); }catch(e){} return []; }
+function saveTransPresentationOrder(){ try{ localStorage.setItem(TRANS_PRES_ORDER_KEY, JSON.stringify(transPresentationOrder)); }catch(e){} }
+let transPresentationOrder=loadTransPresentationOrder();
+function toggleTransPresentationSelection(id, checked){
+  if(checked){ if(!transPresentationOrder.includes(id)) transPresentationOrder.push(id); }
+  else{ transPresentationOrder=transPresentationOrder.filter(x=>x!==id); }
+  saveTransPresentationOrder();
+  renderTable();
+}
+function toggleSelectAllTransPresentation(checked){
+  const rows=applyFilters(state.TRANSACCIONES||[], "TRANSACCIONES");
+  if(checked){
+    rows.forEach(r=>{ if(!transPresentationOrder.includes(r.__id)) transPresentationOrder.push(r.__id); });
+  } else {
+    const idsToRemove=new Set(rows.map(r=>r.__id));
+    transPresentationOrder=transPresentationOrder.filter(id=>!idsToRemove.has(id));
+  }
+  saveTransPresentationOrder();
+  renderTable();
+}
+function clearAllTransPresentationSelection(){
+  if(!transPresentationOrder.length) return;
+  if(!confirm(`Remove the ${transPresentationOrder.length} transaction(s) from the presentation?`)) return;
+  transPresentationOrder=[];
+  saveTransPresentationOrder();
+  renderTable();
+}
+function getOrderedTransPresentationList(){
+  const byId=new Map((state.TRANSACCIONES||[]).map(r=>[r.__id,r]));
+  const valid=(transPresentationOrder||[]).filter(id=>byId.has(id));
+  if(byId.size && valid.length!==transPresentationOrder.length){ transPresentationOrder=valid; saveTransPresentationOrder(); } // ver PRES_ORDER_PRUNE_NOTE
+  return valid.map(id=>byId.get(id));
+}
 /* ==== Presentación de Oficinas — Etapa 1 (v4.1.0 en construcción, pedido explícito del usuario) ====
    Distinta de Propiedades/Terrenos a propósito: ahí "seleccionar" ES "ya está en el deck". Aquí la selección
    (`officeSpaceStaging`) es solo un paso intermedio — el analista marca 1+ Spaces (pisos) en la tabla y
@@ -14775,6 +14880,222 @@ document.getElementById("parkPresPrintBtn").onclick=()=>{
   el.checked=!!parkPresShowState[key];
   el.onchange=()=>{ parkPresShowState[key]=el.checked; saveParkPresShowState(); renderParkPresentationView(); };
 });
+/* ==== Deck "Transactions" (pedido explícito del usuario, con imagen de referencia) ====
+   Una sola tabla, sin Portada/Cierre: Year | Q | Tenant | Name | Developer | Location | Size | Building Type |
+   Trans | Term (meses) | Comps, agrupada por Market | Submarket (grupos alfabéticos, más reciente primero
+   dentro de cada grupo). Selector de unidades (pedido explícito del usuario): "As captured" deja Size/Comps
+   con la unidad de cada transacción; Imperial/Metric convierten SF<->m² en ambos. La moneda NUNCA se
+   convierte (MXN se queda en MXN). ==== */
+const TRANS_PRES_UNIT_KEY="citius_trans_pres_unit_v1";
+let transPresUnit=(()=>{ try{ const v=localStorage.getItem(TRANS_PRES_UNIT_KEY); if(v==="captured"||v==="imperial"||v==="metric") return v; }catch(e){} return "captured"; })();
+const TRANS_PRES_LINES_PER_PAGE=24; // filas de transacción + encabezados de grupo por hoja
+// TRANSACTION_DATE puede venir como "2026-07-01", "01/07/2026" o número serial de Excel.
+function transDateParts(v){
+  if(v==null||v==="") return null;
+  if(typeof v==="number" && v>20000 && v<80000){ const d=new Date(Math.round((v-25569)*86400000)); return {y:d.getUTCFullYear(), m:d.getUTCMonth()+1}; }
+  const s=String(v).trim();
+  let m=/^(\d{4})-(\d{1,2})/.exec(s); if(m) return {y:+m[1], m:+m[2]};
+  m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(s); if(m) return {y:+m[3], m:+m[2]};
+  const d=new Date(s); return isNaN(d) ? null : {y:d.getFullYear(), m:d.getMonth()+1};
+}
+function transSortKey(rec){ const p=transDateParts(rec.TRANSACTION_DATE); return p ? p.y*100+p.m : -1; }
+/* Pedido explícito del usuario: el panel lateral lista GRUPOS Market | Submarket (no transacciones sueltas)
+   y se reordenan arrastrando; ese orden se guarda por etiqueta del grupo. */
+const TRANS_PRES_GROUP_ORDER_KEY="citius_trans_pres_group_order_v1";
+let transPresGroupOrder=(()=>{ try{ const v=JSON.parse(localStorage.getItem(TRANS_PRES_GROUP_ORDER_KEY)||"[]"); return Array.isArray(v)?v:[]; }catch(e){ return []; } })();
+function saveTransPresGroupOrder(){ try{ localStorage.setItem(TRANS_PRES_GROUP_ORDER_KEY, JSON.stringify(transPresGroupOrder)); }catch(e){} }
+function getTransPresGroups(list){
+  const groups=new Map();
+  list.forEach(rec=>{
+    const mk=String(rec.MARKET||"").trim(), sm=String(rec.SUBMARKET||"").trim();
+    const label=[mk||"(No Market)", sm||"(No Submarket)"].join(" | ");
+    if(!groups.has(label)) groups.set(label, {label, mk:mk||"￿", sm:sm||"￿", rows:[]});
+    groups.get(label).rows.push(rec);
+  });
+  // Orden de grupos: el que el usuario armó arrastrando en el panel lateral (transPresGroupOrder); los
+  // grupos que todavía no están ahí van al final, en orden alfabético por Market y luego Submarket.
+  const rank=new Map(transPresGroupOrder.map((l,i)=>[l,i]));
+  const out=[...groups.values()].sort((a,b)=>{
+    const ra=rank.has(a.label)?rank.get(a.label):Infinity, rb=rank.has(b.label)?rank.get(b.label):Infinity;
+    if(ra!==rb) return ra-rb;
+    return a.mk.localeCompare(b.mk,"es")||a.sm.localeCompare(b.sm,"es");
+  });
+  out.forEach(g=>g.rows.sort((a,b)=>transSortKey(b)-transSortKey(a)));
+  return out;
+}
+function transIsSqftUnit(u){ return /^(sf|sqft|ft²|ft2)$/i.test(String(u||"").trim()); }
+function transIsM2Unit(u){ return /^(m²|m2)$/i.test(String(u||"").trim()); }
+function transSizeText(rec){
+  const n=Number(rec.TRANSACTION_AREA);
+  if(rec.TRANSACTION_AREA==null||rec.TRANSACTION_AREA===""||isNaN(n)) return "-";
+  const u=String(rec.TRANSACTION_UNIT||"").trim();
+  let v=n, unitTxt=u;
+  if(transPresUnit==="imperial" && transIsM2Unit(u)) v=n/UNIT_CONVERSIONS.SF_M2.toMetric;
+  else if(transPresUnit==="metric" && transIsSqftUnit(u)) v=n*UNIT_CONVERSIONS.SF_M2.toMetric;
+  const txt=Math.round(v).toLocaleString("en-US");
+  return transPresUnit==="captured" && unitTxt ? `${txt} ${unitTxt}` : txt;
+}
+function transCompsText(rec){
+  const n=Number(rec.COMPS_VALUE);
+  if(rec.COMPS_VALUE==null||rec.COMPS_VALUE===""||isNaN(n)||n===0) return "-";
+  const rawUnit=String(rec.COMPS_UNIT||"").trim();
+  let v=n, per=(/\/(.+)$/.exec(rawUnit)||[])[1]||"";
+  if(transPresUnit!=="captured"){
+    const conv=convertRateUnit(rawUnit, transPresUnit);
+    if(conv){ v=n*conv.factor; per=""; }
+    else if(rawUnit && (transPresUnit==="imperial"?transIsSqftUnit(per):transIsM2Unit(per))) per="";
+  }
+  const txt=presCurrencyPrefix(rawUnit)+v.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+  // En Imperial/Metric la unidad ya va en el encabezado; si una fila no se pudo convertir (sin unidad
+  // capturada), se deja su unidad visible para no confundirla con las convertidas.
+  return per ? `${txt} /${per==="m2"?"m²":per}` : txt;
+}
+function transTermText(rec){
+  const v=rec.TERM_MONTHS;
+  if(v==null||String(v).trim()==="") return "-";
+  const n=Number(v);
+  return isNaN(n) ? String(v) : n.toLocaleString("en-US",{maximumFractionDigits:1});
+}
+function buildTransPresPageHtml(lines, logoSrc){
+  const sizeUnit=transPresUnit==="imperial"?"(SF)":transPresUnit==="metric"?"(m²)":"";
+  const compsUnit=transPresUnit==="imperial"?"(per SF / month)":transPresUnit==="metric"?"(per m² / month)":"(per month)";
+  const td=(txt,cls)=>`<td${cls?` class="${cls}"`:""} title="${escapeAttr(txt)}">${escapeHtml(txt)}</td>`;
+  let alt=false;
+  const body=lines.map(l=>{
+    if(l.group){ alt=false; return `<tr class="trans-group"><td colspan="11">${escapeHtml(l.group)}</td></tr>`; }
+    const r=l.rec, p=transDateParts(r.TRANSACTION_DATE);
+    const cls=alt?' class="trans-row-alt"':""; alt=!alt;
+    return `<tr${cls}>`
+      +td(p?String(p.y):"-","center-cell")
+      +td(p?`${Math.ceil(p.m/3)}Q`:"-","center-cell")
+      +td(String(r.TENANT_BUYER_USER||"-"))
+      +td(String(r.PROPERTY_NAME||"-"))
+      +td(String(r.DEVELOPER||"-"))
+      +td(String(r.PARK_NAME||"-"))
+      +td(transSizeText(r),"num-cell")
+      +td(String(r.BUILDING_TYPE||"-"),"center-cell")
+      +td(String(r.TRANSACCION_TYPE||"-"),"center-cell")
+      +td(transTermText(r),"center-cell")
+      +td(transCompsText(r),"num-cell")
+      +`</tr>`;
+  }).join("");
+  return `<div class="deck-page list-page trans-pres-page">
+    <div class="trans-pres-head"><img class="deck-logo" src="${logoSrc}"><h2>Industrial Buildings</h2></div>
+    <div class="trans-pres-subtitle">Completed Transactions</div>
+    <table class="trans-pres-table" style="margin-top:18px">
+      <colgroup><col style="width:6%"><col style="width:4.5%"><col style="width:13%"><col style="width:10%"><col style="width:10%"><col style="width:16.5%"><col style="width:9.5%"><col style="width:8%"><col style="width:7%"><col style="width:5.5%"><col style="width:10%"></colgroup>
+      <thead><tr><th>YEAR</th><th>Q</th><th>TENANT</th><th>NAME</th><th>DEVELOPER</th><th>LOCATION</th><th>SIZE${sizeUnit?`<br><span class="trans-th-unit">${sizeUnit}</span>`:""}</th><th>BUILDING TYPE</th><th>TRANS</th><th>TERM<br><span class="trans-th-unit">(months)</span></th><th>COMPS<br><span class="trans-th-unit">${compsUnit}</span></th></tr></thead>
+      <tbody>${body}</tbody>
+    </table>
+    <p class="deck-note">*This information has been provided to Citius AG by developers and local brokers. However, Citius AG makes no warranties or representations as to the accuracy of the data until a formal quotation.</p>
+  </div>`;
+}
+// Pagina por número de líneas; si un grupo se parte entre 2 hojas, su encabezado se repite en la siguiente.
+function paginateTransPresGroups(groups){
+  const pages=[]; let cur=[];
+  groups.forEach(g=>{
+    if(cur.length && cur.length+2>TRANS_PRES_LINES_PER_PAGE){ pages.push(cur); cur=[]; }
+    cur.push({group:g.label});
+    g.rows.forEach(rec=>{
+      if(cur.length>=TRANS_PRES_LINES_PER_PAGE){ pages.push(cur); cur=[{group:g.label}]; }
+      cur.push({rec});
+    });
+  });
+  if(cur.length) pages.push(cur);
+  return pages;
+}
+let lastTransPresGroups=[];
+function renderTransPresSelectedList(groups){
+  lastTransPresGroups=groups;
+  const el=document.getElementById("transPresSelectedList");
+  if(!groups.length){ el.innerHTML=`<p class="muted" style="font-size:12px">None yet.</p>`; return; }
+  el.innerHTML=groups.map((g,i)=>`
+    <div class="pres-item" draggable="true" data-idx="${i}"
+         ondragstart="transPresGroupDragStart(event,${i})" ondragover="transPresGroupDragOver(event,${i})"
+         ondrop="transPresGroupDrop(event,${i})" ondragleave="fcDragLeave(event)">
+      ${FC_DRAG_ICON}
+      <span class="pres-item-num">${String(i+1).padStart(2,"0")}</span>
+      <span class="pres-item-name" style="cursor:default">${escapeHtml(g.label)}</span>
+      <span class="muted" style="font-size:11px;white-space:nowrap;flex:none" title="Transactions in this group">${g.rows.length}</span>
+      <button title="Remove this group's transactions from the presentation" onclick="removeTransPresGroup(${i})">✕</button>
+    </div>`).join("");
+}
+let dragTransPresGroupIdx=null;
+function transPresGroupDragStart(e,i){ e.stopPropagation(); dragTransPresGroupIdx=i; e.dataTransfer.effectAllowed="move"; }
+function transPresGroupDragOver(e,i){ e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.add("dragover"); }
+function transPresGroupDrop(e,i){
+  e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.remove("dragover");
+  if(dragTransPresGroupIdx===null || dragTransPresGroupIdx===i){ dragTransPresGroupIdx=null; return; }
+  const labels=lastTransPresGroups.map(g=>g.label);
+  const [moved]=labels.splice(dragTransPresGroupIdx,1);
+  let destIdx=i;
+  if(dragTransPresGroupIdx<destIdx) destIdx-=1;
+  labels.splice(destIdx,0,moved);
+  transPresGroupOrder=labels;
+  saveTransPresGroupOrder();
+  dragTransPresGroupIdx=null;
+  renderTransPresentationView();
+}
+function removeTransPresGroup(i){
+  const g=lastTransPresGroups[i]; if(!g) return;
+  if(!confirm(`Remove the ${g.rows.length} transaction(s) of ${g.label} from the presentation?`)) return;
+  const ids=new Set(g.rows.map(r=>r.__id));
+  transPresentationOrder=transPresentationOrder.filter(x=>!ids.has(x));
+  saveTransPresentationOrder();
+  renderTransPresentationView();
+  if(current==="TRANSACCIONES") renderTable();
+}
+function renderTransPresentationView(){
+  const list=getOrderedTransPresentationList();
+  const groups=getTransPresGroups(list);
+  document.getElementById("transPresCount").textContent=`${list.length} transaction(s) in presentation`;
+  renderTransPresSelectedList(groups);
+  const pagesEl=document.getElementById("transPresPages");
+  // mismo guard de cross-contaminación que los otros decks (ver renderLandPresentationView)
+  document.getElementById("presPages").innerHTML="";
+  document.getElementById("landPresPages").innerHTML="";
+  document.getElementById("officePresPages").innerHTML="";
+  document.getElementById("parkPresPages").innerHTML="";
+  if(!list.length){
+    pagesEl.innerHTML=`<div class="filters-empty">You haven't marked any transactions for the presentation yet.<br>In the Transactions table, check "Use in presentation".</div>`;
+    return;
+  }
+  pagesEl.innerHTML=paginateTransPresGroups(groups).map(lines=>buildTransPresPageHtml(lines, DECK_LOGO_SRC)).join("");
+  stripDeckAccents(pagesEl);
+}
+function buildTransPresPdfFilename(list){
+  const markets=[...new Set(list.map(r=>String(r.MARKET||"").trim()).filter(Boolean))].sort().join(", ");
+  return sanitizeFilenamePart(["Transactions", markets, fxTodayIso()].filter(Boolean).join(" - ")) || "Transactions";
+}
+function doTransPresPrint(list){
+  const pagesEl=document.getElementById("transPresPages");
+  document.body.classList.add("printing-deck");
+  pagesEl.style.zoom="1";
+  preparePrintPageSize();
+  const originalTitle=document.title;
+  document.title=buildTransPresPdfFilename(list);
+  window.print();
+  document.title=originalTitle;
+  pagesEl.style.zoom="";
+  document.querySelectorAll(".deck-page.list-page").forEach(p=>{ p.style.height=""; p.style.width=""; });
+  document.body.classList.remove("printing-deck");
+}
+document.getElementById("transPresUnitSelect").value=transPresUnit;
+document.getElementById("transPresUnitSelect").onchange=function(){
+  transPresUnit=this.value;
+  try{ localStorage.setItem(TRANS_PRES_UNIT_KEY, transPresUnit); }catch(e){}
+  renderTransPresentationView();
+};
+document.getElementById("transPresPrintBtn").onclick=()=>{
+  const list=getOrderedTransPresentationList();
+  if(!list.length){ toast("Mark at least one transaction for the presentation","err"); return; }
+  logBitacoraEntry({
+    presentationType:"Transactions",
+    markets:[...new Set(list.map(r=>String(r.MARKET||"").trim()).filter(Boolean))].join(", "),
+    propertiesCount:list.length
+  });
+  doTransPresPrint(list);
+};
 /* ==== Presentación de Oficinas — Stage 2, Cover/Mapa/Cierre (v4.2.0 en construcción, pedido explícito del
    usuario: "de entrada ya vayamos generando la portada, el mapa, y el cierre"). No hay Tabla/comparación
    todavía (Stage 3, pendiente de confirmar diseño contra la referencia de 37 páginas del usuario). ==== */
@@ -17047,6 +17368,7 @@ function doSaveRecord(){
   if(presentationViewActive) renderPresentationView();
   if(landPresentationViewActive) renderLandPresentationView();
   if(parkPresentationViewActive) renderParkPresentationView();
+  if(transPresentationViewActive) renderTransPresentationView();
   if(mapViewActive && allPolyMap) renderAllPolygonsMap(true);
   const activeEl=document.querySelector("#mBody .form-panel.active");
   const activeIdx=activeEl?Number(activeEl.dataset.panel):0;
@@ -19059,6 +19381,7 @@ applyEmbeddedConfig();
   else if(last && last.view==="presentation") showPresentationView();
   else if(last && last.view==="landpresentation") showLandPresentationView();
   else if(last && last.view==="parkpresentation") showParkPresentationView();
+  else if(last && last.view==="transpresentation") showTransPresentationView();
   else if(last && last.view==="officepresentation") showOfficePresentationView();
   else if(last && last.view==="config") showConfigView();
   else if(last && last.view==="resumen") showResumenView();

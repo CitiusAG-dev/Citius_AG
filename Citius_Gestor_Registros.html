@@ -2730,7 +2730,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     <div class="presentationview" id="transPresentationView">
       <div class="pres-sidebar">
         <h4>Transactions in the presentation</h4>
-        <p class="map-hint">Check "Use in presentation" on each transaction in the Transactions table. They're grouped by Market | Submarket, most recent first.</p>
+        <p class="map-hint">Check "Use in presentation" on each transaction in the Transactions table. They're grouped by Market | Submarket (most recent first within each group) — drag the groups here to reorder them.</p>
         <div id="transPresSelectedList" class="pres-selected-list"></div>
       </div>
       <div class="pres-main">
@@ -13251,7 +13251,8 @@ function getOrderedParkPresentationList(){
 }
 /* ==== Selección para la Presentación "Transactions" (pedido explícito del usuario: "se seleccionarán igual
    que los edificios") — mismo mecanismo que parkPresentationOrder. El orden de selección no importa: el deck
-   siempre agrupa por Market | Submarket y ordena por fecha (ver getTransPresGroups). ==== */
+   siempre agrupa por Market | Submarket (grupos reordenables en el panel lateral) y ordena por fecha dentro de
+   cada grupo (ver getTransPresGroups). ==== */
 const TRANS_PRES_ORDER_KEY="citius_trans_pres_order_v1";
 function loadTransPresentationOrder(){ try{ const s=localStorage.getItem(TRANS_PRES_ORDER_KEY); if(s) return JSON.parse(s); }catch(e){} return []; }
 function saveTransPresentationOrder(){ try{ localStorage.setItem(TRANS_PRES_ORDER_KEY, JSON.stringify(transPresentationOrder)); }catch(e){} }
@@ -14893,6 +14894,11 @@ function transDateParts(v){
   const d=new Date(s); return isNaN(d) ? null : {y:d.getFullYear(), m:d.getMonth()+1};
 }
 function transSortKey(rec){ const p=transDateParts(rec.TRANSACTION_DATE); return p ? p.y*100+p.m : -1; }
+/* Pedido explícito del usuario: el panel lateral lista GRUPOS Market | Submarket (no transacciones sueltas)
+   y se reordenan arrastrando; ese orden se guarda por etiqueta del grupo. */
+const TRANS_PRES_GROUP_ORDER_KEY="citius_trans_pres_group_order_v1";
+let transPresGroupOrder=(()=>{ try{ const v=JSON.parse(localStorage.getItem(TRANS_PRES_GROUP_ORDER_KEY)||"[]"); return Array.isArray(v)?v:[]; }catch(e){ return []; } })();
+function saveTransPresGroupOrder(){ try{ localStorage.setItem(TRANS_PRES_GROUP_ORDER_KEY, JSON.stringify(transPresGroupOrder)); }catch(e){} }
 function getTransPresGroups(list){
   const groups=new Map();
   list.forEach(rec=>{
@@ -14901,7 +14907,14 @@ function getTransPresGroups(list){
     if(!groups.has(label)) groups.set(label, {label, mk:mk||"￿", sm:sm||"￿", rows:[]});
     groups.get(label).rows.push(rec);
   });
-  const out=[...groups.values()].sort((a,b)=>a.mk.localeCompare(b.mk,"es")||a.sm.localeCompare(b.sm,"es"));
+  // Orden de grupos: el que el usuario armó arrastrando en el panel lateral (transPresGroupOrder); los
+  // grupos que todavía no están ahí van al final, en orden alfabético por Market y luego Submarket.
+  const rank=new Map(transPresGroupOrder.map((l,i)=>[l,i]));
+  const out=[...groups.values()].sort((a,b)=>{
+    const ra=rank.has(a.label)?rank.get(a.label):Infinity, rb=rank.has(b.label)?rank.get(b.label):Infinity;
+    if(ra!==rb) return ra-rb;
+    return a.mk.localeCompare(b.mk,"es")||a.sm.localeCompare(b.sm,"es");
+  });
   out.forEach(g=>g.rows.sort((a,b)=>transSortKey(b)-transSortKey(a)));
   return out;
 }
@@ -14986,25 +14999,43 @@ function paginateTransPresGroups(groups){
   if(cur.length) pages.push(cur);
   return pages;
 }
+let lastTransPresGroups=[];
 function renderTransPresSelectedList(groups){
+  lastTransPresGroups=groups;
   const el=document.getElementById("transPresSelectedList");
   if(!groups.length){ el.innerHTML=`<p class="muted" style="font-size:12px">None yet.</p>`; return; }
-  el.innerHTML=groups.map(g=>`<div class="muted" style="font-size:11px;font-weight:700;margin:10px 0 4px">${escapeHtml(g.label)}</div>`+g.rows.map(rec=>{
-    const p=transDateParts(rec.TRANSACTION_DATE);
-    const name=[rec.TENANT_BUYER_USER, rec.PROPERTY_NAME].filter(v=>v!=null&&String(v).trim()!=="").join(" · ")||rec.MAPPING_CODE||"Unnamed";
-    return `<div class="pres-item">
-      <span class="pres-item-num" style="white-space:nowrap;flex:none">${p?`${p.y} ${Math.ceil(p.m/3)}Q`:"—"}</span>
-      <span class="pres-item-name" title="Open record to edit" onclick="editFromTransPresentation('${rec.__id}')">${escapeHtml(name)}</span>
-      <button title="Remove from the presentation" onclick="removeFromTransPresentation('${rec.__id}')">✕</button>
-    </div>`;
-  }).join("")).join("");
+  el.innerHTML=groups.map((g,i)=>`
+    <div class="pres-item" draggable="true" data-idx="${i}"
+         ondragstart="transPresGroupDragStart(event,${i})" ondragover="transPresGroupDragOver(event,${i})"
+         ondrop="transPresGroupDrop(event,${i})" ondragleave="fcDragLeave(event)">
+      ${FC_DRAG_ICON}
+      <span class="pres-item-num">${String(i+1).padStart(2,"0")}</span>
+      <span class="pres-item-name" style="cursor:default">${escapeHtml(g.label)}</span>
+      <span class="muted" style="font-size:11px;white-space:nowrap;flex:none" title="Transactions in this group">${g.rows.length}</span>
+      <button title="Remove this group's transactions from the presentation" onclick="removeTransPresGroup(${i})">✕</button>
+    </div>`).join("");
 }
-function editFromTransPresentation(id){
-  current="TRANSACCIONES";
-  openEdit(id);
+let dragTransPresGroupIdx=null;
+function transPresGroupDragStart(e,i){ e.stopPropagation(); dragTransPresGroupIdx=i; e.dataTransfer.effectAllowed="move"; }
+function transPresGroupDragOver(e,i){ e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.add("dragover"); }
+function transPresGroupDrop(e,i){
+  e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.remove("dragover");
+  if(dragTransPresGroupIdx===null || dragTransPresGroupIdx===i){ dragTransPresGroupIdx=null; return; }
+  const labels=lastTransPresGroups.map(g=>g.label);
+  const [moved]=labels.splice(dragTransPresGroupIdx,1);
+  let destIdx=i;
+  if(dragTransPresGroupIdx<destIdx) destIdx-=1;
+  labels.splice(destIdx,0,moved);
+  transPresGroupOrder=labels;
+  saveTransPresGroupOrder();
+  dragTransPresGroupIdx=null;
+  renderTransPresentationView();
 }
-function removeFromTransPresentation(id){
-  transPresentationOrder=transPresentationOrder.filter(x=>x!==id);
+function removeTransPresGroup(i){
+  const g=lastTransPresGroups[i]; if(!g) return;
+  if(!confirm(`Remove the ${g.rows.length} transaction(s) of ${g.label} from the presentation?`)) return;
+  const ids=new Set(g.rows.map(r=>r.__id));
+  transPresentationOrder=transPresentationOrder.filter(x=>!ids.has(x));
   saveTransPresentationOrder();
   renderTransPresentationView();
   if(current==="TRANSACCIONES") renderTable();

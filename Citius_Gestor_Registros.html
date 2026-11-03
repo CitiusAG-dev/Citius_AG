@@ -1613,12 +1613,13 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .deck-list-table tr.deck-list-stripe td{background:#f2f2f2}
   /* Presentación "Transactions" (pedido explícito del usuario, con imagen de referencia): una sola tabla
      agrupada por Market | Submarket, sin Portada/Cierre. Hoja con el mismo alto fijo que "List" (list-page). */
+  .deck-page.trans-pres-page{padding-bottom:10px}
   .trans-pres-head{display:flex;align-items:flex-end;gap:14px;margin-bottom:14px}
   .trans-pres-head h2{margin:0;font-size:32px;font-weight:400;color:#666;font-family:'Dala Moa',Georgia,serif;letter-spacing:1px}
   .trans-pres-subtitle{font-family:'Unitext',sans-serif;font-weight:300;font-size:15px;color:#888;margin:-6px 0 0 48px}
   .trans-pres-table{width:100%;table-layout:fixed;border-collapse:collapse;font-family:'Unitext',sans-serif;font-size:11px}
   .trans-pres-table th{position:static;background:var(--accent);color:#1a1a1a;font-weight:700;text-align:center;padding:9px 6px;line-height:1.1;font-size:11.5px;white-space:normal}
-  .trans-pres-table td{padding:6px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:1px dotted #9a9a9a;border-bottom:1px solid #fff}
+  .trans-pres-table td{padding:6px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:1px solid #d6d6d6;border-bottom:1px solid #fff}
   .trans-pres-table td:first-child{border-left:none}
   .trans-pres-table tr.trans-row-alt td{background:#efefef}
   .trans-pres-table tr.trans-group td{background:#d6d6d6;font-weight:700;font-size:12.5px;padding:7px 6px;border-left:none}
@@ -14975,8 +14976,8 @@ function buildTransPresPageHtml(lines, logoSrc){
       +`</tr>`;
   }).join("");
   return `<div class="deck-page list-page trans-pres-page">
-    <div class="trans-pres-head"><img class="deck-logo" src="${logoSrc}"><h2>MEXICO</h2></div>
-    <div class="trans-pres-subtitle">Completed Transactions: Buildings</div>
+    <div class="trans-pres-head"><img class="deck-logo" src="${logoSrc}"><h2>Industrial Buildings</h2></div>
+    <div class="trans-pres-subtitle">Completed Transactions</div>
     <table class="trans-pres-table" style="margin-top:18px">
       <colgroup><col style="width:6%"><col style="width:4.5%"><col style="width:13%"><col style="width:10%"><col style="width:10%"><col style="width:16.5%"><col style="width:9.5%"><col style="width:8%"><col style="width:7%"><col style="width:5.5%"><col style="width:10%"></colgroup>
       <thead><tr><th>YEAR</th><th>Q</th><th>TENANT</th><th>NAME</th><th>DEVELOPER</th><th>LOCATION</th><th>SIZE${sizeUnit?`<br><span class="trans-th-unit">${sizeUnit}</span>`:""}</th><th>BUILDING TYPE</th><th>TRANS</th><th>TERM<br><span class="trans-th-unit">(months)</span></th><th>COMPS<br><span class="trans-th-unit">${compsUnit}</span></th></tr></thead>

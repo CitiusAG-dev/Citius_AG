@@ -1614,6 +1614,13 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   /* Presentación "Transactions" (pedido explícito del usuario, con imagen de referencia): una sola tabla
      agrupada por Market | Submarket, sin Portada/Cierre. Hoja con el mismo alto fijo que "List" (list-page). */
   .deck-page.trans-pres-page{padding-bottom:10px}
+  /* Summary > Data Quality de Transacciones: mercado desplegable por año */
+  .resumen-table tr.dq-market-row{cursor:pointer}
+  .resumen-table tr.dq-market-row:hover td{background:#faf6e8}
+  .resumen-table .dq-caret{display:inline-block;width:16px;font-size:13px;line-height:1;color:#b08a1a;transition:transform .15s}
+  .resumen-table tr.dq-market-row.open .dq-caret{transform:rotate(90deg)}
+  .resumen-table tr.dq-year-row td{background:#f7f7f7;font-size:.95em}
+  .resumen-table tr.dq-year-row td:first-child{padding-left:30px;color:#555}
   .trans-pres-head{display:flex;align-items:flex-end;gap:14px;margin-bottom:14px}
   .trans-pres-head h2{margin:0;font-size:32px;font-weight:400;color:#666;font-family:'Dala Moa',Georgia,serif;letter-spacing:1px}
   .trans-pres-subtitle{font-family:'Unitext',sans-serif;font-weight:300;font-size:15px;color:#888;margin:-6px 0 0 48px}
@@ -8073,6 +8080,16 @@ function resumenComplianceTableHtml(title, subtitle, ent, opts){
 /* Calidad de datos en el Summary (pedido explícito del usuario, ver DATA_QUALITY_RULES): por mercado, cuántos
    registros hay, cuántos tienen al menos un problema, % de registros limpios, y cuántos registros tienen cada
    tipo de problema (un registro con 2 problemas del mismo tipo cuenta 1 vez en esa columna). */
+/* Transacciones (pedido explícito del usuario): clic en el nombre del mercado despliega un 2º nivel con una
+   fila por año (de TRANSACTION_DATE). Los mercados abiertos se recuerdan entre re-renders del Summary. */
+const resumenDqOpenMarkets=new Set();
+function toggleResumenDqMarket(el){
+  const key=el.dataset.dqKey;
+  const open=!resumenDqOpenMarkets.has(key);
+  open?resumenDqOpenMarkets.add(key):resumenDqOpenMarkets.delete(key);
+  el.classList.toggle("open", open);
+  el.closest("tbody").querySelectorAll(`tr[data-dq-parent="${CSS.escape(key)}"]`).forEach(tr=>{ tr.style.display=open?"":"none"; });
+}
 function resumenDataQualityTableHtml(title, ent){
   const rules=dqRulesFor(ent);
   if(!rules.length) return "";
@@ -8087,14 +8104,25 @@ function resumenDataQualityTableHtml(title, ent){
   const num=v=>`<td class="num-cell">${Number(v).toLocaleString("en-US")}</td>`;
   const row=(label, st, cls)=>`<tr${cls?` class="${cls}"`:""}><td>${escapeHtml(label)}</td>${num(st.n)}${num(st.withIss)}<td class="num-cell">${st.clean==null?"—":st.clean+"%"}</td>${st.byRule.map(num).join("")}</tr>`;
   let matched=[], body="";
+  const byYear=ent==="TRANSACCIONES";
   markets.forEach(mk=>{
     const list=all.filter(x=>ciEq(resumenMarketOfRow(ent,x.r),mk));
     matched.push(...list);
-    body+=row(mk, stats(list));
+    if(!byYear){ body+=row(mk, stats(list)); return; }
+    const key=ent+"|"+mk, open=resumenDqOpenMarkets.has(key);
+    const years=new Map();
+    list.forEach(x=>{ const p=transDateParts(x.r.TRANSACTION_DATE); const y=p?String(p.y):"(No date)"; if(!years.has(y)) years.set(y,[]); years.get(y).push(x); });
+    const yearKeys=[...years.keys()].sort((a,b)=>(b==="(No date)"?-1:a==="(No date)"?1:Number(b)-Number(a)));
+    const st=stats(list);
+    body+=`<tr class="dq-market-row${open?" open":""}" data-dq-key="${escapeAttr(key)}" onclick="toggleResumenDqMarket(this)" title="Click to show/hide years"><td><span class="dq-caret">▸</span>${escapeHtml(mk)}</td>${num(st.n)}${num(st.withIss)}<td class="num-cell">${st.clean==null?"—":st.clean+"%"}</td>${st.byRule.map(num).join("")}</tr>`;
+    yearKeys.forEach(y=>{
+      const ys=stats(years.get(y));
+      body+=`<tr class="dq-year-row" data-dq-parent="${escapeAttr(key)}" style="${open?"":"display:none"}"><td>${escapeHtml(y)}</td>${num(ys.n)}${num(ys.withIss)}<td class="num-cell">${ys.clean==null?"—":ys.clean+"%"}</td>${ys.byRule.map(num).join("")}</tr>`;
+    });
   });
   body+=row("Total", stats(matched), "resumen-total-row");
   const head=`<tr><th>Market</th><th>Records</th><th>With issues</th><th>% Clean</th>${rules.map(r=>`<th title="${escapeAttr(r.label)}">${escapeHtml(r.short||r.label)}</th>`).join("")}</tr>`;
-  return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(title)}</h4><p class="resumen-block-note">Records with at least one data issue (they can't be saved until fixed). Filter them in the table with the "Data Issues" column.</p><div class="resumen-scroll"><table class="resumen-table"><thead>${head}</thead><tbody>${body}</tbody></table></div></div>`;
+  return `<div class="resumen-block"><h4 class="resumen-subtitle">${escapeHtml(title)}</h4><p class="resumen-block-note">Records with at least one data issue (they can't be saved until fixed). Filter them in the table with the "Data Issues" column.${byYear?" Click a market to see its years.":""}</p><div class="resumen-scroll"><table class="resumen-table"><thead>${head}</thead><tbody>${body}</tbody></table></div></div>`;
 }
 /* Mercado al que pertenece una fila de `ent`, para las tablas de cumplimiento "full" (v3.40.0). v8.11.x, bug
    real reportado por el usuario ("no se muestra el % de cumplimiento de Transacciones"): este comentario

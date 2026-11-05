@@ -2369,7 +2369,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.34.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.34.1</div>
       <div class="fx-rate" id="fxRateLabel" onclick="selectConfigSection('fx')"></div>
     </nav>
   </aside>
@@ -5500,6 +5500,9 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.34.1", date:"2026-11-05", items:[
+    "Summary > Data Quality > Transactions: click a market to expand one row per year (from the transaction date, most recent first) with the same columns; click again to collapse."
+  ]},
   {version:"8.34.0", date:"2026-11-03", items:[
     "New presentation \"Transactions\" (last option in the Presentation menu): check \"Use in presentation\" on transactions in the Transactions table. It's a single table (no cover/closing) — Year, Q, Tenant, Name, Developer, Location, Size, Building Type, Trans, Term (months) and Comps — grouped by Market | Submarket, most recent first within each group. Drag the groups in the side panel to reorder them.",
     "Transactions presentation: \"Units\" selector — As captured, Imperial (SF) or Metric (m²) for Size and Comps. Currency is never converted. Print/PDF is logged in Pres. Log."

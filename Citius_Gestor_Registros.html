@@ -2017,6 +2017,8 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   /* Layout estilo Odoo (ver FORM_2COL_LAYOUT): 2 columnas, etiqueta a la izquierda; los inputs conservan su
      fondo gris redondeado de siempre (pedido explícito del usuario, "para que no cambie tanto"). */
   .fields-2col{display:grid;grid-template-columns:1fr 1fr;column-gap:56px;max-width:1100px}
+  .fields-2col-title{margin:0 0 4px;padding-bottom:6px;border-bottom:1px solid var(--line);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--txt)}
+  .fields-col>.field+.fields-2col-title{margin-top:18px}
   .fields-2col-rest{margin-top:22px;padding-top:14px;border-top:1px dashed var(--line)}
   .fields-col{display:flex;flex-direction:column;gap:8px;min-width:0}
   .fields-2col .field{display:grid;grid-template-columns:150px minmax(0,1fr);align-items:center;column-gap:12px}
@@ -11100,16 +11102,28 @@ const FORM_2COL_LAYOUT={
   "PROPIEDADES|IDENTIFICATION":[
     ["MAPPING_CODE","PROPERTY_NAME","OWNER","DEVELOPER","DEVELOPER_TYPE","ARCHITECT_DESIGN",FORM_PCT_COMPLETE_KEY,"LAST_UPDATE"],
     ["MARKET_STATUS","TRANSACTION_AVAILABLE","PROPERTY_TYPE","CATEGORY_INDUSTRIAL","ID_PARK","PARK_NAME","FUTURE_DELIVERY","POSSIBLE_DELIVERY"]
+  ],
+  // Location (pedido explícito del usuario, con captura de Odoo): subgrupos con título dentro de cada columna.
+  "PROPIEDADES|LOCATION":[
+    [{title:"Market"},"REGION","STATE","MARKET","SUBMARKET",{title:"Location"},"LATITUDE","LONGITUDE","GEO_JSON"],
+    [{title:"Address"},"ADDRESS"]
   ]
 };
 function form2ColLayoutFor(ent, group){ return FORM_2COL_LAYOUT[ent+"|"+group]||null; }
 function form2ColHtml(layout, htmlByKey, ent, record){
   if(layout.some(c=>c.includes(FORM_PCT_COMPLETE_KEY))) htmlByKey.set(FORM_PCT_COMPLETE_KEY, formPctCompleteHtml(ent, record));
   const used=new Set();
-  const col=keys=>keys.filter(k=>htmlByKey.has(k)).map(k=>{ used.add(k); return htmlByKey.get(k); }).join("");
+  // Un elemento {title} de la lista es un subtítulo de grupo (estilo Odoo) dentro de la columna.
+  const col=keys=>keys.filter(k=>typeof k==="object"||htmlByKey.has(k)).map(k=>{
+    if(typeof k==="object") return `<h5 class="fields-2col-title">${escapeHtml(k.title)}</h5>`;
+    used.add(k); return htmlByKey.get(k);
+  }).join("");
   const c1=col(layout[0]), c2=col(layout[1]);
+  // Campos que solo son <input type="hidden"> (ej. REGION_ID/STATE_ID) no ocupan lugar en ninguna columna.
+  const hidden=[...htmlByKey.keys()].filter(k=>!used.has(k) && /^\s*<input type="hidden"[^>]*>\s*$/.test(htmlByKey.get(k)));
+  hidden.forEach(k=>used.add(k));
   const rest=[...htmlByKey.keys()].filter(k=>!used.has(k));
-  let html=`<div class="fields-2col"><div class="fields-col">${c1}</div><div class="fields-col">${c2}</div></div>`;
+  let html=hidden.map(k=>htmlByKey.get(k)).join("")+`<div class="fields-2col"><div class="fields-col">${c1}</div><div class="fields-col">${c2}</div></div>`;
   if(rest.length){
     const half=Math.ceil(rest.length/2);
     html+=`<div class="fields-2col fields-2col-rest"><div class="fields-col">${rest.slice(0,half).map(k=>htmlByKey.get(k)).join("")}</div><div class="fields-col">${rest.slice(half).map(k=>htmlByKey.get(k)).join("")}</div></div>`;

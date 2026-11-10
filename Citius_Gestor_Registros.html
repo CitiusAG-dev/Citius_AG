@@ -2018,7 +2018,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      fondo gris redondeado de siempre (pedido explícito del usuario, "para que no cambie tanto"). */
   .fields-2col{display:grid;grid-template-columns:1fr 1fr;column-gap:56px;max-width:1100px}
   .fields-2col-title{margin:0 0 4px;padding-bottom:6px;border-bottom:1px solid var(--line);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--txt)}
-  .fields-col>.field+.fields-2col-title{margin-top:18px}
+  .fields-2col-band{margin-top:20px}
   .fields-2col-rest{margin-top:22px;padding-top:14px;border-top:1px dashed var(--line)}
   .fields-col{display:flex;flex-direction:column;gap:8px;min-width:0}
   .fields-2col .field{display:grid;grid-template-columns:170px minmax(0,1fr);align-items:center;column-gap:12px}
@@ -11143,17 +11143,27 @@ function form2ColLayoutFor(ent, group){ return FORM_2COL_LAYOUT[ent+"|"+group]||
 function form2ColHtml(layout, htmlByKey, ent, record){
   if(layout.some(c=>c.includes(FORM_PCT_COMPLETE_KEY))) htmlByKey.set(FORM_PCT_COMPLETE_KEY, formPctCompleteHtml(ent, record));
   const used=new Set();
-  // Un elemento {title} de la lista es un subtítulo de grupo (estilo Odoo) dentro de la columna.
-  const col=keys=>keys.filter(k=>typeof k==="object"||htmlByKey.has(k)).map(k=>{
-    if(typeof k==="object") return `<h5 class="fields-2col-title">${escapeHtml(k.title)}</h5>`;
-    used.add(k); return htmlByKey.get(k);
-  }).join("");
-  const c1=col(layout[0]), c2=col(layout[1]);
+  // Un elemento {title} de la lista es un subtítulo de grupo (estilo Odoo) dentro de la columna. Cada columna
+  // se parte en bloques (uno por subtítulo) y el bloque N de la izquierda se alinea con el bloque N de la
+  // derecha en la misma franja horizontal (pedido explícito del usuario: los grupos "a la par").
+  const col=keys=>{
+    const blocks=[];
+    keys.filter(k=>typeof k==="object"||htmlByKey.has(k)).forEach(k=>{
+      if(typeof k==="object"){ blocks.push(`<h5 class="fields-2col-title">${escapeHtml(k.title)}</h5>`); return; }
+      if(!blocks.length) blocks.push("");
+      used.add(k); blocks[blocks.length-1]+=htmlByKey.get(k);
+    });
+    return blocks;
+  };
+  const b1=col(layout[0]), b2=col(layout[1]);
   // Campos que solo son <input type="hidden"> (ej. REGION_ID/STATE_ID) no ocupan lugar en ninguna columna.
   const hidden=[...htmlByKey.keys()].filter(k=>!used.has(k) && /^\s*<input type="hidden"[^>]*>\s*$/.test(htmlByKey.get(k)));
   hidden.forEach(k=>used.add(k));
   const rest=[...htmlByKey.keys()].filter(k=>!used.has(k));
-  let html=hidden.map(k=>htmlByKey.get(k)).join("")+`<div class="fields-2col"><div class="fields-col">${c1}</div><div class="fields-col">${c2}</div></div>`;
+  let html=hidden.map(k=>htmlByKey.get(k)).join("");
+  for(let i=0;i<Math.max(b1.length,b2.length);i++){
+    html+=`<div class="fields-2col${i?" fields-2col-band":""}"><div class="fields-col">${b1[i]||""}</div><div class="fields-col">${b2[i]||""}</div></div>`;
+  }
   if(rest.length){
     const half=Math.ceil(rest.length/2);
     html+=`<div class="fields-2col fields-2col-rest"><div class="fields-col">${rest.slice(0,half).map(k=>htmlByKey.get(k)).join("")}</div><div class="fields-col">${rest.slice(half).map(k=>htmlByKey.get(k)).join("")}</div></div>`;

@@ -2018,10 +2018,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .smart-btn-label{font-size:12.5px;font-weight:500}
   .smart-btn-value{font-size:12.5px;font-weight:700;color:var(--accent-ink);max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .smart-list{position:absolute;top:calc(100% + 6px);left:0;z-index:50;min-width:380px;max-width:520px;max-height:360px;overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.18);padding:6px;cursor:default}
-  .smart-list-head{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);padding:6px 8px 8px}
-  .smart-list-item{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:8px;border-radius:7px;cursor:pointer;font-size:12.5px}
+  .smart-list{display:grid;column-gap:0}
+  .smart-list-head{grid-column:1/-1;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);padding:6px 8px 8px}
+  .smart-list-item{grid-column:1/-1;display:grid;grid-template-columns:subgrid;column-gap:16px;align-items:center;padding:8px;border-radius:7px;cursor:pointer;font-size:12.5px}
   .smart-list-item:hover{background:rgba(240,179,35,.12)}
-  .smart-list-item.smart-list-item-4{grid-template-columns:auto 1fr auto 74px}
   .smart-list-num{text-align:right}
   .smart-list-code{font-weight:700;white-space:nowrap}
   .smart-list-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -17567,8 +17567,12 @@ function onSmartButtonClick(evt, i){
   if(already) return;
   const list=document.createElement("div");
   list.className="smart-list";
+  // Una sola rejilla para toda la lista (cada fila usa subgrid): las columnas quedan alineadas entre filas,
+  // como una tabla con líneas invisibles (pedido explícito del usuario).
+  const four=l.ent==="SPACES"||l.ent==="PROPIEDADES";
+  list.style.gridTemplateColumns=four ? "max-content minmax(0,1fr) max-content max-content" : "max-content minmax(0,1fr) max-content";
   list.innerHTML=`<div class="smart-list-head">${escapeHtml(l.label)} (${l.recs.length})</div>`+
-    l.recs.map(r=>`<div class="smart-list-item${l.ent==="SPACES"||l.ent==="PROPIEDADES"?" smart-list-item-4":""}" data-id="${escapeAttr(r.__id)}">${smartListRowHtml(l.ent, r)}</div>`).join("");
+    l.recs.map(r=>`<div class="smart-list-item" data-id="${escapeAttr(r.__id)}">${smartListRowHtml(l.ent, r)}</div>`).join("");
   list.onclick=e=>{ e.stopPropagation(); const it=e.target.closest(".smart-list-item"); if(it) openRelatedRecord(l.ent, it.dataset.id); };
   btn.appendChild(list);
   setTimeout(()=>document.addEventListener("mousedown", onDocMouseDownForSmartList, true), 0);

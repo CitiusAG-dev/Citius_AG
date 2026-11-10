@@ -2067,8 +2067,8 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .field .vu-group{display:flex;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;overflow:hidden}
   .field .vu-group input{flex:1;min-width:0;border:none;background:none;padding:8px 10px;font-size:13px;color:var(--txt)}
   .field .vu-group input:focus{outline:none}
-  .field .vu-group select{flex-shrink:0;width:82px;border:none;border-left:1px solid var(--line);background:var(--panel);
-               padding:8px 6px 8px 8px;font-size:12px;color:var(--muted);font-weight:600;font-family:inherit;
+  .field .vu-group select{flex-shrink:0;width:72px;border:none;border-left:1px solid var(--line);background:var(--panel);
+               padding:8px 16px 8px 6px;font-size:12px;color:var(--muted);font-weight:600;font-family:inherit;
                appearance:none;-webkit-appearance:none;cursor:pointer;
                background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7480' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
                background-repeat:no-repeat;background-position:right 3px center;background-size:13px}
@@ -2076,7 +2076,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .field .vu-group .view-val{flex:1;min-width:0;border:none;border-radius:0;background:none}
   .field .vu-group .view-unit{flex-shrink:0;padding:8px 10px;border-left:1px solid var(--line);
             color:var(--muted);font-weight:600;font-size:12px;background:var(--panel);display:flex;align-items:center;
-            width:82px;box-sizing:border-box;justify-content:center} /* ancho fijo = el select de unidad en edición, con o sin valor */
+            width:72px;padding-left:4px;padding-right:4px;box-sizing:border-box;justify-content:center} /* ancho fijo = el select de unidad en edición, con o sin valor */
 
   /* Campo de fecha personalizado: input de solo lectura (misma tipografía que los demás) + botón de calendario */
   .date-field{position:relative;display:flex;flex:1;min-width:0}
@@ -11429,7 +11429,7 @@ function buildForm(ent, record){
       return `<div class="field field-readonly"><label>${label}${helpIcon}</label>
         <div class="vu-group">
           <input value="${escapeAttr(String(computedVal))}" readonly disabled>
-          <input value="${escapeAttr(computedUnit)}" readonly disabled style="width:82px;flex-shrink:0">
+          <input value="${escapeAttr(computedUnit)}" readonly disabled style="width:72px;flex-shrink:0">
         </div>
         <input type="hidden" data-key="${valueField.key}" value="${val.replace(/"/g,"&quot;")}">
         <input type="hidden" data-key="${unitField.key}" value="${rawUnit.replace(/"/g,"&quot;")}"></div>`;
@@ -11446,7 +11446,7 @@ function buildForm(ent, record){
       return `<div class="field field-readonly"><label>${label}${helpIcon}</label>
         <div class="vu-group">
           <input value="${escapeAttr(displayVal)}" readonly disabled>
-          <input value="${escapeAttr(displayUnit)}" readonly disabled style="width:82px;flex-shrink:0">
+          <input value="${escapeAttr(displayUnit)}" readonly disabled style="width:72px;flex-shrink:0">
         </div>
         <input type="hidden" data-key="${valueField.key}" value="${val.replace(/"/g,"&quot;")}">
         <input type="hidden" data-key="${unitField.key}" value="${rawUnit.replace(/"/g,"&quot;")}"></div>`;

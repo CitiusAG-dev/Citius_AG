@@ -2428,7 +2428,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.34.1</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.35.0</div>
       <div class="fx-rate" id="fxRateLabel" onclick="selectConfigSection('fx')"></div>
     </nav>
   </aside>
@@ -5570,6 +5570,15 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.35.0", date:"2026-11-10", items:[
+    "Record form redesigned (Odoo style) for Industrial Buildings, Parks, Land, Offices, Spaces and Transactions: every section is in 2 columns (label on the left, value on the right) with functional subgroups (e.g. Market / Location / Address, Areas / Details / Dimensions / Clear Height, Electrical / Lighting & HVAC / Fire Protection / Equipment / Loading / Parking). Groups side by side start at the same height.",
+    "Record header: the Mapping Code (Space Code in Spaces) is the title and the name is shown below. New buttons to related records, centered in the header: Building → Industrial Park and Transactions; Park → Buildings and Transactions; Land → Transactions; Office → Spaces and Transactions; Space → Office; Transaction → its linked record. One record opens directly; several show a list (aligned columns) to choose from. In edit mode they're shown greyed out.",
+    "New fields: City, ZIP and Country in Industrial Buildings, Parks and Offices (Address is now labeled Street); Comm. Condition Notes in Industrial Buildings; Listing Broker in Land (transactions linked to a Land now copy it). Identification shows the record's % Complete.",
+    "Industrial Buildings: Lot Size moves to Measures and Zoning Land Use to Gen. Characteristics; Land or Building is labeled CAM LAND OR BUILDING (also in Parks).",
+    "Field labels: units and acronyms at the end of a name go in parentheses — e.g. CISTERN (M3), VENTILATION (CPH), TERM (MONTHS), COMMON AREA MAINTENANCE (CAM), BUILDING OCCUPANCY RATIO (COS); PCT is shown as (%).",
+    "Photos: click a photo in a record to see it large (arrows to browse the record's photos, Esc to close).",
+    "Unit box has a fixed, narrower width in view and edit mode. Parks has its own menu icon (it was the same as Map). In Spaces the Property section is now called Location."
+  ]},
   {version:"8.34.1", date:"2026-11-05", items:[
     "Summary > Data Quality > Transactions: click a market to expand one row per year (from the transaction date, most recent first) with the same columns; click again to collapse."
   ]},

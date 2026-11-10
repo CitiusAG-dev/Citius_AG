@@ -1993,26 +1993,31 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
               flex-shrink:0;background:var(--panel);border-radius:16px 16px 0 0}
   .modal-head h3{margin:0;font-size:17px}
   /* Encabezado de ficha estilo Odoo: Mapping Code grande, nombre abajo más chico, botones de relaciones */
-  .modal-title-wrap{min-width:0;display:flex;flex-direction:column;gap:2px}
+  .modal-head{position:relative;z-index:5} /* arriba del cuerpo, para que la lista de un botón no quede detrás */
+  .modal-title-wrap{min-width:0;max-width:calc(50% - 190px);display:flex;flex-direction:column;gap:2px}
   .modal-title-wrap h3{font-size:20px;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .modal-subtitle{font-size:13.5px;color:var(--muted);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .modal-subtitle:empty{display:none}
   .modal-edit-tag{display:inline-block;margin-left:10px;padding:2px 8px;border-radius:10px;background:rgba(240,179,35,.16);color:var(--accent-ink);font-size:11px;font-weight:700;vertical-align:3px;letter-spacing:.3px}
-  .smart-btns{margin-left:auto;display:flex;border:1px solid var(--line);border-radius:8px;overflow:visible;flex-shrink:0}
+  /* centrados en el encabezado (pedido explícito del usuario), cada botón de ancho fijo */
+  .smart-btns{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;border:1px solid var(--line);border-radius:8px;overflow:visible;flex-shrink:0}
   .smart-btns:empty{display:none}
-  .smart-btns:not(:empty) + .modal-head-actions{margin-left:12px}
-  .smart-btn{position:relative;display:flex;align-items:center;gap:8px;padding:6px 14px;background:var(--panel);border:none;border-left:1px solid var(--line);cursor:pointer;font-family:inherit;text-align:left;color:var(--txt)}
+  .smart-btn{position:relative;width:150px;flex:0 0 150px;box-sizing:border-box;display:flex;align-items:center;gap:8px;padding:6px 14px;background:var(--panel);border:none;border-left:1px solid var(--line);cursor:pointer;font-family:inherit;text-align:left;color:var(--txt)}
   .smart-btn:first-child{border-left:none;border-radius:8px 0 0 8px}
   .smart-btn:last-child{border-radius:0 8px 8px 0}
   .smart-btn:only-child{border-radius:8px}
   .smart-btn:hover{background:var(--panel-2)}
   .smart-btn.disabled{cursor:default;opacity:.65}
   .smart-btn.disabled:hover{background:var(--panel)}
+  /* En edición se ven pero bloqueados (pedido explícito del usuario): gris claro, sin clic */
+  .smart-btns.locked{border-color:#e4e6ea}
+  .smart-btns.locked .smart-btn{cursor:not-allowed;background:#f6f7f9;color:#a6abb3;border-left-color:#e4e6ea}
+  .smart-btns.locked .smart-btn svg,.smart-btns.locked .smart-btn-value{color:#b9bec6}
   .smart-btn svg{width:22px;height:22px;color:var(--accent);flex-shrink:0}
   .smart-btn-text{display:flex;flex-direction:column;line-height:1.15}
   .smart-btn-label{font-size:12.5px;font-weight:500}
   .smart-btn-value{font-size:12.5px;font-weight:700;color:var(--accent-ink);max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .smart-list{position:absolute;top:calc(100% + 6px);right:0;z-index:50;min-width:380px;max-width:520px;max-height:360px;overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.18);padding:6px;cursor:default}
+  .smart-list{position:absolute;top:calc(100% + 6px);left:0;z-index:50;min-width:380px;max-width:520px;max-height:360px;overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.18);padding:6px;cursor:default}
   .smart-list-head{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);padding:6px 8px 8px}
   .smart-list-item{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:8px;border-radius:7px;cursor:pointer;font-size:12.5px}
   .smart-list-item:hover{background:rgba(240,179,35,.12)}
@@ -17499,12 +17504,19 @@ let fichaSmartLinksCache=[];
 function renderSmartButtons(ent, rec, mode){
   const el=document.getElementById("mSmartBtns");
   closeSmartList();
-  if(!rec || mode!=="view" || ent==="BITACORA"){ el.innerHTML=""; fichaSmartLinksCache=[]; return; }
-  fichaSmartLinksCache=fichaSmartLinks(ent, rec);
-  el.innerHTML=fichaSmartLinksCache.map((l,i)=>{
-    const value=l.single ? l.value : String(l.recs.length);
+  if(!rec || ent==="BITACORA"){ el.innerHTML=""; fichaSmartLinksCache=[]; el.classList.remove("locked"); return; }
+  const locked=mode!=="view";
+  el.classList.toggle("locked", locked);
+  fichaSmartLinksCache=locked ? [] : fichaSmartLinks(ent, rec);
+  const links=locked ? fichaSmartLinks(ent, rec) : fichaSmartLinksCache;
+  el.innerHTML=links.map((l,i)=>{
+    if(locked) return `<button type="button" class="smart-btn" disabled title="Not available while editing — save or exit edit mode first">
+      ${ICONS[l.ent]||""}
+      <span class="smart-btn-text"><span class="smart-btn-label">${escapeHtml(l.label)}</span><span class="smart-btn-value">${l.recs.length}</span></span>
+    </button>`;
+    const value=String(l.recs.length); // pedido explícito del usuario: siempre el número (1 = sí está ligado)
     const off=!l.recs.length;
-    return `<button type="button" class="smart-btn${off?" disabled":""}" data-idx="${i}" onclick="onSmartButtonClick(event,${i})" title="${off?"No linked records":(l.single?"Open":"See the list")}">
+    return `<button type="button" class="smart-btn${off?" disabled":""}" data-idx="${i}" onclick="onSmartButtonClick(event,${i})" title="${off?"No linked records":(l.single?"Open "+escapeAttr(l.value):"See the list")}">
       ${(ICONS[l.ent]||"").replace("<svg ","<svg ")}
       <span class="smart-btn-text"><span class="smart-btn-label">${escapeHtml(l.label)}</span><span class="smart-btn-value">${escapeHtml(value)}</span></span>
     </button>`;

@@ -4634,7 +4634,16 @@ const ENTITY_FIELD_LABEL_OVERRIDES={ PARKS:{ INSTALLED_CAPACITY_TRANSFORMER_KVA:
 function fieldLabel(key, ent){
   if(!ent){ try{ ent=current; }catch(e){ ent=null; } }
   const entOverride=ent && ENTITY_FIELD_LABEL_OVERRIDES[ent] && ENTITY_FIELD_LABEL_OVERRIDES[ent][key];
-  return entOverride || customFieldLabels[key] || FIELD_LABEL_OVERRIDES[key] || key.replace(/_/g," ");
+  return labelUnitInParens(entOverride || customFieldLabels[key] || FIELD_LABEL_OVERRIDES[key] || key.replace(/_/g," "));
+}
+/* Pedido explícito del usuario: la unidad que viene al final del nombre del campo va entre paréntesis
+   ("CISTERN M3" -> "CISTERN (M3)") y PCT se muestra como "%". Solo es la etiqueta visible: el key no cambia. */
+const LABEL_UNIT_SUFFIXES=[[" TON M2"," (TON/M2)"],[" MONTHS"," (MONTHS)"],[" PCT"," (%)"],[" M3"," (M3)"],[" KVA"," (KVA)"],[" LPS"," (LPS)"],[" CPH"," (CPH)"],[" TON"," (TON)"],[" IN"," (IN)"]];
+function labelUnitInParens(label){
+  const s=String(label);
+  if(s.includes("(")) return s;
+  for(const [suf,rep] of LABEL_UNIT_SUFFIXES){ if(s.endsWith(suf)) return s.slice(0,-suf.length)+rep; }
+  return s;
 }
 function fcFieldRowHtml(f,gi,fi,allGroupNames){
   const groupOptions=allGroupNames.map(gn=>`<option value="${escapeAttr(gn)}" ${gn===f.group?"selected":""}>${escapeHtml(gn)}</option>`).join("");

@@ -1992,6 +1992,33 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .modal-head{padding:18px 24px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;
               flex-shrink:0;background:var(--panel);border-radius:16px 16px 0 0}
   .modal-head h3{margin:0;font-size:17px}
+  /* Encabezado de ficha estilo Odoo: Mapping Code grande, nombre abajo más chico, botones de relaciones */
+  .modal-title-wrap{min-width:0;display:flex;flex-direction:column;gap:2px}
+  .modal-title-wrap h3{font-size:20px;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .modal-subtitle{font-size:13.5px;color:var(--muted);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .modal-subtitle:empty{display:none}
+  .modal-edit-tag{display:inline-block;margin-left:10px;padding:2px 8px;border-radius:10px;background:rgba(240,179,35,.16);color:var(--accent-ink);font-size:11px;font-weight:700;vertical-align:3px;letter-spacing:.3px}
+  .smart-btns{margin-left:auto;display:flex;border:1px solid var(--line);border-radius:8px;overflow:visible;flex-shrink:0}
+  .smart-btns:empty{display:none}
+  .smart-btns:not(:empty) + .modal-head-actions{margin-left:12px}
+  .smart-btn{position:relative;display:flex;align-items:center;gap:8px;padding:6px 14px;background:var(--panel);border:none;border-left:1px solid var(--line);cursor:pointer;font-family:inherit;text-align:left;color:var(--txt)}
+  .smart-btn:first-child{border-left:none;border-radius:8px 0 0 8px}
+  .smart-btn:last-child{border-radius:0 8px 8px 0}
+  .smart-btn:only-child{border-radius:8px}
+  .smart-btn:hover{background:var(--panel-2)}
+  .smart-btn.disabled{cursor:default;opacity:.65}
+  .smart-btn.disabled:hover{background:var(--panel)}
+  .smart-btn svg{width:22px;height:22px;color:var(--accent);flex-shrink:0}
+  .smart-btn-text{display:flex;flex-direction:column;line-height:1.15}
+  .smart-btn-label{font-size:12.5px;font-weight:500}
+  .smart-btn-value{font-size:12.5px;font-weight:700;color:var(--accent-ink);max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .smart-list{position:absolute;top:calc(100% + 6px);right:0;z-index:50;min-width:380px;max-width:520px;max-height:360px;overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.18);padding:6px;cursor:default}
+  .smart-list-head{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);padding:6px 8px 8px}
+  .smart-list-item{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:8px;border-radius:7px;cursor:pointer;font-size:12.5px}
+  .smart-list-item:hover{background:rgba(240,179,35,.12)}
+  .smart-list-code{font-weight:700;white-space:nowrap}
+  .smart-list-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .smart-list-extra{color:var(--muted);white-space:nowrap;font-size:11.5px}
   .modal-head .x{margin-left:auto;background:none;border:none;color:var(--muted);font-size:24px;cursor:pointer}
   .modal-head-actions{margin-left:auto;display:flex;align-items:center;gap:12px}
   .modal-head-actions .x{margin-left:0}
@@ -3026,7 +3053,8 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
 <div class="overlay" id="overlay">
   <div class="modal" id="modal">
     <div class="modal-head">
-      <h3 id="mTitle">Record</h3>
+      <div class="modal-title-wrap"><h3 id="mTitle">Record</h3><div class="modal-subtitle" id="mSubtitle"></div></div>
+      <div class="smart-btns" id="mSmartBtns"></div>
       <div class="modal-head-actions">
         <button class="btn ghost" id="modalEditBtn" style="display:none" onclick="switchToEditMode()">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-3px"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="M15 5l4 4"/></svg>Edit</button>
@@ -17284,7 +17312,7 @@ function enterEditMode(rec){
   if(current==="PROPIEDADES" && rec) recomputePropertyDerivedFields(rec);
   editingOriginalPhotoId=(rec&&PHOTO_ID_FIELD[current])?rec[PHOTO_ID_FIELD[current]]:null;
   formValueStash={...(rec||{})};
-  document.getElementById("mTitle").textContent=rec?"Edit · "+(rec[ENTITIES[current].titleField]||ENTITIES[current].label):"New · "+ENTITIES[current].label;
+  setFichaHeader(current, rec, "edit");
   document.getElementById("mBody").innerHTML=buildForm(current,rec);
   if(rec && dqEntityHasRules(current)) showDqInForm(dataIssues(current, rec), false);
   recordLocMapRec=rec||{}; renderRecordLocMap();
@@ -17313,6 +17341,8 @@ function openAdd(){
 function showFichaLoading(){
   document.getElementById("overlay").classList.add("show");
   document.getElementById("mTitle").textContent="Loading…";
+  document.getElementById("mSubtitle").textContent="";
+  document.getElementById("mSmartBtns").innerHTML="";
   document.getElementById("mBody").innerHTML=`<div class="empty">Loading record…</div>`;
   document.getElementById("modalFoot").style.display="none";
   document.getElementById("modalEditBtn").style.display="none";
@@ -17363,7 +17393,7 @@ let viewOpenSeq=0;
 function renderViewRecord(rec, panelIdx){
   if(current==="PARKS") recomputeParkDerivedFields(rec);
   if(current==="PROPIEDADES") recomputePropertyDerivedFields(rec);
-  document.getElementById("mTitle").textContent=rec[ENTITIES[current].titleField]||ENTITIES[current].label;
+  setFichaHeader(current, rec, "view");
   document.getElementById("mBody").innerHTML=buildViewForm(current,rec);
   if(dqEntityHasRules(current)) showDqInForm(dataIssues(current, rec), false);
   recordLocMapRec=rec; renderRecordLocMap();
@@ -17412,7 +17442,119 @@ function exitEditMode(){
   const activeIdx=activeEl?Number(activeEl.dataset.panel):0;
   openView(editingId, activeIdx);
 }
-function closeModal(){ document.getElementById("overlay").classList.remove("show"); revokeAllFichaPhotoUrls(); disposeRecordLocMap(); }
+function closeModal(){ document.getElementById("overlay").classList.remove("show"); revokeAllFichaPhotoUrls(); disposeRecordLocMap(); closeSmartList(); }
+/* ==== Encabezado de la ficha estilo Odoo (pedido explícito del usuario) ====
+   Título = código del registro (Mapping Code / Space Code), debajo y más chico el nombre. A la derecha,
+   "smart buttons" con los registros relacionados (ej. un Parque -> sus Buildings y Transacciones): si es uno
+   solo se abre directo; si son varios, se despliega la lista para elegir cuál abrir. Solo en modo vista (en
+   edición, navegar a otro registro perdería lo no guardado). */
+function fichaCodeOf(ent, rec){
+  if(!rec) return "";
+  const k=ent==="SPACES"?"SPACE_CODE":(ent==="BITACORA"?"":"MAPPING_CODE");
+  return k && rec[k]!=null ? String(rec[k]).trim() : "";
+}
+function fichaNameOf(ent, rec){
+  if(!rec) return "";
+  if(ent==="SPACES") return [rec.PROPERTY_NAME, rec.LEVEL_FLOOR!=null&&rec.LEVEL_FLOOR!==""?`${fieldLabel("LEVEL_FLOOR","SPACES").replace(/\s*\/.*$/,"")} ${rec.LEVEL_FLOOR}`:"", rec.OFFICE_NO?`#${rec.OFFICE_NO}`:""].filter(Boolean).join(" · ");
+  if(ent==="TRANSACCIONES") return [rec.PROPERTY_NAME, rec.TENANT_BUYER_USER].filter(v=>v!=null&&String(v).trim()!=="").join(" · ");
+  const v=rec[ENTITIES[ent].titleField];
+  return v!=null ? String(v) : "";
+}
+function setFichaHeader(ent, rec, mode){
+  const titleEl=document.getElementById("mTitle"), subEl=document.getElementById("mSubtitle");
+  const editTag=mode==="edit"?`<span class="modal-edit-tag">${rec?"EDITING":"NEW"}</span>`:"";
+  const code=fichaCodeOf(ent, rec), name=fichaNameOf(ent, rec);
+  const main=code || name || (rec ? ENTITIES[ent].label : "New · "+ENTITIES[ent].label);
+  titleEl.innerHTML=escapeHtml(main)+editTag;
+  subEl.textContent=code ? name : "";
+  renderSmartButtons(ent, rec, mode);
+}
+function fichaLinkedTransactions(rec){
+  return (state.TRANSACCIONES||[]).filter(t=>transactionLinkedRecord(t)===rec)
+    .sort((a,b)=>transSortKey(b)-transSortKey(a));
+}
+function fichaSmartLinks(ent, rec){
+  const codeLc=String(rec.MAPPING_CODE==null?"":rec.MAPPING_CODE).trim().toLowerCase();
+  const byCode=(e,key)=>codeLc?(state[e]||[]).filter(r=>String(r[key]==null?"":r[key]).trim().toLowerCase()===codeLc):[];
+  const links=[];
+  if(ent==="PROPIEDADES"){
+    const park=relatedParkFor(rec);
+    links.push({ent:"PARKS", label:"Industrial Park", value:park?(park.PROPERTY_NAME||park.MAPPING_CODE):"—", recs:park?[park]:[], single:true});
+  }
+  if(ent==="PARKS") links.push({ent:"PROPIEDADES", label:"Buildings", recs:byCode("PROPIEDADES","ID_PARK")});
+  if(ent==="OFICINAS") links.push({ent:"SPACES", label:"Spaces", recs:byCode("SPACES","MAPPING_CODE")});
+  if(ent==="SPACES"){
+    const off=codeLc?linkedCodeIndex("OFICINAS").get(codeLc):null;
+    links.push({ent:"OFICINAS", label:"Office", value:off?(off.PROPERTY_NAME||off.MAPPING_CODE):"—", recs:off?[off]:[], single:true});
+  }
+  if(ent==="TRANSACCIONES"){
+    const linked=transactionLinkedRecord(rec), lent=linked?TRANS_LINK_ENTS.find(e=>(state[e]||[]).includes(linked)):null;
+    const lbl={PROPIEDADES:"Building",PARKS:"Industrial Park",LAND:"Land",OFICINAS:"Office"}[lent]||"Property";
+    links.push({ent:lent||"PROPIEDADES", label:lbl, value:linked?(linked.PROPERTY_NAME||linked.MAPPING_CODE):"—", recs:linked?[linked]:[], single:true});
+  }
+  if(TRANS_LINK_ENTS.includes(ent)) links.push({ent:"TRANSACCIONES", label:"Transactions", recs:fichaLinkedTransactions(rec)});
+  return links;
+}
+let fichaSmartLinksCache=[];
+function renderSmartButtons(ent, rec, mode){
+  const el=document.getElementById("mSmartBtns");
+  closeSmartList();
+  if(!rec || mode!=="view" || ent==="BITACORA"){ el.innerHTML=""; fichaSmartLinksCache=[]; return; }
+  fichaSmartLinksCache=fichaSmartLinks(ent, rec);
+  el.innerHTML=fichaSmartLinksCache.map((l,i)=>{
+    const value=l.single ? l.value : String(l.recs.length);
+    const off=!l.recs.length;
+    return `<button type="button" class="smart-btn${off?" disabled":""}" data-idx="${i}" onclick="onSmartButtonClick(event,${i})" title="${off?"No linked records":(l.single?"Open":"See the list")}">
+      ${(ICONS[l.ent]||"").replace("<svg ","<svg ")}
+      <span class="smart-btn-text"><span class="smart-btn-label">${escapeHtml(l.label)}</span><span class="smart-btn-value">${escapeHtml(value)}</span></span>
+    </button>`;
+  }).join("");
+}
+function closeSmartList(){
+  document.querySelectorAll(".smart-list").forEach(x=>x.remove());
+  document.removeEventListener("mousedown", onDocMouseDownForSmartList, true);
+}
+function onDocMouseDownForSmartList(e){
+  if(!e.target.closest(".smart-list") && !e.target.closest(".smart-btn")) closeSmartList();
+}
+function smartListRowHtml(ent, r){
+  let code, name, extra;
+  if(ent==="TRANSACCIONES"){
+    const p=transDateParts(r.TRANSACTION_DATE);
+    code=p?`${p.y} ${Math.ceil(p.m/3)}Q`:"—";
+    name=[r.TENANT_BUYER_USER, r.TRANSACCION_TYPE].filter(v=>v!=null&&String(v).trim()!=="").join(" · ")||"—";
+    const n=Number(r.TRANSACTION_AREA);
+    extra=(r.TRANSACTION_AREA!=null&&r.TRANSACTION_AREA!==""&&!isNaN(n))?`${Math.round(n).toLocaleString("en-US")} ${r.TRANSACTION_UNIT||""}`:"";
+  } else if(ent==="SPACES"){
+    code=r.SPACE_CODE||"—"; name=fichaNameOf("SPACES", r)||"—"; extra=r.MARKET_STATUS||"";
+  } else {
+    code=r.MAPPING_CODE||"—"; name=r.PROPERTY_NAME||"—"; extra=r.MARKET_STATUS||r.STATUS||"";
+  }
+  return `<span class="smart-list-code">${escapeHtml(String(code))}</span><span class="smart-list-name" title="${escapeAttr(String(name))}">${escapeHtml(String(name))}</span><span class="smart-list-extra">${escapeHtml(String(extra))}</span>`;
+}
+function onSmartButtonClick(evt, i){
+  evt.stopPropagation();
+  const l=fichaSmartLinksCache[i];
+  if(!l || !l.recs.length) return;
+  if(l.single || l.recs.length===1){ openRelatedRecord(l.ent, l.recs[0].__id); return; }
+  const btn=evt.currentTarget;
+  const already=btn.querySelector(".smart-list");
+  closeSmartList();
+  if(already) return;
+  const list=document.createElement("div");
+  list.className="smart-list";
+  list.innerHTML=`<div class="smart-list-head">${escapeHtml(l.label)} (${l.recs.length})</div>`+
+    l.recs.map(r=>`<div class="smart-list-item" data-id="${escapeAttr(r.__id)}">${smartListRowHtml(l.ent, r)}</div>`).join("");
+  list.onclick=e=>{ e.stopPropagation(); const it=e.target.closest(".smart-list-item"); if(it) openRelatedRecord(l.ent, it.dataset.id); };
+  btn.appendChild(list);
+  setTimeout(()=>document.addEventListener("mousedown", onDocMouseDownForSmartList, true), 0);
+}
+// Abre un registro de otra entidad: cambia a esa pestaña (como hacer clic en el menú) y abre su ficha.
+function openRelatedRecord(ent, id){
+  closeSmartList();
+  if(current!==ent){ current=ent; showTableView(); renderTable(); }
+  openView(id);
+}
 /* v4.4.6, bug real reportado por el usuario ("selecciono espacios... en el mapa no me muestra el pin...
    Mapping Code no coincide", con capturas confirmando que Oficina y Space tenían el MISMO código
    capturado) — causa raíz encontrada en el colector de abajo: cualquier campo de texto cuyo valor "parezca"

@@ -4650,7 +4650,7 @@ function fieldLabel(key, ent){
 }
 /* Pedido explícito del usuario: la unidad que viene al final del nombre del campo va entre paréntesis
    ("CISTERN M3" -> "CISTERN (M3)") y PCT se muestra como "%". Solo es la etiqueta visible: el key no cambia. */
-const LABEL_UNIT_SUFFIXES=[[" TON M2"," (TON/M2)"],[" MONTHS"," (MONTHS)"],[" PCT"," (%)"],[" M3"," (M3)"],[" KVA"," (KVA)"],[" LPS"," (LPS)"],[" CPH"," (CPH)"],[" COS"," (COS)"],[" CUS"," (CUS)"],[" CAS"," (CAS)"],[" TON"," (TON)"],[" IN"," (IN)"]];
+const LABEL_UNIT_SUFFIXES=[[" TON M2"," (TON/M2)"],[" MONTHS"," (MONTHS)"],[" PCT"," (%)"],[" M3"," (M3)"],[" KVA"," (KVA)"],[" LPS"," (LPS)"],[" CPH"," (CPH)"],[" COS"," (COS)"],[" CUS"," (CUS)"],[" CAS"," (CAS)"],[" CAM"," (CAM)"],[" TON"," (TON)"],[" IN"," (IN)"]];
 function labelUnitInParens(label){
   const s=String(label);
   if(s.includes("(")) return s;
@@ -6526,7 +6526,8 @@ function unitKeyFor(ent, key, known){
    para los campos NO pareados) — cualquier renombre de un campo _VALUE pareado (COMPS_VALUE, y ahora
    también COMPS_SALE_PRICE_VALUE/TI_ALLOWANCE_VALUE) se perdía siempre, sin importar qué se configurara.
    Se agrega la misma prioridad que fieldLabel() ya usa, antes de caer al recorte automático de siempre. */
-function pairValueLabel(key){
+function pairValueLabel(key){ return labelUnitInParens(pairValueLabelRaw(key)); } // mismo criterio de "(UNIDAD)"/siglas que fieldLabel
+function pairValueLabelRaw(key){
   if(customFieldLabels[key]) return customFieldLabels[key];
   if(FIELD_LABEL_OVERRIDES[key]) return FIELD_LABEL_OVERRIDES[key];
   if(IRREGULAR_VALUE_UNIT_PAIRS[key]) return key.replace(/_/g," ");

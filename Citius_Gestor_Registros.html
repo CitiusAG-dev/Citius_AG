@@ -11089,14 +11089,22 @@ const LONG_TEXT_FIELD_KEYS=new Set(["NOTES","COMM_CONDITION_NOTES"]);
    Lo que no esté en ninguna de las 2 listas se agrega al final (pedido explícito: "déjalo hasta abajo para
    irlo acomodando luego"), repartido en las mismas 2 columnas. `htmlByKey` = HTML ya renderizado de cada
    campo (un par Valor+Unidad va bajo la key del valor). */
+// Pseudo-campo de solo lectura: el "% Complete" del registro (mismo cálculo que la columna de la tabla).
+const FORM_PCT_COMPLETE_KEY="__PCT_COMPLETE__";
+function formPctCompleteHtml(ent, record){
+  const st=record?completionStats(ent, record):null;
+  const txt=st?Math.round(st.pct)+"%":"—";
+  return `<div class="field field-readonly"><label>% COMPLETE</label><div class="view-val" title="% of required fields captured (saved values)">${txt}</div></div>`;
+}
 const FORM_2COL_LAYOUT={
   "PROPIEDADES|IDENTIFICATION":[
-    ["MAPPING_CODE","PROPERTY_NAME","OWNER","DEVELOPER","DEVELOPER_TYPE"],
-    ["MARKET_STATUS","TRANSACTION_AVAILABLE","PROPERTY_TYPE","ID_PARK","PARK_NAME","CATEGORY_INDUSTRIAL","ARCHITECT_DESIGN"]
+    ["MAPPING_CODE","PROPERTY_NAME","OWNER","DEVELOPER","DEVELOPER_TYPE","ARCHITECT_DESIGN",FORM_PCT_COMPLETE_KEY],
+    ["MARKET_STATUS","TRANSACTION_AVAILABLE","PROPERTY_TYPE","CATEGORY_INDUSTRIAL","ID_PARK","PARK_NAME"]
   ]
 };
 function form2ColLayoutFor(ent, group){ return FORM_2COL_LAYOUT[ent+"|"+group]||null; }
-function form2ColHtml(layout, htmlByKey){
+function form2ColHtml(layout, htmlByKey, ent, record){
+  if(layout.some(c=>c.includes(FORM_PCT_COMPLETE_KEY))) htmlByKey.set(FORM_PCT_COMPLETE_KEY, formPctCompleteHtml(ent, record));
   const used=new Set();
   const col=keys=>keys.filter(k=>htmlByKey.has(k)).map(k=>{ used.add(k); return htmlByKey.get(k); }).join("");
   const c1=col(layout[0]), c2=col(layout[1]);
@@ -11415,7 +11423,7 @@ function buildForm(ent, record){
       pairFieldsByUnit(groups[g]).forEach(item=>{
         byKey.set(item.pair?item.valueField.key:item.field.key, item.pair ? renderPairField(item.valueField, item.unitField) : renderStandaloneField(item.field));
       });
-      html=form2ColHtml(layout2, byKey);
+      html=form2ColHtml(layout2, byKey, ent, record);
     } else {
       html=`<div class="fields">`;
       pairFieldsByUnit(groups[g]).forEach(item=>{
@@ -11625,7 +11633,7 @@ function buildViewForm(ent, record){
       html+=`<div class="field"${forceNewRow}><label>${fieldLabel(f.key)}${reqMark}${helpIcon}</label><div class="view-val${mismatchCls}"${mismatchTitle}>${displayVal}</div></div>`;
     }
     html+=`</div>`;
-    if(layout2) html=form2ColHtml(layout2, byKey);
+    if(layout2) html=form2ColHtml(layout2, byKey, ent, record);
     if(groups[g].some(f=>f.key==="LATITUDE")) html+=recordLocMapHtml(); // v8.19.x: mapa de ubicación
     if(isListingFieldGroup(groups[g])) html+=listingPresentationHistoryHtml(ent, record);
     panels.push({label:g, html, missing:countMissingRequired(ent, groups[g], record)});

@@ -18443,9 +18443,13 @@ const PHOTO_SIZE_OVERRIDES={ OFICINAS:{w:900, h:608, quality:0.92} };
    resolución y JPEG 95% — aplica a CUALQUIER entidad (Propiedades/Parques/Terrenos/Spaces), gana sobre
    PHOTO_SIZE_OVERRIDES. Las fotos ya guardadas no cambian: hay que volver a subir el original. */
 const LAYOUT_PHOTO_TARGET={w:2400, h:1620, quality:0.95};
+/* Pedido explícito del usuario (v8.35.x): TODAS las fotos (no solo Layout) se guardan con la misma configuración
+   que Layout — 2400×1620 a 95% — para que se vean bien en el visor en grande y al imprimir. Misma proporción de
+   siempre (40:27), así que el recorte "cover" de las demás fotos no cambia, solo la resolución/calidad. Las fotos
+   ya guardadas no cambian: hay que volver a subir el original. PHOTO_TARGET_W/H y PHOTO_SIZE_OVERRIDES quedan
+   como referencia histórica, ya no se usan. */
 function photoTargetFor(ent, kindKey){
-  if(kindKey==="LAYOUT") return LAYOUT_PHOTO_TARGET;
-  return PHOTO_SIZE_OVERRIDES[ent] || {w:PHOTO_TARGET_W, h:PHOTO_TARGET_H, quality:PHOTO_DEFAULT_QUALITY};
+  return LAYOUT_PHOTO_TARGET;
 }
 let photoSet=null;
 let photoSetLoading=null;

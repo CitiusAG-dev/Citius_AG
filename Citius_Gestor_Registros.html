@@ -5197,7 +5197,8 @@ let pendingDelete = null;
 /* ==== Tabs ==== */
 const ICONS = {
   PROPIEDADES:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>`,
-  PARKS:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>`,
+  // Ícono de fábrica (pedido explícito del usuario: antes era el mismo mapa plegado que la pestaña Map)
+  PARKS:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M17 18h1"/><path d="M12 18h1"/><path d="M7 18h1"/></svg>`,
   LAND:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21 10 5l4 8 3-4 4 12Z"/><line x1="3" y1="21" x2="21" y2="21"/></svg>`,
   TRANSACCIONES:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>`,
   OFICINAS:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M12 6h.01"/><path d="M16 6h.01"/><path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/></svg>`,
@@ -10643,6 +10644,13 @@ const GROUP_META = {
   // "Pres. Log" en la barra lateral principal (ver ICONS.BITACORA), para que se reconozca de inmediato.
   "LOG": {label:"Log", icon:'<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="16" y2="16"/><line x1="8" y1="20" x2="12" y2="20"/>'},
 };
+/* Nombre/ícono de una sección solo para una entidad (pedido explícito del usuario): en Spaces la sección
+   "PROPIEDAD" (Office + Market) se muestra como "Location". El key interno del grupo no cambia. */
+const ENTITY_GROUP_META_ALIAS={ SPACES:{ PROPIEDAD:"LOCATION" } };
+function groupMetaFor(ent, g){
+  const alias=ENTITY_GROUP_META_ALIAS[ent] && ENTITY_GROUP_META_ALIAS[ent][g];
+  return groupMeta(alias||g);
+}
 function groupMeta(g){
   const fallbackLabel=g.charAt(0)+g.slice(1).toLowerCase();
   if(GROUP_META[g]) return GROUP_META[g];
@@ -11265,8 +11273,8 @@ const FORM_2COL_LAYOUT={
     ["MARKET_STATUS","TRANSACTION_AVAILABLE","CONDITION"]
   ],
   "SPACES|PROPIEDAD":[
-    [{title:"Office"},"MAPPING_CODE","PROPERTY_NAME","STATUS"],
-    [{title:"Market"},"REGION","STATE","MARKET","SUBMARKET"]
+    [{title:"Market"},"REGION","STATE","MARKET","SUBMARKET"],
+    [{title:"Office"},"MAPPING_CODE","PROPERTY_NAME","STATUS"]
   ],
   "SPACES|MEASURES":[
     [{title:"Areas"},"NET_LEASABLE_AREA_VALUE","NET_USEABLE_AREA_VALUE"],
@@ -11665,7 +11673,7 @@ function buildForm(ent, record){
   if(PHOTO_ID_FIELD[ent]) panels.push({label:"Photography", html:buildImageBlock(ent), missing:photoMissingCount(ent,record)});
   moveInternalNotesPanelLast(panels);
   const nav=panels.map((p,i)=>{
-    const meta=groupMeta(p.label);
+    const meta=groupMetaFor(ent, p.label);
     const badge=p.missing>0?`<span class="form-nav-badge">${p.missing}</span>`:"";
     return `<button type="button" class="${i===0?"active":""}" data-group="${escapeAttr(p.label)}" onclick="switchFormPanel(${i})">
       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${meta.icon}</svg>
@@ -11868,7 +11876,7 @@ function buildViewForm(ent, record){
   if(PHOTO_ID_FIELD[ent]) panels.push({label:"Photography", html:buildImageViewBlock(ent), missing:photoMissingCount(ent,record)});
   moveInternalNotesPanelLast(panels);
   const nav=panels.map((p,i)=>{
-    const meta=groupMeta(p.label);
+    const meta=groupMetaFor(ent, p.label);
     const badge=p.missing>0?`<span class="form-nav-badge">${p.missing}</span>`:"";
     return `<button type="button" class="${i===0?"active":""}" data-group="${escapeAttr(p.label)}" onclick="switchFormPanel(${i})">
       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${meta.icon}</svg>

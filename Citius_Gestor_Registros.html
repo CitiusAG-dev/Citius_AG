@@ -2428,7 +2428,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.35.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.35.1</div>
       <div class="fx-rate" id="fxRateLabel" onclick="selectConfigSection('fx')"></div>
     </nav>
   </aside>
@@ -5570,6 +5570,9 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.35.1", date:"2026-11-10", items:[
+    "Photos: every photo you upload (facade, exterior, interior, aerial, docks, etc.) is now saved like Layout — 2400×1620 at 95% quality — so it looks sharp when viewed large and in presentations. Photos already saved don't change; re-upload the original to improve them."
+  ]},
   {version:"8.35.0", date:"2026-11-10", items:[
     "Record form redesigned (Odoo style) for Industrial Buildings, Parks, Land, Offices, Spaces and Transactions: every section is in 2 columns (label on the left, value on the right) with functional subgroups (e.g. Market / Location / Address, Areas / Details / Dimensions / Clear Height, Electrical / Lighting & HVAC / Fire Protection / Equipment / Loading / Parking). Groups side by side start at the same height.",
     "Record header: the Mapping Code (Space Code in Spaces) is the title and the name is shown below. New buttons to related records, centered in the header: Building → Industrial Park and Transactions; Park → Buildings and Transactions; Land → Transactions; Office → Spaces and Transactions; Space → Office; Transaction → its linked record. One record opens directly; several show a list (aligned columns) to choose from. In edit mode they're shown greyed out.",

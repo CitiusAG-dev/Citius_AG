@@ -2208,7 +2208,16 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .image-block{display:flex;flex-direction:column;gap:10px}
   .image-preview{width:100%;max-width:340px;aspect-ratio:40/27;border-radius:10px;overflow:hidden;background:var(--panel-2);
                  border:1px solid var(--line);display:flex;align-items:center;justify-content:center;transition:outline-color .12s}
-  .image-preview img{width:100%;height:100%;object-fit:cover;display:block}
+  .image-preview img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in}
+  /* Visor de foto en grande (pedido explícito del usuario: "al darle clic a la imagen se vea en grande") */
+  .photo-lightbox{position:fixed;inset:0;z-index:100000;background:rgba(15,17,21,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 70px;cursor:zoom-out}
+  .photo-lightbox img{max-width:100%;max-height:calc(100vh - 110px);object-fit:contain;border-radius:6px;box-shadow:0 10px 40px rgba(0,0,0,.5);cursor:default}
+  .photo-lightbox-caption{color:#eee;font-size:13px;font-weight:600;margin-top:12px;letter-spacing:.3px}
+  .photo-lightbox-btn{position:absolute;background:rgba(255,255,255,.12);border:none;color:#fff;width:44px;height:44px;border-radius:50%;font-size:22px;line-height:44px;text-align:center;cursor:pointer}
+  .photo-lightbox-btn:hover{background:rgba(255,255,255,.25)}
+  .photo-lightbox-close{top:18px;right:18px}
+  .photo-lightbox-prev{left:16px;top:50%;transform:translateY(-50%)}
+  .photo-lightbox-next{right:16px;top:50%;transform:translateY(-50%)}
   /* Vista previa de "Layout" (v3.33.1) dentro del modal de girar — a diferencia de las demás fotos
      (cover, recorta lo que sobra), Layout se ajusta a lo ancho SIN recortar (ver
      processImageFitWidthWhiteBg): el preview usa object-fit:contain sobre fondo blanco para verse igual a
@@ -18283,6 +18292,52 @@ async function loadImagePreview(kindKey){
     removeBtn.style.display="none";
   }
 }
+/* Visor en grande: clic en cualquier foto de la ficha (modo vista o edición). Flechas ←/→ recorren las demás
+   fotos de la misma ficha; Esc o clic fuera de la imagen lo cierra. Reusa el blob URL ya cargado en la casilla. */
+let photoLightboxList=[], photoLightboxIdx=0;
+function openPhotoLightbox(imgEl){
+  const imgs=[...document.querySelectorAll("#mBody .image-preview img")];
+  photoLightboxList=imgs.map(im=>{
+    const block=im.closest(".image-block"), t=block&&block.querySelector(".image-block-title");
+    return {src:im.src, caption:t?t.textContent.replace("*","").trim():""};
+  });
+  photoLightboxIdx=Math.max(0, imgs.indexOf(imgEl));
+  closePhotoLightbox();
+  const el=document.createElement("div");
+  el.id="photoLightbox"; el.className="photo-lightbox";
+  el.onclick=e=>{ if(e.target===el) closePhotoLightbox(); };
+  document.body.appendChild(el);
+  renderPhotoLightbox();
+  document.addEventListener("keydown", onPhotoLightboxKey, true);
+}
+function renderPhotoLightbox(){
+  const el=document.getElementById("photoLightbox"); if(!el) return;
+  const it=photoLightboxList[photoLightboxIdx]; if(!it) return;
+  const multi=photoLightboxList.length>1;
+  el.innerHTML=`<img src="${it.src}" alt="">
+    <div class="photo-lightbox-caption">${escapeHtml(it.caption)}${multi?` · ${photoLightboxIdx+1} / ${photoLightboxList.length}`:""}</div>
+    <button type="button" class="photo-lightbox-btn photo-lightbox-close" title="Close (Esc)" onclick="closePhotoLightbox()">✕</button>
+    ${multi?`<button type="button" class="photo-lightbox-btn photo-lightbox-prev" title="Previous (←)" onclick="stepPhotoLightbox(-1)">‹</button>
+    <button type="button" class="photo-lightbox-btn photo-lightbox-next" title="Next (→)" onclick="stepPhotoLightbox(1)">›</button>`:""}`;
+}
+function stepPhotoLightbox(d){
+  const n=photoLightboxList.length; if(n<2) return;
+  photoLightboxIdx=(photoLightboxIdx+d+n)%n;
+  renderPhotoLightbox();
+}
+function onPhotoLightboxKey(e){
+  if(e.key==="Escape"){ e.stopPropagation(); e.preventDefault(); closePhotoLightbox(); }
+  else if(e.key==="ArrowLeft"){ e.preventDefault(); stepPhotoLightbox(-1); }
+  else if(e.key==="ArrowRight"){ e.preventDefault(); stepPhotoLightbox(1); }
+}
+function closePhotoLightbox(){
+  const el=document.getElementById("photoLightbox"); if(el) el.remove();
+  document.removeEventListener("keydown", onPhotoLightboxKey, true);
+}
+document.addEventListener("click", e=>{
+  const img=e.target.closest && e.target.closest("#mBody .image-preview img");
+  if(img) openPhotoLightbox(img);
+});
 async function unlockImagesAndPreview(code,kindKey){
   if(await ensurePermission(imagesDirHandle,"read")){ code?loadViewImagePreview(code,kindKey):loadImagePreview(kindKey); }
   else toast("Permission denied","err");

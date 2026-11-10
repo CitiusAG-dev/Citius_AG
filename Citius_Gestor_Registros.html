@@ -4650,7 +4650,7 @@ function fieldLabel(key, ent){
 }
 /* Pedido explícito del usuario: la unidad que viene al final del nombre del campo va entre paréntesis
    ("CISTERN M3" -> "CISTERN (M3)") y PCT se muestra como "%". Solo es la etiqueta visible: el key no cambia. */
-const LABEL_UNIT_SUFFIXES=[[" TON M2"," (TON/M2)"],[" MONTHS"," (MONTHS)"],[" PCT"," (%)"],[" M3"," (M3)"],[" KVA"," (KVA)"],[" LPS"," (LPS)"],[" CPH"," (CPH)"],[" TON"," (TON)"],[" IN"," (IN)"]];
+const LABEL_UNIT_SUFFIXES=[[" TON M2"," (TON/M2)"],[" MONTHS"," (MONTHS)"],[" PCT"," (%)"],[" M3"," (M3)"],[" KVA"," (KVA)"],[" LPS"," (LPS)"],[" CPH"," (CPH)"],[" COS"," (COS)"],[" CUS"," (CUS)"],[" CAS"," (CAS)"],[" TON"," (TON)"],[" IN"," (IN)"]];
 function labelUnitInParens(label){
   const s=String(label);
   if(s.includes("(")) return s;

@@ -2429,7 +2429,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.35.1</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.36.0</div>
       <div class="fx-rate" id="fxRateLabel" onclick="selectConfigSection('fx')"></div>
     </nav>
   </aside>
@@ -5571,6 +5571,14 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.36.0", date:"2026-11-11", items:[
+    "Offices, Amenities: new \"None\" option for buildings with no amenities (it clears the other selections, counts as filled, and the Office Presentation then shows Nearby Amenities instead).",
+    "Offices, Amenities: values typed in the Excel that aren't in the list now appear at the top of the dropdown marked \"(not in list)\", so they can be unchecked and removed.",
+    "Offices, Amenities: new \"Roof Top\" option.",
+    "Offices, Nearby Amenities: new options Bank, Shopping Mall, School, Metro Station, Bus Stop, Theater, Convention Center, Museum and Hospital (with Spanish translations for the presentation).",
+    "Office Presentation: Nearby Amenities are now translated when the deck is in Spanish.",
+    "Spaces: help note on Common Area Maintenance (CAM) — enter 0 when maintenance is included in the rent so the presentation shows \"Incluido\"/\"Included\"."
+  ]},
   {version:"8.35.1", date:"2026-11-10", items:[
     "Photos: every photo you upload (facade, exterior, interior, aerial, docks, etc.) is now saved like Layout — 2400×1620 at 95% quality — so it looks sharp when viewed large and in presentations. Photos already saved don't change; re-upload the original to improve them."
   ]},

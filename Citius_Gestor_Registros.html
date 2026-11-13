@@ -2429,7 +2429,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.36.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.37.0</div>
       <div class="fx-rate" id="fxRateLabel" onclick="selectConfigSection('fx')"></div>
     </nav>
   </aside>
@@ -5573,6 +5573,10 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.37.0", date:"2026-11-12", items:[
+    "Pres. Log: new \"Edit presentation\" button in each log entry — opens that presentation exactly as it was printed (same records in the same order, cover data, visible pages, units/period/confidential, map view; plus proposed areas for Park Land, group order for Transactions, and Options/language for Offices) so you can modify it and print it again. The new print is logged as a new entry; the original stays as is.",
+    "Works for presentations printed from this version on (older entries show the button greyed out). Records are matched by Mapping Code / Space Code, so the selection survives records being added or removed; any record that no longer exists is left out with a notice."
+  ]},
   {version:"8.36.0", date:"2026-11-11", items:[
     "Offices, Amenities: new \"None\" option for buildings with no amenities (it clears the other selections, counts as filled, and the Office Presentation then shows Nearby Amenities instead).",
     "Offices, Amenities: values typed in the Excel that aren't in the list now appear at the top of the dropdown marked \"(not in list)\", so they can be unchecked and removed.",

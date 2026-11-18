@@ -2430,7 +2430,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.38.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.38.1</div>
       <div class="fx-rate" id="fxRateLabel" onclick="selectConfigSection('fx')"></div>
     </nav>
   </aside>
@@ -5574,6 +5574,9 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.38.1", date:"2026-11-18", items:[
+    "Market Report cover: the exchange-rate note now reads \"For reporting purposes, some values were converted using the DOF exchange rate of … MXN/USD (date).\""
+  ]},
   {version:"8.38.0", date:"2026-11-18", items:[
     "Market Report: new \"Currency (cover)\" selector (USD/MXN). On the cover, Average Asking Price and Land Prices Min - Max now include records captured in both USD and MXN — each value is converted to the selected currency with the day's DOF exchange rate before averaging / taking min-max. A short note under Land Prices shows the rate and DOF date used. KPI's and the other pages are unchanged.",
     "Market Report: new analyst Alfredo Ramírez (Torre Reforma); the analyst list is sorted alphabetically.",
@@ -9336,7 +9339,7 @@ function mktBuildCoverPage(){
   const cp=mktCoverPrices(mktCurrency);
   const curPrefix=mktCurrency==="MXN"?"MX $ ":"US $ ";
   const fx=getExchangeRate();
-  const fxNoteHtml=cp.usedFx&&fx?`<div class="mkt-cover-fx-note">Exchange rate: ${fx.value.toFixed(4)} MXN/USD (DOF ${fx.dofDate.split("-").reverse().join("/")})</div>`:"";
+  const fxNoteHtml=cp.usedFx&&fx?`<div class="mkt-cover-fx-note">For reporting purposes, some values were converted using the DOF exchange rate of ${fx.value.toFixed(4)} MXN/USD (${fx.dofDate.split("-").reverse().join("/")}).</div>`:"";
   const num=v=>Math.round(v).toLocaleString("en-US");
   const area=v=>num(resumenAreaVal(v))+" "+resumenAreaUnitLabel();
   const pct=v=>(v*100).toFixed(2)+"%";

@@ -399,6 +399,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-table td.num-cell{text-align:right;font-variant-numeric:tabular-nums}
   .mkt-table .mkt-center{text-align:center}
   .mkt-table-plain{font-size:11px}
+  .mkt-cover-fx-note{font-size:8px;color:#6b7480;text-align:left;padding-left:10px;margin-top:8px} /* misma sangría que las etiquetas (.mkt-table-plain td) */
   .mkt-table-plain td{border-bottom:1px solid #c3c6cc;padding:4.5px 0}
   .mkt-table-plain tr:last-child td{border-bottom:none}
   /* v7.3.23, pedido explícito del usuario: Significant Transactions (portada) con el MISMO diseño que las
@@ -2429,7 +2430,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.37.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.38.0</div>
       <div class="fx-rate" id="fxRateLabel" onclick="selectConfigSection('fx')"></div>
     </nav>
   </aside>
@@ -5573,6 +5574,11 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.38.0", date:"2026-11-18", items:[
+    "Market Report: new \"Currency (cover)\" selector (USD/MXN). On the cover, Average Asking Price and Land Prices Min - Max now include records captured in both USD and MXN — each value is converted to the selected currency with the day's DOF exchange rate before averaging / taking min-max. A short note under Land Prices shows the rate and DOF date used. KPI's and the other pages are unchanged.",
+    "Market Report: new analyst Alfredo Ramírez (Torre Reforma); the analyst list is sorted alphabetically.",
+    "Market Report, Available Inventory: \"Planned\" no longer appears in the Status table (or its donut)."
+  ]},
   {version:"8.37.0", date:"2026-11-12", items:[
     "Pres. Log: new \"Edit presentation\" button in each log entry — opens that presentation exactly as it was printed (same records in the same order, cover data, visible pages, units/period/confidential, map view; plus proposed areas for Park Land, group order for Transactions, and Options/language for Offices) so you can modify it and print it again. The new print is logged as a new entry; the original stays as is.",
     "Works for presentations printed from this version on (older entries show the button greyed out). Records are matched by Mapping Code / Space Code, so the selection survives records being added or removed; any record that no longer exists is left out with a notice."
@@ -8449,6 +8455,7 @@ let mktShowState=loadMktShowState();
 // Pedido explícito del usuario: orden alfabético por nombre (así queda también el <select> del panel
 // "Cover Data", que recorre este mismo array en el mismo orden).
 const MKT_COVER_ANALYSTS=[
+  {name:"Alfredo Ramírez", role:"Market Intel Analyst", office:"Torre Reforma", addr:["Av. Paseo de la Reforma #483","Col. Cuauhtémoc, CDMX, Mexico."]},
   {name:"Carlos Garces", role:"Market Intel Analyst", office:"Torre Reforma", addr:["Av. Paseo de la Reforma #483","Col. Cuauhtémoc, CDMX, Mexico."]},
   {name:"Christian Barajas", role:"Market Intel Analyst", office:"Foro 4", addr:["Manuel J. Clouthier #304","Col. Jardines del Campestre, Leon, Gto."]},
   {name:"Clementina Margain", role:"Market Intel Manager", office:"Querétaro Business Park 2", addr:["Avenida Antea #1090,","Col. Jurica, Querétaro, Qro."]},
@@ -8457,7 +8464,7 @@ const MKT_COVER_ANALYSTS=[
   {name:"Idalia Gardea", role:"Market Intel Manager", office:"Equus 335", addr:["Ave. Ricardo Margáin #335","Col. Valle del Campestre, SPGG, NL.."]},
   {name:"Jorge Champion", role:"Market Intel Analyst", office:"Centro de Negocios Alianza", addr:["Blvd. Teofilo Borunda #8349","Cd, Juárez Chih."]},
   {name:"Luis Martinez", role:"Market Intel Analyst", office:"Corporativo Altus", addr:["Sierra Leona #360,","Col. Villantigua, SLP, Mexico"]}
-];
+].sort((a,b)=>a.name.localeCompare(b.name,"es"));
 const MKT_COVER_KEY="citius_mkt_report_cover_v1";
 function loadMktCoverInfo(){
   const defaults={analystName:"", quarter:""};
@@ -8822,6 +8829,14 @@ function renderResumenView(){
             <option value="metric" ${resumenUnit==="metric"?"selected":""}>Metric</option>
           </select>
         </div>
+        ${isMarketReport ? `
+        <div class="resumen-year-select">
+          <label for="mktCurrencySelect">Currency (cover)</label>
+          <select id="mktCurrencySelect" title="Average Asking Price and Land Prices on the cover are converted to this currency with today's DOF exchange rate">
+            <option value="USD" ${mktCurrency==="USD"?"selected":""}>USD</option>
+            <option value="MXN" ${mktCurrency==="MXN"?"selected":""}>MXN</option>
+          </select>
+        </div>` : ""}
         <div class="resumen-year-select">
           <label for="resumenMarketSelect">Market</label>
           <select id="resumenMarketSelect">${marketOptionsHtml}</select>
@@ -8928,6 +8943,8 @@ function renderResumenView(){
     ${resumenUsageChartHtml(usageData)}
   `;
   document.getElementById("resumenUnitSelect").onchange=function(){ resumenUnit=this.value; renderResumenView(); };
+  const mktCurSel=document.getElementById("mktCurrencySelect");
+  if(mktCurSel) mktCurSel.onchange=function(){ mktCurrency=this.value; try{ localStorage.setItem(MKT_CURRENCY_KEY, mktCurrency); }catch(e){} renderResumenView(); };
   // v7.3.5x: Year ahora aparece en ambas sub-vistas (KPI's y Market Report), pedido explícito del usuario —
   // el guard se deja de cualquier forma, no estorba.
   const yearSel=document.getElementById("resumenYearSelect");
@@ -9286,12 +9303,45 @@ function mktSignificantTransactions(limit){
   return [...groups.values()].sort((a,b)=>b.areaSF-a.areaSF).slice(0, limit||4);
 }
 /* ==== Página 1: portada (Market/Absorption/Availability/Significant Transactions) ==== */
+/* Moneda de la portada (pedido explícito del usuario): Average Asking Price y Land Prices Min - Max toman
+   TODOS los registros capturados en USD o MXN, convierten cada valor a la moneda elegida con el tipo de cambio
+   DOF vigente el día en que se genera el reporte (getExchangeRate) y luego promedian / sacan min-max. Solo la
+   portada — KPI's y las demás hojas siguen igual (solo USD, ver resumenKpis). Persistido en localStorage. */
+const MKT_CURRENCY_KEY="citius_mkt_report_currency_v1";
+let mktCurrency=(()=>{ try{ const v=localStorage.getItem(MKT_CURRENCY_KEY); if(v==="USD"||v==="MXN") return v; }catch(e){} return "USD"; })();
+const MKT_PRICE_UNIT_RE=/^(USD|MXN)\/(SF|m2|m²)$/i;
+// Valor por SF de un registro, ya en `cur`. null si la unidad no es USD/MXN por SF/m², o si hace falta tipo de
+// cambio y no hay ninguno guardado. `used.fx` se marca cuando hubo que convertir moneda (para la nota).
+function mktPriceInCurrency(rawPerSF, unit, cur, used){
+  const m=MKT_PRICE_UNIT_RE.exec(String(unit||"").trim());
+  if(!m) return null;
+  const from=m[1].toUpperCase();
+  if(from===cur) return rawPerSF;
+  const fx=getExchangeRate();
+  if(!fx) return null;
+  used.fx=true;
+  return cur==="MXN" ? rawPerSF*fx.value : rawPerSF/fx.value;
+}
+function mktCoverPrices(cur){
+  const used={fx:false};
+  const P=(state.PROPIEDADES||[]).filter(r=>resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.MARKET_STATUS,"Available")&&Number(r.ASKING_RATE_VALUE)>0);
+  const asking=P.map(r=>mktPriceInCurrency(askingRateValueInSF(r), r.ASKING_RATE_UNIT, cur, used)).filter(v=>v!=null);
+  const PK=(state.PARKS||[]).filter(r=>resumenMarketMatches(r,"PARKS")&&LAND_PRICE_INFRA_STATUSES.some(s=>ciEq(r.INFRAESTRUCTURE_STATUS,s))&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B"))&&Number(r.ASKING_SALE_PRICE_VALUE)>0);
+  const land=PK.map(r=>mktPriceInCurrency(askingSalePriceValueInSF(r), r.ASKING_SALE_PRICE_UNIT, cur, used)).filter(v=>v!=null);
+  return {avgAsking:asking.length?asking.reduce((a,v)=>a+v,0)/asking.length:0,
+          landPriceMin:land.length?Math.min(...land):0, landPriceMax:land.length?Math.max(...land):0, usedFx:used.fx};
+}
 function mktBuildCoverPage(){
   const k=resumenKpis(resumenYear);
+  const cp=mktCoverPrices(mktCurrency);
+  const curPrefix=mktCurrency==="MXN"?"MX $ ":"US $ ";
+  const fx=getExchangeRate();
+  const fxNoteHtml=cp.usedFx&&fx?`<div class="mkt-cover-fx-note">Exchange rate: ${fx.value.toFixed(4)} MXN/USD (DOF ${fx.dofDate.split("-").reverse().join("/")})</div>`:"";
   const num=v=>Math.round(v).toLocaleString("en-US");
   const area=v=>num(resumenAreaVal(v))+" "+resumenAreaUnitLabel();
   const pct=v=>(v*100).toFixed(2)+"%";
-  const money=v=>"US $ "+resumenRateVal(v).toFixed(3);
+  const money=v=>curPrefix+resumenRateVal(v).toFixed(3);
+  const fmt2=v=>v.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
   // v7.3.14, pedido explícito del usuario: solo 3 renglones (Total Market, Vacancy Rate, Average Asking
   // Price) van en negritas — antes TODOS los valores (no las etiquetas) iban en <b>. El 3er elemento de cada
   // fila marca cuáles.
@@ -9308,12 +9358,12 @@ function mktBuildCoverPage(){
     ["Availability", area(k.availability), false],
     ["Availability Rate", pct(k.availabilityRate), false],
     ["Lease Transactions", area(k.leaseTx), false, true],
-    ["Average Asking Price ("+resumenAreaUnitLabel()+"/Mo)", money(k.avgAsking), true],
+    ["Average Asking Price ("+resumenAreaUnitLabel()+"/Mo)", money(cp.avgAsking), true],
     // Pedido explícito del usuario: Land Price en la portada del Market Report siempre en m² — a diferencia
     // del resto de esta tabla (que sigue el selector Imperial/Metric vía resumenRateVal()), este renglón
     // ignora ese selector a propósito, así que la conversión va directo (k.landPriceMin/Max ya vienen en
     // base USD/SF, ver resumenKpis()) en vez de resumenRateVal().
-    ["Land Prices Min - Max ("+UNIT_CONVERSIONS.SF_M2.metric+")", k.landPriceMin||k.landPriceMax?`US $ ${(k.landPriceMin/UNIT_CONVERSIONS.SF_M2.toMetric).toFixed(2)} - ${(k.landPriceMax/UNIT_CONVERSIONS.SF_M2.toMetric).toFixed(2)}`:"—", false, true]
+    ["Land Prices Min - Max ("+UNIT_CONVERSIONS.SF_M2.metric+")", cp.landPriceMin||cp.landPriceMax?`${curPrefix}${fmt2(cp.landPriceMin/UNIT_CONVERSIONS.SF_M2.toMetric)} - ${fmt2(cp.landPriceMax/UNIT_CONVERSIONS.SF_M2.toMetric)}`:"—", false, true]
   // v7.3.16, pedido explícito del usuario: dentro de "Total Market (Class A & B Bldgs)" (fila en negritas),
   // el paréntesis va en peso normal — solo "Total Market" se queda en negritas.
   ].map(([label,value,strong,gapBefore])=>{
@@ -9365,6 +9415,7 @@ function mktBuildCoverPage(){
           <div class="mkt-box mkt-box-market">
             <div class="mkt-box-title">Market</div>
             <table class="mkt-table mkt-table-plain"><tbody>${marketRowsHtml}</tbody></table>
+            ${fxNoteHtml}
           </div>
           <div class="mkt-box mkt-box-avail">
             <div class="mkt-box-title">Availability</div>
@@ -9558,7 +9609,8 @@ function mktBuildAvailSummaryPage(){
   const countTable=mktMatrixTableHtml(bucketCategories,
     (sm,bucket)=>countByPredicate(state.PROPIEDADES, r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.MARKET_STATUS,"Available")&&inSizeBucket(resumenAreaVal(areaValueInSF(r,"AVAILABLE_AREA_VALUE")),bucket)),
     {tableLabel:"Building Count"});
-  const statusCategories=resumenFieldListValues("PROPIEDADES","STATUS").map(s=>({key:s,label:s}));
+  // Pedido explícito del usuario: "Planned" no va en la tabla Status de esta hoja (ni en su dona).
+  const statusCategories=resumenFieldListValues("PROPIEDADES","STATUS").filter(s=>!ciEq(s,"Planned")).map(s=>({key:s,label:s}));
   const statusComputeFn=(sm,status)=>status==="Under Construction"
     ? sumByPredicate(state.PROPIEDADES,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.STATUS,status)&&ciEq(r.MARKET_STATUS,"Available"))
     : sumByPredicate(state.PROPIEDADES,"AVAILABLE_AREA_VALUE", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"PROPIEDADES")&&isAB(r)&&ciEq(r.STATUS,status)&&ciEq(r.MARKET_STATUS,"Available"));

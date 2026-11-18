@@ -9336,7 +9336,7 @@ function mktBuildCoverPage(){
   const cp=mktCoverPrices(mktCurrency);
   const curPrefix=mktCurrency==="MXN"?"MX $ ":"US $ ";
   const fx=getExchangeRate();
-  const fxNoteHtml=cp.usedFx&&fx?`<div class="mkt-cover-fx-note">Exchange rate: ${fx.value.toFixed(4)} MXN/USD (DOF ${fx.dofDate.split("-").reverse().join("/")})</div>`:"";
+  const fxNoteHtml=cp.usedFx&&fx?`<div class="mkt-cover-fx-note">Some values were converted using the DOF exchange rate of ${fx.value.toFixed(4)} MXN/USD (${fx.dofDate.split("-").reverse().join("/")}).</div>`:"";
   const num=v=>Math.round(v).toLocaleString("en-US");
   const area=v=>num(resumenAreaVal(v))+" "+resumenAreaUnitLabel();
   const pct=v=>(v*100).toFixed(2)+"%";

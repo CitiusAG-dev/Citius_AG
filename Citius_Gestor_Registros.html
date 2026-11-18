@@ -2430,7 +2430,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.37.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.38.0</div>
       <div class="fx-rate" id="fxRateLabel" onclick="selectConfigSection('fx')"></div>
     </nav>
   </aside>
@@ -5574,6 +5574,11 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.38.0", date:"2026-11-18", items:[
+    "Market Report: new \"Currency (cover)\" selector (USD/MXN). On the cover, Average Asking Price and Land Prices Min - Max now include records captured in both USD and MXN — each value is converted to the selected currency with the day's DOF exchange rate before averaging / taking min-max. A short note under Land Prices shows the rate and DOF date used. KPI's and the other pages are unchanged.",
+    "Market Report: new analyst Alfredo Ramírez (Torre Reforma); the analyst list is sorted alphabetically.",
+    "Market Report, Available Inventory: \"Planned\" no longer appears in the Status table (or its donut)."
+  ]},
   {version:"8.37.0", date:"2026-11-12", items:[
     "Pres. Log: new \"Edit presentation\" button in each log entry — opens that presentation exactly as it was printed (same records in the same order, cover data, visible pages, units/period/confidential, map view; plus proposed areas for Park Land, group order for Transactions, and Options/language for Offices) so you can modify it and print it again. The new print is logged as a new entry; the original stays as is.",
     "Works for presentations printed from this version on (older entries show the button greyed out). Records are matched by Mapping Code / Space Code, so the selection survives records being added or removed; any record that no longer exists is left out with a notice."

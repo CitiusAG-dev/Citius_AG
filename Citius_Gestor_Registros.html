@@ -2433,7 +2433,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.39.2</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.40.0</div>
       <div class="fx-rate" id="fxRateLabel" onclick="selectConfigSection('fx')"></div>
     </nav>
   </aside>
@@ -5591,6 +5591,12 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.40.0", date:"2026-11-19", items:[
+    "Settings > Lists: 21 lists not used by any field were removed (ADMIN, CURRENCY, DEVELOPER, OWNER, REGION, UNIT, etc.). No captured record changes.",
+    "Settings > Lists: each option now has a unique numeric ID (1–703, new options take the next free number), shown in a new column to the left of English. The Lists sheet of the config Excel export now includes the ID column (TABLA, ID, EN, ES); old 3-column files still load.",
+    "Lists: English values that were written in Spanish were corrected (Masonry, Metal Sheet, Mixed, Concrete, Membrane, Confidential, Residential, and \"and\" instead of \"y\" in the voltage options), plus typos: L-Shape, 10\" Line and \"Listo para operar\" (Plug & play). Lists renamed to INFRASTRUCTURE_STATUS, INFRASTRUCTURE_STATUS_LAND and LAND_TELECOMMUNICATIONS.",
+    "Records captured with an old value are updated automatically to the corrected value when the Excel is loaded (saved on the next write of the file)."
+  ]},
   {version:"8.39.2", date:"2026-11-19", items:[
     "KPI's and Market Report cover: \"Lease Transactions\" and Absorption (Gross / Negative / Net) now only count transactions whose linked Building (Mapping Code) is Class A or B. Transactions without a linked Building are excluded.",
     "KPI's and Market Report cover: \"Average Asking Rate\" / \"Average Asking Price\" now only averages Class A and B buildings."

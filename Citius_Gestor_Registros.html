@@ -2431,7 +2431,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.39.1</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.39.2</div>
       <div class="fx-rate" id="fxRateLabel" onclick="selectConfigSection('fx')"></div>
     </nav>
   </aside>
@@ -5576,6 +5576,10 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.39.2", date:"2026-11-19", items:[
+    "KPI's and Market Report cover: \"Lease Transactions\" and Absorption (Gross / Negative / Net) now only count transactions whose linked Building (Mapping Code) is Class A or B. Transactions without a linked Building are excluded.",
+    "KPI's and Market Report cover: \"Average Asking Rate\" / \"Average Asking Price\" now only averages Class A and B buildings."
+  ]},
   {version:"8.39.1", date:"2026-11-19", items:[
     "Spaces: the proposed Net Usable Area (Net Leasable Area × building Efficiency) is now always rounded to 2 decimals (e.g. 930.00)."
   ]},
@@ -7942,6 +7946,21 @@ function inSizeBucket(value, bucket){
   if(bucket[1]===Infinity) return v>=bucket[0];
   return v>=bucket[0] && v<bucket[1];
 }
+/* Pedido explícito del usuario (2026-11-19): Lease Transactions y Absorption (Gross/Negative/Net), en KPIs y en
+   la portada del Market Report, solo cuentan transacciones cuyo edificio ligado (Buildings, por MAPPING_CODE)
+   es Classification A o B. Las transacciones sin Mapping Code, o con un código que no existe en Buildings, se
+   EXCLUYEN (decisión confirmada con el usuario). El mapa se cachea por identidad+tamaño de state.PROPIEDADES. */
+let resumenBldgClassCache={src:null,len:-1,map:null};
+function resumenTxIsAB(t){
+  const P=state.PROPIEDADES||[];
+  if(resumenBldgClassCache.src!==P || resumenBldgClassCache.len!==P.length){
+    const map=new Map();
+    P.forEach(p=>{ const c=String(p.MAPPING_CODE||"").trim().toLowerCase(); if(c) map.set(c, String(p.CLASSIFICATION||"").trim().toUpperCase()); });
+    resumenBldgClassCache={src:P,len:P.length,map};
+  }
+  const cls=resumenBldgClassCache.map.get(String(t&&t.MAPPING_CODE||"").trim().toLowerCase());
+  return cls==="A" || cls==="B";
+}
 function resumenKpis(year){
   const P=(state.PROPIEDADES||[]).filter(r=>resumenMarketMatches(r,"PROPIEDADES"));
   // Pedido explícito del usuario: "Total Market" ahora también exige Status = Ready (antes incluía
@@ -7959,8 +7978,8 @@ function resumenKpis(year){
   const availabilityRate=marketAB>0?availability/marketAB:0;
   const yearStart=`${year}-01-01`, yearEnd=`${year}-12-31`;
   const T=(state.TRANSACCIONES||[]).filter(r=>resumenMarketMatches(r,"TRANSACCIONES"));
-  const leaseTx=sumByPredicate(T,"TRANSACTION_AREA", r=>ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd);
-  const askingRows=P.filter(r=>/^USD\/(SF|m2|m²)$/i.test(String(r.ASKING_RATE_UNIT||"").trim())&&ciEq(r.MARKET_STATUS,"Available")&&Number(r.ASKING_RATE_VALUE)>0);
+  const leaseTx=sumByPredicate(T,"TRANSACTION_AREA", r=>ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&resumenTxIsAB(r)&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd);
+  const askingRows=P.filter(r=>/^USD\/(SF|m2|m²)$/i.test(String(r.ASKING_RATE_UNIT||"").trim())&&ciEq(r.MARKET_STATUS,"Available")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B"))&&Number(r.ASKING_RATE_VALUE)>0); // solo clase A/B (pedido explícito, 2026-11-19)
   const avgAsking=askingRows.length?askingRows.reduce((a,r)=>a+askingRateValueInSF(r),0)/askingRows.length:0;
   // v3.5x.x, pedido explícito del usuario: "Land Price Min/Max" — de PARKS (no Propiedades), "Asking Sale
   // Price" con "Infrastructure Status" en Fully Serviced/Partially Serviced/Under Development y
@@ -8680,9 +8699,9 @@ function renderResumenView(){
     ["Availability Rate", pct(k.availabilityRate),
       `"Total Availability" ÷ "Total Market (Class A and B)".`],
     [`Lease Transactions (${resumenYear})`, area(k.leaseTx),
-      `Sum of "Transaction Area" for Transactions with "Transaction Type" = "Lease" and "Absorption Type" = "Gross", dated within ${resumenYear}.`],
+      `Sum of "Transaction Area" for Transactions with "Transaction Type" = "Lease" and "Absorption Type" = "Gross", dated within ${resumenYear}, whose linked Building (Mapping Code) is "Classification" A or B. Transactions without a linked Building are excluded.`],
     [`Average Asking Rate (${resumenAreaUnitLabel()}/Month)`, money(resumenRateVal(k.avgAsking)),
-      `Average of "Asking Rate" for Properties with "Asking Rate Unit" = "USD/SF" or "USD/m²", "Market Status" = "Available", and a captured rate greater than "0".`],
+      `Average of "Asking Rate" for Properties with "Classification" = "A" or "B", "Asking Rate Unit" = "USD/SF" or "USD/m²", "Market Status" = "Available", and a captured rate greater than "0".`],
     [`Land Price Min (${resumenAreaUnitLabel()})`, money(resumenRateVal(k.landPriceMin)),
       `Minimum of "Asking Sale Price" for Parks with "Infrastructure Status" = "Fully Serviced", "Partially Serviced", or "Under Development", "Classification" = "A" or "B", and "Asking Sale Price Unit" = "USD/SF" or "USD/m²".`],
     [`Land Price Max (${resumenAreaUnitLabel()})`, money(resumenRateVal(k.landPriceMax)),
@@ -8705,14 +8724,14 @@ function renderResumenView(){
      resumenSubmarkets()) el TOTAL de la fila mezclaba silenciosamente datos de otro mercado que por
      coincidencia usa el mismo nombre de submercado. Sin filtro de Mercado activo (resumenMarket==="")
      resumenMarketMatches() siempre da true, así que el comportamiento sin filtro no cambia. */
-  const grossHtml=resumenQuarterTableHtml("Gross", `Sum of "Transaction Area" for Transactions with "Transaction Type" = "Lease" and "Absorption Type" = "Gross".`,
-    (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true);
-  const negativeHtml=resumenQuarterTableHtml("Negative", `Sum of "Transaction Area" for Transactions with "Transaction Type" = "Lease" and "Absorption Type" = "Negative".`,
-    (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true);
+  const grossHtml=resumenQuarterTableHtml("Gross", `Sum of "Transaction Area" for Transactions with "Transaction Type" = "Lease" and "Absorption Type" = "Gross", whose linked Building (Mapping Code) is "Classification" A or B (transactions without a linked Building are excluded).`,
+    (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&resumenTxIsAB(r)&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true);
+  const negativeHtml=resumenQuarterTableHtml("Negative", `Sum of "Transaction Area" for Transactions with "Transaction Type" = "Lease" and "Absorption Type" = "Negative", whose linked Building (Mapping Code) is "Classification" A or B (transactions without a linked Building are excluded).`,
+    (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&resumenTxIsAB(r)&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); }, true);
   const netHtml=resumenQuarterTableHtml("Net", `"Gross" + "Negative".`,
     (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q);
-      const gross=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
-      const neg=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
+      const gross=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&resumenTxIsAB(r)&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
+      const neg=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&resumenTxIsAB(r)&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
       return gross+neg; }, true);
 
   const txQuarterHtml=resumenQuarterTableHtml("All Transactions", `Sum of "Transaction Area" for ALL Transactions with "Absorption Type" = "Gross", regardless of "Transaction Type".`,
@@ -9337,7 +9356,7 @@ function mktPriceInCurrency(rawPerSF, unit, cur, used){
 }
 function mktCoverPrices(cur){
   const used={fx:false};
-  const P=(state.PROPIEDADES||[]).filter(r=>resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.MARKET_STATUS,"Available")&&Number(r.ASKING_RATE_VALUE)>0);
+  const P=(state.PROPIEDADES||[]).filter(r=>resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.MARKET_STATUS,"Available")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B"))&&Number(r.ASKING_RATE_VALUE)>0);
   const asking=P.map(r=>mktPriceInCurrency(askingRateValueInSF(r), r.ASKING_RATE_UNIT, cur, used)).filter(v=>v!=null);
   const PK=(state.PARKS||[]).filter(r=>resumenMarketMatches(r,"PARKS")&&LAND_PRICE_INFRA_STATUSES.some(s=>ciEq(r.INFRAESTRUCTURE_STATUS,s))&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B"))&&Number(r.ASKING_SALE_PRICE_VALUE)>0);
   const land=PK.map(r=>mktPriceInCurrency(askingSalePriceValueInSF(r), r.ASKING_SALE_PRICE_UNIT, cur, used)).filter(v=>v!=null);
@@ -9439,11 +9458,11 @@ function mktBuildCoverPage(){
           <div class="mkt-box mkt-box-absorption">
             <div class="mkt-box-title">Absorption</div>
             <div>
-              ${mktAbsorptionTableHtml("Gross", "", true, (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); })}
-              ${mktAbsorptionTableHtml("Negative", "(Deliveries 2nd Gen)", false, (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); })}
+              ${mktAbsorptionTableHtml("Gross", "", true, (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&resumenTxIsAB(r)&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); })}
+              ${mktAbsorptionTableHtml("Negative", "(Deliveries 2nd Gen)", false, (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q); return sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&resumenTxIsAB(r)&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e); })}
               ${mktAbsorptionTableHtml("Net", "", false, (sm,q)=>{ const [s,e]=quarterRange(resumenYear,q);
-                const gross=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
-                const neg=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
+                const gross=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&resumenTxIsAB(r)&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
+                const neg=sumByPredicate(state.TRANSACCIONES,"TRANSACTION_AREA", r=>ciEq(r.SUBMARKET,sm)&&resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Negative")&&resumenTxIsAB(r)&&r.TRANSACTION_DATE>=s&&r.TRANSACTION_DATE<=e);
                 return gross+neg; })}
             </div>
           </div>

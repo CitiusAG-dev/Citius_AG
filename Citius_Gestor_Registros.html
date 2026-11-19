@@ -10670,7 +10670,10 @@ function spaceNetUsableCalc(nlaValue, nlaUnit, mappingCode){
   let eff=Number(String(raw).replace("%",""));
   if(!isFinite(eff) || eff<=0) return null;
   const pct=eff>1?eff:eff*100;
-  return { value: Math.round(nla*pct)/100, unit: nlaUnit||"", pct };
+  // Redondeado a 2 decimales (pedido explícito del usuario, 2026-11-19); value es texto con 2 decimales fijos
+  // (ej. "930.00") para que la ficha lo muestre así. Al guardar, parseFloat lo convierte a número normal.
+  const v=Math.round((nla*pct/100+Number.EPSILON)*100)/100;
+  return { value: v.toFixed(2), unit: nlaUnit||"", pct };
 }
 function livePreviewSpaceNetUsable(){
   const el=document.querySelector('#mBody input[data-key="NET_USEABLE_AREA_VALUE"]');

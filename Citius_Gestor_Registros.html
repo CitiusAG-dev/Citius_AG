@@ -2431,7 +2431,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.39.1</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.39.2</div>
       <div class="fx-rate" id="fxRateLabel" onclick="selectConfigSection('fx')"></div>
     </nav>
   </aside>
@@ -5576,6 +5576,10 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.39.2", date:"2026-11-19", items:[
+    "KPI's and Market Report cover: \"Lease Transactions\" and Absorption (Gross / Negative / Net) now only count transactions whose linked Building (Mapping Code) is Class A or B. Transactions without a linked Building are excluded.",
+    "KPI's and Market Report cover: \"Average Asking Rate\" / \"Average Asking Price\" now only averages Class A and B buildings."
+  ]},
   {version:"8.39.1", date:"2026-11-19", items:[
     "Spaces: the proposed Net Usable Area (Net Leasable Area × building Efficiency) is now always rounded to 2 decimals (e.g. 930.00)."
   ]},

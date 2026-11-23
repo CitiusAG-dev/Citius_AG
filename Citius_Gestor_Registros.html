@@ -9957,7 +9957,7 @@ function mktAbstractMapHtml(W, H){
   const cLon=cx/(512*k)*360-180, cLat=Math.atan(Math.sinh(Math.PI*(1-2*cy/(512*k))))*180/Math.PI;
   const url=`https://api.mapbox.com/styles/v1/${MKT_ABSTRACT_MAPBOX.style}/static/${cLon.toFixed(5)},${cLat.toFixed(5)},${z.toFixed(2)},0/${Math.round(W)}x${Math.round(H)}@2x?access_token=${MKT_ABSTRACT_MAPBOX.token}&attribution=false&logo=false`;
   const circles=pts.map((p,i)=>({...p, x:w0[i][0]*k-cx+W/2, y:w0[i][1]*k-cy+H/2})).sort((a,b)=>b.r-a.r);
-  const fmtM=v=>(resumenAreaVal(v)/1e6).toFixed(1)+" M "+resumenAreaUnitLabel();
+  const fmtM=v=>(resumenAreaVal(v)/1e6).toLocaleString("en-US",{minimumFractionDigits:1,maximumFractionDigits:1})+" M "+resumenAreaUnitLabel(); // siempre 1 decimal (pedido explícito del usuario)
   const words=s=>{ const w=String(s).split(/\s+/); if(w.length<2||s.length<11) return [s]; const h=Math.ceil(w.length/2); return [w.slice(0,h).join(" "), w.slice(h).join(" ")]; };
   const svg=circles.map(c=>{
     const lines=words(c.sm), fs=c.r<28?8.5:10;
@@ -10024,7 +10024,7 @@ function mktBuildAbstractPage(){
     ["asking","Average Asking Price","("+unit+"/Month)",curPrefix+resumenRateVal(cp.avgAsking).toFixed(3)],
     ["land","Min - Max Land Prices","("+UNIT_CONVERSIONS.SF_M2.metric+")",cp.landPriceMin||cp.landPriceMax?`${curPrefix}${fmt2(cp.landPriceMin/UNIT_CONVERSIONS.SF_M2.toMetric)} - ${fmt2(cp.landPriceMax/UNIT_CONVERSIONS.SF_M2.toMetric)}`:"—"]
   ].map(([ic,label,sub,val])=>`<div class="mkt-abstract-kpi">
-      <svg class="mkt-abstract-kpi-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${MKT_ABSTRACT_ICONS[ic]}</svg>
+      <svg class="mkt-abstract-kpi-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round">${MKT_ABSTRACT_ICONS[ic]}</svg>
       <div><div class="mkt-abstract-kpi-label">${escapeHtml(label)}</div>${sub?`<div class="mkt-abstract-kpi-sub">${escapeHtml(sub)}</div>`:""}<div class="mkt-abstract-kpi-value">${escapeHtml(val)}</div></div>
     </div>`).join("");
   const sigTx=mktSignificantTransactions(5);

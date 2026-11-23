@@ -9930,6 +9930,14 @@ function mktLeaseTxHistory(market, year){
   let seed=0; for(const c of String(market)+year) seed=(seed*31+c.charCodeAt(0))%100000;
   return {vals:[1,2,3,4].map(q=>{ seed=(seed*9301+49297)%233280; return 1.5e6+(seed/233280)*4.5e6; }), sample:true};
 }
+/* Área para la hoja Abstract (pedido explícito del usuario, 2026-11-23): desde 1 millón en millones con
+   `dec` decimales ("214.39 M SF"); abajo de 1 millón la cifra completa con comas ("39,512 SF"), porque en
+   millones un valor chico se veía como "0.04 M SF" o "0.0 M SF". Recibe el valor en base SF. */
+function mktAbstractArea(vSF, dec){
+  const v=resumenAreaVal(vSF), unit=resumenAreaUnitLabel();
+  if(Math.abs(v)>=1e6) return (v/1e6).toLocaleString("en-US",{minimumFractionDigits:dec,maximumFractionDigits:dec})+" M "+unit;
+  return Math.round(v).toLocaleString("en-US")+" "+unit;
+}
 function mktMercatorPx(lon, lat, worldSize){
   const s=Math.sin(lat*Math.PI/180);
   return [(lon+180)/360*worldSize, (0.5-Math.log((1+s)/(1-s))/(4*Math.PI))*worldSize];
@@ -9957,7 +9965,7 @@ function mktAbstractMapHtml(W, H){
   const cLon=cx/(512*k)*360-180, cLat=Math.atan(Math.sinh(Math.PI*(1-2*cy/(512*k))))*180/Math.PI;
   const url=`https://api.mapbox.com/styles/v1/${MKT_ABSTRACT_MAPBOX.style}/static/${cLon.toFixed(5)},${cLat.toFixed(5)},${z.toFixed(2)},0/${Math.round(W)}x${Math.round(H)}@2x?access_token=${MKT_ABSTRACT_MAPBOX.token}&attribution=false&logo=false`;
   const circles=pts.map((p,i)=>({...p, x:w0[i][0]*k-cx+W/2, y:w0[i][1]*k-cy+H/2})).sort((a,b)=>b.r-a.r);
-  const fmtM=v=>(resumenAreaVal(v)/1e6).toLocaleString("en-US",{minimumFractionDigits:1,maximumFractionDigits:1})+" M "+resumenAreaUnitLabel(); // siempre 1 decimal (pedido explícito del usuario)
+  const fmtM=v=>mktAbstractArea(v,1); // 1 decimal en millones; cifra completa abajo de 1 M
   const words=s=>{ const w=String(s).split(/\s+/); if(w.length<2||s.length<11) return [s]; const h=Math.ceil(w.length/2); return [w.slice(0,h).join(" "), w.slice(h).join(" ")]; };
   const svg=circles.map(c=>{
     const lines=words(c.sm), fs=c.r<28?8.5:10;
@@ -10012,7 +10020,7 @@ function mktBuildAbstractPage(){
   const cp=mktCoverPrices(mktCurrency);
   const curPrefix=mktCurrency==="MXN"?"MX $ ":"US $ ";
   const unit=resumenAreaUnitLabel();
-  const mill=v=>(resumenAreaVal(v)/1e6).toFixed(2)+" M "+unit;
+  const mill=v=>mktAbstractArea(v,2);
   const fmt2=v=>v.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
   const marketLabel=resumenMarket||"All Markets";
   const kpis=[

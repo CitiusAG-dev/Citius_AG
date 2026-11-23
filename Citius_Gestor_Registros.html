@@ -399,6 +399,40 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-table td.num-cell{text-align:right;font-variant-numeric:tabular-nums}
   .mkt-table .mkt-center{text-align:center}
   .mkt-table-plain{font-size:11px}
+  /* Hoja "Abstract" (2026-11-23, ver mktBuildAbstractPage): misma estructura que la portada, sidebar con KPIs. */
+  .mkt-abstract-sidebar{padding:34px 18px 26px}
+  .mkt-abstract-accent{margin-top:96px}
+  .mkt-abstract-sidebar .mkt-cover-title{font-size:34px}
+  .mkt-abstract-sidebar .mkt-cover-subtitle{font-size:15px}
+  .mkt-abstract-kpis{display:flex;flex-direction:column;gap:15px;margin-top:10px}
+  .mkt-abstract-kpi{display:flex;align-items:center;gap:12px}
+  .mkt-abstract-kpi-icon{flex:0 0 38px;width:38px;height:38px;color:#fff}
+  .mkt-abstract-kpi-label{font-size:13.5px;font-weight:700;font-family:'Unitext',Arial,sans-serif;line-height:1.15}
+  .mkt-abstract-kpi-sub{font-size:9px;font-weight:700;opacity:.8;font-family:'Unitext',Arial,sans-serif}
+  .mkt-abstract-kpi-value{font-size:14px;font-weight:700;color:var(--accent);font-family:'Unitext',Arial,sans-serif;margin-top:1px}
+  .mkt-abstract-contact{text-align:right}
+  .mkt-abstract-contact-title{font-size:22px;font-family:'Dala Moa',Georgia,serif;margin-bottom:6px}
+  .mkt-abstract-contact-addr{font-size:10px;font-weight:300;opacity:.9;font-family:'Unitext',Arial,sans-serif;line-height:1.4;margin-bottom:5px}
+  .mkt-abstract-logo{width:230px}
+  .mkt-abstract-grid{flex:1;min-height:0;display:grid;grid-template-columns:1.1fr 1fr;grid-template-rows:auto 1fr;gap:4px 14px;margin-top:-4px}
+  .mkt-abstract-mapbox{grid-column:1;grid-row:1;padding-bottom:0}
+  .mkt-abstract-chartbox{grid-column:2;grid-row:1;display:flex;flex-direction:column;padding-bottom:0}
+  .mkt-abstract-sigtx{grid-column:1/-1;grid-row:2;padding-top:10px}
+  .mkt-abstract-map{position:relative;width:100%;overflow:hidden;background:#eef0f2}
+  .mkt-abstract-map img{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .mkt-abstract-map svg{position:absolute;inset:0;width:100%;height:100%}
+  .mkt-abstract-bubble{fill:rgba(255,255,255,.35);stroke:#7a7a7a;stroke-width:3.5}
+  .mkt-abstract-bubble-label{font-family:'Unitext',Arial,sans-serif;font-weight:700;fill:#404040;paint-order:stroke;stroke:#fff;stroke-width:2.6px;stroke-linejoin:round}
+  .mkt-abstract-bubble-value{font-weight:400;fill:#5f5f5f}
+  .mkt-abstract-map-credit{position:absolute;right:3px;bottom:1px;font-size:7px;color:#6b7480;background:rgba(255,255,255,.7);padding:0 3px}
+  .mkt-abstract-map-empty{color:var(--muted);font-style:italic;padding:30px 0;text-align:center}
+  .mkt-abstract-chart{width:100%;height:auto;display:block;margin-top:auto;margin-bottom:auto}
+  .mkt-abstract-grid line.mkt-abstract-grid,.mkt-abstract-chart .mkt-abstract-grid{stroke:#e2e4e8;stroke-width:1}
+  .mkt-abstract-chart .mkt-abstract-sep{stroke:#c3c6cc;stroke-width:1}
+  .mkt-abstract-chart .mkt-abstract-baseline{stroke:#8a8f98;stroke-width:1}
+  .mkt-abstract-chart .mkt-abstract-axis{font-size:8.5px;fill:#6b7480;font-family:'Unitext',Arial,sans-serif}
+  .mkt-abstract-chart .mkt-abstract-qlabel{font-size:11px;font-weight:700;fill:#404040;font-family:'Unitext',Arial,sans-serif}
+  .mkt-abstract-sample-note{font-size:8px;color:#b06a00;font-style:italic;text-align:right;margin-top:2px}
   .mkt-cover-fx-note{font-size:8px;color:#6b7480;text-align:left;padding-left:10px;margin-top:8px} /* misma sangría que las etiquetas (.mkt-table-plain td) */
   .mkt-table-plain td{border-bottom:1px solid #c3c6cc;padding:4.5px 0}
   .mkt-table-plain tr:last-child td{border-bottom:none}
@@ -8525,7 +8559,7 @@ let resumenMarket="";
    localStorage, pedido explícito del usuario. */
 const MKT_SHOW_KEY="citius_mkt_report_show_v1";
 function loadMktShowState(){
-  const defaults={cover:true, txSummary:true, txDetail:true, availSummary:true, availDetail:true, overview:true};
+  const defaults={cover:true, txSummary:true, txDetail:true, availSummary:true, availDetail:true, overview:true, abstract:true};
   try{ const s=localStorage.getItem(MKT_SHOW_KEY); if(s) return {...defaults, ...JSON.parse(s)}; }catch(e){}
   return defaults;
 }
@@ -8901,7 +8935,8 @@ function renderResumenView(){
             <label><input type="checkbox" id="mktShowTxDetail"> Completed Transactions — Detail</label>
             <label><input type="checkbox" id="mktShowAvailSummary"> Available Inventory</label>
             <label><input type="checkbox" id="mktShowAvailDetail"> Available Inventory — Detail</label>
-            <label><input type="checkbox" id="mktShowOverview"> Market Report (by Submarket)</label>
+            <label><input type="checkbox" id="mktShowOverview"> Market Report</label>
+            <label><input type="checkbox" id="mktShowAbstract"> Abstract</label>
           </div>
         </div>
         <button type="button" class="btn ghost" id="mktCoverEditBtn" title="Edit the cover's analyst name and quarter label">
@@ -8969,6 +9004,8 @@ function renderResumenView(){
     mktShowAvailDetailEl.checked=mktShowState.availDetail;
     const mktShowOverviewEl=document.getElementById("mktShowOverview");
     mktShowOverviewEl.checked=mktShowState.overview;
+    const mktShowAbstractEl=document.getElementById("mktShowAbstract");
+    mktShowAbstractEl.checked=mktShowState.abstract;
     // v7.3.5x, pedido explícito del usuario ("se oculta cada vez que le doy click"): estos handlers ya NO
     // llaman a renderResumenView() — esa función reconstruye el innerHTML de #resumenHeaderBar completo, y
     // el panel "Design" vive DENTRO de ese header, así que se destruía (= se cerraba) en cada clic. Nada del
@@ -8979,6 +9016,7 @@ function renderResumenView(){
     mktShowAvailSummaryEl.onchange=()=>{ mktShowState.availSummary=mktShowAvailSummaryEl.checked; saveMktShowState(); renderMktReportContentOnly(); };
     mktShowAvailDetailEl.onchange=()=>{ mktShowState.availDetail=mktShowAvailDetailEl.checked; saveMktShowState(); renderMktReportContentOnly(); };
     mktShowOverviewEl.onchange=()=>{ mktShowState.overview=mktShowOverviewEl.checked; saveMktShowState(); renderMktReportContentOnly(); };
+    mktShowAbstractEl.onchange=()=>{ mktShowState.abstract=mktShowAbstractEl.checked; saveMktShowState(); renderMktReportContentOnly(); };
     document.getElementById("mktCoverEditBtn").onclick=toggleMktCoverEditPanel;
   }
   const el=document.getElementById("resumenContent");
@@ -9867,6 +9905,167 @@ function mktBuildOverviewPage(){
     </div>
   </div>`;
 }
+/* ==== Última página: "Abstract" (pedido explícito del usuario, 2026-11-23, con imagen de referencia vertical
+   adaptada a horizontal) — reusa el diseño de la portada (sidebar gris + franja de acento + área principal con
+   logo). Sidebar: los MISMOS indicadores de la portada (resumenKpis/mktCoverPrices), con ícono. Área principal:
+   - "<Mercado> Submarkets": imagen ESTÁTICA del mapa de Citius (Mapbox Static Images API, mismo estilo/token
+     que el basemap "Citius (Mapbox)") + círculos SVG encima, uno por submercado, con tamaño proporcional al
+     Market Size Clase A & B (GLA Ready). Se usa imagen y no Mapbox GL a propósito: un canvas WebGL dentro de
+     las páginas con zoom y al imprimir ya dio problemas en Presentación (hojas en gris/en blanco); una <img>
+     imprime siempre igual. Los círculos se ubican con la misma proyección Web Mercator que usa Mapbox, en
+     el centroide (mediana de LATITUDE/LONGITUDE) de los edificios de cada submercado.
+   - "Lease Transactions <año-2> - <año>": barras por trimestre de 3 años. Histórico pendiente de cargar
+     (el usuario lo pasará) — mientras tanto usa MKT_LEASE_TX_HISTORY si trae el Mercado, si no, datos de
+     ejemplo (se marca "Sample data" en la gráfica para que no se confunda con datos reales).
+   - "Significant Transactions": las mismas de la portada (mktSignificantTransactions). */
+const MKT_ABSTRACT_MAPBOX={style:"citiusag/cmtuani2f005w01qn06ey1737", token:"pk.eyJ1IjoiY2l0aXVzYWciLCJhIjoiY21ucDh6OTF6MTRibjJzb25qd2ltcjhlYyJ9.LvtTn6DeoONC0MNlU1ACVw"};
+/* Histórico de Lease Transactions por trimestre, en SF: {"Monterrey":{"2024":{1:..,2:..,3:..,4:..}, ...}}.
+   Vacío hasta que el usuario pase el histórico. */
+const MKT_LEASE_TX_HISTORY={};
+function mktLeaseTxHistory(market, year){
+  const h=MKT_LEASE_TX_HISTORY[market]&&MKT_LEASE_TX_HISTORY[market][String(year)];
+  if(h) return {vals:[1,2,3,4].map(q=>Number(h[q])||0), sample:false};
+  // Datos de ejemplo deterministas (mismo resultado en cada render/impresión), solo para ver el diseño.
+  let seed=0; for(const c of String(market)+year) seed=(seed*31+c.charCodeAt(0))%100000;
+  return {vals:[1,2,3,4].map(q=>{ seed=(seed*9301+49297)%233280; return 1.5e6+(seed/233280)*4.5e6; }), sample:true};
+}
+function mktMercatorPx(lon, lat, worldSize){
+  const s=Math.sin(lat*Math.PI/180);
+  return [(lon+180)/360*worldSize, (0.5-Math.log((1+s)/(1-s))/(4*Math.PI))*worldSize];
+}
+function mktAbstractMapHtml(W, H){
+  const median=a=>{ const s=[...a].sort((x,y)=>x-y), m=s.length>>1; return s.length%2?s[m]:(s[m-1]+s[m])/2; };
+  const P=(state.PROPIEDADES||[]).filter(r=>resumenMarketMatches(r,"PROPIEDADES"));
+  const pts=resumenSubmarkets().map(sm=>{
+    const rows=P.filter(r=>ciEq(r.SUBMARKET,sm));
+    const size=sumByPredicate(rows,"LEASABLE_AREA_GLA_VALUE", r=>ciEq(r.STATUS,"Ready")&&(ciEq(r.CLASSIFICATION,"A")||ciEq(r.CLASSIFICATION,"B")));
+    const geo=rows.filter(r=>{ const la=Number(r.LATITUDE), lo=Number(r.LONGITUDE); return r.LATITUDE!==""&&r.LATITUDE!=null&&isFinite(la)&&isFinite(lo)&&la!==0&&lo!==0&&Math.abs(la)<=85&&Math.abs(lo)<=180; });
+    if(!geo.length||size<=0) return null;
+    return {sm, size, lat:median(geo.map(r=>Number(r.LATITUDE))), lon:median(geo.map(r=>Number(r.LONGITUDE)))};
+  }).filter(Boolean);
+  if(!pts.length) return `<div class="mkt-abstract-map-empty">No building coordinates for this Market.</div>`;
+  const maxSize=Math.max(...pts.map(p=>p.size));
+  const R_MIN=21, R_MAX=58;
+  pts.forEach(p=>p.r=R_MIN+(R_MAX-R_MIN)*Math.sqrt(p.size/maxSize));
+  // Encuadre: zoom (fraccional) que hace caber todos los círculos con margen, centrado en su caja.
+  const w0=pts.map(p=>mktMercatorPx(p.lon,p.lat,512));
+  const minX=Math.min(...w0.map(v=>v[0])), maxX=Math.max(...w0.map(v=>v[0])), minY=Math.min(...w0.map(v=>v[1])), maxY=Math.max(...w0.map(v=>v[1]));
+  const pad=R_MAX+4;
+  const z=Math.max(3, Math.min(12, Math.log2(Math.min((W-2*pad)/Math.max(maxX-minX,1e-9), (H-2*pad)/Math.max(maxY-minY,1e-9)))));
+  const k=Math.pow(2,z), cx=(minX+maxX)/2*k, cy=(minY+maxY)/2*k;
+  const cLon=cx/(512*k)*360-180, cLat=Math.atan(Math.sinh(Math.PI*(1-2*cy/(512*k))))*180/Math.PI;
+  const url=`https://api.mapbox.com/styles/v1/${MKT_ABSTRACT_MAPBOX.style}/static/${cLon.toFixed(5)},${cLat.toFixed(5)},${z.toFixed(2)},0/${Math.round(W)}x${Math.round(H)}@2x?access_token=${MKT_ABSTRACT_MAPBOX.token}&attribution=false&logo=false`;
+  const circles=pts.map((p,i)=>({...p, x:w0[i][0]*k-cx+W/2, y:w0[i][1]*k-cy+H/2})).sort((a,b)=>b.r-a.r);
+  const fmtM=v=>(resumenAreaVal(v)/1e6).toFixed(1)+" M "+resumenAreaUnitLabel();
+  const words=s=>{ const w=String(s).split(/\s+/); if(w.length<2||s.length<11) return [s]; const h=Math.ceil(w.length/2); return [w.slice(0,h).join(" "), w.slice(h).join(" ")]; };
+  const svg=circles.map(c=>{
+    const lines=words(c.sm), fs=c.r<28?8.5:10;
+    const startY=c.y-((lines.length-1)*fs*1.1)/2-fs*0.45;
+    return `<g><circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="${c.r.toFixed(1)}" class="mkt-abstract-bubble"><title>${escapeHtml(c.sm)}: ${fmtM(c.size)}</title></circle>
+      <text class="mkt-abstract-bubble-label" text-anchor="middle" font-size="${fs}">${lines.map((l,j)=>`<tspan x="${c.x.toFixed(1)}" y="${(startY+j*fs*1.1).toFixed(1)}">${escapeHtml(l)}</tspan>`).join("")}<tspan class="mkt-abstract-bubble-value" x="${c.x.toFixed(1)}" y="${(startY+lines.length*fs*1.1+1).toFixed(1)}" font-size="${(fs-1.5).toFixed(1)}">${fmtM(c.size)}</tspan></text></g>`;
+  }).join("");
+  return `<div class="mkt-abstract-map" style="aspect-ratio:${W}/${H}">
+      <img src="${url}" alt="" onerror="this.style.visibility='hidden'">
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${svg}</svg>
+      <div class="mkt-abstract-map-credit">&copy; Mapbox &copy; OpenStreetMap</div>
+    </div>`;
+}
+const MKT_ABSTRACT_QUARTER_COLORS=[["#f7d79a","#efb222","#c8961a"],["#9cc3a4","#2f7a43","#1b4d2a"],["#9db7cf","#1f5e96","#123a5e"],["#cfb6cc","#8e6085","#5a3a55"]];
+function mktAbstractLeaseChartHtml(){
+  const y=Number(resumenYear)||new Date().getFullYear();
+  const years=[y-2,y-1,y];
+  const hist=years.map(yy=>mktLeaseTxHistory(resumenMarket, yy));
+  const anySample=hist.some(h=>h.sample);
+  const vals=hist.map(h=>h.vals.map(v=>resumenAreaVal(v)));
+  const W=400, H=330, L=44, R=6, T=22, B=22;
+  const maxV=Math.max(1,...vals.flat());
+  const stepM=maxV/1e6>8?4:2, top=Math.ceil(maxV/1e6/stepM)*stepM*1e6;
+  const yPx=v=>T+(H-T-B)*(1-v/top);
+  const groupW=(W-L-R)/4, barW=groupW/4.2;
+  let g="";
+  for(let m=stepM*1e6;m<=top+1;m+=stepM*1e6) g+=`<line x1="${L}" x2="${W-R}" y1="${yPx(m).toFixed(1)}" y2="${yPx(m).toFixed(1)}" class="mkt-abstract-grid"/><text x="${L-5}" y="${(yPx(m)+3).toFixed(1)}" text-anchor="end" class="mkt-abstract-axis">${Math.round(m/1e6)} M ${resumenAreaUnitLabel()}</text>`;
+  for(let q=0;q<4;q++){
+    const gx=L+q*groupW;
+    if(q>0) g+=`<line x1="${gx.toFixed(1)}" x2="${gx.toFixed(1)}" y1="${T}" y2="${H-B}" class="mkt-abstract-sep"/>`;
+    g+=`<text x="${(gx+groupW/2).toFixed(1)}" y="${T-8}" text-anchor="middle" class="mkt-abstract-qlabel">${q+1}Q</text>`;
+    years.forEach((yy,i)=>{
+      const v=vals[i][q], bx=gx+groupW*0.12+i*(barW+groupW*0.04), by=yPx(v);
+      g+=`<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0,H-B-by).toFixed(1)}" fill="${MKT_ABSTRACT_QUARTER_COLORS[q][i]}"><title>${q+1}Q ${yy}: ${Math.round(v).toLocaleString("en-US")} ${resumenAreaUnitLabel()}</title></rect>`;
+      g+=`<text x="${(bx+barW/2).toFixed(1)}" y="${H-B+12}" text-anchor="middle" class="mkt-abstract-axis">${yy}</text>`;
+    });
+  }
+  g+=`<line x1="${L}" x2="${W-R}" y1="${H-B}" y2="${H-B}" class="mkt-abstract-baseline"/>`;
+  return `<svg class="mkt-abstract-chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${g}</svg>${anySample?`<div class="mkt-abstract-sample-note">Sample data — historic figures pending.</div>`:""}`;
+}
+const MKT_ABSTRACT_ICONS={
+  size:'<path d="M3 21V9l5 3V9l5 3V9l5 3V4h3v17z"/><path d="M7 16h2M11 16h2M15 16h2"/>',
+  avail:'<path d="M12 21s-6-5.6-6-10a6 6 0 0 1 12 0c0 4.4-6 10-6 10z"/><circle cx="12" cy="11" r="2.2"/>',
+  vacancy:'<circle cx="12" cy="12" r="9"/><path d="M12 3v9l7.5 5M12 12l-7.5 5"/>',
+  uc:'<path d="M5 21V4l14 3M5 4l4 4M19 7v4M17 11h4v3h-4zM3 21h12M9 21v-6h4v6"/>',
+  lease:'<path d="M4 4h10l4 4v5"/><path d="M14 4v4h4M7 9h4M7 12h6"/><path d="M3 17l3-2 3 1 3-2 3 2 3-1 3 2-3 3H6z"/>',
+  asking:'<path d="M4 21V10l6-4 6 4v11zM20 21V13h-4M8 14h4M8 17h4"/><circle cx="17.5" cy="5.5" r="2.8"/><path d="M17.5 4.3v2.4"/>',
+  land:'<path d="M3 20l5-6 4 3 4-5 5 8z"/><circle cx="16" cy="6" r="3.2"/><path d="M16 4.6v2.8"/>'
+};
+function mktBuildAbstractPage(){
+  const k=resumenKpis(resumenYear);
+  const cp=mktCoverPrices(mktCurrency);
+  const curPrefix=mktCurrency==="MXN"?"MX $ ":"US $ ";
+  const unit=resumenAreaUnitLabel();
+  const mill=v=>(resumenAreaVal(v)/1e6).toFixed(2)+" M "+unit;
+  const fmt2=v=>v.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const marketLabel=resumenMarket||"All Markets";
+  const kpis=[
+    ["size","Market Size","(Buildings Class A & B)",mill(k.marketAB)],
+    ["avail","Availability","",mill(k.availability)],
+    ["vacancy","Vacancy Rate","",(k.vacancyRate*100).toFixed(2)+"%"],
+    ["uc","Under Construction","",mill(k.underConstruction)],
+    ["lease","Lease Transactions","",mill(k.leaseTx)],
+    ["asking","Average Asking Price","("+unit+"/Month)",curPrefix+resumenRateVal(cp.avgAsking).toFixed(3)],
+    ["land","Min - Max Land Prices","("+UNIT_CONVERSIONS.SF_M2.metric+")",cp.landPriceMin||cp.landPriceMax?`${curPrefix}${fmt2(cp.landPriceMin/UNIT_CONVERSIONS.SF_M2.toMetric)} - ${fmt2(cp.landPriceMax/UNIT_CONVERSIONS.SF_M2.toMetric)}`:"—"]
+  ].map(([ic,label,sub,val])=>`<div class="mkt-abstract-kpi">
+      <svg class="mkt-abstract-kpi-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${MKT_ABSTRACT_ICONS[ic]}</svg>
+      <div><div class="mkt-abstract-kpi-label">${escapeHtml(label)}</div>${sub?`<div class="mkt-abstract-kpi-sub">${escapeHtml(sub)}</div>`:""}<div class="mkt-abstract-kpi-value">${escapeHtml(val)}</div></div>
+    </div>`).join("");
+  const sigTx=mktSignificantTransactions(5);
+  const num=v=>Math.round(v).toLocaleString("en-US");
+  const sigTxRows=sigTx.length?sigTx.map(t=>`<tr><td>${escapeHtml(t.tenant)}</td><td>${escapeHtml(t.buildingType)}</td><td>${escapeHtml(t.dealType)}</td><td class="num-cell">${num(resumenAreaVal(t.areaSF))} ${unit}</td></tr>`).join("")
+    : `<tr><td colspan="4" class="mkt-empty">No transactions.</td></tr>`;
+  const y=Number(resumenYear)||new Date().getFullYear();
+  return `<div class="mkt-page mkt-cover-page mkt-abstract-page">
+    <div class="mkt-cover-sidebar mkt-abstract-sidebar">
+      <div class="mkt-cover-titleblock">
+        <h1 class="mkt-cover-title">${escapeHtml(marketLabel)}</h1>
+        <div class="mkt-cover-subtitle">Industrial Market Report</div>
+        <div class="mkt-cover-year">${escapeHtml(mktQuarterYearLabel())}</div>
+      </div>
+      <div class="mkt-abstract-kpis">${kpis}</div>
+      <div class="mkt-abstract-contact">
+        <div class="mkt-abstract-contact-title">Get in touch+</div>
+        <div class="mkt-abstract-contact-addr">Equus 335 - Av. Ricardo Margáin 335<br>Bldg. 1, Floor 6 pte. Valle del Campestre<br>SPGG, NL, MX 66265</div>
+        <div class="mkt-abstract-contact-addr">T +52 81 8368 2000</div>
+        <div class="mkt-cover-website">citiusag.com</div>
+      </div>
+    </div>
+    <div class="mkt-cover-accent mkt-abstract-accent"></div>
+    <div class="mkt-cover-main">
+      <div class="mkt-cover-logo-row"><div class="mkt-cover-logo mkt-abstract-logo"><img src="${MKT_REPORT_LOGO_SRC}" alt="Citius AG - Corporate Real Estate Advisors"></div></div>
+      <div class="mkt-abstract-grid">
+        <div class="mkt-box mkt-abstract-mapbox">
+          <div class="mkt-box-title">${escapeHtml(marketLabel)} Submarkets</div>
+          ${mktAbstractMapHtml(430, 420)}
+        </div>
+        <div class="mkt-box mkt-abstract-chartbox">
+          <div class="mkt-box-title">Lease Transactions ${y-2} - ${y}</div>
+          ${mktAbstractLeaseChartHtml()}
+        </div>
+        <div class="mkt-box mkt-abstract-sigtx">
+          <div class="mkt-box-title">Significant Transactions</div>
+          <table class="mkt-table mkt-sigtx-table mkt-absorption-table"><colgroup><col style="width:34%"><col style="width:22%"><col style="width:20%"><col style="width:24%"></colgroup><thead><tr><th class="mkt-absorption-th-label">Tenant/Buyer</th><th>Type</th><th>Transaction</th><th>Area</th></tr></thead><tbody>${sigTxRows}</tbody></table>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
 function renderMarketReportHtml(){
   if(!resumenMarket){
     return `<div class="mkt-report-placeholder">
@@ -9885,6 +10084,7 @@ function renderMarketReportHtml(){
       ${mktShowState.availSummary ? mktBuildAvailSummaryPage() : ""}
       ${mktShowState.availDetail ? mktBuildAvailDetailPage() : ""}
       ${mktShowState.overview ? mktBuildOverviewPage() : ""}
+      ${mktShowState.abstract ? mktBuildAbstractPage() : ""}
     </div>`;
 }
 function doMarketReportPrint(){

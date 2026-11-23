@@ -400,11 +400,12 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-table .mkt-center{text-align:center}
   .mkt-table-plain{font-size:11px}
   /* Hoja "Abstract" (2026-11-23, ver mktBuildAbstractPage): misma estructura que la portada, sidebar con KPIs. */
-  .mkt-abstract-sidebar{padding:34px 18px 26px}
-  .mkt-abstract-accent{margin-top:96px}
-  .mkt-abstract-sidebar .mkt-cover-title{font-size:34px}
-  .mkt-abstract-sidebar .mkt-cover-subtitle{font-size:15px}
-  .mkt-abstract-kpis{display:flex;flex-direction:column;gap:15px;margin-top:10px}
+  /* Sidebar, franja amarilla y logo son EXACTAMENTE los de la portada (sin overrides, pedido explícito del
+     usuario 2026-11-23). Solo se quita el padding-top de 28px que en pantalla llevan las hojas 2+ como
+     separador (la portada nunca lo tiene por ser la 1ra) — con él, el panel gris arrancaba 28px abajo y la
+     franja ya no coincidía con la línea bajo el nombre del Mercado. Al imprimir ese padding ya es 0. */
+  .mkt-page.mkt-abstract-page{padding-top:0}
+  .mkt-abstract-kpis{display:flex;flex-direction:column;gap:11px}
   .mkt-abstract-kpi{display:flex;align-items:center;gap:12px}
   .mkt-abstract-kpi-icon{flex:0 0 38px;width:38px;height:38px;color:#fff}
   .mkt-abstract-kpi-label{font-size:13.5px;font-weight:700;font-family:'Unitext',Arial,sans-serif;line-height:1.15}
@@ -413,11 +414,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-abstract-contact{text-align:right}
   .mkt-abstract-contact-title{font-size:22px;font-family:'Dala Moa',Georgia,serif;margin-bottom:6px}
   .mkt-abstract-contact-addr{font-size:10px;font-weight:300;opacity:.9;font-family:'Unitext',Arial,sans-serif;line-height:1.4;margin-bottom:5px}
-  .mkt-abstract-logo{width:230px}
-  .mkt-abstract-grid{flex:1;min-height:0;display:grid;grid-template-columns:1.1fr 1fr;grid-template-rows:auto 1fr;gap:4px 14px;margin-top:-4px}
-  .mkt-abstract-mapbox{grid-column:1;grid-row:1;padding-bottom:0}
-  .mkt-abstract-chartbox{grid-column:2;grid-row:1;display:flex;flex-direction:column;padding-bottom:0}
-  .mkt-abstract-sigtx{grid-column:1/-1;grid-row:2;padding-top:10px}
+  .mkt-abstract-grid{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr;gap:2px 14px;margin-top:-10px}
+  .mkt-abstract-mapbox{grid-column:1/-1;grid-row:1;padding-bottom:0}
+  .mkt-abstract-chartbox{grid-column:1;grid-row:2;display:flex;flex-direction:column}
+  .mkt-abstract-sigtx{grid-column:2;grid-row:2}
   .mkt-abstract-map{position:relative;width:100%;overflow:hidden;background:#eef0f2}
   .mkt-abstract-map img{position:absolute;inset:0;width:100%;height:100%;display:block}
   .mkt-abstract-map svg{position:absolute;inset:0;width:100%;height:100%}
@@ -426,7 +426,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-abstract-bubble-value{font-weight:400;fill:#5f5f5f}
   .mkt-abstract-map-credit{position:absolute;right:3px;bottom:1px;font-size:7px;color:#6b7480;background:rgba(255,255,255,.7);padding:0 3px}
   .mkt-abstract-map-empty{color:var(--muted);font-style:italic;padding:30px 0;text-align:center}
-  .mkt-abstract-chart{width:100%;height:auto;display:block;margin-top:auto;margin-bottom:auto}
+  .mkt-abstract-chart{width:100%;height:auto;display:block}
   .mkt-abstract-grid line.mkt-abstract-grid,.mkt-abstract-chart .mkt-abstract-grid{stroke:#e2e4e8;stroke-width:1}
   .mkt-abstract-chart .mkt-abstract-sep{stroke:#c3c6cc;stroke-width:1}
   .mkt-abstract-chart .mkt-abstract-baseline{stroke:#8a8f98;stroke-width:1}
@@ -9977,7 +9977,7 @@ function mktAbstractLeaseChartHtml(){
   const hist=years.map(yy=>mktLeaseTxHistory(resumenMarket, yy));
   const anySample=hist.some(h=>h.sample);
   const vals=hist.map(h=>h.vals.map(v=>resumenAreaVal(v)));
-  const W=400, H=330, L=44, R=6, T=22, B=22;
+  const W=400, H=250, L=44, R=6, T=22, B=22;
   const maxV=Math.max(1,...vals.flat());
   const stepM=maxV/1e6>8?4:2, top=Math.ceil(maxV/1e6/stepM)*stepM*1e6;
   const yPx=v=>T+(H-T-B)*(1-v/top);
@@ -10046,13 +10046,13 @@ function mktBuildAbstractPage(){
         <div class="mkt-cover-website">citiusag.com</div>
       </div>
     </div>
-    <div class="mkt-cover-accent mkt-abstract-accent"></div>
+    <div class="mkt-cover-accent"></div>
     <div class="mkt-cover-main">
-      <div class="mkt-cover-logo-row"><div class="mkt-cover-logo mkt-abstract-logo"><img src="${MKT_REPORT_LOGO_SRC}" alt="Citius AG - Corporate Real Estate Advisors"></div></div>
+      <div class="mkt-cover-logo-row"><div class="mkt-cover-logo"><img src="${MKT_REPORT_LOGO_SRC}" alt="Citius AG - Corporate Real Estate Advisors"></div></div>
       <div class="mkt-abstract-grid">
         <div class="mkt-box mkt-abstract-mapbox">
           <div class="mkt-box-title">${escapeHtml(marketLabel)} Submarkets</div>
-          ${mktAbstractMapHtml(430, 420)}
+          ${mktAbstractMapHtml(700, 300)}
         </div>
         <div class="mkt-box mkt-abstract-chartbox">
           <div class="mkt-box-title">Lease Transactions ${y-2} - ${y}</div>
@@ -10060,7 +10060,7 @@ function mktBuildAbstractPage(){
         </div>
         <div class="mkt-box mkt-abstract-sigtx">
           <div class="mkt-box-title">Significant Transactions</div>
-          <table class="mkt-table mkt-sigtx-table mkt-absorption-table"><colgroup><col style="width:34%"><col style="width:22%"><col style="width:20%"><col style="width:24%"></colgroup><thead><tr><th class="mkt-absorption-th-label">Tenant/Buyer</th><th>Type</th><th>Transaction</th><th>Area</th></tr></thead><tbody>${sigTxRows}</tbody></table>
+          <table class="mkt-table mkt-sigtx-table mkt-absorption-table"><colgroup><col style="width:31%"><col style="width:20%"><col style="width:25%"><col style="width:24%"></colgroup><thead><tr><th class="mkt-absorption-th-label">Tenant/Buyer</th><th>Type</th><th>Transaction</th><th>Area</th></tr></thead><tbody>${sigTxRows}</tbody></table>
         </div>
       </div>
     </div>

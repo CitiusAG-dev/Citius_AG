@@ -2479,7 +2479,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.41.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.42.0</div>
       <div class="fx-rate" id="fxRateLabel" onclick="selectConfigSection('fx')"></div>
     </nav>
   </aside>
@@ -5648,6 +5648,13 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.42.0", date:"2026-11-23", items:[
+    "Market Report (PDF): new last page \"Abstract\" (landscape), selectable in Design. Same gray sidebar, yellow accent and logo as the Cover, with the cover KPIs and icons (Market Size, Availability, Vacancy Rate, Under Construction, Lease Transactions, Average Asking Price, Min-Max Land Prices) and a \"Get in touch+\" contact block. Includes a Citius map of the market with one bubble per Submarket sized by its Class A & B market size, a Lease Transactions chart by quarter for the report year and the two previous years (from Transactions, same criteria as the cover: Lease + Gross + Class A/B building; Y axis adapts to the data), and the Significant Transactions table.",
+    "Market Report (PDF) Abstract: areas below 1 million are shown as the full number with commas (e.g. 39,512 SF) instead of 0.04 M SF.",
+    "Market Report (PDF): the by-Submarket page is now called \"Market Overview\" (Design option and page subtitle).",
+    "Market Report (PDF): gray side panel color updated to #7a7c7b (Cover and Abstract).",
+    "Land: the Occupied Land unit now has the has / m² list, same as Total Land Size and Available Area."
+  ]},
   {version:"8.41.0", date:"2026-11-20", items:[
     "Market Report (PDF): new last page \"Market Report\" with every Submarket as a column plus TOTAL — Market Size (GLA of Ready buildings by Class: A, B, A+B subtotal, C, NC), Count (number of buildings), Overview (same rows and formulas as the cover's Market table, per Submarket; TOTAL matches the cover) and Absorption (Gross / Negative / Net for the year). It can be turned on/off from Design.",
     "Lists: Brokers CAG updated — added Alfredo Ramírez López, Jack Orr and Rodrigo Martínez Ramírez; renamed Adrian Garza to Adrian Garza Reyes and Carlos Garces to Carlos Daniel Garcés Suarez; removed Eduardo Rubio Ayala, Romina Sofia Aguilar Hernandez and Armando Jhair Valdes Castellanos. Presentation covers that already had brokers selected keep the renamed ones checked and drop the removed ones."

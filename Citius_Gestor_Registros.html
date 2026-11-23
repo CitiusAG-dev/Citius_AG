@@ -9986,13 +9986,19 @@ function mktAbstractLeaseChartHtml(){
   const hist=years.map(yy=>mktLeaseTxHistory(resumenMarket, yy));
   const anySample=hist.some(h=>h.sample);
   const vals=hist.map(h=>h.vals.map(v=>resumenAreaVal(v)));
-  const W=400, H=250, L=44, R=6, T=22, B=22;
+  const W=400, H=250, L=50, R=6, T=22, B=22;
   const maxV=Math.max(1,...vals.flat());
-  const stepM=maxV/1e6>8?4:2, top=Math.ceil(maxV/1e6/stepM)*stepM*1e6;
+  /* Eje Y automático (pedido del usuario, 2026-11-23): antes el paso mínimo era 2 M, y en mercados chicos (o en
+     m²) las barras se veían diminutas. Ahora el paso se ajusta al valor máximo (≈4 líneas: 1/2/2.5/5 × 10^n). */
+  const rawStep=maxV/4, mag=Math.pow(10,Math.floor(Math.log10(rawStep)));
+  const stepV=[1,2,2.5,5,10].map(f=>f*mag).find(st=>st>=rawStep);
+  const top=Math.ceil(maxV/stepV-1e-9)*stepV;
   const yPx=v=>T+(H-T-B)*(1-v/top);
+  const tickTxt=v=>{ const u=resumenAreaUnitLabel(); const f=x=>+x.toFixed(2);
+    return v>=1e6?`${f(v/1e6)} M ${u}`:v>=1e3?`${f(v/1e3)} K ${u}`:`${Math.round(v)} ${u}`; };
   const groupW=(W-L-R)/4, barW=groupW/4.2;
   let g="";
-  for(let m=stepM*1e6;m<=top+1;m+=stepM*1e6) g+=`<line x1="${L}" x2="${W-R}" y1="${yPx(m).toFixed(1)}" y2="${yPx(m).toFixed(1)}" class="mkt-abstract-grid"/><text x="${L-5}" y="${(yPx(m)+3).toFixed(1)}" text-anchor="end" class="mkt-abstract-axis">${Math.round(m/1e6)} M ${resumenAreaUnitLabel()}</text>`;
+  for(let i=1;i*stepV<=top*(1+1e-9);i++){ const m=i*stepV; g+=`<line x1="${L}" x2="${W-R}" y1="${yPx(m).toFixed(1)}" y2="${yPx(m).toFixed(1)}" class="mkt-abstract-grid"/><text x="${L-5}" y="${(yPx(m)+3).toFixed(1)}" text-anchor="end" class="mkt-abstract-axis">${tickTxt(m)}</text>`; }
   for(let q=0;q<4;q++){
     const gx=L+q*groupW;
     if(q>0) g+=`<line x1="${gx.toFixed(1)}" x2="${gx.toFixed(1)}" y1="${T}" y2="${H-B}" class="mkt-abstract-sep"/>`;

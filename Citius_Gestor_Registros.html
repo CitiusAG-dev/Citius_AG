@@ -405,19 +405,20 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
      separador (la portada nunca lo tiene por ser la 1ra) — con él, el panel gris arrancaba 28px abajo y la
      franja ya no coincidía con la línea bajo el nombre del Mercado. Al imprimir ese padding ya es 0. */
   .mkt-page.mkt-abstract-page{padding-top:0}
-  .mkt-abstract-kpis{display:flex;flex-direction:column;gap:11px}
+  .mkt-abstract-kpis{display:flex;flex-direction:column;gap:11px;padding-left:14px} /* mismo padding-left que .mkt-cover-titleblock: íconos alineados con el inicio del nombre del Mercado */
   .mkt-abstract-kpi{display:flex;align-items:center;gap:12px}
   .mkt-abstract-kpi-icon{flex:0 0 38px;width:38px;height:38px;color:#fff}
-  .mkt-abstract-kpi-label{font-size:13.5px;font-weight:700;font-family:'Unitext',Arial,sans-serif;line-height:1.15}
-  .mkt-abstract-kpi-sub{font-size:9px;font-weight:700;opacity:.8;font-family:'Unitext',Arial,sans-serif}
+  .mkt-abstract-kpi-label{font-size:13.5px;font-weight:300;font-family:'Unitext',Arial,sans-serif;line-height:1.15}
+  .mkt-abstract-kpi-sub{font-size:9px;font-weight:300;opacity:.8;font-family:'Unitext',Arial,sans-serif}
   .mkt-abstract-kpi-value{font-size:14px;font-weight:700;color:var(--accent);font-family:'Unitext',Arial,sans-serif;margin-top:1px}
   .mkt-abstract-contact{text-align:right}
   .mkt-abstract-contact-title{font-size:22px;font-family:'Dala Moa',Georgia,serif;margin-bottom:6px}
   .mkt-abstract-contact-addr{font-size:10px;font-weight:300;opacity:.9;font-family:'Unitext',Arial,sans-serif;line-height:1.4;margin-bottom:5px}
-  .mkt-abstract-grid{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr;gap:2px 14px;margin-top:-10px}
+  .mkt-abstract-grid{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr;gap:8px 14px;margin-top:-10px}
   .mkt-abstract-mapbox{grid-column:1/-1;grid-row:1;padding-bottom:0}
   .mkt-abstract-chartbox{grid-column:1;grid-row:2;display:flex;flex-direction:column}
   .mkt-abstract-sigtx{grid-column:2;grid-row:2}
+  .mkt-abstract-page .mkt-box-title{margin-bottom:15px} /* más aire entre el título de sección y su contenido (9px en la portada) */
   .mkt-abstract-map{position:relative;width:100%;overflow:hidden;background:#eef0f2}
   .mkt-abstract-map img{position:absolute;inset:0;width:100%;height:100%;display:block}
   .mkt-abstract-map svg{position:absolute;inset:0;width:100%;height:100%}
@@ -10052,7 +10053,7 @@ function mktBuildAbstractPage(){
       <div class="mkt-abstract-grid">
         <div class="mkt-box mkt-abstract-mapbox">
           <div class="mkt-box-title">${escapeHtml(marketLabel)} Submarkets</div>
-          ${mktAbstractMapHtml(700, 300)}
+          ${mktAbstractMapHtml(700, 365)}
         </div>
         <div class="mkt-box mkt-abstract-chartbox">
           <div class="mkt-box-title">Lease Transactions ${y-2} - ${y}</div>

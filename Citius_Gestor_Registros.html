@@ -9915,20 +9915,23 @@ function mktBuildOverviewPage(){
      las páginas con zoom y al imprimir ya dio problemas en Presentación (hojas en gris/en blanco); una <img>
      imprime siempre igual. Los círculos se ubican con la misma proyección Web Mercator que usa Mapbox, en
      el centroide (mediana de LATITUDE/LONGITUDE) de los edificios de cada submercado.
-   - "Lease Transactions <año-2> - <año>": barras por trimestre de 3 años. Histórico pendiente de cargar
-     (el usuario lo pasará) — mientras tanto usa MKT_LEASE_TX_HISTORY si trae el Mercado, si no, datos de
-     ejemplo (se marca "Sample data" en la gráfica para que no se confunda con datos reales).
+   - "Lease Transactions <año-2> - <año>": barras por trimestre de 3 años, calculadas de la pestaña
+     Transacciones (pedido del usuario, 2026-11-23) con el MISMO criterio que "Lease Transactions" de la
+     portada (resumenKpis): Lease + Absorption Gross + edificio Clase A/B, del Mercado seleccionado.
    - "Significant Transactions": las mismas de la portada (mktSignificantTransactions). */
 const MKT_ABSTRACT_MAPBOX={style:"citiusag/cmtuani2f005w01qn06ey1737", token:"pk.eyJ1IjoiY2l0aXVzYWciLCJhIjoiY21ucDh6OTF6MTRibjJzb25qd2ltcjhlYyJ9.LvtTn6DeoONC0MNlU1ACVw"};
-/* Histórico de Lease Transactions por trimestre, en SF: {"Monterrey":{"2024":{1:..,2:..,3:..,4:..}, ...}}.
-   Vacío hasta que el usuario pase el histórico. */
-const MKT_LEASE_TX_HISTORY={};
-function mktLeaseTxHistory(market, year){
-  const h=MKT_LEASE_TX_HISTORY[market]&&MKT_LEASE_TX_HISTORY[market][String(year)];
-  if(h) return {vals:[1,2,3,4].map(q=>Number(h[q])||0), sample:false};
-  // Datos de ejemplo deterministas (mismo resultado en cada render/impresión), solo para ver el diseño.
-  let seed=0; for(const c of String(market)+year) seed=(seed*31+c.charCodeAt(0))%100000;
-  return {vals:[1,2,3,4].map(q=>{ seed=(seed*9301+49297)%233280; return 1.5e6+(seed/233280)*4.5e6; }), sample:true};
+/* Lease Transactions por trimestre de `year`, en SF, desde Transacciones. Mismo filtro que leaseTx en
+   resumenKpis(), así la suma de los 4 trimestres = "Lease Transactions (<año>)" de la portada. */
+function mktLeaseTxByQuarter(year){
+  const vals=[0,0,0,0];
+  (state.TRANSACCIONES||[]).forEach(r=>{
+    if(!(resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.TRANSACCION_TYPE,"Lease")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&resumenTxIsAB(r))) return;
+    const d=String(r.TRANSACTION_DATE||"");
+    if(d<`${year}-01-01`||d>`${year}-12-31`) return;
+    const q=Math.floor((Number(d.slice(5,7))-1)/3);
+    if(q>=0&&q<4) vals[q]+=areaValueInSF(r,"TRANSACTION_AREA");
+  });
+  return vals;
 }
 /* Área para la hoja Abstract (pedido explícito del usuario, 2026-11-23): desde 1 millón en millones con
    `dec` decimales ("214.39 M SF"); abajo de 1 millón la cifra completa con comas ("39,512 SF"), porque en
@@ -9983,9 +9986,7 @@ const MKT_ABSTRACT_QUARTER_COLORS=[["#f7d79a","#efb222","#c8961a"],["#9cc3a4","#
 function mktAbstractLeaseChartHtml(){
   const y=Number(resumenYear)||new Date().getFullYear();
   const years=[y-2,y-1,y];
-  const hist=years.map(yy=>mktLeaseTxHistory(resumenMarket, yy));
-  const anySample=hist.some(h=>h.sample);
-  const vals=hist.map(h=>h.vals.map(v=>resumenAreaVal(v)));
+  const vals=years.map(yy=>mktLeaseTxByQuarter(yy).map(v=>resumenAreaVal(v)));
   const W=400, H=250, L=50, R=6, T=22, B=22;
   const maxV=Math.max(1,...vals.flat());
   /* Eje Y automático (pedido del usuario, 2026-11-23): antes el paso mínimo era 2 M, y en mercados chicos (o en
@@ -10010,7 +10011,7 @@ function mktAbstractLeaseChartHtml(){
     });
   }
   g+=`<line x1="${L}" x2="${W-R}" y1="${H-B}" y2="${H-B}" class="mkt-abstract-baseline"/>`;
-  return `<svg class="mkt-abstract-chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${g}</svg>${anySample?`<div class="mkt-abstract-sample-note">Sample data — historic figures pending.</div>`:""}`;
+  return `<svg class="mkt-abstract-chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${g}</svg>`;
 }
 const MKT_ABSTRACT_ICONS={
   size:'<path d="M3 21V9l5 3V9l5 3V9l5 3V4h3v17z"/><path d="M7 16h2M11 16h2M15 16h2"/>',

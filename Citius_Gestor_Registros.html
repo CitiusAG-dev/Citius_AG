@@ -8936,7 +8936,7 @@ function renderResumenView(){
             <label><input type="checkbox" id="mktShowTxDetail"> Completed Transactions — Detail</label>
             <label><input type="checkbox" id="mktShowAvailSummary"> Available Inventory</label>
             <label><input type="checkbox" id="mktShowAvailDetail"> Available Inventory — Detail</label>
-            <label><input type="checkbox" id="mktShowOverview"> Market Report</label>
+            <label><input type="checkbox" id="mktShowOverview"> Market Overview</label>
             <label><input type="checkbox" id="mktShowAbstract"> Abstract</label>
           </div>
         </div>
@@ -9860,7 +9860,7 @@ function mktBuildOverviewPage(){
   // row(label, values[] (uno por columna, último = TOTAL), opts) — values ya formateados (string)
   const row=(labelHtml, vals, cls, totalSuffix)=>`<tr${cls?` class="${cls}"`:""}><td>${labelHtml}</td>${vals.map((v,i)=>`<td class="num-cell${i===vals.length-1?" mkt-absorption-td-ytd":""}">${v}${i===vals.length-1&&totalSuffix?" "+totalSuffix:""}</td>`).join("")}</tr>`;
   const table=(label, rowsHtml)=>`<div class="mkt-box mkt-overview-box"><table class="mkt-table mkt-absorption-table mkt-overview-table">${colgroupHtml}${head(label)}<tbody>${rowsHtml}</tbody></table></div>`;
-  if(!subs.length) return `<div class="mkt-page">${mktPageHeaderHtml("Market Report")}<div class="mkt-page-body"><p class="mkt-empty">No data.</p></div></div>`;
+  if(!subs.length) return `<div class="mkt-page">${mktPageHeaderHtml("Market Overview")}<div class="mkt-page-body"><p class="mkt-empty">No data.</p></div></div>`;
   const P=(state.PROPIEDADES||[]).filter(r=>resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.STATUS,"Ready"));
   const inCol=(r,sm)=>sm==null||ciEq(r.SUBMARKET,sm);
   const isCls=(r,list)=>list.some(c=>ciEq(r.CLASSIFICATION,c));
@@ -9896,7 +9896,7 @@ function mktBuildOverviewPage(){
   const fx=getExchangeRate();
   const fxNoteHtml=CP.some(c=>c.usedFx)&&fx?`<div class="mkt-cover-fx-note">For reporting purposes, some values were converted using the DOF exchange rate of ${fx.value.toFixed(4)} MXN/USD (${fx.dofDate.split("-").reverse().join("/")}).</div>`:"";
   return `<div class="mkt-page">
-    ${mktPageHeaderHtml("Market Report")}
+    ${mktPageHeaderHtml("Market Overview")}
     <div class="mkt-page-body">
       ${table("Market Size", classRows(size, unit))}
       ${table("Count", classRows(count, ""))}

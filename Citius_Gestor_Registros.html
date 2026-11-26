@@ -10104,7 +10104,7 @@ function mktBuildAbstractPage(){
     </div>`).join("");
   const sigTx=mktSignificantTransactions(10); // pedido del usuario: 10 transacciones (solo industriales) en Abstract
   const num=v=>Math.round(v).toLocaleString("en-US");
-  const sigTxRows=sigTx.length?sigTx.map(t=>`<tr><td>${escapeHtml(t.tenant)}</td><td>${escapeHtml(t.submarket)}</td><td>${escapeHtml(t.dealType)}</td><td class="num-cell">${num(resumenAreaVal(t.areaSF))} ${unit}</td></tr>`).join("")
+  const sigTxRows=sigTx.length?sigTx.map(t=>`<tr><td>${escapeHtml(t.tenant)}</td><td>${escapeHtml(t.buildingType)}</td><td>${escapeHtml(t.dealType)}</td><td class="num-cell">${num(resumenAreaVal(t.areaSF))} ${unit}</td></tr>`).join("")
     : `<tr><td colspan="4" class="mkt-empty">No transactions.</td></tr>`;
   const y=Number(resumenYear)||new Date().getFullYear();
   return `<div class="mkt-page mkt-cover-page mkt-abstract-page">
@@ -10136,7 +10136,7 @@ function mktBuildAbstractPage(){
         </div>
         <div class="mkt-box mkt-abstract-sigtx">
           <div class="mkt-box-title">Significant Transactions</div>
-          <table class="mkt-table mkt-sigtx-table mkt-absorption-table"><colgroup><col style="width:27%"><col style="width:27%"><col style="width:26%"><col style="width:20%"></colgroup><thead><tr><th class="mkt-absorption-th-label">Tenant/Buyer</th><th>Submarket</th><th>Transaction</th><th>Area</th></tr></thead><tbody>${sigTxRows}</tbody></table>
+          <table class="mkt-table mkt-sigtx-table mkt-absorption-table"><colgroup><col style="width:31%"><col style="width:20%"><col style="width:25%"><col style="width:24%"></colgroup><thead><tr><th class="mkt-absorption-th-label">Tenant/Buyer</th><th>Type</th><th>Transaction</th><th>Area</th></tr></thead><tbody>${sigTxRows}</tbody></table>
         </div>
       </div>
     </div>

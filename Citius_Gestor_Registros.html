@@ -2479,7 +2479,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.42.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.43.0</div>
       <div class="fx-rate" id="fxRateLabel" onclick="selectConfigSection('fx')"></div>
     </nav>
   </aside>
@@ -5648,6 +5648,15 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.43.0", date:"2026-11-26", items:[
+    "Summary > KPI's: new \"Type\" selector to split the view into Industrial Buildings, Industrial Parks, Land and Offices (Offices includes Spaces). Each type shows its own markets, Compliance and Data Quality; Industrial Buildings keeps the KPIs, Absorption, Completed Transactions and Available Inventory.",
+    "Market Report (PDF): only industrial markets, submarkets and transactions are used (in consolidated mode, office markets/submarkets no longer appear).",
+    "Market Report (PDF) Abstract: Significant Transactions now lists 10 industrial transactions and shows a Submarket column instead of Type.",
+    "Market Report (PDF) Abstract: map title is now just \"Submarkets\"; thinner outline on the submarket bubbles; KPI titles in the side panel are bold.",
+    "Market Report (PDF): the \"Market Overview\" page is now called \"Submarkets Overview\".",
+    "Market Report (PDF): the exchange-rate note now uses the same text color as the table data.",
+    "Market Report (PDF), Completed Transactions — Detail: Building Type and Broker columns are centered."
+  ]},
   {version:"8.42.0", date:"2026-11-23", items:[
     "Market Report (PDF): new last page \"Abstract\" (landscape), selectable in Design. Same gray sidebar, yellow accent and logo as the Cover, with the cover KPIs and icons (Market Size, Availability, Vacancy Rate, Under Construction, Lease Transactions, Average Asking Price, Min-Max Land Prices) and a \"Get in touch+\" contact block. Includes a Citius map of the market with one bubble per Submarket sized by its Class A & B market size, a Lease Transactions chart by quarter for the report year and the two previous years (from Transactions, same criteria as the cover: Lease + Gross + Class A/B building; Y axis adapts to the data), and the Significant Transactions table.",
     "Market Report (PDF) Abstract: areas below 1 million are shown as the full number with commas (e.g. 39,512 SF) instead of 0.04 M SF.",

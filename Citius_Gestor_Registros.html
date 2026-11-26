@@ -408,7 +408,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-abstract-kpis{display:flex;flex-direction:column;gap:11px;padding-left:14px} /* mismo padding-left que .mkt-cover-titleblock: íconos alineados con el inicio del nombre del Mercado */
   .mkt-abstract-kpi{display:flex;align-items:center;gap:12px}
   .mkt-abstract-kpi-icon{flex:0 0 38px;width:38px;height:38px;color:#fff}
-  .mkt-abstract-kpi-label{font-size:13.5px;font-weight:300;font-family:'Unitext',Arial,sans-serif;line-height:1.15}
+  .mkt-abstract-kpi-label{font-size:13.5px;font-weight:700;font-family:'Unitext',Arial,sans-serif;line-height:1.15}
   .mkt-abstract-kpi-sub{font-size:9px;font-weight:300;opacity:.8;font-family:'Unitext',Arial,sans-serif}
   .mkt-abstract-kpi-value{font-size:14px;font-weight:700;color:var(--accent);font-family:'Unitext',Arial,sans-serif;margin-top:1px}
   .mkt-abstract-contact{text-align:right}
@@ -422,7 +422,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-abstract-map{position:relative;width:100%;overflow:hidden;background:#eef0f2}
   .mkt-abstract-map img{position:absolute;inset:0;width:100%;height:100%;display:block}
   .mkt-abstract-map svg{position:absolute;inset:0;width:100%;height:100%}
-  .mkt-abstract-bubble{fill:rgba(255,255,255,.72);stroke:#7a7a7a;stroke-width:3.5}
+  .mkt-abstract-bubble{fill:rgba(255,255,255,.72);stroke:#7a7a7a;stroke-width:1.75}
   .mkt-abstract-bubble-label{font-family:'Unitext',Arial,sans-serif;font-weight:700;fill:#404040;paint-order:stroke;stroke:#fff;stroke-width:2.6px;stroke-linejoin:round}
   .mkt-abstract-bubble-value{font-weight:400;fill:#5f5f5f}
   .mkt-abstract-map-credit{position:absolute;right:3px;bottom:1px;font-size:7px;color:#6b7480;background:rgba(255,255,255,.7);padding:0 3px}
@@ -434,7 +434,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-abstract-chart .mkt-abstract-axis{font-size:8.5px;fill:#6b7480;font-family:'Unitext',Arial,sans-serif}
   .mkt-abstract-chart .mkt-abstract-qlabel{font-size:11px;font-weight:700;fill:#404040;font-family:'Unitext',Arial,sans-serif}
   .mkt-abstract-sample-note{font-size:8px;color:#b06a00;font-style:italic;text-align:right;margin-top:2px}
-  .mkt-cover-fx-note{font-size:8px;color:#6b7480;text-align:left;padding-left:10px;margin-top:8px} /* misma sangría que las etiquetas (.mkt-table-plain td) */
+  .mkt-cover-fx-note{font-size:8px;color:#404040;text-align:left;padding-left:10px;margin-top:8px} /* misma sangría que las etiquetas (.mkt-table-plain td) */
   .mkt-table-plain td{border-bottom:1px solid #c3c6cc;padding:4.5px 0}
   .mkt-table-plain tr:last-child td{border-bottom:none}
   /* v7.3.23, pedido explícito del usuario: Significant Transactions (portada) con el MISMO diseño que las
@@ -2479,7 +2479,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.42.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.43.0</div>
       <div class="fx-rate" id="fxRateLabel" onclick="selectConfigSection('fx')"></div>
     </nav>
   </aside>
@@ -5648,6 +5648,15 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.43.0", date:"2026-11-26", items:[
+    "Summary > KPI's: new \"Type\" selector to split the view into Industrial Buildings, Industrial Parks, Land and Offices (Offices includes Spaces). Each type shows its own markets, Compliance and Data Quality; Industrial Buildings keeps the KPIs, Absorption, Completed Transactions and Available Inventory.",
+    "Market Report (PDF): only industrial markets, submarkets and transactions are used (in consolidated mode, office markets/submarkets no longer appear).",
+    "Market Report (PDF) Abstract: Significant Transactions now lists 10 industrial transactions and shows a Submarket column instead of Type.",
+    "Market Report (PDF) Abstract: map title is now just \"Submarkets\"; thinner outline on the submarket bubbles; KPI titles in the side panel are bold.",
+    "Market Report (PDF): the \"Market Overview\" page is now called \"Submarkets Overview\".",
+    "Market Report (PDF): the exchange-rate note now uses the same text color as the table data.",
+    "Market Report (PDF), Completed Transactions — Detail: Building Type and Broker columns are centered."
+  ]},
   {version:"8.42.0", date:"2026-11-23", items:[
     "Market Report (PDF): new last page \"Abstract\" (landscape), selectable in Design. Same gray sidebar, yellow accent and logo as the Cover, with the cover KPIs and icons (Market Size, Availability, Vacancy Rate, Under Construction, Lease Transactions, Average Asking Price, Min-Max Land Prices) and a \"Get in touch+\" contact block. Includes a Citius map of the market with one bubble per Submarket sized by its Class A & B market size, a Lease Transactions chart by quarter for the report year and the two previous years (from Transactions, same criteria as the cover: Lease + Gross + Class A/B building; Y axis adapts to the data), and the Significant Transactions table.",
     "Market Report (PDF) Abstract: areas below 1 million are shown as the full number with commas (e.g. 39,512 SF) instead of 0.04 M SF.",
@@ -7934,6 +7943,29 @@ function resumenAllMarkets(){
   RESUMEN_MARKET_ENTITIES.forEach(ent=>fieldValuesInUse(ent,"MARKET").forEach(m=>set.add(m)));
   return [...set].sort((a,b)=>a.localeCompare(b));
 }
+/* v8.43.x, pedido explícito del usuario: KPI's se divide por tipo (Industrial Buildings / Industrial Parks /
+   Land / Offices — Offices junta Oficinas + Spaces). Market Report (PDF) siempre es Industrial. */
+let resumenKpiType="industrial";
+const RESUMEN_KPI_TYPES=[["industrial","Industrial Buildings"],["parks","Industrial Parks"],["land","Land"],["offices","Offices"]];
+function resumenScopeType(){ return resumenSection==="market_report" ? "industrial" : resumenKpiType; }
+/* Transacción industrial: Property Type = "Industrial" (o vacío, filas viejas sin capturar). En modo
+   Consolidado entran Transacciones de Oficinas — no deben aparecer en los cálculos/listas industriales. */
+function resumenTxIsIndustrial(r){ return !String(r.PROPERTY_TYPE||"").trim() || ciEq(r.PROPERTY_TYPE,"Industrial"); }
+/* Mercados del selector según el tipo activo (antes: todos los de todas las entidades — en Consolidado el
+   Market Report ofrecía mercados de Oficinas). */
+function resumenScopeMarkets(){
+  const set=new Set(), add=m=>{ const v=String(m||"").trim(); if(v) set.add(v); };
+  const type=resumenScopeType();
+  if(type==="industrial"){
+    fieldValuesInUse("PROPIEDADES","MARKET").forEach(add);
+    fieldValuesInUse("PARKS","MARKET").forEach(add);
+    (state.TRANSACCIONES||[]).forEach(r=>{ if(resumenTxIsIndustrial(r)) add(r.MARKET); });
+  }
+  else if(type==="parks") fieldValuesInUse("PARKS","MARKET").forEach(add);
+  else if(type==="land") fieldValuesInUse("LAND","MARKET").forEach(add);
+  else { fieldValuesInUse("OFICINAS","MARKET").forEach(add); fieldValuesInUse("SPACES","MARKET").forEach(add); }
+  return [...set].sort((a,b)=>a.localeCompare(b));
+}
 /* ¿Esta fila (de `ent`) pertenece al mercado filtrado en Resumen? true si no hay filtro activo.
    v3.45.25, bug real corregido (reportado por el usuario con datos reales de Matamoros): antes solo
    PROPIEDADES/PARKS comparaban `row.MARKET` directo — TRANSACCIONES (que también trae su propio MARKET,
@@ -7945,6 +7977,7 @@ function resumenAllMarkets(){
    fila lo tenga (las 4 entidades ya lo capturan), sin importar `ent` — el diccionario queda solo de
    respaldo para filas viejas/incompletas sin MARKET propio. */
 function resumenMarketOnlyMatches(row, ent){
+  if(ent==="TRANSACCIONES" && !resumenTxIsIndustrial(row)) return false; // v8.43.x: Summary/Market Report de transacciones = solo industrial
   if(!resumenMarket) return true;
   if(row.MARKET) return ciEq(row.MARKET,resumenMarket);
   const mk=resumenMarketForSubmarket(row.SUBMARKET);
@@ -8745,8 +8778,10 @@ function renderResumenView(){
   closeResumenSubmarketPanel(); // defensivo: si el checklist quedó abierto, no dejarlo huérfano al re-renderizar el toolbar
   const years=resumenYearsAvailable();
   if(!years.includes(resumenYear)) resumenYear=years[0];
-  const markets=resumenAllMarkets();
+  const markets=resumenScopeMarkets();
   if(resumenMarket && !markets.includes(resumenMarket)) resumenMarket="";
+  const scopeType=resumenScopeType();
+  if(scopeType!=="industrial") resumenSubmarketFilter=new Set(); // Submarket solo aplica a la vista industrial
   // v6.5.21: si cambiar de Market (o los datos mismos) deja seleccionado un submercado que ya no aplica
   // aquí, se quita solo — mismo criterio que la línea de arriba para resumenMarket.
   if(resumenSubmarketFilter.size){
@@ -8943,12 +8978,17 @@ function renderResumenView(){
             <label><input type="checkbox" id="mktShowTxDetail"> Completed Transactions — Detail</label>
             <label><input type="checkbox" id="mktShowAvailSummary"> Available Inventory</label>
             <label><input type="checkbox" id="mktShowAvailDetail"> Available Inventory — Detail</label>
-            <label><input type="checkbox" id="mktShowOverview"> Market Overview</label>
+            <label><input type="checkbox" id="mktShowOverview"> Submarkets Overview</label>
             <label><input type="checkbox" id="mktShowAbstract"> Abstract</label>
           </div>
         </div>
         <button type="button" class="btn ghost" id="mktCoverEditBtn" title="Edit the cover's analyst name and quarter label">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-3px"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="M15 5l4 4"/></svg>Cover data</button>` : ""}
+        ${isMarketReport ? "" : `
+        <div class="resumen-year-select">
+          <label for="resumenKpiTypeSelect">Type</label>
+          <select id="resumenKpiTypeSelect">${RESUMEN_KPI_TYPES.map(([v,l])=>`<option value="${v}" ${v===resumenKpiType?"selected":""}>${l}</option>`).join("")}</select>
+        </div>`}
         <div class="resumen-year-select">
           <label for="resumenUnitSelect">Units</label>
           <select id="resumenUnitSelect">
@@ -8968,7 +9008,7 @@ function renderResumenView(){
           <label for="resumenMarketSelect">Market</label>
           <select id="resumenMarketSelect">${marketOptionsHtml}</select>
         </div>
-        <div class="resumen-year-select">
+        ${scopeType!=="industrial" ? "" : `<div class="resumen-year-select">
           <label for="resumenSubmarketBtn">Submarket</label>
           <button type="button" class="btn ghost resumen-submarket-btn" id="resumenSubmarketBtn" onclick="toggleResumenSubmarketPanel(event)">
             ${resumenSubmarketFilter.size?`${resumenSubmarketFilter.size} selected`:"All"}
@@ -8981,7 +9021,7 @@ function renderResumenView(){
         <div class="resumen-year-select">
           <label for="resumenYearSelect">Year (transactions)</label>
           <select id="resumenYearSelect">${yearOptionsHtml}</select>
-        </div>
+        </div>`}
         ${isMarketReport ? `
         <button class="btn ghost" id="mktReportPrintBtn" ${resumenMarket?"":"disabled"}>
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-3px"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print / PDF</button>` : ""}
@@ -9036,7 +9076,26 @@ function renderResumenView(){
   // (más simple/seguro que separarlo en 2 ramas desde el principio de la función); optimizar eso queda para
   // más adelante si de verdad hace falta.
   el.className=resumenSection==="market_report" ? "mkt-report-outer" : "";
-  el.innerHTML = resumenSection==="market_report" ? renderMarketReportHtml() : `
+  // v8.43.x, pedido explícito del usuario: KPI's dividido por tipo (selector "Type" del header). Industrial
+  // Buildings = todo lo de siempre (KPIs, absorción, transacciones, inventario) + Compliance/Data Quality de
+  // Buildings y Transactions; Parks/Land = su Compliance/Data Quality; Offices = Offices + Spaces.
+  const kpiTypeSectionsHtml = scopeType==="parks" ? `
+    <h3 class="resumen-section-title">Compliance</h3>
+    ${resumenRowsOf3([complianceHtmlParks])}
+    <h3 class="resumen-section-title">Data Quality</h3>
+    <div class="resumen-row-full">${resumenDataQualityTableHtml("Industrial Parks","PARKS")}</div>`
+  : scopeType==="land" ? `
+    <h3 class="resumen-section-title">Compliance</h3>
+    ${resumenRowsOf3([complianceHtmlLand])}
+    <h3 class="resumen-section-title">Data Quality</h3>
+    <div class="resumen-row-full">${resumenDataQualityTableHtml("Land","LAND")}</div>`
+  : scopeType==="offices" ? `
+    <h3 class="resumen-section-title">Compliance</h3>
+    ${resumenRowsOf3([complianceHtmlOffices, complianceHtmlSpaces])}
+    <h3 class="resumen-section-title">Data Quality</h3>
+    <div class="resumen-row-full">${resumenDataQualityTableHtml("Offices","OFICINAS")}</div>
+    <div class="resumen-row-full">${resumenDataQualityTableHtml("Spaces","SPACES")}</div>`
+  : `
     <div class="resumen-kpi-outer">
       <div class="resumen-kpi-grid">${kpiHtml}</div>
       ${donutHtml}
@@ -9048,15 +9107,13 @@ function renderResumenView(){
     <h3 class="resumen-section-title">Available Inventory</h3>
     ${resumenRowsOf3([availHtml, availClassHtml, availBucketHtml, availStatusHtml, availGenHtml])}
     <h3 class="resumen-section-title">Compliance</h3>
-    ${resumenRowsOf3([complianceHtmlProp, complianceHtmlParks, complianceHtmlLand, complianceHtmlOffices, complianceHtmlSpaces])}
+    ${resumenRowsOf3([complianceHtmlProp])}
     <div class="resumen-row-full">${complianceHtmlTx}</div>
     <h3 class="resumen-section-title">Data Quality</h3>
     <div class="resumen-row-full">${resumenDataQualityTableHtml("Industrial Buildings","PROPIEDADES")}</div>
-    <div class="resumen-row-full">${resumenDataQualityTableHtml("Industrial Parks","PARKS")}</div>
-    <div class="resumen-row-full">${resumenDataQualityTableHtml("Land","LAND")}</div>
-    <div class="resumen-row-full">${resumenDataQualityTableHtml("Offices","OFICINAS")}</div>
-    <div class="resumen-row-full">${resumenDataQualityTableHtml("Spaces","SPACES")}</div>
-    <div class="resumen-row-full">${resumenDataQualityTableHtml("Transactions","TRANSACCIONES")}</div>
+    <div class="resumen-row-full">${resumenDataQualityTableHtml("Transactions","TRANSACCIONES")}</div>`;
+  el.innerHTML = resumenSection==="market_report" ? renderMarketReportHtml() : `
+    ${kpiTypeSectionsHtml}
     <div class="resumen-usage-header">
       <div>
         <h3 class="resumen-section-title" style="margin-top:0">Tool Usage</h3>
@@ -9076,6 +9133,8 @@ function renderResumenView(){
     ${resumenUsageChartHtml(usageData)}
   `;
   document.getElementById("resumenUnitSelect").onchange=function(){ resumenUnit=this.value; renderResumenView(); };
+  const kpiTypeSel=document.getElementById("resumenKpiTypeSelect");
+  if(kpiTypeSel) kpiTypeSel.onchange=function(){ resumenKpiType=this.value; renderResumenView(); };
   const mktCurSel=document.getElementById("mktCurrencySelect");
   if(mktCurSel) mktCurSel.onchange=function(){ mktCurrency=this.value; try{ localStorage.setItem(MKT_CURRENCY_KEY, mktCurrency); }catch(e){} renderResumenView(); };
   // v7.3.5x: Year ahora aparece en ambas sub-vistas (KPI's y Market Report), pedido explícito del usuario —
@@ -9421,19 +9480,19 @@ function mktSignificantTransactions(limit){
   const yearStart=`${resumenYear}-01-01`, yearEnd=`${resumenYear}-12-31`;
   const groups=new Map();
   (state.TRANSACCIONES||[])
-    .filter(r=>resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd&&!mktIsConfidentialTenant(r))
+    .filter(r=>resumenMarketMatches(r,"TRANSACCIONES")&&ciEq(r.ABSORPTION_TYPE,"Gross")&&r.TRANSACTION_DATE>=yearStart&&r.TRANSACTION_DATE<=yearEnd&&!mktIsConfidentialTenant(r)&&ciEq(r.PROPERTY_TYPE,"Industrial"))
     .forEach((r,i)=>{
       const areaSF=areaValueInSF(r,"TRANSACTION_AREA");
       if(areaSF<=0) return;
       const rawTenant=String(r.TENANT_BUYER_USER||"").trim();
       const tenant=rawTenant||"Confidential";
-      const buildingType=r.BUILDING_TYPE||"", dealType=r.TRANSACCION_TYPE||"";
+      const buildingType=r.BUILDING_TYPE||"", dealType=r.TRANSACCION_TYPE||"", submarket=String(r.SUBMARKET||"").trim();
       const key=rawTenant ? [rawTenant,buildingType,dealType].map(v=>String(v).trim().toLowerCase()).join("|") : `__confidential_${i}`;
       const existing=groups.get(key);
-      if(existing) existing.areaSF+=areaSF;
-      else groups.set(key, {tenant, buildingType, dealType, areaSF});
+      if(existing){ existing.areaSF+=areaSF; if(submarket&&!existing.submarkets.some(x=>ciEq(x,submarket))) existing.submarkets.push(submarket); }
+      else groups.set(key, {tenant, buildingType, dealType, areaSF, submarkets:submarket?[submarket]:[]});
     });
-  return [...groups.values()].sort((a,b)=>b.areaSF-a.areaSF).slice(0, limit||4);
+  return [...groups.values()].map(g=>({...g, submarket:g.submarkets.join(", ")})).sort((a,b)=>b.areaSF-a.areaSF).slice(0, limit||4);
 }
 /* ==== Página 1: portada (Market/Absorption/Availability/Significant Transactions) ==== */
 /* Moneda de la portada (pedido explícito del usuario): Average Asking Price y Land Prices Min - Max toman
@@ -9712,7 +9771,7 @@ function mktBuildTxDetailPage(){
       const q=quarterOfDate(r.TRANSACTION_DATE);
       // Location ahora es SOLO el Parque (igual que Available Inventory — Detail) — Property Name (el
       // edificio) ya tiene su propia columna, mostrarlo también aquí sería redundante.
-      lines.push(`<tr><td>${escapeHtml(r.TENANT_BUYER_USER||"Confidential")}</td><td>${escapeHtml(r.PROPERTY_NAME||"")}</td><td>${escapeHtml(r.DEVELOPER||"")}</td><td>${escapeHtml(r.PARK_NAME||"")}</td><td class="num-cell">${num(resumenAreaVal(areaSF))}</td><td>${escapeHtml(r.BUILDING_TYPE||"")}</td><td class="mkt-center">${q?q+"Q":"—"}</td><td>${escapeHtml(r.TRANSACCION_TYPE||"")}</td><td>${escapeHtml(r.TENANT_REP_BROKER||"")}</td></tr>`);
+      lines.push(`<tr><td>${escapeHtml(r.TENANT_BUYER_USER||"Confidential")}</td><td>${escapeHtml(r.PROPERTY_NAME||"")}</td><td>${escapeHtml(r.DEVELOPER||"")}</td><td>${escapeHtml(r.PARK_NAME||"")}</td><td class="num-cell">${num(resumenAreaVal(areaSF))}</td><td class="mkt-center">${escapeHtml(r.BUILDING_TYPE||"")}</td><td class="mkt-center">${q?q+"Q":"—"}</td><td>${escapeHtml(r.TRANSACCION_TYPE||"")}</td><td class="mkt-center">${escapeHtml(r.TENANT_REP_BROKER||"")}</td></tr>`);
     });
   });
   if(!lines.length){
@@ -9867,7 +9926,7 @@ function mktBuildOverviewPage(){
   // row(label, values[] (uno por columna, último = TOTAL), opts) — values ya formateados (string)
   const row=(labelHtml, vals, cls, totalSuffix)=>`<tr${cls?` class="${cls}"`:""}><td>${labelHtml}</td>${vals.map((v,i)=>`<td class="num-cell${i===vals.length-1?" mkt-absorption-td-ytd":""}">${v}${i===vals.length-1&&totalSuffix?" "+totalSuffix:""}</td>`).join("")}</tr>`;
   const table=(label, rowsHtml)=>`<div class="mkt-box mkt-overview-box"><table class="mkt-table mkt-absorption-table mkt-overview-table">${colgroupHtml}${head(label)}<tbody>${rowsHtml}</tbody></table></div>`;
-  if(!subs.length) return `<div class="mkt-page">${mktPageHeaderHtml("Market Overview")}<div class="mkt-page-body"><p class="mkt-empty">No data.</p></div></div>`;
+  if(!subs.length) return `<div class="mkt-page">${mktPageHeaderHtml("Submarkets Overview")}<div class="mkt-page-body"><p class="mkt-empty">No data.</p></div></div>`;
   const P=(state.PROPIEDADES||[]).filter(r=>resumenMarketMatches(r,"PROPIEDADES")&&ciEq(r.STATUS,"Ready"));
   const inCol=(r,sm)=>sm==null||ciEq(r.SUBMARKET,sm);
   const isCls=(r,list)=>list.some(c=>ciEq(r.CLASSIFICATION,c));
@@ -9903,7 +9962,7 @@ function mktBuildOverviewPage(){
   const fx=getExchangeRate();
   const fxNoteHtml=CP.some(c=>c.usedFx)&&fx?`<div class="mkt-cover-fx-note">For reporting purposes, some values were converted using the DOF exchange rate of ${fx.value.toFixed(4)} MXN/USD (${fx.dofDate.split("-").reverse().join("/")}).</div>`:"";
   return `<div class="mkt-page">
-    ${mktPageHeaderHtml("Market Overview")}
+    ${mktPageHeaderHtml("Submarkets Overview")}
     <div class="mkt-page-body">
       ${table("Market Size", classRows(size, unit))}
       ${table("Count", classRows(count, ""))}
@@ -10049,9 +10108,9 @@ function mktBuildAbstractPage(){
       <svg class="mkt-abstract-kpi-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round">${MKT_ABSTRACT_ICONS[ic]}</svg>
       <div><div class="mkt-abstract-kpi-label">${escapeHtml(label)}</div>${sub?`<div class="mkt-abstract-kpi-sub">${escapeHtml(sub)}</div>`:""}<div class="mkt-abstract-kpi-value">${escapeHtml(val)}</div></div>
     </div>`).join("");
-  const sigTx=mktSignificantTransactions(5);
+  const sigTx=mktSignificantTransactions(10); // pedido del usuario: 10 transacciones (solo industriales) en Abstract
   const num=v=>Math.round(v).toLocaleString("en-US");
-  const sigTxRows=sigTx.length?sigTx.map(t=>`<tr><td>${escapeHtml(t.tenant)}</td><td>${escapeHtml(t.buildingType)}</td><td>${escapeHtml(t.dealType)}</td><td class="num-cell">${num(resumenAreaVal(t.areaSF))} ${unit}</td></tr>`).join("")
+  const sigTxRows=sigTx.length?sigTx.map(t=>`<tr><td>${escapeHtml(t.tenant)}</td><td>${escapeHtml(t.submarket)}</td><td>${escapeHtml(t.dealType)}</td><td class="num-cell">${num(resumenAreaVal(t.areaSF))} ${unit}</td></tr>`).join("")
     : `<tr><td colspan="4" class="mkt-empty">No transactions.</td></tr>`;
   const y=Number(resumenYear)||new Date().getFullYear();
   return `<div class="mkt-page mkt-cover-page mkt-abstract-page">
@@ -10074,7 +10133,7 @@ function mktBuildAbstractPage(){
       <div class="mkt-cover-logo-row"><div class="mkt-cover-logo"><img src="${MKT_REPORT_LOGO_SRC}" alt="Citius AG - Corporate Real Estate Advisors"></div></div>
       <div class="mkt-abstract-grid">
         <div class="mkt-box mkt-abstract-mapbox">
-          <div class="mkt-box-title">${escapeHtml(marketLabel)} Submarkets</div>
+          <div class="mkt-box-title">Submarkets</div>
           ${mktAbstractMapHtml(700, 365)}
         </div>
         <div class="mkt-box mkt-abstract-chartbox">
@@ -10083,7 +10142,7 @@ function mktBuildAbstractPage(){
         </div>
         <div class="mkt-box mkt-abstract-sigtx">
           <div class="mkt-box-title">Significant Transactions</div>
-          <table class="mkt-table mkt-sigtx-table mkt-absorption-table"><colgroup><col style="width:31%"><col style="width:20%"><col style="width:25%"><col style="width:24%"></colgroup><thead><tr><th class="mkt-absorption-th-label">Tenant/Buyer</th><th>Type</th><th>Transaction</th><th>Area</th></tr></thead><tbody>${sigTxRows}</tbody></table>
+          <table class="mkt-table mkt-sigtx-table mkt-absorption-table"><colgroup><col style="width:27%"><col style="width:27%"><col style="width:26%"><col style="width:20%"></colgroup><thead><tr><th class="mkt-absorption-th-label">Tenant/Buyer</th><th>Submarket</th><th>Transaction</th><th>Area</th></tr></thead><tbody>${sigTxRows}</tbody></table>
         </div>
       </div>
     </div>

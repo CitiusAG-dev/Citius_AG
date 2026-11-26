@@ -2479,7 +2479,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         <span class="nav-label">Settings</span>
         <span class="cfg-dot" id="cfgDot"></span>
       </button>
-      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.43.0</div>
+      <div class="app-version" title="View release notes" onclick="openReleaseNotes()">v8.43.1</div>
       <div class="fx-rate" id="fxRateLabel" onclick="selectConfigSection('fx')"></div>
     </nav>
   </aside>
@@ -5648,6 +5648,9 @@ function renderConfigSections(){
    con cada cambio que se sube (mismo hábito que ya existe de subir `.app-version` en el pie del menú) — no
    hay forma de generarla sola a partir de los comentarios, son audiencias/nivel de detalle distintos. */
 const RELEASE_NOTES=[
+  {version:"8.43.1", date:"2026-11-26", items:[
+    "Location catalog: new Offices submarkets — Guadalajara: Chapultepec, López Mateos Sur, Periférico - Vallarta, Plaza del Sol, Providencia - Zona Financiera, Puerta de Hierro; Queretaro: 5 de Febrero, Bernardo Quintana, Centro Sur, Centro - Constituyentes, Fray Junípero, Jurica - Juriquilla."
+  ]},
   {version:"8.43.0", date:"2026-11-26", items:[
     "Summary > KPI's: new \"Type\" selector to split the view into Industrial Buildings, Industrial Parks, Land and Offices (Offices includes Spaces). Each type shows its own markets, Compliance and Data Quality; Industrial Buildings keeps the KPIs, Absorption, Completed Transactions and Available Inventory.",
     "Market Report (PDF): only industrial markets, submarkets and transactions are used (in consolidated mode, office markets/submarkets no longer appear).",

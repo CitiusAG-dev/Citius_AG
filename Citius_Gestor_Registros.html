@@ -418,9 +418,6 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   .mkt-abstract-mapbox{grid-column:1/-1;grid-row:1;padding-bottom:0}
   .mkt-abstract-chartbox{grid-column:1;grid-row:2;display:flex;flex-direction:column}
   .mkt-abstract-sigtx{grid-column:2;grid-row:2}
-  /* Pedido del usuario: en Significant Transactions el texto que no cabe (ej. Submarket) pasa a otra línea, como "Wrap text" de Excel, en vez de encimarse con la celda de al lado. El Área se queda en 1 línea. */
-  .mkt-box .mkt-sigtx-table td{white-space:normal;overflow-wrap:anywhere;line-height:1.25;vertical-align:middle}
-  .mkt-box .mkt-sigtx-table td.num-cell{white-space:nowrap}
   .mkt-abstract-page .mkt-box-title{margin-bottom:15px} /* más aire entre el título de sección y su contenido (9px en la portada) */
   .mkt-abstract-map{position:relative;width:100%;overflow:hidden;background:#eef0f2}
   .mkt-abstract-map img{position:absolute;inset:0;width:100%;height:100%;display:block}
@@ -10104,7 +10101,7 @@ function mktBuildAbstractPage(){
     </div>`).join("");
   const sigTx=mktSignificantTransactions(10); // pedido del usuario: 10 transacciones (solo industriales) en Abstract
   const num=v=>Math.round(v).toLocaleString("en-US");
-  const sigTxRows=sigTx.length?sigTx.map(t=>`<tr><td>${escapeHtml(t.tenant)}</td><td>${escapeHtml(t.buildingType)}</td><td>${escapeHtml(t.dealType)}</td><td class="num-cell">${num(resumenAreaVal(t.areaSF))} ${unit}</td></tr>`).join("")
+  const sigTxRows=sigTx.length?sigTx.map(t=>`<tr><td>${escapeHtml(t.tenant)}</td><td>${escapeHtml(t.submarket)}</td><td>${escapeHtml(t.dealType)}</td><td class="num-cell">${num(resumenAreaVal(t.areaSF))} ${unit}</td></tr>`).join("")
     : `<tr><td colspan="4" class="mkt-empty">No transactions.</td></tr>`;
   const y=Number(resumenYear)||new Date().getFullYear();
   return `<div class="mkt-page mkt-cover-page mkt-abstract-page">
@@ -10136,7 +10133,7 @@ function mktBuildAbstractPage(){
         </div>
         <div class="mkt-box mkt-abstract-sigtx">
           <div class="mkt-box-title">Significant Transactions</div>
-          <table class="mkt-table mkt-sigtx-table mkt-absorption-table"><colgroup><col style="width:31%"><col style="width:20%"><col style="width:25%"><col style="width:24%"></colgroup><thead><tr><th class="mkt-absorption-th-label">Tenant/Buyer</th><th>Type</th><th>Transaction</th><th>Area</th></tr></thead><tbody>${sigTxRows}</tbody></table>
+          <table class="mkt-table mkt-sigtx-table mkt-absorption-table"><colgroup><col style="width:27%"><col style="width:27%"><col style="width:26%"><col style="width:20%"></colgroup><thead><tr><th class="mkt-absorption-th-label">Tenant/Buyer</th><th>Submarket</th><th>Transaction</th><th>Area</th></tr></thead><tbody>${sigTxRows}</tbody></table>
         </div>
       </div>
     </div>
